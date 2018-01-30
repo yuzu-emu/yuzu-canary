@@ -2,6 +2,22 @@
 
 Scroll down for the original README.md!
 
+Base revision: eaa9f968a629b8743f22a2277a5332942a3cd9d9
+
+|PR Number|Commit|Title|Author|Merge Success|
+|----|----|----|----|----|
+|[1](undefined)|775d663a4ca9a395c9ed168b29dc30ed473477f1|Canary Base|chris062689|true|
+|[94](undefined)|470055f051b301e98ac4b5a4f79835a2d85348ca|yuzu Canary Test|chris062689|false|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
+# Merge log
+
+Scroll down for the original README.md!
+
 Base revision: 449e32bb8190d7c7e1c19f93fa62578536b344e5
 
 |PR Number|Commit|Title|Author|Merge Success|
