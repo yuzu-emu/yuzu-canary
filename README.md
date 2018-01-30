@@ -1,4 +1,19 @@
-yuzu emulator
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 449e32bb8190d7c7e1c19f93fa62578536b344e5
+
+|PR Number|Commit|Title|Author|Merge Success|
+|----|----|----|----|----|
+|[94](undefined)|470055f051b301e98ac4b5a4f79835a2d85348ca|yuzu Canary Test|chris062689|true|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
+yuzu emulator (canary)
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
 [![AppVeyor CI Build Status](https://ci.appveyor.com/api/projects/status/77k97svb2usreu68?svg=true)](https://ci.appveyor.com/project/bunnei/yuzu)
