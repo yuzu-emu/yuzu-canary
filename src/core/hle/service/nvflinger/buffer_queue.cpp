@@ -40,7 +40,11 @@ u32 BufferQueue::DequeueBuffer(u32 pixel_format, u32 width, u32 height) {
         return igbp_buffer.format == pixel_format && igbp_buffer.width == width &&
                igbp_buffer.height == height;
     });
-    ASSERT(itr != queue.end());
+    if (itr == queue.end()) {
+        LOG_CRITICAL(Service_NVDRV, "no free buffers for pixel_format=%d, width=%d, height=%d",
+                     pixel_format, width, height);
+        itr = queue.begin();
+    }
 
     itr->status = Buffer::Status::Dequeued;
     return itr->slot;

@@ -9,15 +9,15 @@
 namespace Service {
 namespace APM {
 
-enum class PerformanceMode : u8 {
-    Handheld = 0,
-    Docked = 1,
-};
-
-class Module final {
+class APM final : public ServiceFramework<APM> {
 public:
-    Module() = default;
-    ~Module() = default;
+    APM(std::shared_ptr<Module> apm, const char* name);
+    ~APM() = default;
+
+private:
+    void OpenSession(Kernel::HLERequestContext& ctx);
+
+    std::shared_ptr<Module> apm;
 };
 
 /// Registers all AM services with the specified service manager.

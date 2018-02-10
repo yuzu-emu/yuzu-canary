@@ -92,6 +92,8 @@ add_library(core STATIC
     hle/service/aoc/aoc_u.h
     hle/service/apm/apm.cpp
     hle/service/apm/apm.h
+    hle/service/apm/interface.cpp
+    hle/service/apm/interface.h
     hle/service/audio/audio.cpp
     hle/service/audio/audio.h
     hle/service/audio/audin_u.cpp

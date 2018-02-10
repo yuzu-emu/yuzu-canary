@@ -23,6 +23,7 @@ private:
     void TryLoadRomFS();
 
     void Initalize(Kernel::HLERequestContext& ctx);
+    void MountSdCard(Kernel::HLERequestContext& ctx);
     void GetGlobalAccessLogMode(Kernel::HLERequestContext& ctx);
     void OpenDataStorageByCurrentProcess(Kernel::HLERequestContext& ctx);
     void OpenRomStorage(Kernel::HLERequestContext& ctx);

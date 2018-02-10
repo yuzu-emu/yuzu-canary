@@ -70,6 +70,7 @@ private:
 FSP_SRV::FSP_SRV() : ServiceFramework("fsp-srv") {
     static const FunctionInfo functions[] = {
         {1, &FSP_SRV::Initalize, "Initalize"},
+        {18, &FSP_SRV::MountSdCard, "MountSdCard"},
         {200, &FSP_SRV::OpenDataStorageByCurrentProcess, "OpenDataStorageByCurrentProcess"},
         {202, nullptr, "OpenDataStorageByDataId"},
         {203, &FSP_SRV::OpenRomStorage, "OpenRomStorage"},
@@ -90,6 +91,13 @@ void FSP_SRV::TryLoadRomFS() {
 }
 
 void FSP_SRV::Initalize(Kernel::HLERequestContext& ctx) {
+    LOG_WARNING(Service_FS, "(STUBBED) called");
+
+    IPC::ResponseBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+}
+
+void FSP_SRV::MountSdCard(Kernel::HLERequestContext& ctx) {
     LOG_WARNING(Service_FS, "(STUBBED) called");
 
     IPC::ResponseBuilder rb{ctx, 2};
