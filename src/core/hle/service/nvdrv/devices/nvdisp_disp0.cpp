@@ -26,14 +26,21 @@ void nvdisp_disp0::flip(u32 buffer_handle, u32 offset, u32 format, u32 width, u3
                 "Drawing from address %lx offset %08X Width %u Height %u Stride %u Format %u", addr,
                 offset, width, height, stride, format);
 
-    using PixelFormat = RendererBase::FramebufferInfo::PixelFormat;
+    using PixelFormat = Tegra::FramebufferConfig::PixelFormat;
     using Flags = NVFlinger::BufferQueue::BufferTransformFlags;
     const bool flip_vertical = static_cast<u32>(transform) & static_cast<u32>(Flags::FlipV);
-    const RendererBase::FramebufferInfo framebuffer_info{
+    const Tegra::FramebufferConfig framebuffer{
         addr, offset, width, height, stride, static_cast<PixelFormat>(format), flip_vertical};
 
     Core::System::GetInstance().perf_stats.EndGameFrame();
-    VideoCore::g_renderer->SwapBuffers(framebuffer_info);
+
+    // TODO(bunnei): The framebuffer region should only be flushed and invalidated if it is written
+    // to, not every frame. When we find the right place for this, the below line can be removed.
+    Memory::RasterizerFlushVirtualRegion(framebuffer.address,
+                                         framebuffer.width * framebuffer.height * 4,
+                                         Memory::FlushMode::FlushAndInvalidate);
+
+    VideoCore::g_renderer->SwapBuffers(framebuffer);
 }
 
 } // namespace Devices

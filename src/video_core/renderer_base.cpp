@@ -5,6 +5,11 @@
 #include <atomic>
 #include <memory>
 #include "video_core/renderer_base.h"
+#include "video_core/renderer_opengl/gl_rasterizer.h"
 #include "video_core/video_core.h"
 
-void RendererBase::RefreshRasterizerSetting() {}
+void RendererBase::RefreshRasterizerSetting() {
+    if (rasterizer == nullptr) {
+        rasterizer = std::make_unique<RasterizerOpenGL>();
+    }
+}
