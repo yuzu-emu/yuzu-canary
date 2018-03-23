@@ -22,15 +22,16 @@
 #include "common/common_funcs.h"
 #include "common/common_types.h"
 #include "common/math_util.h"
+#include "video_core/gpu.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 
 struct CachedSurface;
 using Surface = std::shared_ptr<CachedSurface>;
 using SurfaceSet = std::set<Surface>;
 
-using SurfaceRegions = boost::icl::interval_set<PAddr>;
-using SurfaceMap = boost::icl::interval_map<PAddr, Surface>;
-using SurfaceCache = boost::icl::interval_map<PAddr, SurfaceSet>;
+using SurfaceRegions = boost::icl::interval_set<VAddr>;
+using SurfaceMap = boost::icl::interval_map<VAddr, Surface>;
+using SurfaceCache = boost::icl::interval_map<VAddr, SurfaceSet>;
 
 using SurfaceInterval = SurfaceCache::interval_type;
 static_assert(std::is_same<SurfaceRegions::interval_type, SurfaceCache::interval_type>() &&
@@ -113,6 +114,15 @@ struct SurfaceParams {
     }
     unsigned int GetFormatBpp() const {
         return GetFormatBpp(pixel_format);
+    }
+
+    static PixelFormat PixelFormatFromGPUPixelFormat(Tegra::FramebufferConfig::PixelFormat format) {
+        switch (format) {
+        case Tegra::FramebufferConfig::PixelFormat::ABGR8:
+            return PixelFormat::RGBA8;
+        default:
+            UNREACHABLE();
+        }
     }
 
     static bool CheckFormatsBlittable(PixelFormat pixel_format_a, PixelFormat pixel_format_b) {
@@ -211,8 +221,8 @@ struct SurfaceParams {
     MathUtil::Rectangle<u32> GetSubRect(const SurfaceParams& sub_surface) const;
     MathUtil::Rectangle<u32> GetScaledSubRect(const SurfaceParams& sub_surface) const;
 
-    PAddr addr = 0;
-    PAddr end = 0;
+    VAddr addr = 0;
+    VAddr end = 0;
     u64 size = 0;
 
     u32 width = 0;
@@ -257,9 +267,9 @@ struct CachedSurface : SurfaceParams {
     std::unique_ptr<u8[]> gl_buffer;
     size_t gl_buffer_size = 0;
 
-    // Read/Write data in 3DS memory to/from gl_buffer
-    void LoadGLBuffer(PAddr load_start, PAddr load_end);
-    void FlushGLBuffer(PAddr flush_start, PAddr flush_end);
+    // Read/Write data in Switch memory to/from gl_buffer
+    void LoadGLBuffer(VAddr load_start, VAddr load_end);
+    void FlushGLBuffer(VAddr flush_start, VAddr flush_end);
 
     // Upload/Download data in gl_buffer in/to this surface's texture
     void UploadGLTexture(const MathUtil::Rectangle<u32>& rect, GLuint read_fb_handle,
@@ -307,10 +317,10 @@ public:
     SurfaceRect_Tuple GetTexCopySurface(const SurfaceParams& params);
 
     /// Write any cached resources overlapping the region back to memory (if dirty)
-    void FlushRegion(PAddr addr, u64 size, Surface flush_surface = nullptr);
+    void FlushRegion(VAddr addr, u64 size, Surface flush_surface = nullptr);
 
     /// Mark region as being invalidated by region_owner (nullptr if 3DS memory)
-    void InvalidateRegion(PAddr addr, u64 size, const Surface& region_owner);
+    void InvalidateRegion(VAddr addr, u64 size, const Surface& region_owner);
 
     /// Flush all cached resources tracked by this cache manager
     void FlushAll();
@@ -319,7 +329,7 @@ private:
     void DuplicateSurface(const Surface& src_surface, const Surface& dest_surface);
 
     /// Update surface's texture for given region when necessary
-    void ValidateSurface(const Surface& surface, PAddr addr, u64 size);
+    void ValidateSurface(const Surface& surface, VAddr addr, u64 size);
 
     /// Create a new surface
     Surface CreateSurface(const SurfaceParams& params);
@@ -331,7 +341,7 @@ private:
     void UnregisterSurface(const Surface& surface);
 
     /// Increase/decrease the number of surface in pages touching the specified region
-    void UpdatePagesCachedCount(PAddr addr, u64 size, int delta);
+    void UpdatePagesCachedCount(VAddr addr, u64 size, int delta);
 
     SurfaceCache surface_cache;
     PageMap cached_pages;
