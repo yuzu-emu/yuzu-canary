@@ -7,6 +7,7 @@
 #include <array>
 #include <unordered_map>
 #include <vector>
+#include "common/assert.h"
 #include "common/bit_field.h"
 #include "common/common_funcs.h"
 #include "common/common_types.h"
@@ -62,6 +63,107 @@ public:
             Fragment = 4,
         };
 
+        enum class VertexSize : u32 {
+            Size_32_32_32_32 = 0x01,
+            Size_32_32_32 = 0x02,
+            Size_16_16_16_16 = 0x03,
+            Size_32_32 = 0x04,
+            Size_16_16_16 = 0x05,
+            Size_8_8_8_8 = 0x0a,
+            Size_16_16 = 0x0f,
+            Size_32 = 0x12,
+            Size_8_8_8 = 0x13,
+            Size_8_8 = 0x18,
+            Size_16 = 0x1b,
+            Size_8 = 0x1d,
+            Size_10_10_10_2 = 0x30,
+            Size_11_11_10 = 0x31,
+        };
+
+        static std::string VertexSizeToString(VertexSize vertex_size) {
+            switch (vertex_size) {
+            case VertexSize::Size_32_32_32_32:
+                return "32_32_32_32";
+            case VertexSize::Size_32_32_32:
+                return "32_32_32";
+            case VertexSize::Size_16_16_16_16:
+                return "16_16_16_16";
+            case VertexSize::Size_32_32:
+                return "32_32";
+            case VertexSize::Size_16_16_16:
+                return "16_16_16";
+            case VertexSize::Size_8_8_8_8:
+                return "8_8_8_8";
+            case VertexSize::Size_16_16:
+                return "16_16";
+            case VertexSize::Size_32:
+                return "32";
+            case VertexSize::Size_8_8_8:
+                return "8_8_8";
+            case VertexSize::Size_8_8:
+                return "8_8";
+            case VertexSize::Size_16:
+                return "16";
+            case VertexSize::Size_8:
+                return "8";
+            case VertexSize::Size_10_10_10_2:
+                return "10_10_10_2";
+            case VertexSize::Size_11_11_10:
+                return "11_11_10";
+            }
+            UNIMPLEMENTED();
+            return {};
+        }
+
+        enum class VertexType : u32 {
+            SignedNorm = 1,
+            UnsignedNorm = 2,
+            SignedInt = 3,
+            UnsignedInt = 4,
+            UnsignedScaled = 5,
+            SignedScaled = 6,
+            Float = 7,
+        };
+
+        static std::string VertexTypeToString(VertexType vertex_type) {
+            switch (vertex_type) {
+            case VertexType::SignedNorm:
+                return "SignedNorm";
+            case VertexType::UnsignedNorm:
+                return "UnsignedNorm";
+            case VertexType::SignedInt:
+                return "SignedInt";
+            case VertexType::UnsignedInt:
+                return "UnsignedInt";
+            case VertexType::UnsignedScaled:
+                return "UnsignedScaled";
+            case VertexType::SignedScaled:
+                return "SignedScaled";
+            case VertexType::Float:
+                return "Float";
+            }
+            UNIMPLEMENTED();
+            return {};
+        }
+
+        enum class PrimitiveTopology : u32 {
+            Points = 0x0,
+            Lines = 0x1,
+            LineLoop = 0x2,
+            LineStrip = 0x3,
+            Triangles = 0x4,
+            TriangleStrip = 0x5,
+            TriangleFan = 0x6,
+            Quads = 0x7,
+            QuadStrip = 0x8,
+            Polygon = 0x9,
+            LinesAdjacency = 0xa,
+            LineStripAdjacency = 0xb,
+            TrianglesAdjacency = 0xc,
+            TriangleStripAdjacency = 0xd,
+            Patches = 0xe,
+        };
+
         union {
             struct {
                 INSERT_PADDING_WORDS(0x200);
@@ -112,8 +214,8 @@ public:
                     BitField<0, 5, u32> buffer;
                     BitField<6, 1, u32> constant;
                     BitField<7, 14, u32> offset;
-                    BitField<21, 6, u32> size;
-                    BitField<27, 3, u32> type;
+                    BitField<21, 6, VertexSize> size;
+                    BitField<27, 3, VertexType> type;
                     BitField<31, 1, u32> bgra;
                 } vertex_attrib_format[NumVertexAttributes];
 
@@ -163,13 +265,15 @@ public:
                     }
                 } code_address;
                 INSERT_PADDING_WORDS(1);
+
                 struct {
                     u32 vertex_end_gl;
                     union {
                         u32 vertex_begin_gl;
-                        BitField<0, 16, u32> topology;
+                        BitField<0, 16, PrimitiveTopology> topology;
                     };
                 } draw;
+
                 INSERT_PADDING_WORDS(0x139);
                 struct {
                     u32 query_address_high;
