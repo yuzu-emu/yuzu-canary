@@ -12,6 +12,35 @@
 
 namespace Tegra {
 
+/**
+ * Struct describing framebuffer configuration
+ */
+struct FramebufferConfig {
+    enum class PixelFormat : u32 {
+        ABGR8 = 1,
+    };
+
+    /**
+     * Returns the number of bytes per pixel.
+     */
+    static u32 BytesPerPixel(PixelFormat format) {
+        switch (format) {
+        case PixelFormat::ABGR8:
+            return 4;
+        }
+
+        UNREACHABLE();
+    }
+
+    VAddr address;
+    u32 offset;
+    u32 width;
+    u32 height;
+    u32 stride;
+    PixelFormat pixel_format;
+    bool flip_vertical;
+};
+
 namespace Engines {
 class Fermi2D;
 class Maxwell3D;
@@ -35,6 +64,10 @@ public:
     void ProcessCommandList(GPUVAddr address, u32 size);
 
     std::unique_ptr<MemoryManager> memory_manager;
+
+    Engines::Maxwell3D& Maxwell3D() {
+        return *maxwell_3d;
+    }
 
 private:
     static constexpr u32 InvalidGraphMacroEntry = 0xFFFFFFFF;
