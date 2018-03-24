@@ -36,7 +36,10 @@ enum class PageType : u8 {
     Unmapped,
     /// Page is mapped to regular memory. This is the only type you can get pointers to.
     Memory,
-    /// Page is mapped to a memory hook, which intercepts read and write requests.
+    /// Page is mapped to regular memory, but also needs to check for rasterizer cache flushing and
+    /// invalidation
+    RasterizerCachedMemory,
+    /// Page is mapped to a I/O region. Writing and reading to this page is handled by functions.
     Special,
 };
 
@@ -241,5 +244,20 @@ boost::optional<VAddr> PhysicalToVirtualAddress(PAddr addr);
  * Gets a pointer to the memory region beginning at the specified physical address.
  */
 u8* GetPhysicalPointer(PAddr address);
+
+enum class FlushMode {
+    /// Write back modified surfaces to RAM
+    Flush,
+    /// Remove region from the cache
+    Invalidate,
+    /// Write back modified surfaces to RAM, and also remove them from the cache
+    FlushAndInvalidate,
+};
+
+/**
+ * Flushes and invalidates any externally cached rasterizer resources touching the given virtual
+ * address region.
+ */
+void RasterizerFlushVirtualRegion(VAddr start, u64 size, FlushMode mode);
 
 } // namespace Memory

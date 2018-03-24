@@ -54,6 +54,8 @@ static void SetShaderUniformBlockBindings(GLuint shader) {
 }
 
 RasterizerOpenGL::RasterizerOpenGL() {
+    shader_dirty = true;
+
     has_ARB_buffer_storage = false;
     has_ARB_direct_state_access = false;
     has_ARB_separate_shader_objects = false;
@@ -106,8 +108,6 @@ RasterizerOpenGL::RasterizerOpenGL() {
         state.draw.vertex_buffer = stream_buffer->GetHandle();
 
         pipeline.Create();
-        vs_input_index_min = 0;
-        vs_input_index_max = 0;
         state.draw.program_pipeline = pipeline.handle;
         state.draw.shader_program = 0;
         state.draw.vertex_array = hw_vao.handle;
@@ -120,7 +120,7 @@ RasterizerOpenGL::RasterizerOpenGL() {
         glBufferData(GL_UNIFORM_BUFFER, sizeof(VSUniformData), nullptr, GL_STREAM_COPY);
         glBindBufferBase(GL_UNIFORM_BUFFER, 1, vs_uniform_buffer.handle);
     } else {
-        UNIMPLEMENTED();
+        ASSERT_MSG(false, "Unimplemented");
     }
 
     accelerate_draw = AccelDraw::Disabled;
@@ -167,12 +167,12 @@ void RasterizerOpenGL::SetupVertexShader(VSUniformData* ub_ptr, GLintptr buffer_
 
 void RasterizerOpenGL::SetupFragmentShader(FSUniformData* ub_ptr, GLintptr buffer_offset) {
     MICROPROFILE_SCOPE(OpenGL_FS);
-    UNIMPLEMENTED();
+    ASSERT_MSG(false, "Unimplemented");
 }
 
 bool RasterizerOpenGL::AccelerateDrawBatch(bool is_indexed) {
     if (!has_ARB_separate_shader_objects) {
-        UNIMPLEMENTED();
+        ASSERT_MSG(false, "Unimplemented");
         return false;
     }
 
@@ -194,17 +194,17 @@ void RasterizerOpenGL::FlushAll() {
     res_cache.FlushAll();
 }
 
-void RasterizerOpenGL::FlushRegion(PAddr addr, u32 size) {
+void RasterizerOpenGL::FlushRegion(VAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.FlushRegion(addr, size);
 }
 
-void RasterizerOpenGL::InvalidateRegion(PAddr addr, u32 size) {
+void RasterizerOpenGL::InvalidateRegion(VAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.InvalidateRegion(addr, size, nullptr);
 }
 
-void RasterizerOpenGL::FlushAndInvalidateRegion(PAddr addr, u32 size) {
+void RasterizerOpenGL::FlushAndInvalidateRegion(VAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.FlushRegion(addr, size);
     res_cache.InvalidateRegion(addr, size, nullptr);
@@ -212,58 +212,144 @@ void RasterizerOpenGL::FlushAndInvalidateRegion(PAddr addr, u32 size) {
 
 bool RasterizerOpenGL::AccelerateDisplayTransfer(const void* config) {
     MICROPROFILE_SCOPE(OpenGL_Blits);
-    UNIMPLEMENTED();
+    ASSERT_MSG(false, "Unimplemented");
     return true;
 }
 
 bool RasterizerOpenGL::AccelerateTextureCopy(const void* config) {
-    UNIMPLEMENTED();
+    ASSERT_MSG(false, "Unimplemented");
     return true;
 }
 
 bool RasterizerOpenGL::AccelerateFill(const void* config) {
-    UNIMPLEMENTED();
+    ASSERT_MSG(false, "Unimplemented");
     return true;
 }
 
-bool RasterizerOpenGL::AccelerateDisplay(const void* config, PAddr framebuffer_addr,
-                                         u32 pixel_stride, ScreenInfo& screen_info) {
-    UNIMPLEMENTED();
+bool RasterizerOpenGL::AccelerateDisplay(const Tegra::FramebufferConfig& framebuffer,
+                                         VAddr framebuffer_addr, u32 pixel_stride,
+                                         ScreenInfo& screen_info) {
+    if (framebuffer_addr == 0) {
+        return false;
+    }
+    MICROPROFILE_SCOPE(OpenGL_CacheManagement);
+
+    SurfaceParams src_params;
+    src_params.addr = framebuffer_addr;
+    src_params.width = std::min(framebuffer.width, pixel_stride);
+    src_params.height = framebuffer.height;
+    src_params.stride = pixel_stride;
+    src_params.is_tiled = false;
+    src_params.pixel_format =
+        SurfaceParams::PixelFormatFromGPUPixelFormat(framebuffer.pixel_format);
+    src_params.UpdateParams();
+
+    MathUtil::Rectangle<u32> src_rect;
+    Surface src_surface;
+    std::tie(src_surface, src_rect) =
+        res_cache.GetSurfaceSubRect(src_params, ScaleMatch::Ignore, true);
+
+    if (src_surface == nullptr) {
+        return false;
+    }
+
+    u32 scaled_width = src_surface->GetScaledWidth();
+    u32 scaled_height = src_surface->GetScaledHeight();
+
+    screen_info.display_texcoords = MathUtil::Rectangle<float>(
+        (float)src_rect.bottom / (float)scaled_height, (float)src_rect.left / (float)scaled_width,
+        (float)src_rect.top / (float)scaled_height, (float)src_rect.right / (float)scaled_width);
+
+    screen_info.display_texture = src_surface->texture.handle;
+
     return true;
 }
 
 void RasterizerOpenGL::SetShader() {
-    UNIMPLEMENTED();
+    // TODO(bunnei): The below sets up a static test shader for passing untransformed vertices to
+    // OpenGL for rendering. This should be removed/replaced when we start emulating Maxwell
+    // shaders.
+
+    static constexpr char vertex_shader[] = R"(
+#version 150 core
+
+in vec2 vert_position;
+in vec2 vert_tex_coord;
+out vec2 frag_tex_coord;
+
+void main() {
+    // Multiply input position by the rotscale part of the matrix and then manually translate by
+    // the last column. This is equivalent to using a full 3x3 matrix and expanding the vector
+    // to `vec3(vert_position.xy, 1.0)`
+    gl_Position = vec4(mat2(mat3x2(0.0015625f, 0.0, 0.0, -0.0027778, -1.0, 1.0)) * vert_position + mat3x2(0.0015625f, 0.0, 0.0, -0.0027778, -1.0, 1.0)[2], 0.0, 1.0);
+    frag_tex_coord = vert_tex_coord;
+}
+)";
+
+    static constexpr char fragment_shader[] = R"(
+#version 150 core
+
+in vec2 frag_tex_coord;
+out vec4 color;
+
+uniform sampler2D color_texture;
+
+void main() {
+    color = vec4(1.0, 0.0, 0.0, 1.0);
+}
+)";
+
+    if (current_shader) {
+        return;
+    }
+
+    LOG_ERROR(HW_GPU, "Emulated shaders are not supported! Using a passthrough shader.");
+
+    current_shader = &test_shader;
+    if (has_ARB_separate_shader_objects) {
+        test_shader.shader.Create(vertex_shader, nullptr, fragment_shader, {}, true);
+        glActiveShaderProgram(pipeline.handle, test_shader.shader.handle);
+    } else {
+        ASSERT_MSG(false, "Unimplemented");
+    }
+
+    state.draw.shader_program = test_shader.shader.handle;
+    state.Apply();
+
+    if (has_ARB_separate_shader_objects) {
+        state.draw.shader_program = 0;
+        state.Apply();
+    }
 }
 
 void RasterizerOpenGL::SyncClipEnabled() {
-    UNIMPLEMENTED();
+    ASSERT_MSG(false, "Unimplemented");
 }
 
 void RasterizerOpenGL::SyncClipCoef() {
-    UNIMPLEMENTED();
+    ASSERT_MSG(false, "Unimplemented");
 }
 
 void RasterizerOpenGL::SyncCullMode() {
-    UNIMPLEMENTED();
+    ASSERT_MSG(false, "Unimplemented");
 }
 
 void RasterizerOpenGL::SyncDepthScale() {
-    UNIMPLEMENTED();
+    ASSERT_MSG(false, "Unimplemented");
 }
 
 void RasterizerOpenGL::SyncDepthOffset() {
-    UNIMPLEMENTED();
+    ASSERT_MSG(false, "Unimplemented");
 }
 
 void RasterizerOpenGL::SyncBlendEnabled() {
-    UNIMPLEMENTED();
+    ASSERT_MSG(false, "Unimplemented");
 }
 
 void RasterizerOpenGL::SyncBlendFuncs() {
-    UNIMPLEMENTED();
+    ASSERT_MSG(false, "Unimplemented");
 }
 
 void RasterizerOpenGL::SyncBlendColor() {
-    UNIMPLEMENTED();
+    ASSERT_MSG(false, "Unimplemented");
 }

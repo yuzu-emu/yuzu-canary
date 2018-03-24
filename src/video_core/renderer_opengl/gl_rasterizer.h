@@ -32,15 +32,21 @@ public:
     void DrawTriangles() override;
     void NotifyMaxwellRegisterChanged(u32 id) override;
     void FlushAll() override;
-    void FlushRegion(PAddr addr, u32 size) override;
-    void InvalidateRegion(PAddr addr, u32 size) override;
-    void FlushAndInvalidateRegion(PAddr addr, u32 size) override;
+    void FlushRegion(VAddr addr, u64 size) override;
+    void InvalidateRegion(VAddr addr, u64 size) override;
+    void FlushAndInvalidateRegion(VAddr addr, u64 size) override;
     bool AccelerateDisplayTransfer(const void* config) override;
     bool AccelerateTextureCopy(const void* config) override;
     bool AccelerateFill(const void* config) override;
-    bool AccelerateDisplay(const void* config, PAddr framebuffer_addr, u32 pixel_stride,
-                           ScreenInfo& screen_info) override;
+    bool AccelerateDisplay(const Tegra::FramebufferConfig& framebuffer, VAddr framebuffer_addr,
+                           u32 pixel_stride, ScreenInfo& screen_info) override;
     bool AccelerateDrawBatch(bool is_indexed) override;
+
+    /// OpenGL shader generated for a given Maxwell register state
+    struct MaxwellShader {
+        /// OpenGL shader resource
+        OGLShader shader;
+    };
 
     struct VertexShader {
         OGLShader shader;
@@ -117,6 +123,12 @@ private:
 
     RasterizerCacheOpenGL res_cache;
 
+    /// Shader used for test renderering - to be removed once we have emulated shaders
+    MaxwellShader test_shader{};
+
+    const MaxwellShader* current_shader{};
+    bool shader_dirty{};
+
     struct {
         UniformData data;
         bool dirty;
@@ -136,8 +148,6 @@ private:
     static constexpr size_t STREAM_BUFFER_SIZE = 4 * 1024 * 1024;
     std::unique_ptr<OGLStreamBuffer> stream_buffer;
 
-    GLint vs_input_index_min;
-    GLint vs_input_index_max;
     GLsizeiptr vs_input_size;
 
     void AnalyzeVertexArray(bool is_indexed);

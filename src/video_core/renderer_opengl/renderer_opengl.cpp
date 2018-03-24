@@ -20,6 +20,7 @@
 #include "core/settings.h"
 #include "core/tracer/recorder.h"
 #include "video_core/renderer_opengl/renderer_opengl.h"
+#include "video_core/utils.h"
 #include "video_core/video_core.h"
 
 static const char vertex_shader[] = R"(
@@ -98,22 +99,22 @@ RendererOpenGL::RendererOpenGL() = default;
 RendererOpenGL::~RendererOpenGL() = default;
 
 /// Swap buffers (render frame)
-void RendererOpenGL::SwapBuffers(boost::optional<const FramebufferInfo&> framebuffer_info) {
+void RendererOpenGL::SwapBuffers(boost::optional<const Tegra::FramebufferConfig&> framebuffer) {
     // Maintain the rasterizer's state as a priority
     OpenGLState prev_state = OpenGLState::GetCurState();
     state.Apply();
 
-    if (framebuffer_info != boost::none) {
-        // If framebuffer_info is provided, reload it from memory to a texture
-        if (screen_info.texture.width != (GLsizei)framebuffer_info->width ||
-            screen_info.texture.height != (GLsizei)framebuffer_info->height ||
-            screen_info.texture.pixel_format != framebuffer_info->pixel_format) {
+    if (framebuffer != boost::none) {
+        // If framebuffer is provided, reload it from memory to a texture
+        if (screen_info.texture.width != (GLsizei)framebuffer->width ||
+            screen_info.texture.height != (GLsizei)framebuffer->height ||
+            screen_info.texture.pixel_format != framebuffer->pixel_format) {
             // Reallocate texture if the framebuffer size has changed.
             // This is expected to not happen very often and hence should not be a
             // performance problem.
-            ConfigureFramebufferTexture(screen_info.texture, *framebuffer_info);
+            ConfigureFramebufferTexture(screen_info.texture, *framebuffer);
         }
-        LoadFBToScreenInfo(*framebuffer_info, screen_info);
+        LoadFBToScreenInfo(*framebuffer, screen_info);
     }
 
     DrawScreens();
@@ -131,164 +132,59 @@ void RendererOpenGL::SwapBuffers(boost::optional<const FramebufferInfo&> framebu
     RefreshRasterizerSetting();
 }
 
-static inline u32 MortonInterleave128(u32 x, u32 y) {
-    // 128x128 Z-Order coordinate from 2D coordinates
-    static constexpr u32 xlut[] = {
-        0x0000, 0x0001, 0x0002, 0x0003, 0x0008, 0x0009, 0x000a, 0x000b, 0x0040, 0x0041, 0x0042,
-        0x0043, 0x0048, 0x0049, 0x004a, 0x004b, 0x0800, 0x0801, 0x0802, 0x0803, 0x0808, 0x0809,
-        0x080a, 0x080b, 0x0840, 0x0841, 0x0842, 0x0843, 0x0848, 0x0849, 0x084a, 0x084b, 0x1000,
-        0x1001, 0x1002, 0x1003, 0x1008, 0x1009, 0x100a, 0x100b, 0x1040, 0x1041, 0x1042, 0x1043,
-        0x1048, 0x1049, 0x104a, 0x104b, 0x1800, 0x1801, 0x1802, 0x1803, 0x1808, 0x1809, 0x180a,
-        0x180b, 0x1840, 0x1841, 0x1842, 0x1843, 0x1848, 0x1849, 0x184a, 0x184b, 0x2000, 0x2001,
-        0x2002, 0x2003, 0x2008, 0x2009, 0x200a, 0x200b, 0x2040, 0x2041, 0x2042, 0x2043, 0x2048,
-        0x2049, 0x204a, 0x204b, 0x2800, 0x2801, 0x2802, 0x2803, 0x2808, 0x2809, 0x280a, 0x280b,
-        0x2840, 0x2841, 0x2842, 0x2843, 0x2848, 0x2849, 0x284a, 0x284b, 0x3000, 0x3001, 0x3002,
-        0x3003, 0x3008, 0x3009, 0x300a, 0x300b, 0x3040, 0x3041, 0x3042, 0x3043, 0x3048, 0x3049,
-        0x304a, 0x304b, 0x3800, 0x3801, 0x3802, 0x3803, 0x3808, 0x3809, 0x380a, 0x380b, 0x3840,
-        0x3841, 0x3842, 0x3843, 0x3848, 0x3849, 0x384a, 0x384b, 0x0000, 0x0001, 0x0002, 0x0003,
-        0x0008, 0x0009, 0x000a, 0x000b, 0x0040, 0x0041, 0x0042, 0x0043, 0x0048, 0x0049, 0x004a,
-        0x004b, 0x0800, 0x0801, 0x0802, 0x0803, 0x0808, 0x0809, 0x080a, 0x080b, 0x0840, 0x0841,
-        0x0842, 0x0843, 0x0848, 0x0849, 0x084a, 0x084b, 0x1000, 0x1001, 0x1002, 0x1003, 0x1008,
-        0x1009, 0x100a, 0x100b, 0x1040, 0x1041, 0x1042, 0x1043, 0x1048, 0x1049, 0x104a, 0x104b,
-        0x1800, 0x1801, 0x1802, 0x1803, 0x1808, 0x1809, 0x180a, 0x180b, 0x1840, 0x1841, 0x1842,
-        0x1843, 0x1848, 0x1849, 0x184a, 0x184b, 0x2000, 0x2001, 0x2002, 0x2003, 0x2008, 0x2009,
-        0x200a, 0x200b, 0x2040, 0x2041, 0x2042, 0x2043, 0x2048, 0x2049, 0x204a, 0x204b, 0x2800,
-        0x2801, 0x2802, 0x2803, 0x2808, 0x2809, 0x280a, 0x280b, 0x2840, 0x2841, 0x2842, 0x2843,
-        0x2848, 0x2849, 0x284a, 0x284b, 0x3000, 0x3001, 0x3002, 0x3003, 0x3008, 0x3009, 0x300a,
-        0x300b, 0x3040, 0x3041, 0x3042, 0x3043, 0x3048, 0x3049, 0x304a, 0x304b, 0x3800, 0x3801,
-        0x3802, 0x3803, 0x3808, 0x3809, 0x380a, 0x380b, 0x3840, 0x3841, 0x3842, 0x3843, 0x3848,
-        0x3849, 0x384a, 0x384b, 0x0000, 0x0001, 0x0002, 0x0003, 0x0008, 0x0009, 0x000a, 0x000b,
-        0x0040, 0x0041, 0x0042, 0x0043, 0x0048, 0x0049, 0x004a, 0x004b, 0x0800, 0x0801, 0x0802,
-        0x0803, 0x0808, 0x0809, 0x080a, 0x080b, 0x0840, 0x0841, 0x0842, 0x0843, 0x0848, 0x0849,
-        0x084a, 0x084b, 0x1000, 0x1001, 0x1002, 0x1003, 0x1008, 0x1009, 0x100a, 0x100b, 0x1040,
-        0x1041, 0x1042, 0x1043, 0x1048, 0x1049, 0x104a, 0x104b, 0x1800, 0x1801, 0x1802, 0x1803,
-        0x1808, 0x1809, 0x180a, 0x180b, 0x1840, 0x1841, 0x1842, 0x1843, 0x1848, 0x1849, 0x184a,
-        0x184b, 0x2000, 0x2001, 0x2002, 0x2003, 0x2008, 0x2009, 0x200a, 0x200b, 0x2040, 0x2041,
-        0x2042, 0x2043, 0x2048, 0x2049, 0x204a, 0x204b, 0x2800, 0x2801, 0x2802, 0x2803, 0x2808,
-        0x2809, 0x280a, 0x280b, 0x2840, 0x2841, 0x2842, 0x2843, 0x2848, 0x2849, 0x284a, 0x284b,
-        0x3000, 0x3001, 0x3002, 0x3003, 0x3008, 0x3009, 0x300a, 0x300b, 0x3040, 0x3041, 0x3042,
-        0x3043, 0x3048, 0x3049, 0x304a, 0x304b, 0x3800, 0x3801, 0x3802, 0x3803, 0x3808, 0x3809,
-        0x380a, 0x380b, 0x3840, 0x3841, 0x3842, 0x3843, 0x3848, 0x3849, 0x384a, 0x384b,
-    };
-    static constexpr u32 ylut[] = {
-        0x0000, 0x0004, 0x0010, 0x0014, 0x0020, 0x0024, 0x0030, 0x0034, 0x0080, 0x0084, 0x0090,
-        0x0094, 0x00a0, 0x00a4, 0x00b0, 0x00b4, 0x0100, 0x0104, 0x0110, 0x0114, 0x0120, 0x0124,
-        0x0130, 0x0134, 0x0180, 0x0184, 0x0190, 0x0194, 0x01a0, 0x01a4, 0x01b0, 0x01b4, 0x0200,
-        0x0204, 0x0210, 0x0214, 0x0220, 0x0224, 0x0230, 0x0234, 0x0280, 0x0284, 0x0290, 0x0294,
-        0x02a0, 0x02a4, 0x02b0, 0x02b4, 0x0300, 0x0304, 0x0310, 0x0314, 0x0320, 0x0324, 0x0330,
-        0x0334, 0x0380, 0x0384, 0x0390, 0x0394, 0x03a0, 0x03a4, 0x03b0, 0x03b4, 0x0400, 0x0404,
-        0x0410, 0x0414, 0x0420, 0x0424, 0x0430, 0x0434, 0x0480, 0x0484, 0x0490, 0x0494, 0x04a0,
-        0x04a4, 0x04b0, 0x04b4, 0x0500, 0x0504, 0x0510, 0x0514, 0x0520, 0x0524, 0x0530, 0x0534,
-        0x0580, 0x0584, 0x0590, 0x0594, 0x05a0, 0x05a4, 0x05b0, 0x05b4, 0x0600, 0x0604, 0x0610,
-        0x0614, 0x0620, 0x0624, 0x0630, 0x0634, 0x0680, 0x0684, 0x0690, 0x0694, 0x06a0, 0x06a4,
-        0x06b0, 0x06b4, 0x0700, 0x0704, 0x0710, 0x0714, 0x0720, 0x0724, 0x0730, 0x0734, 0x0780,
-        0x0784, 0x0790, 0x0794, 0x07a0, 0x07a4, 0x07b0, 0x07b4, 0x0000, 0x0004, 0x0010, 0x0014,
-        0x0020, 0x0024, 0x0030, 0x0034, 0x0080, 0x0084, 0x0090, 0x0094, 0x00a0, 0x00a4, 0x00b0,
-        0x00b4, 0x0100, 0x0104, 0x0110, 0x0114, 0x0120, 0x0124, 0x0130, 0x0134, 0x0180, 0x0184,
-        0x0190, 0x0194, 0x01a0, 0x01a4, 0x01b0, 0x01b4, 0x0200, 0x0204, 0x0210, 0x0214, 0x0220,
-        0x0224, 0x0230, 0x0234, 0x0280, 0x0284, 0x0290, 0x0294, 0x02a0, 0x02a4, 0x02b0, 0x02b4,
-        0x0300, 0x0304, 0x0310, 0x0314, 0x0320, 0x0324, 0x0330, 0x0334, 0x0380, 0x0384, 0x0390,
-        0x0394, 0x03a0, 0x03a4, 0x03b0, 0x03b4, 0x0400, 0x0404, 0x0410, 0x0414, 0x0420, 0x0424,
-        0x0430, 0x0434, 0x0480, 0x0484, 0x0490, 0x0494, 0x04a0, 0x04a4, 0x04b0, 0x04b4, 0x0500,
-        0x0504, 0x0510, 0x0514, 0x0520, 0x0524, 0x0530, 0x0534, 0x0580, 0x0584, 0x0590, 0x0594,
-        0x05a0, 0x05a4, 0x05b0, 0x05b4, 0x0600, 0x0604, 0x0610, 0x0614, 0x0620, 0x0624, 0x0630,
-        0x0634, 0x0680, 0x0684, 0x0690, 0x0694, 0x06a0, 0x06a4, 0x06b0, 0x06b4, 0x0700, 0x0704,
-        0x0710, 0x0714, 0x0720, 0x0724, 0x0730, 0x0734, 0x0780, 0x0784, 0x0790, 0x0794, 0x07a0,
-        0x07a4, 0x07b0, 0x07b4, 0x0000, 0x0004, 0x0010, 0x0014, 0x0020, 0x0024, 0x0030, 0x0034,
-        0x0080, 0x0084, 0x0090, 0x0094, 0x00a0, 0x00a4, 0x00b0, 0x00b4, 0x0100, 0x0104, 0x0110,
-        0x0114, 0x0120, 0x0124, 0x0130, 0x0134, 0x0180, 0x0184, 0x0190, 0x0194, 0x01a0, 0x01a4,
-        0x01b0, 0x01b4, 0x0200, 0x0204, 0x0210, 0x0214, 0x0220, 0x0224, 0x0230, 0x0234, 0x0280,
-        0x0284, 0x0290, 0x0294, 0x02a0, 0x02a4, 0x02b0, 0x02b4, 0x0300, 0x0304, 0x0310, 0x0314,
-        0x0320, 0x0324, 0x0330, 0x0334, 0x0380, 0x0384, 0x0390, 0x0394, 0x03a0, 0x03a4, 0x03b0,
-        0x03b4, 0x0400, 0x0404, 0x0410, 0x0414, 0x0420, 0x0424, 0x0430, 0x0434, 0x0480, 0x0484,
-        0x0490, 0x0494, 0x04a0, 0x04a4, 0x04b0, 0x04b4, 0x0500, 0x0504, 0x0510, 0x0514, 0x0520,
-        0x0524, 0x0530, 0x0534, 0x0580, 0x0584, 0x0590, 0x0594, 0x05a0, 0x05a4, 0x05b0, 0x05b4,
-        0x0600, 0x0604, 0x0610, 0x0614, 0x0620, 0x0624, 0x0630, 0x0634, 0x0680, 0x0684, 0x0690,
-        0x0694, 0x06a0, 0x06a4, 0x06b0, 0x06b4, 0x0700, 0x0704, 0x0710, 0x0714, 0x0720, 0x0724,
-        0x0730, 0x0734, 0x0780, 0x0784, 0x0790, 0x0794, 0x07a0, 0x07a4, 0x07b0, 0x07b4,
-    };
-    return xlut[x % 128] + ylut[y % 128];
-}
-
-static inline u32 GetMortonOffset128(u32 x, u32 y, u32 bytes_per_pixel) {
-    // Calculates the offset of the position of the pixel in Morton order
-    // Framebuffer images are split into 128x128 tiles.
-
-    const unsigned int block_height = 128;
-    const unsigned int coarse_x = x & ~127;
-
-    u32 i = MortonInterleave128(x, y);
-
-    const unsigned int offset = coarse_x * block_height;
-
-    return (i + offset) * bytes_per_pixel;
-}
-
-static void MortonCopyPixels128(u32 width, u32 height, u32 bytes_per_pixel, u32 gl_bytes_per_pixel,
-                                u8* morton_data, u8* gl_data, bool morton_to_gl) {
-    u8* data_ptrs[2];
-    for (unsigned y = 0; y < height; ++y) {
-        for (unsigned x = 0; x < width; ++x) {
-            const u32 coarse_y = y & ~127;
-            u32 morton_offset =
-                GetMortonOffset128(x, y, bytes_per_pixel) + coarse_y * width * bytes_per_pixel;
-            u32 gl_pixel_index = (x + (height - 1 - y) * width) * gl_bytes_per_pixel;
-
-            data_ptrs[morton_to_gl] = morton_data + morton_offset;
-            data_ptrs[!morton_to_gl] = &gl_data[gl_pixel_index];
-
-            memcpy(data_ptrs[0], data_ptrs[1], bytes_per_pixel);
-        }
-    }
-}
-
 /**
  * Loads framebuffer from emulated memory into the active OpenGL texture.
  */
-void RendererOpenGL::LoadFBToScreenInfo(const FramebufferInfo& framebuffer_info,
+void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuffer,
                                         ScreenInfo& screen_info) {
-    const u32 bpp{FramebufferInfo::BytesPerPixel(framebuffer_info.pixel_format)};
-    const u32 size_in_bytes{framebuffer_info.stride * framebuffer_info.height * bpp};
+    const u32 bytes_per_pixel{Tegra::FramebufferConfig::BytesPerPixel(framebuffer.pixel_format)};
+    const u64 size_in_bytes{framebuffer.stride * framebuffer.height * bytes_per_pixel};
+    const VAddr framebuffer_addr{framebuffer.address + framebuffer.offset};
 
-    MortonCopyPixels128(framebuffer_info.width, framebuffer_info.height, bpp, 4,
-                        Memory::GetPointer(framebuffer_info.address), gl_framebuffer_data.data(),
-                        true);
+    // TODO(bunnei): The framebuffer region should only be invalidated if it is written to, not
+    // every frame. When we find the right place for this, the below line can be removed.
+    Memory::RasterizerFlushVirtualRegion(framebuffer_addr, size_in_bytes,
+                                         Memory::FlushMode::Invalidate);
 
-    LOG_TRACE(Render_OpenGL, "0x%08x bytes from 0x%llx(%dx%d), fmt %x", size_in_bytes,
-              framebuffer_info.address, framebuffer_info.width, framebuffer_info.height,
-              (int)framebuffer_info.pixel_format);
+    // Framebuffer orientation handling
+    framebuffer_transform_flags = framebuffer.transform_flags;
 
     // Ensure no bad interactions with GL_UNPACK_ALIGNMENT, which by default
     // only allows rows to have a memory alignement of 4.
-    ASSERT(framebuffer_info.stride % 4 == 0);
+    ASSERT(framebuffer.stride % 4 == 0);
 
-    framebuffer_flip_vertical = framebuffer_info.flip_vertical;
+    if (!Rasterizer()->AccelerateDisplay(framebuffer, framebuffer_addr, framebuffer.stride,
+                                         screen_info)) {
+        // Reset the screen info's display texture to its own permanent texture
+        screen_info.display_texture = screen_info.texture.resource.handle;
+        screen_info.display_texcoords = MathUtil::Rectangle<float>(0.f, 0.f, 1.f, 1.f);
 
-    // Reset the screen info's display texture to its own permanent texture
-    screen_info.display_texture = screen_info.texture.resource.handle;
-    screen_info.display_texcoords = MathUtil::Rectangle<float>(0.f, 0.f, 1.f, 1.f);
+        Rasterizer()->FlushRegion(framebuffer_addr, size_in_bytes);
 
-    // Memory::RasterizerFlushRegion(framebuffer_info.address, size_in_bytes);
+        VideoCore::MortonCopyPixels128(framebuffer.width, framebuffer.height, bytes_per_pixel, 4,
+                                       Memory::GetPointer(framebuffer_addr),
+                                       gl_framebuffer_data.data(), true);
 
-    state.texture_units[0].texture_2d = screen_info.texture.resource.handle;
-    state.Apply();
+        state.texture_units[0].texture_2d = screen_info.texture.resource.handle;
+        state.Apply();
 
-    glActiveTexture(GL_TEXTURE0);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, (GLint)framebuffer_info.stride);
+        glActiveTexture(GL_TEXTURE0);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, static_cast<GLint>(framebuffer.stride));
 
-    // Update existing texture
-    // TODO: Test what happens on hardware when you change the framebuffer dimensions so that
-    //       they differ from the LCD resolution.
-    // TODO: Applications could theoretically crash Citra here by specifying too large
-    //       framebuffer sizes. We should make sure that this cannot happen.
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, framebuffer_info.width, framebuffer_info.height,
-                    screen_info.texture.gl_format, screen_info.texture.gl_type,
-                    gl_framebuffer_data.data());
+        // Update existing texture
+        // TODO: Test what happens on hardware when you change the framebuffer dimensions so that
+        //       they differ from the LCD resolution.
+        // TODO: Applications could theoretically crash yuzu here by specifying too large
+        //       framebuffer sizes. We should make sure that this cannot happen.
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, framebuffer.width, framebuffer.height,
+                        screen_info.texture.gl_format, screen_info.texture.gl_type,
+                        gl_framebuffer_data.data());
 
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
-    state.texture_units[0].texture_2d = 0;
-    state.Apply();
+        state.texture_units[0].texture_2d = 0;
+        state.Apply();
+    }
 }
 
 /**
@@ -372,14 +268,14 @@ void RendererOpenGL::InitOpenGLObjects() {
 }
 
 void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
-                                                 const FramebufferInfo& framebuffer_info) {
+                                                 const Tegra::FramebufferConfig& framebuffer) {
 
-    texture.width = framebuffer_info.width;
-    texture.height = framebuffer_info.height;
+    texture.width = framebuffer.width;
+    texture.height = framebuffer.height;
 
     GLint internal_format;
-    switch (framebuffer_info.pixel_format) {
-    case FramebufferInfo::PixelFormat::ABGR8:
+    switch (framebuffer.pixel_format) {
+    case Tegra::FramebufferConfig::PixelFormat::ABGR8:
         // Use RGBA8 and swap in the fragment shader
         internal_format = GL_RGBA;
         texture.gl_format = GL_RGBA;
@@ -404,8 +300,19 @@ void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
 void RendererOpenGL::DrawSingleScreen(const ScreenInfo& screen_info, float x, float y, float w,
                                       float h) {
     const auto& texcoords = screen_info.display_texcoords;
-    const auto& left = framebuffer_flip_vertical ? texcoords.right : texcoords.left;
-    const auto& right = framebuffer_flip_vertical ? texcoords.left : texcoords.right;
+    auto left = texcoords.left;
+    auto right = texcoords.right;
+    if (framebuffer_transform_flags != Tegra::FramebufferConfig::TransformFlags::Unset)
+        if (framebuffer_transform_flags == Tegra::FramebufferConfig::TransformFlags::FlipV) {
+            // Flip the framebuffer vertically
+            left = texcoords.right;
+            right = texcoords.left;
+        } else {
+            // Other transformations are unsupported
+            LOG_CRITICAL(HW_GPU, "unsupported framebuffer_transform_flags=%d",
+                         framebuffer_transform_flags);
+            UNIMPLEMENTED();
+        }
 
     std::array<ScreenRectVertex, 4> vertices = {{
         ScreenRectVertex(x, y, texcoords.top, right),

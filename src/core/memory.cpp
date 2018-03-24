@@ -41,6 +41,9 @@ static void MapPages(PageTable& page_table, VAddr base, u64 size, u8* memory, Pa
     LOG_DEBUG(HW_Memory, "Mapping %p onto %016" PRIX64 "-%016" PRIX64, memory, base * PAGE_SIZE,
               (base + size) * PAGE_SIZE);
 
+    RasterizerFlushVirtualRegion(base << PAGE_BITS, size * PAGE_SIZE,
+                                 FlushMode::FlushAndInvalidate);
+
     VAddr end = base + size;
     while (base != end) {
         ASSERT_MSG(base < PAGE_TABLE_NUM_ENTRIES, "out of range mapping at %016" PRIX64, base);
@@ -286,6 +289,43 @@ u8* GetPhysicalPointer(PAddr address) {
     }
 
     return target_pointer;
+}
+
+void RasterizerFlushVirtualRegion(VAddr start, u64 size, FlushMode mode) {
+    // Since pages are unmapped on shutdown after video core is shutdown, the renderer may be
+    // null here
+    if (VideoCore::g_renderer == nullptr) {
+        return;
+    }
+
+    VAddr end = start + size;
+
+    auto CheckRegion = [&](VAddr region_start, VAddr region_end) {
+        if (start >= region_end || end <= region_start) {
+            // No overlap with region
+            return;
+        }
+
+        VAddr overlap_start = std::max(start, region_start);
+        VAddr overlap_end = std::min(end, region_end);
+        u64 overlap_size = overlap_end - overlap_start;
+
+        auto* rasterizer = VideoCore::g_renderer->Rasterizer();
+        switch (mode) {
+        case FlushMode::Flush:
+            rasterizer->FlushRegion(overlap_start, overlap_size);
+            break;
+        case FlushMode::Invalidate:
+            rasterizer->InvalidateRegion(overlap_start, overlap_size);
+            break;
+        case FlushMode::FlushAndInvalidate:
+            rasterizer->FlushAndInvalidateRegion(overlap_start, overlap_size);
+            break;
+        }
+    };
+
+    CheckRegion(PROCESS_IMAGE_VADDR, PROCESS_IMAGE_VADDR_END);
+    CheckRegion(HEAP_VADDR, HEAP_VADDR_END);
 }
 
 u8 Read8(const VAddr addr) {

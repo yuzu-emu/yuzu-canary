@@ -26,14 +26,13 @@ void nvdisp_disp0::flip(u32 buffer_handle, u32 offset, u32 format, u32 width, u3
                 "Drawing from address %lx offset %08X Width %u Height %u Stride %u Format %u", addr,
                 offset, width, height, stride, format);
 
-    using PixelFormat = RendererBase::FramebufferInfo::PixelFormat;
-    using Flags = NVFlinger::BufferQueue::BufferTransformFlags;
-    const bool flip_vertical = static_cast<u32>(transform) & static_cast<u32>(Flags::FlipV);
-    const RendererBase::FramebufferInfo framebuffer_info{
-        addr, offset, width, height, stride, static_cast<PixelFormat>(format), flip_vertical};
+    using PixelFormat = Tegra::FramebufferConfig::PixelFormat;
+    const Tegra::FramebufferConfig framebuffer{
+        addr, offset, width, height, stride, static_cast<PixelFormat>(format), transform};
 
     Core::System::GetInstance().perf_stats.EndGameFrame();
-    VideoCore::g_renderer->SwapBuffers(framebuffer_info);
+
+    VideoCore::g_renderer->SwapBuffers(framebuffer);
 }
 
 } // namespace Devices

@@ -47,6 +47,8 @@ public:
     ~BufferQueue() = default;
 
     enum class BufferTransformFlags : u32 {
+        /// No transform flags are set
+        Unset = 0x00,
         /// Flip source image horizontally (around the vertical axis)
         FlipH = 0x01,
         /// Flip source image vertically (around the horizontal axis)

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "common/common_types.h"
+#include "video_core/gpu.h"
 
 struct ScreenInfo;
 
@@ -24,14 +25,14 @@ public:
     virtual void FlushAll() = 0;
 
     /// Notify rasterizer that any caches of the specified region should be flushed to 3DS memory
-    virtual void FlushRegion(PAddr addr, u32 size) = 0;
+    virtual void FlushRegion(VAddr addr, u64 size) = 0;
 
     /// Notify rasterizer that any caches of the specified region should be invalidated
-    virtual void InvalidateRegion(PAddr addr, u32 size) = 0;
+    virtual void InvalidateRegion(VAddr addr, u64 size) = 0;
 
     /// Notify rasterizer that any caches of the specified region should be flushed to 3DS memory
     /// and invalidated
-    virtual void FlushAndInvalidateRegion(PAddr addr, u32 size) = 0;
+    virtual void FlushAndInvalidateRegion(VAddr addr, u64 size) = 0;
 
     /// Attempt to use a faster method to perform a display transfer with is_texture_copy = 0
     virtual bool AccelerateDisplayTransfer(const void* config) {
@@ -49,7 +50,8 @@ public:
     }
 
     /// Attempt to use a faster method to display the framebuffer to screen
-    virtual bool AccelerateDisplay(const void* config, PAddr framebuffer_addr, u32 pixel_stride,
+    virtual bool AccelerateDisplay(const Tegra::FramebufferConfig& framebuffer,
+                                   VAddr framebuffer_addr, u32 pixel_stride,
                                    ScreenInfo& screen_info) {
         return false;
     }

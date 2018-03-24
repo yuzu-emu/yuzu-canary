@@ -21,7 +21,7 @@ struct TextureInfo {
     GLsizei height;
     GLenum gl_format;
     GLenum gl_type;
-    RendererBase::FramebufferInfo::PixelFormat pixel_format;
+    Tegra::FramebufferConfig::PixelFormat pixel_format;
 };
 
 /// Structure used for storing information about the display target for each 3DS screen
@@ -37,7 +37,7 @@ public:
     ~RendererOpenGL() override;
 
     /// Swap buffers (render frame)
-    void SwapBuffers(boost::optional<const FramebufferInfo&> framebuffer_info) override;
+    void SwapBuffers(boost::optional<const Tegra::FramebufferConfig&> framebuffer) override;
 
     /**
      * Set the emulator window to use for renderer
@@ -53,13 +53,14 @@ public:
 
 private:
     void InitOpenGLObjects();
-    void ConfigureFramebufferTexture(TextureInfo& texture, const FramebufferInfo& framebuffer_info);
+    void ConfigureFramebufferTexture(TextureInfo& texture,
+                                     const Tegra::FramebufferConfig& framebuffer);
     void DrawScreens();
     void DrawSingleScreen(const ScreenInfo& screen_info, float x, float y, float w, float h);
     void UpdateFramerate();
 
     // Loads framebuffer from emulated memory into the display information structure
-    void LoadFBToScreenInfo(const FramebufferInfo& framebuffer_info, ScreenInfo& screen_info);
+    void LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuffer, ScreenInfo& screen_info);
     // Fills active OpenGL texture with the given RGBA color.
     void LoadColorToActiveGLTexture(u8 color_r, u8 color_g, u8 color_b, u8 color_a,
                                     const TextureInfo& texture);
@@ -87,6 +88,6 @@ private:
     GLuint attrib_position;
     GLuint attrib_tex_coord;
 
-    /// Flips the framebuffer vertically when true
-    bool framebuffer_flip_vertical;
+    /// Used for transforming the framebuffer orientation
+    Tegra::FramebufferConfig::TransformFlags framebuffer_transform_flags;
 };
