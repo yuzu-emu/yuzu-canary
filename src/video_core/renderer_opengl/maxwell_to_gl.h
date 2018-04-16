@@ -45,6 +45,20 @@ inline GLenum VertexType(Maxwell::VertexAttribute attrib) {
     return {};
 }
 
+inline GLenum IndexFormat(Maxwell::IndexFormat index_format) {
+    switch (index_format) {
+    case Maxwell::IndexFormat::UnsignedByte:
+        return GL_UNSIGNED_BYTE;
+    case Maxwell::IndexFormat::UnsignedShort:
+        return GL_UNSIGNED_SHORT;
+    case Maxwell::IndexFormat::UnsignedInt:
+        return GL_UNSIGNED_INT;
+    }
+    LOG_CRITICAL(Render_OpenGL, "Unimplemented index_format=%d", index_format);
+    UNREACHABLE();
+    return {};
+}
+
 inline GLenum PrimitiveTopology(Maxwell::PrimitiveTopology topology) {
     switch (topology) {
     case Maxwell::PrimitiveTopology::Triangles:
@@ -52,7 +66,7 @@ inline GLenum PrimitiveTopology(Maxwell::PrimitiveTopology topology) {
     case Maxwell::PrimitiveTopology::TriangleStrip:
         return GL_TRIANGLE_STRIP;
     }
-    LOG_CRITICAL(Render_OpenGL, "Unimplemented primitive topology=%d", topology);
+    LOG_CRITICAL(Render_OpenGL, "Unimplemented topology=%d", topology);
     UNREACHABLE();
     return {};
 }
@@ -72,10 +86,76 @@ inline GLenum TextureFilterMode(Tegra::Texture::TextureFilter filter_mode) {
 
 inline GLenum WrapMode(Tegra::Texture::WrapMode wrap_mode) {
     switch (wrap_mode) {
+    case Tegra::Texture::WrapMode::Wrap:
+        return GL_REPEAT;
     case Tegra::Texture::WrapMode::ClampToEdge:
         return GL_CLAMP_TO_EDGE;
     }
     LOG_CRITICAL(Render_OpenGL, "Unimplemented texture wrap mode=%u", static_cast<u32>(wrap_mode));
+    UNREACHABLE();
+    return {};
+}
+
+inline GLenum BlendEquation(Maxwell::Blend::Equation equation) {
+    switch (equation) {
+    case Maxwell::Blend::Equation::Add:
+        return GL_FUNC_ADD;
+    case Maxwell::Blend::Equation::Subtract:
+        return GL_FUNC_SUBTRACT;
+    case Maxwell::Blend::Equation::ReverseSubtract:
+        return GL_FUNC_REVERSE_SUBTRACT;
+    case Maxwell::Blend::Equation::Min:
+        return GL_MIN;
+    case Maxwell::Blend::Equation::Max:
+        return GL_MAX;
+    }
+    LOG_CRITICAL(Render_OpenGL, "Unimplemented blend equation=%u", static_cast<u32>(equation));
+    UNREACHABLE();
+    return {};
+}
+
+inline GLenum BlendFunc(Maxwell::Blend::Factor factor) {
+    switch (factor) {
+    case Maxwell::Blend::Factor::Zero:
+        return GL_ZERO;
+    case Maxwell::Blend::Factor::One:
+        return GL_ONE;
+    case Maxwell::Blend::Factor::SourceColor:
+        return GL_SRC_COLOR;
+    case Maxwell::Blend::Factor::OneMinusSourceColor:
+        return GL_ONE_MINUS_SRC_COLOR;
+    case Maxwell::Blend::Factor::SourceAlpha:
+        return GL_SRC_ALPHA;
+    case Maxwell::Blend::Factor::OneMinusSourceAlpha:
+        return GL_ONE_MINUS_SRC_ALPHA;
+    case Maxwell::Blend::Factor::DestAlpha:
+        return GL_DST_ALPHA;
+    case Maxwell::Blend::Factor::OneMinusDestAlpha:
+        return GL_ONE_MINUS_DST_ALPHA;
+    case Maxwell::Blend::Factor::DestColor:
+        return GL_DST_COLOR;
+    case Maxwell::Blend::Factor::OneMinusDestColor:
+        return GL_ONE_MINUS_DST_COLOR;
+    case Maxwell::Blend::Factor::SourceAlphaSaturate:
+        return GL_SRC_ALPHA_SATURATE;
+    case Maxwell::Blend::Factor::Source1Color:
+        return GL_SRC1_COLOR;
+    case Maxwell::Blend::Factor::OneMinusSource1Color:
+        return GL_ONE_MINUS_SRC1_COLOR;
+    case Maxwell::Blend::Factor::Source1Alpha:
+        return GL_SRC1_ALPHA;
+    case Maxwell::Blend::Factor::OneMinusSource1Alpha:
+        return GL_ONE_MINUS_SRC1_ALPHA;
+    case Maxwell::Blend::Factor::ConstantColor:
+        return GL_CONSTANT_COLOR;
+    case Maxwell::Blend::Factor::OneMinusConstantColor:
+        return GL_ONE_MINUS_CONSTANT_COLOR;
+    case Maxwell::Blend::Factor::ConstantAlpha:
+        return GL_CONSTANT_ALPHA;
+    case Maxwell::Blend::Factor::OneMinusConstantAlpha:
+        return GL_ONE_MINUS_CONSTANT_ALPHA;
+    }
+    LOG_CRITICAL(Render_OpenGL, "Unimplemented blend factor=%u", static_cast<u32>(factor));
     UNREACHABLE();
     return {};
 }

@@ -74,8 +74,6 @@ void Maxwell3D::WriteReg(u32 method, u32 value, u32 remaining_params) {
 
     regs.reg_array[method] = value;
 
-#define MAXWELL3D_REG_INDEX(field_name) (offsetof(Regs, field_name) / sizeof(u32))
-
     switch (method) {
     case MAXWELL3D_REG_INDEX(code_address.code_address_high):
     case MAXWELL3D_REG_INDEX(code_address.code_address_low): {
@@ -136,7 +134,7 @@ void Maxwell3D::WriteReg(u32 method, u32 value, u32 remaining_params) {
         break;
     }
 
-#undef MAXWELL3D_REG_INDEX
+    VideoCore::g_renderer->Rasterizer()->NotifyMaxwellRegisterChanged(method);
 
     if (debug_context) {
         debug_context->OnEvent(Tegra::DebugContext::Event::MaxwellCommandProcessed, nullptr);
@@ -165,6 +163,7 @@ void Maxwell3D::ProcessQueryGet() {
 void Maxwell3D::DrawArrays() {
     LOG_DEBUG(HW_GPU, "called, topology=%d, count=%d", regs.draw.topology.Value(),
               regs.vertex_buffer.count);
+    ASSERT_MSG(!(regs.index_array.count && regs.vertex_buffer.count), "Both indexed and direct?");
 
     auto debug_context = Core::System::GetInstance().GetGPUDebugContext();
 
@@ -176,7 +175,8 @@ void Maxwell3D::DrawArrays() {
         debug_context->OnEvent(Tegra::DebugContext::Event::FinishedPrimitiveBatch, nullptr);
     }
 
-    VideoCore::g_renderer->Rasterizer()->AccelerateDrawBatch(false /*is_indexed*/);
+    const bool is_indexed{regs.index_array.count && !regs.vertex_buffer.count};
+    VideoCore::g_renderer->Rasterizer()->AccelerateDrawBatch(is_indexed);
 }
 
 void Maxwell3D::ProcessCBBind(Regs::ShaderStage stage) {
@@ -217,12 +217,6 @@ Texture::TICEntry Maxwell3D::GetTICEntry(u32 tic_index) const {
 
     Texture::TICEntry tic_entry;
     Memory::ReadBlock(tic_address_cpu, &tic_entry, sizeof(Texture::TICEntry));
-
-    ASSERT_MSG(tic_entry.header_version == Texture::TICHeaderVersion::BlockLinear,
-               "TIC versions other than BlockLinear are unimplemented");
-
-    ASSERT_MSG(tic_entry.texture_type == Texture::TextureType::Texture2D,
-               "Texture types other than Texture2D are unimplemented");
 
     auto r_type = tic_entry.r_type.Value();
     auto g_type = tic_entry.g_type.Value();

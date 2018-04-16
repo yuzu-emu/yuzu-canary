@@ -14,7 +14,8 @@ namespace Texture {
 /**
  * Unswizzles a swizzled texture without changing its format.
  */
-std::vector<u8> UnswizzleTexture(VAddr address, TextureFormat format, u32 width, u32 height);
+std::vector<u8> UnswizzleTexture(VAddr address, TextureFormat format, u32 width, u32 height,
+                                 u32 block_height);
 
 /**
  * Decodes an unswizzled texture into a A8R8G8B8 texture.

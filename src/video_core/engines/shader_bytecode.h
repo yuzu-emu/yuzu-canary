@@ -16,10 +16,6 @@ struct Register {
 
     constexpr Register(u64 value) : value(value) {}
 
-    constexpr u64 GetIndex() const {
-        return value;
-    }
-
     constexpr operator u64() const {
         return value;
     }
@@ -68,6 +64,19 @@ union Attribute {
     } fmt28;
 
     BitField<39, 8, u64> reg;
+    u64 value;
+};
+
+union Sampler {
+    Sampler() = default;
+
+    constexpr Sampler(u64 value) : value(value) {}
+
+    enum class Index : u64 {
+        Sampler_0 = 8,
+    };
+
+    BitField<36, 13, Index> index;
     u64 value;
 };
 
@@ -280,6 +289,7 @@ enum class SubOp : u64 {
     Lg2 = 0x3,
     Rcp = 0x4,
     Rsq = 0x5,
+    Min = 0x8,
 };
 
 union Instruction {
@@ -295,15 +305,23 @@ union Instruction {
     BitField<20, 8, Register> gpr20;
     BitField<20, 7, SubOp> sub_op;
     BitField<28, 8, Register> gpr28;
-    BitField<36, 13, u64> imm36;
     BitField<39, 8, Register> gpr39;
 
     union {
+        BitField<20, 19, u64> imm20;
         BitField<45, 1, u64> negate_b;
         BitField<46, 1, u64> abs_a;
         BitField<48, 1, u64> negate_a;
         BitField<49, 1, u64> abs_b;
         BitField<50, 1, u64> abs_d;
+        BitField<56, 1, u64> negate_imm;
+
+        float GetImm20() const {
+            u32 imm = imm20;
+            imm <<= 12;
+            imm |= negate_imm ? 0x80000000 : 0;
+            return *(f32*)&imm;
+        }
     } alu;
 
     union {
@@ -311,11 +329,13 @@ union Instruction {
         BitField<49, 1, u64> negate_c;
     } ffma;
 
+    BitField<61, 1, u64> is_b_imm;
     BitField<60, 1, u64> is_b_gpr;
     BitField<59, 1, u64> is_c_gpr;
 
     Attribute attribute;
     Uniform uniform;
+    Sampler sampler;
 
     u64 hex;
 };
