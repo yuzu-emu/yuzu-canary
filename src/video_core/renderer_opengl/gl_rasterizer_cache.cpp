@@ -20,6 +20,7 @@
 #include "common/math_util.h"
 #include "common/microprofile.h"
 #include "common/scope_exit.h"
+#include "common/swap.h"
 #include "common/vector_math.h"
 #include "core/core.h"
 #include "core/frontend/emu_window.h"
@@ -51,9 +52,14 @@ static constexpr std::array<FormatTuple, 1> fb_format_tuples = {{
     {GL_RGBA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, false, 1}, // RGBA8
 }};
 
-static constexpr std::array<FormatTuple, 2> tex_format_tuples = {{
-    {GL_RGBA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, false, 1},                       // RGBA8
-    {GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_RGB, GL_UNSIGNED_INT_8_8_8_8, true, 16}, // DXT1
+static constexpr std::array<FormatTuple, 7> tex_format_tuples = {{
+    {GL_RGBA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, false, 1},                         // RGBA8
+    {GL_RGB5_A1, GL_RGB, GL_UNSIGNED_SHORT_5_5_5_1, false, 1},                      // RGB5A1
+    {GL_RGB565, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, false, 1},                         // RGB565
+    {GL_R11F_G11F_B10F, GL_RGB, GL_FLOAT, false, 1},                                // R11FG11FB10F
+    {GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_RGB, GL_UNSIGNED_INT_8_8_8_8, true, 16},   // BC1
+    {GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, true, 16}, // BC2
+    {GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, true, 16}, // BC3
 }};
 
 static const FormatTuple& GetFormatTuple(PixelFormat pixel_format) {
@@ -85,24 +91,8 @@ static u16 GetResolutionScaleFactor() {
 }
 
 template <bool morton_to_gl, PixelFormat format>
-static void MortonCopyTile(u32 stride, u8* tile_buffer, u8* gl_buffer) {
-    constexpr u32 bytes_per_pixel = SurfaceParams::GetFormatBpp(format) / 8;
-    constexpr u32 gl_bytes_per_pixel = CachedSurface::GetGLBytesPerPixel(format);
-    for (u32 y = 0; y < 8; ++y) {
-        for (u32 x = 0; x < 8; ++x) {
-            u8* tile_ptr = tile_buffer + VideoCore::MortonInterleave(x, y) * bytes_per_pixel;
-            u8* gl_ptr = gl_buffer + ((7 - y) * stride + x) * gl_bytes_per_pixel;
-            if (morton_to_gl) {
-                std::memcpy(gl_ptr, tile_ptr, bytes_per_pixel);
-            } else {
-                std::memcpy(tile_ptr, gl_ptr, bytes_per_pixel);
-            }
-        }
-    }
-}
-
-template <bool morton_to_gl, PixelFormat format>
-void MortonCopy(u32 stride, u32 height, u8* gl_buffer, VAddr base, VAddr start, VAddr end) {
+void MortonCopy(u32 stride, u32 height, u32 block_height, u8* gl_buffer, VAddr base, VAddr start,
+                VAddr end) {
     constexpr u32 bytes_per_pixel = SurfaceParams::GetFormatBpp(format) / 8;
     constexpr u32 gl_bytes_per_pixel = CachedSurface::GetGLBytesPerPixel(format);
 
@@ -114,27 +104,67 @@ void MortonCopy(u32 stride, u32 height, u8* gl_buffer, VAddr base, VAddr start, 
 }
 
 template <>
-void MortonCopy<true, PixelFormat::DXT1>(u32 stride, u32 height, u8* gl_buffer, VAddr base,
-                                         VAddr start, VAddr end) {
-    constexpr u32 bytes_per_pixel = SurfaceParams::GetFormatBpp(PixelFormat::DXT1) / 8;
-    constexpr u32 gl_bytes_per_pixel = CachedSurface::GetGLBytesPerPixel(PixelFormat::DXT1);
+void MortonCopy<true, PixelFormat::BC1>(u32 stride, u32 height, u32 block_height, u8* gl_buffer,
+                                        VAddr base, VAddr start, VAddr end) {
+    constexpr u32 bytes_per_pixel = SurfaceParams::GetFormatBpp(PixelFormat::BC1) / 8;
+    constexpr u32 gl_bytes_per_pixel = CachedSurface::GetGLBytesPerPixel(PixelFormat::BC1);
 
     // TODO(bunnei): Assumes the default rendering GOB size of 16 (128 lines). We should check the
     // configuration for this and perform more generic un/swizzle
     LOG_WARNING(Render_OpenGL, "need to use correct swizzle/GOB parameters!");
-    auto data =
-        Tegra::Texture::UnswizzleTexture(base, Tegra::Texture::TextureFormat::DXT1, stride, height);
+    auto data = Tegra::Texture::UnswizzleTexture(base, Tegra::Texture::TextureFormat::BC1, stride,
+                                                 height, block_height);
     std::memcpy(gl_buffer, data.data(), data.size());
 }
 
-static constexpr std::array<void (*)(u32, u32, u8*, VAddr, VAddr, VAddr), 2> morton_to_gl_fns = {
-    MortonCopy<true, PixelFormat::RGBA8>,
-    MortonCopy<true, PixelFormat::DXT1>,
+template <>
+void MortonCopy<true, PixelFormat::BC2>(u32 stride, u32 height, u32 block_height, u8* gl_buffer,
+                                        VAddr base, VAddr start, VAddr end) {
+    constexpr u32 bytes_per_pixel = SurfaceParams::GetFormatBpp(PixelFormat::BC2) / 8;
+    constexpr u32 gl_bytes_per_pixel = CachedSurface::GetGLBytesPerPixel(PixelFormat::BC2);
+
+    // TODO(bunnei): Assumes the default rendering GOB size of 16 (128 lines). We should check the
+    // configuration for this and perform more generic un/swizzle
+    LOG_WARNING(Render_OpenGL, "need to use correct swizzle/GOB parameters!");
+    auto data = Tegra::Texture::UnswizzleTexture(base, Tegra::Texture::TextureFormat::BC2, stride,
+                                                 height, block_height);
+    std::memcpy(gl_buffer, data.data(), data.size());
+}
+
+template <>
+void MortonCopy<true, PixelFormat::BC3>(u32 stride, u32 height, u32 block_height, u8* gl_buffer,
+                                        VAddr base, VAddr start, VAddr end) {
+    constexpr u32 bytes_per_pixel = SurfaceParams::GetFormatBpp(PixelFormat::BC3) / 8;
+    constexpr u32 gl_bytes_per_pixel = CachedSurface::GetGLBytesPerPixel(PixelFormat::BC3);
+
+    // TODO(bunnei): Assumes the default rendering GOB size of 16 (128 lines). We should check the
+    // configuration for this and perform more generic un/swizzle
+    // NGLOG_CRITICAL(Render_OpenGL, "need to use correct swizzle/GOB parameters!");
+    auto data = Tegra::Texture::UnswizzleTexture(base, Tegra::Texture::TextureFormat::BC3, stride,
+                                                 height, block_height);
+    std::memcpy(gl_buffer, data.data(), data.size());
+}
+
+static constexpr std::array<void (*)(u32, u32, u32, u8*, VAddr, VAddr, VAddr), 7> morton_to_gl_fns =
+    {
+        MortonCopy<true, PixelFormat::RGBA8>,     // RGBA8
+        MortonCopy<true, PixelFormat::RGB5A1>,    // RGB5A1
+        MortonCopy<true, PixelFormat::RGB565>,    // RGB565
+        MortonCopy<true, PixelFormat::RG11FB10F>, // RG11FB10F
+        MortonCopy<true, PixelFormat::BC1>,       // BC1
+        MortonCopy<true, PixelFormat::BC2>,       // BC2
+        MortonCopy<true, PixelFormat::BC3>,       // BC3
 };
 
-static constexpr std::array<void (*)(u32, u32, u8*, VAddr, VAddr, VAddr), 2> gl_to_morton_fns = {
-    MortonCopy<false, PixelFormat::RGBA8>,
-    MortonCopy<false, PixelFormat::DXT1>,
+static constexpr std::array<void (*)(u32, u32, u32, u8*, VAddr, VAddr, VAddr), 7> gl_to_morton_fns =
+    {
+        MortonCopy<false, PixelFormat::RGBA8>,     // RGBA8
+        MortonCopy<false, PixelFormat::RGB5A1>,    // RGB5A1
+        MortonCopy<false, PixelFormat::RGB565>,    // RGB565
+        MortonCopy<false, PixelFormat::RG11FB10F>, // RG11FB10F
+        MortonCopy<false, PixelFormat::BC1>,       // BC1
+        MortonCopy<false, PixelFormat::BC2>,       // BC2
+        MortonCopy<false, PixelFormat::BC3>,       // BC3
 };
 
 // Allocate an uninitialized texture of appropriate size and format for the surface
@@ -483,16 +513,18 @@ void CachedSurface::LoadGLBuffer(VAddr load_start, VAddr load_end) {
     if (!is_tiled) {
         ASSERT(type == SurfaceType::Color);
         const u32 bytes_per_pixel{GetFormatBpp() >> 3};
+        std::memcpy(&gl_buffer[start_offset], texture_src_data + start_offset,
+                    bytes_per_pixel * width * height);
 
-        // TODO(bunnei): Assumes the default rendering GOB size of 16 (128 lines). We should check
-        // the configuration for this and perform more generic un/swizzle
-        LOG_WARNING(Render_OpenGL, "need to use correct swizzle/GOB parameters!");
-        VideoCore::MortonCopyPixels128(width, height, bytes_per_pixel, 4,
-                                       texture_src_data + start_offset, &gl_buffer[start_offset],
-                                       true);
+        // TODO(bunnei): HACK HACK HACK - Remove before checkin!
+        u32* gl_words = reinterpret_cast<u32*>(&gl_buffer[start_offset]);
+        for (unsigned index = 0; index < width * height; ++index) {
+            gl_words[index] = Common::swap32(gl_words[index]);
+        }
+
     } else {
-        morton_to_gl_fns[static_cast<size_t>(pixel_format)](stride, height, &gl_buffer[0], addr,
-                                                            load_start, load_end);
+        morton_to_gl_fns[static_cast<size_t>(pixel_format)](
+            stride, height, block_height, &gl_buffer[0], addr, load_start, load_end);
     }
 }
 
@@ -536,8 +568,8 @@ void CachedSurface::FlushGLBuffer(VAddr flush_start, VAddr flush_end) {
         ASSERT(type == SurfaceType::Color);
         std::memcpy(dst_buffer + start_offset, &gl_buffer[start_offset], flush_end - flush_start);
     } else {
-        gl_to_morton_fns[static_cast<size_t>(pixel_format)](stride, height, &gl_buffer[0], addr,
-                                                            flush_start, flush_end);
+        gl_to_morton_fns[static_cast<size_t>(pixel_format)](
+            stride, height, block_height, &gl_buffer[0], addr, flush_start, flush_end);
     }
 }
 
@@ -1040,6 +1072,7 @@ Surface RasterizerCacheOpenGL::GetTextureSurface(const Tegra::Texture::FullTextu
     params.width = config.tic.Width();
     params.height = config.tic.Height();
     params.is_tiled = config.tic.IsTiled();
+    params.block_height = config.tic.BlockHeight();
     params.pixel_format = SurfaceParams::PixelFormatFromTextureFormat(config.tic.format);
     params.UpdateParams();
 

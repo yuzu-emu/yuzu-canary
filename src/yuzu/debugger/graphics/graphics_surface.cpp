@@ -378,8 +378,8 @@ void GraphicsSurfaceWidget::OnUpdate() {
     QImage decoded_image(surface_width, surface_height, QImage::Format_ARGB32);
     VAddr address = gpu.memory_manager->PhysicalToVirtualAddress(surface_address);
 
-    auto unswizzled_data =
-        Tegra::Texture::UnswizzleTexture(address, surface_format, surface_width, surface_height);
+    auto unswizzled_data = Tegra::Texture::UnswizzleTexture(address, surface_format, surface_width,
+                                                            surface_height, 16);
 
     auto texture_data = Tegra::Texture::DecodeTexture(unswizzled_data, surface_format,
                                                       surface_width, surface_height);

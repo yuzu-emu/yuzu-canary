@@ -13,8 +13,14 @@ namespace Tegra {
 namespace Texture {
 
 enum class TextureFormat : u32 {
-    A8R8G8B8 = 8,
-    DXT1 = 0x24,
+    A8R8G8B8 = 0x8,
+    A1B5G5R5 = 0x14,
+    B5G6R5 = 0x15,
+    BF10GF11RF11 = 0x21,
+    // Compressed Textures
+    BC1 = 0x24,
+    BC2 = 0x25,
+    BC3 = 0x26,
 };
 
 enum class TextureType : u32 {
@@ -68,7 +74,10 @@ struct TICEntry {
         BitField<0, 16, u32> address_high;
         BitField<21, 3, TICHeaderVersion> header_version;
     };
-    INSERT_PADDING_BYTES(4);
+    union {
+        BitField<3, 3, u8> gobs_per_block;
+    };
+    INSERT_PADDING_BYTES(3);
     union {
         BitField<0, 16, u32> width_minus_1;
         BitField<23, 4, TextureType> texture_type;
@@ -91,6 +100,10 @@ struct TICEntry {
     bool IsTiled() const {
         return header_version == TICHeaderVersion::BlockLinear ||
                header_version == TICHeaderVersion::BlockLinearColorKey;
+    }
+
+    u32 BlockHeight() const {
+        return 1 << gobs_per_block;
     }
 };
 static_assert(sizeof(TICEntry) == 0x20, "TICEntry has wrong size");

@@ -30,10 +30,9 @@ void SetShaderSamplerBindings(GLuint shader);
 //       Not following that rule will cause problems on some AMD drivers.
 struct MaxwellUniformData {
     void SetFromRegs(const Maxwell3D::State::ShaderStageInfo& shader_stage);
-    // TODO(Subv): Use this for something.
+    alignas(16) GLvec4 viewport_flip;
 };
-// static_assert(sizeof(MaxwellUniformData) == 1024, "MaxwellUniformData structure size is
-// incorrect");
+static_assert(sizeof(MaxwellUniformData) == 16, "MaxwellUniformData structure size is incorrect");
 static_assert(sizeof(MaxwellUniformData) < 16384,
               "MaxwellUniformData structure must be less than 16kb as per the OpenGL spec");
 

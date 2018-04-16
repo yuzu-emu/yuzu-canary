@@ -17,6 +17,7 @@ using Tegra::Shader::Attribute;
 using Tegra::Shader::Instruction;
 using Tegra::Shader::OpCode;
 using Tegra::Shader::Register;
+using Tegra::Shader::Sampler;
 using Tegra::Shader::SubOp;
 using Tegra::Shader::Uniform;
 
@@ -155,23 +156,27 @@ private:
 
     /// Generates code representing an input attribute register.
     std::string GetInputAttribute(Attribute::Index attribute) {
-        declr_input_attribute.insert(attribute);
+        switch (attribute) {
+        case Attribute::Index::Position:
+            return "position";
+        default:
+            const u32 index{static_cast<u32>(attribute) -
+                            static_cast<u32>(Attribute::Index::Attribute_0)};
+            if (attribute >= Attribute::Index::Attribute_0) {
+                declr_input_attribute.insert(attribute);
+                return "input_attribute_" + std::to_string(index);
+            }
 
-        const u32 index{static_cast<u32>(attribute) -
-                        static_cast<u32>(Attribute::Index::Attribute_0)};
-        if (attribute >= Attribute::Index::Attribute_0) {
-            return "input_attribute_" + std::to_string(index);
+            LOG_CRITICAL(HW_GPU, "Unhandled input attribute: 0x%02x", index);
+            UNREACHABLE();
         }
-
-        LOG_CRITICAL(HW_GPU, "Unhandled input attribute: 0x%02x", index);
-        UNREACHABLE();
     }
 
     /// Generates code representing an output attribute register.
     std::string GetOutputAttribute(Attribute::Index attribute) {
         switch (attribute) {
         case Attribute::Index::Position:
-            return "gl_Position";
+            return "position";
         default:
             const u32 index{static_cast<u32>(attribute) -
                             static_cast<u32>(Attribute::Index::Attribute_0)};
@@ -185,15 +190,34 @@ private:
         }
     }
 
+    /// Generates code representing an immediate value
+    static std::string GetImmediate(const Instruction& instr) {
+        return std::to_string(instr.alu.GetImm20());
+    }
+
     /// Generates code representing a temporary (GPR) register.
-    std::string GetRegister(const Register& reg) {
-        return *declr_register.insert("register_" + std::to_string(reg)).first;
+    std::string GetRegister(const Register& reg, unsigned elem = 0) {
+        if (stage == Maxwell3D::Regs::ShaderStage::Fragment && reg < 4) {
+            // GPRs 0-3 are output color for the fragment shader
+            return std::string{"color."} + "rgba"[(reg + elem) & 3];
+        }
+
+        return *declr_register.insert("register_" + std::to_string(reg + elem)).first;
     }
 
     /// Generates code representing a uniform (C buffer) register.
     std::string GetUniform(const Uniform& reg) {
         declr_const_buffers[reg.index].MarkAsUsed(reg.index, reg.offset, stage);
         return 'c' + std::to_string(reg.index) + '[' + std::to_string(reg.offset) + ']';
+    }
+
+    /// Generates code representing a texture sampler.
+    std::string GetSampler(const Sampler& sampler) const {
+        // TODO(Subv): Support more than just texture sampler 0
+        ASSERT_MSG(sampler.index == Sampler::Index::Sampler_0, "unsupported");
+        const unsigned index{static_cast<unsigned>(sampler.index.Value()) -
+                             static_cast<unsigned>(Sampler::Index::Sampler_0)};
+        return "tex[" + std::to_string(index) + "]";
     }
 
     /**
@@ -217,12 +241,13 @@ private:
      * @param value the code representing the value to assign.
      */
     void SetDest(u64 elem, const std::string& reg, const std::string& value,
-                 u64 dest_num_components, u64 value_num_components) {
+                 u64 dest_num_components, u64 value_num_components, bool is_abs = false) {
         std::string swizzle = ".";
         swizzle += "xyzw"[elem];
 
         std::string dest = reg + (dest_num_components != 1 ? swizzle : "");
         std::string src = "(" + value + ")" + (value_num_components != 1 ? swizzle : "");
+        src = is_abs ? "abs(" + src + ")" : src;
 
         shader.AddLine(dest + " = " + src + ";");
     }
@@ -240,8 +265,6 @@ private:
 
         switch (OpCode::GetInfo(instr.opcode).type) {
         case OpCode::Type::Arithmetic: {
-            ASSERT(!instr.alu.abs_d);
-
             std::string dest = GetRegister(instr.gpr0);
             std::string op_a = instr.alu.negate_a ? "-" : "";
             op_a += GetRegister(instr.gpr8);
@@ -250,55 +273,99 @@ private:
             }
 
             std::string op_b = instr.alu.negate_b ? "-" : "";
-            if (instr.is_b_gpr) {
-                op_b += GetRegister(instr.gpr20);
+
+            if (instr.is_b_imm) {
+                op_b += GetImmediate(instr);
             } else {
-                op_b += GetUniform(instr.uniform);
+                if (instr.is_b_gpr) {
+                    op_b += GetRegister(instr.gpr20);
+                } else {
+                    op_b += GetUniform(instr.uniform);
+                }
             }
+
             if (instr.alu.abs_b) {
                 op_b = "abs(" + op_b + ")";
             }
 
             switch (instr.opcode.EffectiveOpCode()) {
             case OpCode::Id::FMUL_C:
-            case OpCode::Id::FMUL_R: {
-                SetDest(0, dest, op_a + " * " + op_b, 1, 1);
+            case OpCode::Id::FMUL_R:
+            case OpCode::Id::FMUL_IMM: {
+                SetDest(0, dest, op_a + " * " + op_b, 1, 1, instr.alu.abs_d);
                 break;
             }
             case OpCode::Id::FADD_C:
-            case OpCode::Id::FADD_R: {
-                SetDest(0, dest, op_a + " + " + op_b, 1, 1);
+            case OpCode::Id::FADD_R:
+            case OpCode::Id::FADD_IMM: {
+                SetDest(0, dest, op_a + " + " + op_b, 1, 1, instr.alu.abs_d);
+                break;
+            }
+            case OpCode::Id::MUFU: {
+                switch (instr.sub_op) {
+                case SubOp::Cos:
+                    SetDest(0, dest, "cos(" + op_a + ")", 1, 1, instr.alu.abs_d);
+                    break;
+                case SubOp::Sin:
+                    SetDest(0, dest, "sin(" + op_a + ")", 1, 1, instr.alu.abs_d);
+                    break;
+                case SubOp::Ex2:
+                    SetDest(0, dest, "exp2(" + op_a + ")", 1, 1, instr.alu.abs_d);
+                    break;
+                case SubOp::Lg2:
+                    SetDest(0, dest, "log2(" + op_a + ")", 1, 1, instr.alu.abs_d);
+                    break;
+                case SubOp::Rcp:
+                    SetDest(0, dest, "1.0 / " + op_a, 1, 1, instr.alu.abs_d);
+                    break;
+                case SubOp::Rsq:
+                    SetDest(0, dest, "inversesqrt(" + op_a + ")", 1, 1, instr.alu.abs_d);
+                    break;
+                case SubOp::Min:
+                    SetDest(0, dest, "min(" + op_a + "," + op_b + ")", 1, 1, instr.alu.abs_d);
+                    break;
+                default:
+                    LOG_CRITICAL(HW_GPU, "Unhandled sub op: 0x%02x",
+                                 static_cast<unsigned>(instr.sub_op.Value()));
+                }
                 break;
             }
             default: {
                 LOG_CRITICAL(HW_GPU, "Unhandled arithmetic instruction: 0x%02x (%s): 0x%08x",
                              static_cast<unsigned>(instr.opcode.EffectiveOpCode()),
                              OpCode::GetInfo(instr.opcode).name.c_str(), instr.hex);
-                throw DecompileFail("Unhandled instruction");
                 break;
             }
             }
             break;
         }
         case OpCode::Type::Ffma: {
-            ASSERT_MSG(!instr.ffma.negate_b, "untested");
-            ASSERT_MSG(!instr.ffma.negate_c, "untested");
-
             std::string dest = GetRegister(instr.gpr0);
             std::string op_a = GetRegister(instr.gpr8);
-
             std::string op_b = instr.ffma.negate_b ? "-" : "";
-            op_b += GetUniform(instr.uniform);
-
             std::string op_c = instr.ffma.negate_c ? "-" : "";
-            op_c += GetRegister(instr.gpr39);
 
             switch (instr.opcode.EffectiveOpCode()) {
             case OpCode::Id::FFMA_CR: {
-                SetDest(0, dest, op_a + " * " + op_b + " + " + op_c, 1, 1);
+                op_b += GetUniform(instr.uniform);
+                op_c += GetRegister(instr.gpr39);
                 break;
             }
-
+            case OpCode::Id::FFMA_RR: {
+                op_b += GetRegister(instr.gpr20);
+                op_c += GetRegister(instr.gpr39);
+                break;
+            }
+            case OpCode::Id::FFMA_RC: {
+                op_b += GetRegister(instr.gpr39);
+                op_c += GetUniform(instr.uniform);
+                break;
+            }
+            case OpCode::Id::FFMA_IMM: {
+                op_b += GetImmediate(instr);
+                op_c += GetRegister(instr.gpr39);
+                break;
+            }
             default: {
                 LOG_CRITICAL(HW_GPU, "Unhandled arithmetic FFMA instruction: 0x%02x (%s): 0x%08x",
                              static_cast<unsigned>(instr.opcode.EffectiveOpCode()),
@@ -307,6 +374,8 @@ private:
                 break;
             }
             }
+
+            SetDest(0, dest, op_a + " * " + op_b + " + " + op_c, 1, 1);
             break;
         }
         case OpCode::Type::Memory: {
@@ -315,13 +384,25 @@ private:
 
             switch (instr.opcode.EffectiveOpCode()) {
             case OpCode::Id::LD_A: {
-                ASSERT(instr.attribute.fmt20.size == 0);
+                ASSERT_MSG(instr.attribute.fmt20.size == 0, "untested");
                 SetDest(instr.attribute.fmt20.element, gpr0, GetInputAttribute(attribute), 1, 4);
                 break;
             }
             case OpCode::Id::ST_A: {
-                ASSERT(instr.attribute.fmt20.size == 0);
+                ASSERT_MSG(instr.attribute.fmt20.size == 0, "untested");
                 SetDest(instr.attribute.fmt20.element, GetOutputAttribute(attribute), gpr0, 4, 1);
+                break;
+            }
+            case OpCode::Id::TEXS: {
+                ASSERT_MSG(instr.attribute.fmt20.size == 4, "untested");
+                const std::string op_a = GetRegister(instr.gpr8);
+                const std::string op_b = GetRegister(instr.gpr20);
+                const std::string sampler = GetSampler(instr.sampler);
+                const std::string coord = "vec2(" + op_a + ", " + op_b + ")";
+                const std::string texture = "texture(" + sampler + ", " + coord + ")";
+                for (unsigned elem = 0; elem < instr.attribute.fmt20.size; ++elem) {
+                    SetDest(elem, GetRegister(instr.gpr0, elem), texture, 1, 4);
+                }
                 break;
             }
             default: {
@@ -342,12 +423,22 @@ private:
                 offset = PROGRAM_END - 1;
                 break;
             }
+            case OpCode::Id::IPA: {
+                const auto& attribute = instr.attribute.fmt28;
 
+                if (attribute.index == Attribute::Index::Position) {
+                    LOG_CRITICAL(HW_GPU, "Unimplemented");
+                    break;
+                }
+
+                std::string dest = GetRegister(instr.gpr0);
+                SetDest(attribute.element, dest, GetInputAttribute(attribute.index), 1, 4);
+                break;
+            }
             default: {
                 LOG_CRITICAL(HW_GPU, "Unhandled instruction: 0x%02x (%s): 0x%08x",
                              static_cast<unsigned>(instr.opcode.EffectiveOpCode()),
                              OpCode::GetInfo(instr.opcode).name.c_str(), instr.hex);
-                throw DecompileFail("Unhandled instruction");
                 break;
             }
             }
