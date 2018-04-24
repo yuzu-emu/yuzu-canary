@@ -1,3 +1,18 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 07dc0bbf3e10c030a32f6853de31642162ce988d
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
