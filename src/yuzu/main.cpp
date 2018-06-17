@@ -13,6 +13,7 @@
 #include <QMessageBox>
 #include <QtGui>
 #include <QtWidgets>
+#include "common/common_paths.h"
 #include "common/logging/backend.h"
 #include "common/logging/filter.h"
 #include "common/logging/log.h"
@@ -278,6 +279,7 @@ void GMainWindow::ConnectWidgetEvents() {
 void GMainWindow::ConnectMenuEvents() {
     // File
     connect(ui.action_Load_File, &QAction::triggered, this, &GMainWindow::OnMenuLoadFile);
+    connect(ui.action_Load_Folder, &QAction::triggered, this, &GMainWindow::OnMenuLoadFolder);
     connect(ui.action_Select_Game_List_Root, &QAction::triggered, this,
             &GMainWindow::OnMenuSelectGameListRoot);
     connect(ui.action_Exit, &QAction::triggered, this, &QMainWindow::close);
@@ -550,6 +552,8 @@ void GMainWindow::OnMenuLoadFile() {
     for (const auto& piece : game_list->supported_file_extensions)
         extensions += "*." + piece + " ";
 
+    extensions += "main ";
+
     QString file_filter = tr("Switch Executable") + " (" + extensions + ")";
     file_filter += ";;" + tr("All Files (*.*)");
 
@@ -559,6 +563,18 @@ void GMainWindow::OnMenuLoadFile() {
         UISettings::values.roms_path = QFileInfo(filename).path();
 
         BootGame(filename);
+    }
+}
+
+void GMainWindow::OnMenuLoadFolder() {
+    QDir dir = QFileDialog::getExistingDirectory(this, tr("Open Extracted ROM Directory"));
+
+    QStringList matching_main = dir.entryList(QStringList("main"), QDir::Files);
+    if (matching_main.size() == 1) {
+        BootGame(dir.path() + DIR_SEP + matching_main[0]);
+    } else {
+        QMessageBox::warning(this, tr("Invalid Directory Selected"),
+                             tr("The directory you have selected does not contain a 'main' file."));
     }
 }
 
