@@ -1,3 +1,19 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 3c43ea5c684421b4258145ab8936f035c5657dc6
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[562](https://github.com/yuzu-emu/yuzu/pull/562)|[acc8fe5](https://github.com/yuzu-emu/yuzu/pull/562/files/)|Add UI support for extracted NCA folders|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
