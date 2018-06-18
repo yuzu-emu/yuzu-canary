@@ -29,6 +29,9 @@ public:
         return IdentifyType(file, filepath);
     }
 
+    static VAddr LoadModule(const std::string& name, const std::vector<u8>& file_data,
+                            VAddr load_base);
+
     static VAddr LoadModule(const std::string& path, VAddr load_base);
 
     ResultStatus Load(Kernel::SharedPtr<Kernel::Process>& process) override;
