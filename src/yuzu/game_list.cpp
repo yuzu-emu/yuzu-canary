@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <QApplication>
+#include <QDir>
 #include <QFileInfo>
 #include <QHeaderView>
 #include <QKeyEvent>
@@ -264,8 +265,17 @@ void GameList::ValidateEntry(const QModelIndex& item) {
     if (file_path.isEmpty())
         return;
     std::string std_file_path(file_path.toStdString());
-    if (!FileUtil::Exists(std_file_path) || FileUtil::IsDirectory(std_file_path))
+    if (!FileUtil::Exists(std_file_path))
         return;
+    if (FileUtil::IsDirectory(std_file_path)) {
+        QDir dir(std_file_path.c_str());
+        QStringList matching_main = dir.entryList(QStringList("main"), QDir::Files);
+        if (matching_main.size() == 1) {
+            emit GameChosen(dir.path() + DIR_SEP + matching_main[0]);
+        }
+        return;
+    }
+
     // Users usually want to run a diffrent game after closing one
     search_field->clear();
     emit GameChosen(file_path);
@@ -363,6 +373,19 @@ static bool HasSupportedFileExtension(const std::string& file_name) {
     return GameList::supported_file_extensions.contains(file.suffix(), Qt::CaseInsensitive);
 }
 
+static bool IsExtractedNCAMain(const std::string& file_name) {
+    return QFileInfo(file_name.c_str()).fileName() == "main";
+}
+
+static QString FormatGameName(const std::string& physical_name) {
+    QFileInfo file_info(physical_name.c_str());
+    if (IsExtractedNCAMain(physical_name)) {
+        return file_info.dir().path();
+    } else {
+        return QString::fromStdString(physical_name);
+    }
+}
+
 void GameList::RefreshGameDirectory() {
     if (!UISettings::values.gamedir.isEmpty() && current_worker != nullptr) {
         NGLOG_INFO(Frontend, "Change detected in the games directory. Reloading game list.");
@@ -380,7 +403,8 @@ void GameListWorker::AddFstEntriesToGameList(const std::string& dir_path, unsign
             return false; // Breaks the callback loop.
 
         bool is_dir = FileUtil::IsDirectory(physical_name);
-        if (!is_dir && HasSupportedFileExtension(physical_name)) {
+        if (!is_dir &&
+            (HasSupportedFileExtension(physical_name) || IsExtractedNCAMain(physical_name))) {
             std::unique_ptr<Loader::AppLoader> loader = Loader::GetLoader(physical_name);
             if (!loader)
                 return true;
@@ -392,7 +416,7 @@ void GameListWorker::AddFstEntriesToGameList(const std::string& dir_path, unsign
             loader->ReadProgramId(program_id);
 
             emit EntryReady({
-                new GameListItemPath(QString::fromStdString(physical_name), smdh, program_id),
+                new GameListItemPath(FormatGameName(physical_name), smdh, program_id),
                 new GameListItem(
                     QString::fromStdString(Loader::GetFileTypeString(loader->GetFileType()))),
                 new GameListItemSize(FileUtil::GetSize(physical_name)),
