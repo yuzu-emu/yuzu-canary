@@ -29,6 +29,7 @@ enum class FileType {
     ELF,
     NSO,
     NRO,
+    NCA,
     DeconstructedRomDirectory,
 };
 
