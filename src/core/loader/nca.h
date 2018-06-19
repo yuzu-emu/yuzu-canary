@@ -6,16 +6,19 @@
 
 #include <string>
 #include "common/common_types.h"
+#include "core/file_sys/partition_filesystem.h"
+#include "core/file_sys/program_metadata.h"
 #include "core/hle/kernel/kernel.h"
-#include "core/loader/linker.h"
 #include "core/loader/loader.h"
 
 namespace Loader {
 
-/// Loads an NSO file
-class AppLoader_NSO final : public AppLoader, Linker {
+class Nca;
+
+/// Loads an NCA file
+class AppLoader_NCA final : public AppLoader {
 public:
-    AppLoader_NSO(FileUtil::IOFile&& file, std::string filepath);
+    AppLoader_NCA(FileUtil::IOFile&& file, std::string filepath);
 
     /**
      * Returns the type of the file
@@ -29,15 +32,18 @@ public:
         return IdentifyType(file, filepath);
     }
 
-    static VAddr LoadModule(const std::string& name, const std::vector<u8>& file_data,
-                            VAddr load_base);
-
-    static VAddr LoadModule(const std::string& path, VAddr load_base);
-
     ResultStatus Load(Kernel::SharedPtr<Kernel::Process>& process) override;
+
+    ResultStatus ReadRomFS(std::shared_ptr<FileUtil::IOFile>& romfs_file, u64& offset,
+                           u64& size) override;
+
+    ~AppLoader_NCA();
 
 private:
     std::string filepath;
+    FileSys::ProgramMetadata metadata;
+
+    std::unique_ptr<Nca> nca;
 };
 
 } // namespace Loader

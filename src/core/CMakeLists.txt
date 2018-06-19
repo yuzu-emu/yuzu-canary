@@ -257,6 +257,8 @@ add_library(core STATIC
     loader/linker.h
     loader/loader.cpp
     loader/loader.h
+    loader/nca.cpp
+    loader/nca.h
     loader/nro.cpp
     loader/nro.h
     loader/nso.cpp
