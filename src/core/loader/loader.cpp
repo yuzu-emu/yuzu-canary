@@ -9,6 +9,7 @@
 #include "core/hle/kernel/process.h"
 #include "core/loader/deconstructed_rom_directory.h"
 #include "core/loader/elf.h"
+#include "core/loader/nca.h"
 #include "core/loader/nro.h"
 #include "core/loader/nso.h"
 
@@ -32,6 +33,7 @@ FileType IdentifyFile(FileUtil::IOFile& file, const std::string& filepath) {
     CHECK_TYPE(ELF)
     CHECK_TYPE(NSO)
     CHECK_TYPE(NRO)
+    CHECK_TYPE(NCA)
 
 #undef CHECK_TYPE
 
@@ -57,6 +59,8 @@ FileType GuessFromExtension(const std::string& extension_) {
         return FileType::NRO;
     else if (extension == ".nso")
         return FileType::NSO;
+    else if (extension == ".nca")
+        return FileType::NCA;
 
     return FileType::Unknown;
 }
@@ -69,6 +73,8 @@ const char* GetFileTypeString(FileType type) {
         return "NRO";
     case FileType::NSO:
         return "NSO";
+    case FileType::NCA:
+        return "NCA";
     case FileType::DeconstructedRomDirectory:
         return "Directory";
     case FileType::Error:
@@ -103,6 +109,10 @@ static std::unique_ptr<AppLoader> GetFileLoader(FileUtil::IOFile&& file, FileTyp
     // NX NRO file format.
     case FileType::NRO:
         return std::make_unique<AppLoader_NRO>(std::move(file), filepath);
+
+    // NX NCA file format.
+    case FileType::NCA:
+        return std::make_unique<AppLoader_NCA>(std::move(file), filepath);
 
     // NX deconstructed ROM directory.
     case FileType::DeconstructedRomDirectory:
