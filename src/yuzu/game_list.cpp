@@ -366,7 +366,7 @@ void GameList::LoadInterfaceLayout() {
     item_model->sort(header->sortIndicatorSection(), header->sortIndicatorOrder());
 }
 
-const QStringList GameList::supported_file_extensions = {"nso", "nro"};
+const QStringList GameList::supported_file_extensions = {"nso", "nro", "nca"};
 
 static bool HasSupportedFileExtension(const std::string& file_name) {
     QFileInfo file = QFileInfo(file_name.c_str());
