@@ -37,7 +37,7 @@ public:
 
 private:
     struct Header {
-        std::array<char, 4> magic;
+        u32_le magic;
         u32_le num_entries;
         u32_le strtab_size;
         INSERT_PADDING_BYTES(0x4);

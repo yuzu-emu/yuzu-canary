@@ -19,13 +19,20 @@ Loader::ResultStatus PartitionFilesystem::Load(const std::string& file_path, siz
     if (file.GetSize() < sizeof(Header))
         return Loader::ResultStatus::Error;
 
+    file.Seek(offset, SEEK_SET);
     // For cartridges, HFSs can get very large, so we need to calculate the size up to
     // the actual content itself instead of just blindly reading in the entire file.
     Header pfs_header;
     if (!file.ReadBytes(&pfs_header, sizeof(Header)))
         return Loader::ResultStatus::Error;
 
-    bool is_hfs = (memcmp(pfs_header.magic.data(), "HFS", 3) == 0);
+    if (pfs_header.magic != Common::MakeMagic('H', 'F', 'S', '0') &&
+        pfs_header.magic != Common::MakeMagic('P', 'F', 'S', '0')) {
+        return Loader::ResultStatus::ErrorInvalidFormat;
+    }
+
+    bool is_hfs = pfs_header.magic == Common::MakeMagic('H', 'F', 'S', '0');
+
     size_t entry_size = is_hfs ? sizeof(HFSEntry) : sizeof(PFSEntry);
     size_t metadata_size =
         sizeof(Header) + (pfs_header.num_entries * entry_size) + pfs_header.strtab_size;
@@ -50,7 +57,12 @@ Loader::ResultStatus PartitionFilesystem::Load(const std::vector<u8>& file_data,
         return Loader::ResultStatus::Error;
 
     memcpy(&pfs_header, &file_data[offset], sizeof(Header));
-    is_hfs = (memcmp(pfs_header.magic.data(), "HFS", 3) == 0);
+    if (pfs_header.magic != Common::MakeMagic('H', 'F', 'S', '0') &&
+        pfs_header.magic != Common::MakeMagic('P', 'F', 'S', '0')) {
+        return Loader::ResultStatus::ErrorInvalidFormat;
+    }
+
+    is_hfs = pfs_header.magic == Common::MakeMagic('H', 'F', 'S', '0');
 
     size_t entries_offset = offset + sizeof(Header);
     size_t entry_size = is_hfs ? sizeof(HFSEntry) : sizeof(PFSEntry);
@@ -113,7 +125,7 @@ u64 PartitionFilesystem::GetFileSize(const std::string& name) const {
 }
 
 void PartitionFilesystem::Print() const {
-    NGLOG_DEBUG(Service_FS, "Magic:                  {:.4}", pfs_header.magic.data());
+    NGLOG_DEBUG(Service_FS, "Magic:                  {}", pfs_header.magic);
     NGLOG_DEBUG(Service_FS, "Files:                  {}", pfs_header.num_entries);
     for (u32 i = 0; i < pfs_header.num_entries; i++) {
         NGLOG_DEBUG(Service_FS, " > File {}:              {} (0x{:X} bytes, at 0x{:X})", i,

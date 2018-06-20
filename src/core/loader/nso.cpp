@@ -66,8 +66,22 @@ FileType AppLoader_NSO::IdentifyType(FileUtil::IOFile& file, const std::string&)
     return FileType::Error;
 }
 
+static std::vector<u8> DecompressSegment(const std::vector<u8>& compressed_data,
+                                         const NsoSegmentHeader& header) {
+    std::vector<u8> uncompressed_data;
+    uncompressed_data.resize(header.size);
+    const int bytes_uncompressed = LZ4_decompress_safe(
+        reinterpret_cast<const char*>(compressed_data.data()),
+        reinterpret_cast<char*>(uncompressed_data.data()), compressed_data.size(), header.size);
+
+    ASSERT_MSG(bytes_uncompressed == header.size && bytes_uncompressed == uncompressed_data.size(),
+               "{} != {} != {}", bytes_uncompressed, header.size, uncompressed_data.size());
+
+    return uncompressed_data;
+}
+
 static std::vector<u8> ReadSegment(FileUtil::IOFile& file, const NsoSegmentHeader& header,
-                                   int compressed_size) {
+                                   size_t compressed_size) {
     std::vector<u8> compressed_data;
     compressed_data.resize(compressed_size);
 
@@ -77,20 +91,63 @@ static std::vector<u8> ReadSegment(FileUtil::IOFile& file, const NsoSegmentHeade
         return {};
     }
 
-    std::vector<u8> uncompressed_data;
-    uncompressed_data.resize(header.size);
-    const int bytes_uncompressed = LZ4_decompress_safe(
-        reinterpret_cast<const char*>(compressed_data.data()),
-        reinterpret_cast<char*>(uncompressed_data.data()), compressed_size, header.size);
-
-    ASSERT_MSG(bytes_uncompressed == header.size && bytes_uncompressed == uncompressed_data.size(),
-               "{} != {} != {}", bytes_uncompressed, header.size, uncompressed_data.size());
-
-    return uncompressed_data;
+    return DecompressSegment(compressed_data, header);
 }
 
 static constexpr u32 PageAlignSize(u32 size) {
     return (size + Memory::PAGE_MASK) & ~Memory::PAGE_MASK;
+}
+
+VAddr AppLoader_NSO::LoadModule(const std::string& name, const std::vector<u8>& file_data,
+                                VAddr load_base) {
+    if (file_data.size() < sizeof(NsoHeader))
+        return {};
+
+    NsoHeader nso_header;
+    std::memcpy(&nso_header, file_data.data(), sizeof(NsoHeader));
+
+    if (nso_header.magic != Common::MakeMagic('N', 'S', 'O', '0'))
+        return {};
+
+    // Build program image
+    Kernel::SharedPtr<Kernel::CodeSet> codeset = Kernel::CodeSet::Create("");
+    std::vector<u8> program_image;
+    for (int i = 0; i < nso_header.segments.size(); ++i) {
+        std::vector<u8> compressed_data(nso_header.segments_compressed_size[i]);
+        for (int j = 0; j < nso_header.segments_compressed_size[i]; ++j)
+            compressed_data[j] = file_data[nso_header.segments[i].offset + j];
+        std::vector<u8> data = DecompressSegment(compressed_data, nso_header.segments[i]);
+        program_image.resize(nso_header.segments[i].location);
+        program_image.insert(program_image.end(), data.begin(), data.end());
+        codeset->segments[i].addr = nso_header.segments[i].location;
+        codeset->segments[i].offset = nso_header.segments[i].location;
+        codeset->segments[i].size = PageAlignSize(static_cast<u32>(data.size()));
+    }
+
+    // MOD header pointer is at .text offset + 4
+    u32 module_offset;
+    std::memcpy(&module_offset, program_image.data() + 4, sizeof(u32));
+
+    // Read MOD header
+    ModHeader mod_header{};
+    // Default .bss to size in segment header if MOD0 section doesn't exist
+    u32 bss_size{PageAlignSize(nso_header.segments[2].bss_size)};
+    std::memcpy(&mod_header, program_image.data() + module_offset, sizeof(ModHeader));
+    const bool has_mod_header{mod_header.magic == Common::MakeMagic('M', 'O', 'D', '0')};
+    if (has_mod_header) {
+        // Resize program image to include .bss section and page align each section
+        bss_size = PageAlignSize(mod_header.bss_end_offset - mod_header.bss_start_offset);
+    }
+    codeset->data.size += bss_size;
+    const u32 image_size{PageAlignSize(static_cast<u32>(program_image.size()) + bss_size)};
+    program_image.resize(image_size);
+
+    // Load codeset for current process
+    codeset->name = name;
+    codeset->memory = std::make_shared<std::vector<u8>>(std::move(program_image));
+    Core::CurrentProcess()->LoadModule(codeset, load_base);
+
+    return load_base + image_size;
 }
 
 VAddr AppLoader_NSO::LoadModule(const std::string& path, VAddr load_base) {
