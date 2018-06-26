@@ -223,7 +223,7 @@ void OpenGLState::Apply() const {
             if (current.enabled != new_state.enabled || current.bindpoint != new_state.bindpoint ||
                 current.ssbo != new_state.ssbo) {
                 if (new_state.enabled) {
-                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, new_state.bindpoint, new_state.ssbo);
+                    glBindBufferBase(GL_UNIFORM_BUFFER, new_state.bindpoint, new_state.ssbo);
                 }
             }
         }

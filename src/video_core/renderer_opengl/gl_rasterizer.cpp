@@ -197,8 +197,8 @@ void RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr buffer_offset) {
     ASSERT_MSG(!gpu.regs.shader_config[0].enable, "VertexA is unsupported!");
 
     // Next available bindpoints to use when uploading the const buffers and textures to the GLSL
-    // shaders.
-    u32 current_constbuffer_bindpoint = 0;
+    // shaders. The constbuffer bindpoint starts after the shader stage configuration bind points.
+    u32 current_constbuffer_bindpoint = uniform_buffers.size();
     u32 current_texture_bindpoint = 0;
 
     for (unsigned index = 1; index < Maxwell::MaxShaderProgram; ++index) {
@@ -608,27 +608,33 @@ u32 RasterizerOpenGL::SetupConstBuffers(Maxwell::ShaderStage stage, GLuint progr
 
         boost::optional<VAddr> addr = gpu.memory_manager->GpuToCpuAddress(buffer.address);
 
-        std::vector<u8> data;
+        size_t size = 0;
+
         if (used_buffer.IsIndirect()) {
             // Buffer is accessed indirectly, so upload the entire thing
-            data.resize(buffer.size * sizeof(float));
+            size = buffer.size * sizeof(float);
         } else {
             // Buffer is accessed directly, upload just what we use
-            data.resize(used_buffer.GetSize() * sizeof(float));
+            size = used_buffer.GetSize() * sizeof(float);
         }
 
+        // Align the actual size so it ends up being a multiple of vec4 to meet the OpenGL std140
+        // UBO alignment requirements.
+        size = Common::AlignUp(size, sizeof(GLvec4));
+        ASSERT_MSG(size <= MaxConstbufferSize, "Constbuffer too big");
+
+        std::vector<u8> data(size);
         Memory::ReadBlock(*addr, data.data(), data.size());
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer_draw_state.ssbo);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, data.size(), data.data(), GL_DYNAMIC_DRAW);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+        glBindBuffer(GL_UNIFORM_BUFFER, buffer_draw_state.ssbo);
+        glBufferData(GL_UNIFORM_BUFFER, data.size(), data.data(), GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
         // Now configure the bindpoint of the buffer inside the shader
         std::string buffer_name = used_buffer.GetName();
-        GLuint index =
-            glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, buffer_name.c_str());
+        GLuint index = glGetProgramResourceIndex(program, GL_UNIFORM_BLOCK, buffer_name.c_str());
         if (index != -1)
-            glShaderStorageBlockBinding(program, index, buffer_draw_state.bindpoint);
+            glUniformBlockBinding(program, index, buffer_draw_state.bindpoint);
     }
 
     state.Apply();
