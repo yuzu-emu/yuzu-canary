@@ -9,6 +9,7 @@
 #include "common/assert.h"
 #include "common/common_types.h"
 #include "video_core/engines/shader_bytecode.h"
+#include "video_core/renderer_opengl/gl_rasterizer.h"
 #include "video_core/renderer_opengl/gl_shader_decompiler.h"
 
 namespace GLShader {
@@ -397,7 +398,8 @@ public:
     /// Generates code representing a uniform (C buffer) register, interpreted as the input type.
     std::string GetUniform(u64 index, u64 offset, GLSLRegister::Type type) {
         declr_const_buffers[index].MarkAsUsed(index, offset, stage);
-        std::string value = 'c' + std::to_string(index) + '[' + std::to_string(offset) + ']';
+        std::string value = 'c' + std::to_string(index) + '[' + std::to_string(offset / 4) + "][" +
+                            std::to_string(offset % 4) + ']';
 
         if (type == GLSLRegister::Type::Float) {
             return value;
@@ -411,8 +413,12 @@ public:
     std::string GetUniformIndirect(u64 index, s64 offset, const Register& index_reg,
                                    GLSLRegister::Type type) {
         declr_const_buffers[index].MarkAsUsedIndirect(index, stage);
-        std::string value = 'c' + std::to_string(index) + "[(floatBitsToInt(" +
-                            GetRegister(index_reg, 0) + ") + " + std::to_string(offset) + ") / 4]";
+
+        std::string final_offset = "((floatBitsToInt(" + GetRegister(index_reg, 0) + ") + " +
+                                   std::to_string(offset) + ") / 4)";
+
+        std::string value =
+            'c' + std::to_string(index) + '[' + final_offset + " / 4][" + final_offset + " % 4]";
 
         if (type == GLSLRegister::Type::Float) {
             return value;
@@ -454,9 +460,10 @@ public:
 
         unsigned const_buffer_layout = 0;
         for (const auto& entry : GetConstBuffersDeclarations()) {
-            declarations.AddLine("layout(std430) buffer " + entry.GetName());
+            declarations.AddLine("layout(std140) uniform " + entry.GetName());
             declarations.AddLine('{');
-            declarations.AddLine("    float c" + std::to_string(entry.GetIndex()) + "[];");
+            declarations.AddLine("    vec4 c" + std::to_string(entry.GetIndex()) +
+                                 "[MAX_CONSTBUFFER_ELEMENTS];");
             declarations.AddLine("};");
             declarations.AddNewLine();
             ++const_buffer_layout;
@@ -1713,7 +1720,10 @@ private:
 }; // namespace Decompiler
 
 std::string GetCommonDeclarations() {
-    return "bool exec_shader();";
+    std::string declarations = "bool exec_shader();\n";
+    declarations += "#define MAX_CONSTBUFFER_ELEMENTS " +
+                    std::to_string(RasterizerOpenGL::MaxConstbufferSize / (sizeof(GLvec4)));
+    return declarations;
 }
 
 boost::optional<ProgramResult> DecompileProgram(const ProgramCode& program_code, u32 main_offset,

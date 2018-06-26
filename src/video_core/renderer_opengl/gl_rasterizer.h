@@ -54,6 +54,11 @@ public:
         OGLShader shader;
     };
 
+    /// Maximum supported size that a constbuffer can have in bytes.
+    static constexpr size_t MaxConstbufferSize = 0x1000;
+    static_assert(MaxConstbufferSize % sizeof(GLvec4) == 0,
+                  "The maximum size of a constbuffer must be a multiple of the size of GLvec4");
+
 private:
     class SamplerInfo {
     public:
