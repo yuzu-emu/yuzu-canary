@@ -1,3 +1,19 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: c9e821e93e19d3a11233486b3c62548e9f128b24
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[554](https://github.com/yuzu-emu/yuzu/pull/554)|[2a76531](https://github.com/yuzu-emu/yuzu/pull/554/files/)|Rasterizer: Use UBOs instead of SSBOs for uploading const buffers.|[Subv](https://github.com/Subv)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
