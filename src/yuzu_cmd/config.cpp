@@ -98,6 +98,8 @@ void Config::ReadValues() {
         (float)sdl2_config->GetReal("Renderer", "resolution_factor", 1.0);
     Settings::values.toggle_framelimit =
         sdl2_config->GetBoolean("Renderer", "toggle_framelimit", true);
+    Settings::values.use_accurate_framebuffers =
+        sdl2_config->GetBoolean("Renderer", "use_accurate_framebuffers", false);
 
     Settings::values.bg_red = (float)sdl2_config->GetReal("Renderer", "bg_red", 0.0);
     Settings::values.bg_green = (float)sdl2_config->GetReal("Renderer", "bg_green", 0.0);
