@@ -1,56 +1,25 @@
-// Copyright 2015 Citra Emulator Project
+// Copyright 2018 yuzu Emulator Project
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
 #pragma once
 
 #include <array>
+#include <map>
 #include <memory>
-#include <set>
-#include <tuple>
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-local-typedefs"
-#endif
+#include <vector>
 #include <boost/icl/interval_map.hpp>
-#include <boost/icl/interval_set.hpp>
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
-#include <boost/optional.hpp>
-#include <glad/glad.h>
-#include "common/assert.h"
-#include "common/common_funcs.h"
 #include "common/common_types.h"
+#include "common/hash.h"
 #include "common/math_util.h"
-#include "video_core/gpu.h"
-#include "video_core/memory_manager.h"
+#include "video_core/engines/maxwell_3d.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/textures/texture.h"
 
-struct CachedSurface;
+class CachedSurface;
 using Surface = std::shared_ptr<CachedSurface>;
-using SurfaceSet = std::set<Surface>;
-
-using SurfaceRegions = boost::icl::interval_set<Tegra::GPUVAddr>;
-using SurfaceMap = boost::icl::interval_map<Tegra::GPUVAddr, Surface>;
-using SurfaceCache = boost::icl::interval_map<Tegra::GPUVAddr, SurfaceSet>;
-
-using SurfaceInterval = SurfaceCache::interval_type;
-static_assert(std::is_same<SurfaceRegions::interval_type, SurfaceCache::interval_type>() &&
-                  std::is_same<SurfaceMap::interval_type, SurfaceCache::interval_type>(),
-              "incorrect interval types");
-
-using SurfaceRect_Tuple = std::tuple<Surface, MathUtil::Rectangle<u32>>;
 using SurfaceSurfaceRect_Tuple = std::tuple<Surface, Surface, MathUtil::Rectangle<u32>>;
-
 using PageMap = boost::icl::interval_map<u64, int>;
-
-enum class ScaleMatch {
-    Exact,   // only accept same res scale
-    Upscale, // only allow higher scale than params
-    Ignore   // accept every scaled res
-};
 
 struct SurfaceParams {
     enum class PixelFormat {
@@ -93,10 +62,10 @@ struct SurfaceParams {
     /**
      * Gets the compression factor for the specified PixelFormat. This applies to just the
      * "compressed width" and "compressed height", not the overall compression factor of a
-     * compressed image. This is used for maintaining proper surface sizes for compressed texture
-     * formats.
+     * compressed image. This is used for maintaining proper surface sizes for compressed
+     * texture formats.
      */
-    static constexpr u32 GetCompresssionFactor(PixelFormat format) {
+    static constexpr u32 GetCompressionFactor(PixelFormat format) {
         if (format == PixelFormat::Invalid)
             return 0;
 
@@ -112,14 +81,11 @@ struct SurfaceParams {
             4, // DXT23
             4, // DXT45
             4, // DXN1
-            1, // ASTC_2D_4X4
+            4, // ASTC_2D_4X4
         }};
 
         ASSERT(static_cast<size_t>(format) < compression_factor_table.size());
         return compression_factor_table[static_cast<size_t>(format)];
-    }
-    u32 GetCompresssionFactor() const {
-        return GetCompresssionFactor(pixel_format);
     }
 
     static constexpr u32 GetFormatBpp(PixelFormat format) {
@@ -159,25 +125,6 @@ struct SurfaceParams {
             return PixelFormat::RGBA16F;
         case Tegra::RenderTargetFormat::R11G11B10_FLOAT:
             return PixelFormat::R11FG11FB10F;
-        default:
-            NGLOG_CRITICAL(HW_GPU, "Unimplemented format={}", static_cast<u32>(format));
-            UNREACHABLE();
-        }
-    }
-
-    static bool IsFormatASTC(PixelFormat format) {
-        switch (format) {
-        case PixelFormat::ASTC_2D_4X4:
-            return true;
-        default:
-            return false;
-        }
-    }
-
-    static PixelFormat PixelFormatFromGPUPixelFormat(Tegra::FramebufferConfig::PixelFormat format) {
-        switch (format) {
-        case Tegra::FramebufferConfig::PixelFormat::ABGR8:
-            return PixelFormat::ABGR8;
         default:
             NGLOG_CRITICAL(HW_GPU, "Unimplemented format={}", static_cast<u32>(format));
             UNREACHABLE();
@@ -276,34 +223,14 @@ struct SurfaceParams {
         }
     }
 
-    static ComponentType ComponentTypeFromGPUPixelFormat(
-        Tegra::FramebufferConfig::PixelFormat format) {
+    static PixelFormat PixelFormatFromGPUPixelFormat(Tegra::FramebufferConfig::PixelFormat format) {
         switch (format) {
         case Tegra::FramebufferConfig::PixelFormat::ABGR8:
-            return ComponentType::UNorm;
+            return PixelFormat::ABGR8;
         default:
             NGLOG_CRITICAL(HW_GPU, "Unimplemented format={}", static_cast<u32>(format));
             UNREACHABLE();
         }
-    }
-
-    static bool CheckFormatsBlittable(PixelFormat pixel_format_a, PixelFormat pixel_format_b) {
-        SurfaceType a_type = GetFormatType(pixel_format_a);
-        SurfaceType b_type = GetFormatType(pixel_format_b);
-
-        if (a_type == SurfaceType::ColorTexture && b_type == SurfaceType::ColorTexture) {
-            return true;
-        }
-
-        if (a_type == SurfaceType::Depth && b_type == SurfaceType::Depth) {
-            return true;
-        }
-
-        if (a_type == SurfaceType::DepthStencil && b_type == SurfaceType::DepthStencil) {
-            return true;
-        }
-
-        return false;
     }
 
     static SurfaceType GetFormatType(PixelFormat pixel_format) {
@@ -317,167 +244,100 @@ struct SurfaceParams {
         return SurfaceType::Invalid;
     }
 
-    /// Update the params "size", "end" and "type" from the already set "addr", "width", "height"
-    /// and "pixel_format"
-    void UpdateParams() {
-        if (stride == 0) {
-            stride = width;
-        }
-        type = GetFormatType(pixel_format);
-        size = !is_tiled ? BytesInPixels(stride * (height - 1) + width)
-                         : BytesInPixels(stride * 8 * (height / 8 - 1) + width * 8);
-        end = addr + size;
+    /// Returns the rectangle corresponding to this surface
+    MathUtil::Rectangle<u32> GetRect() const;
+
+    /// Returns the size of this surface in bytes, adjusted for compression
+    size_t SizeInBytes() const {
+        const u32 compression_factor{GetCompressionFactor(pixel_format)};
+        ASSERT(width % compression_factor == 0);
+        ASSERT(height % compression_factor == 0);
+        return (width / compression_factor) * (height / compression_factor) *
+               GetFormatBpp(pixel_format) / CHAR_BIT;
     }
 
-    SurfaceInterval GetInterval() const {
-        return SurfaceInterval::right_open(addr, end);
-    }
-
-    // Returns the outer rectangle containing "interval"
-    SurfaceParams FromInterval(SurfaceInterval interval) const;
-
-    SurfaceInterval GetSubRectInterval(MathUtil::Rectangle<u32> unscaled_rect) const;
-
-    // Returns the region of the biggest valid rectange within interval
-    SurfaceInterval GetCopyableInterval(const Surface& src_surface) const;
-
-    /**
-     * Gets the actual width (in pixels) of the surface. This is provided because `width` is used
-     * for tracking the surface region in memory, which may be compressed for certain formats. In
-     * this scenario, `width` is actually the compressed width.
-     */
-    u32 GetActualWidth() const {
-        return width * GetCompresssionFactor();
-    }
-
-    /**
-     * Gets the actual height (in pixels) of the surface. This is provided because `height` is used
-     * for tracking the surface region in memory, which may be compressed for certain formats. In
-     * this scenario, `height` is actually the compressed height.
-     */
-    u32 GetActualHeight() const {
-        return height * GetCompresssionFactor();
-    }
-
-    u32 GetScaledWidth() const {
-        return width * res_scale;
-    }
-
-    u32 GetScaledHeight() const {
-        return height * res_scale;
-    }
-
-    MathUtil::Rectangle<u32> GetRect() const {
-        return {0, height, width, 0};
-    }
-
-    MathUtil::Rectangle<u32> GetScaledRect() const {
-        return {0, GetScaledHeight(), GetScaledWidth(), 0};
-    }
-
-    u64 PixelsInBytes(u64 size) const {
-        return size * CHAR_BIT / GetFormatBpp(pixel_format);
-    }
-
-    u64 BytesInPixels(u64 pixels) const {
-        return pixels * GetFormatBpp(pixel_format) / CHAR_BIT;
-    }
-
+    /// Returns the CPU virtual address for this surface
     VAddr GetCpuAddr() const;
 
-    bool ExactMatch(const SurfaceParams& other_surface) const;
-    bool CanSubRect(const SurfaceParams& sub_surface) const;
-    bool CanExpand(const SurfaceParams& expanded_surface) const;
-    bool CanTexCopy(const SurfaceParams& texcopy_params) const;
+    /// Returns true if the specified region overlaps with this surface's region in Switch memory
+    bool IsOverlappingRegion(Tegra::GPUVAddr region_addr, size_t region_size) const {
+        return addr <= (region_addr + region_size) && region_addr <= (addr + size_in_bytes);
+    }
 
-    MathUtil::Rectangle<u32> GetSubRect(const SurfaceParams& sub_surface) const;
-    MathUtil::Rectangle<u32> GetScaledSubRect(const SurfaceParams& sub_surface) const;
+    /// Creates SurfaceParams from a texture configation
+    static SurfaceParams CreateForTexture(const Tegra::Texture::FullTextureInfo& config);
 
-    Tegra::GPUVAddr addr = 0;
-    Tegra::GPUVAddr end = 0;
-    boost::optional<VAddr> cpu_addr;
-    u64 size = 0;
+    /// Creates SurfaceParams from a framebuffer configation
+    static SurfaceParams CreateForFramebuffer(
+        const Tegra::Engines::Maxwell3D::Regs::RenderTargetConfig& config);
 
-    u32 width = 0;
-    u32 height = 0;
-    u32 stride = 0;
-    u32 block_height = 0;
-    u16 res_scale = 1;
-
-    bool is_tiled = false;
-    PixelFormat pixel_format = PixelFormat::Invalid;
-    SurfaceType type = SurfaceType::Invalid;
-    ComponentType component_type = ComponentType::Invalid;
+    Tegra::GPUVAddr addr;
+    bool is_tiled;
+    u32 block_height;
+    PixelFormat pixel_format;
+    ComponentType component_type;
+    SurfaceType type;
+    u32 width;
+    u32 height;
+    u32 unaligned_height;
+    size_t size_in_bytes;
 };
 
-struct CachedSurface : SurfaceParams {
-    bool CanFill(const SurfaceParams& dest_surface, SurfaceInterval fill_interval) const;
-    bool CanCopy(const SurfaceParams& dest_surface, SurfaceInterval copy_interval) const;
+/// Hashable variation of SurfaceParams, used for a key in the surface cache
+struct SurfaceKey : Common::HashableStruct<SurfaceParams> {
+    static SurfaceKey Create(const SurfaceParams& params) {
+        SurfaceKey res;
+        res.state = params;
+        return res;
+    }
+};
 
-    bool IsRegionValid(SurfaceInterval interval) const {
-        return (invalid_regions.find(interval) == invalid_regions.end());
+namespace std {
+template <>
+struct hash<SurfaceKey> {
+    size_t operator()(const SurfaceKey& k) const {
+        return k.Hash();
+    }
+};
+} // namespace std
+
+class CachedSurface final {
+public:
+    CachedSurface(const SurfaceParams& params);
+
+    const OGLTexture& Texture() const {
+        return texture;
     }
 
-    bool IsSurfaceFullyInvalid() const {
-        return (invalid_regions & GetInterval()) == SurfaceRegions(GetInterval());
-    }
-
-    bool registered = false;
-    SurfaceRegions invalid_regions;
-
-    u64 fill_size = 0; /// Number of bytes to read from fill_data
-    std::array<u8, 4> fill_data;
-
-    OGLTexture texture;
-
-    static constexpr unsigned int GetGLBytesPerPixel(PixelFormat format) {
-        if (format == PixelFormat::Invalid)
+    static constexpr unsigned int GetGLBytesPerPixel(SurfaceParams::PixelFormat format) {
+        if (format == SurfaceParams::PixelFormat::Invalid)
             return 0;
 
         return SurfaceParams::GetFormatBpp(format) / CHAR_BIT;
     }
 
-    std::unique_ptr<u8[]> gl_buffer;
-    size_t gl_buffer_size = 0;
+    const SurfaceParams& GetSurfaceParams() const {
+        return params;
+    }
 
     // Read/Write data in Switch memory to/from gl_buffer
-    void LoadGLBuffer(Tegra::GPUVAddr load_start, Tegra::GPUVAddr load_end);
-    void FlushGLBuffer(Tegra::GPUVAddr flush_start, Tegra::GPUVAddr flush_end);
+    void LoadGLBuffer();
+    void FlushGLBuffer();
 
     // Upload/Download data in gl_buffer in/to this surface's texture
-    void UploadGLTexture(const MathUtil::Rectangle<u32>& rect, GLuint read_fb_handle,
-                         GLuint draw_fb_handle);
-    void DownloadGLTexture(const MathUtil::Rectangle<u32>& rect, GLuint read_fb_handle,
-                           GLuint draw_fb_handle);
+    void UploadGLTexture(GLuint read_fb_handle, GLuint draw_fb_handle);
+    void DownloadGLTexture(GLuint read_fb_handle, GLuint draw_fb_handle);
+
+private:
+    OGLTexture texture;
+    std::vector<u8> gl_buffer;
+    SurfaceParams params;
 };
 
-class RasterizerCacheOpenGL : NonCopyable {
+class RasterizerCacheOpenGL final : NonCopyable {
 public:
     RasterizerCacheOpenGL();
     ~RasterizerCacheOpenGL();
-
-    /// Blit one surface's texture to another
-    bool BlitSurfaces(const Surface& src_surface, const MathUtil::Rectangle<u32>& src_rect,
-                      const Surface& dst_surface, const MathUtil::Rectangle<u32>& dst_rect);
-
-    void ConvertD24S8toABGR(GLuint src_tex, const MathUtil::Rectangle<u32>& src_rect,
-                            GLuint dst_tex, const MathUtil::Rectangle<u32>& dst_rect);
-
-    /// Copy one surface's region to another
-    void CopySurface(const Surface& src_surface, const Surface& dst_surface,
-                     SurfaceInterval copy_interval);
-
-    /// Load a texture from Switch memory to OpenGL and cache it (if not already cached)
-    Surface GetSurface(const SurfaceParams& params, ScaleMatch match_res_scale,
-                       bool load_if_create);
-
-    /// Tries to find a framebuffer GPU address based on the provided CPU address
-    boost::optional<Tegra::GPUVAddr> TryFindFramebufferGpuAddress(VAddr cpu_addr) const;
-
-    /// Attempt to find a subrect (resolution scaled) of a surface, otherwise loads a texture from
-    /// Switch memory to OpenGL and caches it (if not already cached)
-    SurfaceRect_Tuple GetSurfaceSubRect(const SurfaceParams& params, ScaleMatch match_res_scale,
-                                        bool load_if_create);
 
     /// Get a surface based on the texture configuration
     Surface GetTextureSurface(const Tegra::Texture::FullTextureInfo& config);
@@ -486,29 +346,21 @@ public:
     SurfaceSurfaceRect_Tuple GetFramebufferSurfaces(bool using_color_fb, bool using_depth_fb,
                                                     const MathUtil::Rectangle<s32>& viewport);
 
-    /// Get a surface that matches the fill config
-    Surface GetFillSurface(const void* config);
+    /// Marks the specified surface as "dirty", in that it is out of sync with Switch memory
+    void MarkSurfaceAsDirty(const Surface& surface);
 
-    /// Get a surface that matches a "texture copy" display transfer config
-    SurfaceRect_Tuple GetTexCopySurface(const SurfaceParams& params);
+    /// Tries to find a framebuffer GPU address based on the provided CPU address
+    Surface TryFindFramebufferSurface(VAddr cpu_addr) const;
 
     /// Write any cached resources overlapping the region back to memory (if dirty)
-    void FlushRegion(Tegra::GPUVAddr addr, u64 size, Surface flush_surface = nullptr);
+    void FlushRegion(Tegra::GPUVAddr addr, size_t size);
 
-    /// Mark region as being invalidated by region_owner (nullptr if Switch memory)
-    void InvalidateRegion(Tegra::GPUVAddr addr, u64 size, const Surface& region_owner);
-
-    /// Flush all cached resources tracked by this cache manager
-    void FlushAll();
+    /// Mark the specified region as being invalidated
+    void InvalidateRegion(Tegra::GPUVAddr addr, size_t size);
 
 private:
-    void DuplicateSurface(const Surface& src_surface, const Surface& dest_surface);
-
-    /// Update surface's texture for given region when necessary
-    void ValidateSurface(const Surface& surface, Tegra::GPUVAddr addr, u64 size);
-
-    /// Create a new surface
-    Surface CreateSurface(const SurfaceParams& params);
+    void LoadSurface(const Surface& surface);
+    Surface GetSurface(const SurfaceParams& params);
 
     /// Register surface into the cache
     void RegisterSurface(const Surface& surface);
@@ -519,18 +371,9 @@ private:
     /// Increase/decrease the number of surface in pages touching the specified region
     void UpdatePagesCachedCount(Tegra::GPUVAddr addr, u64 size, int delta);
 
-    SurfaceCache surface_cache;
+    std::unordered_map<SurfaceKey, Surface> surface_cache;
     PageMap cached_pages;
-    SurfaceMap dirty_regions;
-    SurfaceSet remove_surfaces;
 
     OGLFramebuffer read_framebuffer;
     OGLFramebuffer draw_framebuffer;
-
-    OGLVertexArray attributeless_vao;
-    OGLBuffer d24s8_abgr_buffer;
-    GLsizeiptr d24s8_abgr_buffer_size;
-    OGLProgram d24s8_abgr_shader;
-    GLint d24s8_abgr_tbo_size_u_id;
-    GLint d24s8_abgr_viewport_u_id;
 };

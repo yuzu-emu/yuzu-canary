@@ -161,6 +161,8 @@ TelemetrySession::TelemetrySession() {
              Settings::values.resolution_factor);
     AddField(Telemetry::FieldType::UserConfig, "Renderer_ToggleFramelimit",
              Settings::values.toggle_framelimit);
+    AddField(Telemetry::FieldType::UserConfig, "Renderer_UseAccurateFramebuffers",
+             Settings::values.use_accurate_framebuffers);
     AddField(Telemetry::FieldType::UserConfig, "System_UseDockedMode",
              Settings::values.use_docked_mode);
 }

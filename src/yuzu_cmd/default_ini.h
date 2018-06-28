@@ -102,6 +102,10 @@ resolution_factor =
 # 0 (default): Off, 1: On
 use_vsync =
 
+# Whether to use accurate framebuffers
+# 0 (default): Off (fast), 1 : On (slow)
+use_accurate_framebuffers =
+
 # The clear color for the renderer. What shows up on the sides of the bottom screen.
 # Must be in range of 0.0-1.0. Defaults to 1.0 for all.
 bg_red =

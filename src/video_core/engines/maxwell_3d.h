@@ -321,6 +321,24 @@ public:
             INSERT_PADDING_WORDS(1);
         };
 
+        struct RenderTargetConfig {
+            u32 address_high;
+            u32 address_low;
+            u32 width;
+            u32 height;
+            Tegra::RenderTargetFormat format;
+            u32 block_dimensions;
+            u32 array_mode;
+            u32 layer_stride;
+            u32 base_layer;
+            INSERT_PADDING_WORDS(7);
+
+            GPUVAddr Address() const {
+                return static_cast<GPUVAddr>((static_cast<GPUVAddr>(address_high) << 32) |
+                                             address_low);
+            }
+        };
+
         union {
             struct {
                 INSERT_PADDING_WORDS(0x45);
@@ -333,23 +351,7 @@ public:
 
                 INSERT_PADDING_WORDS(0x1B8);
 
-                struct {
-                    u32 address_high;
-                    u32 address_low;
-                    u32 width;
-                    u32 height;
-                    Tegra::RenderTargetFormat format;
-                    u32 block_dimensions;
-                    u32 array_mode;
-                    u32 layer_stride;
-                    u32 base_layer;
-                    INSERT_PADDING_WORDS(7);
-
-                    GPUVAddr Address() const {
-                        return static_cast<GPUVAddr>((static_cast<GPUVAddr>(address_high) << 32) |
-                                                     address_low);
-                    }
-                } rt[NumRenderTargets];
+                RenderTargetConfig rt[NumRenderTargets];
 
                 struct {
                     f32 scale_x;

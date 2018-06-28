@@ -30,6 +30,13 @@
          </widget>
         </item>
         <item>
+         <widget class="QCheckBox" name="use_accurate_framebuffers">
+          <property name="text">
+           <string>Use accurate framebuffers (slow)</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <layout class="QHBoxLayout" name="horizontalLayout">
           <item>
            <widget class="QLabel" name="label">

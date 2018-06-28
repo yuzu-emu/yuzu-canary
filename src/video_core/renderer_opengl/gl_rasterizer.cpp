@@ -146,7 +146,6 @@ std::pair<u8*, GLintptr> RasterizerOpenGL::SetupVertexArrays(u8* array_ptr,
         u64 size = end - start + 1;
 
         // Copy vertex array data
-        res_cache.FlushRegion(start, size, nullptr);
         Memory::ReadBlock(*memory_manager->GpuToCpuAddress(start), array_ptr, size);
 
         // Bind the vertex array to the buffer at the current offset.
@@ -325,29 +324,22 @@ void RasterizerOpenGL::DrawArrays() {
     std::tie(color_surface, depth_surface, surfaces_rect) =
         res_cache.GetFramebufferSurfaces(using_color_fb, using_depth_fb, viewport_rect);
 
-    const u16 res_scale = color_surface != nullptr
-                              ? color_surface->res_scale
-                              : (depth_surface == nullptr ? 1u : depth_surface->res_scale);
-
     MathUtil::Rectangle<u32> draw_rect{
+        static_cast<u32>(std::clamp<s32>(static_cast<s32>(surfaces_rect.left) + viewport_rect.left,
+                                         surfaces_rect.left, surfaces_rect.right)), // Left
+        static_cast<u32>(std::clamp<s32>(static_cast<s32>(surfaces_rect.bottom) + viewport_rect.top,
+                                         surfaces_rect.bottom, surfaces_rect.top)), // Top
+        static_cast<u32>(std::clamp<s32>(static_cast<s32>(surfaces_rect.left) + viewport_rect.right,
+                                         surfaces_rect.left, surfaces_rect.right)), // Right
         static_cast<u32>(
-            std::clamp<s32>(static_cast<s32>(surfaces_rect.left) + viewport_rect.left * res_scale,
-                            surfaces_rect.left, surfaces_rect.right)), // Left
-        static_cast<u32>(
-            std::clamp<s32>(static_cast<s32>(surfaces_rect.bottom) + viewport_rect.top * res_scale,
-                            surfaces_rect.bottom, surfaces_rect.top)), // Top
-        static_cast<u32>(
-            std::clamp<s32>(static_cast<s32>(surfaces_rect.left) + viewport_rect.right * res_scale,
-                            surfaces_rect.left, surfaces_rect.right)), // Right
-        static_cast<u32>(std::clamp<s32>(static_cast<s32>(surfaces_rect.bottom) +
-                                             viewport_rect.bottom * res_scale,
-                                         surfaces_rect.bottom, surfaces_rect.top))}; // Bottom
+            std::clamp<s32>(static_cast<s32>(surfaces_rect.bottom) + viewport_rect.bottom,
+                            surfaces_rect.bottom, surfaces_rect.top))}; // Bottom
 
     // Bind the framebuffer surfaces
     BindFramebufferSurfaces(color_surface, depth_surface, has_stencil);
 
     // Sync the viewport
-    SyncViewport(surfaces_rect, res_scale);
+    SyncViewport(surfaces_rect);
 
     // Sync the blend state registers
     SyncBlendState();
@@ -442,19 +434,11 @@ void RasterizerOpenGL::DrawArrays() {
     state.Apply();
 
     // Mark framebuffer surfaces as dirty
-    MathUtil::Rectangle<u32> draw_rect_unscaled{
-        draw_rect.left / res_scale, draw_rect.top / res_scale, draw_rect.right / res_scale,
-        draw_rect.bottom / res_scale};
-
     if (color_surface != nullptr && write_color_fb) {
-        auto interval = color_surface->GetSubRectInterval(draw_rect_unscaled);
-        res_cache.InvalidateRegion(boost::icl::first(interval), boost::icl::length(interval),
-                                   color_surface);
+        res_cache.MarkSurfaceAsDirty(color_surface);
     }
     if (depth_surface != nullptr && write_depth_fb) {
-        auto interval = depth_surface->GetSubRectInterval(draw_rect_unscaled);
-        res_cache.InvalidateRegion(boost::icl::first(interval), boost::icl::length(interval),
-                                   depth_surface);
+        res_cache.MarkSurfaceAsDirty(depth_surface);
     }
 }
 
@@ -462,7 +446,7 @@ void RasterizerOpenGL::NotifyMaxwellRegisterChanged(u32 method) {}
 
 void RasterizerOpenGL::FlushAll() {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
-    res_cache.FlushAll();
+    res_cache.FlushRegion(0, Kernel::VMManager::MAX_ADDRESS);
 }
 
 void RasterizerOpenGL::FlushRegion(Tegra::GPUVAddr addr, u64 size) {
@@ -472,13 +456,13 @@ void RasterizerOpenGL::FlushRegion(Tegra::GPUVAddr addr, u64 size) {
 
 void RasterizerOpenGL::InvalidateRegion(Tegra::GPUVAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
-    res_cache.InvalidateRegion(addr, size, nullptr);
+    res_cache.InvalidateRegion(addr, size);
 }
 
 void RasterizerOpenGL::FlushAndInvalidateRegion(Tegra::GPUVAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.FlushRegion(addr, size);
-    res_cache.InvalidateRegion(addr, size, nullptr);
+    res_cache.InvalidateRegion(addr, size);
 }
 
 bool RasterizerOpenGL::AccelerateDisplayTransfer(const void* config) {
@@ -497,45 +481,28 @@ bool RasterizerOpenGL::AccelerateFill(const void* config) {
     return true;
 }
 
-bool RasterizerOpenGL::AccelerateDisplay(const Tegra::FramebufferConfig& framebuffer,
+bool RasterizerOpenGL::AccelerateDisplay(const Tegra::FramebufferConfig& config,
                                          VAddr framebuffer_addr, u32 pixel_stride,
                                          ScreenInfo& screen_info) {
-    if (framebuffer_addr == 0) {
-        return false;
+    if (!framebuffer_addr) {
+        return {};
     }
+
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
 
-    SurfaceParams src_params;
-    src_params.cpu_addr = framebuffer_addr;
-    src_params.addr = res_cache.TryFindFramebufferGpuAddress(framebuffer_addr).get_value_or(0);
-    src_params.width = std::min(framebuffer.width, pixel_stride);
-    src_params.height = framebuffer.height;
-    src_params.stride = pixel_stride;
-    src_params.is_tiled = true;
-    src_params.block_height = Tegra::Texture::TICEntry::DefaultBlockHeight;
-    src_params.pixel_format =
-        SurfaceParams::PixelFormatFromGPUPixelFormat(framebuffer.pixel_format);
-    src_params.component_type =
-        SurfaceParams::ComponentTypeFromGPUPixelFormat(framebuffer.pixel_format);
-    src_params.UpdateParams();
-
-    MathUtil::Rectangle<u32> src_rect;
-    Surface src_surface;
-    std::tie(src_surface, src_rect) =
-        res_cache.GetSurfaceSubRect(src_params, ScaleMatch::Ignore, true);
-
-    if (src_surface == nullptr) {
-        return false;
+    const auto& surface{res_cache.TryFindFramebufferSurface(framebuffer_addr)};
+    if (!surface) {
+        return {};
     }
 
-    u32 scaled_width = src_surface->GetScaledWidth();
-    u32 scaled_height = src_surface->GetScaledHeight();
+    // Verify that the cached surface is the same size and format as the requested framebuffer
+    const auto& params{surface->GetSurfaceParams()};
+    const auto& pixel_format{SurfaceParams::PixelFormatFromGPUPixelFormat(config.pixel_format)};
+    ASSERT_MSG(params.width == config.width, "Framebuffer width is different");
+    ASSERT_MSG(params.height == config.height, "Framebuffer height is different");
+    ASSERT_MSG(params.pixel_format == pixel_format, "Framebuffer pixel_format is different");
 
-    screen_info.display_texcoords = MathUtil::Rectangle<float>(
-        (float)src_rect.bottom / (float)scaled_height, (float)src_rect.left / (float)scaled_width,
-        (float)src_rect.top / (float)scaled_height, (float)src_rect.right / (float)scaled_width);
-
-    screen_info.display_texture = src_surface->texture.handle;
+    screen_info.display_texture = surface->Texture().handle;
 
     return true;
 }
@@ -674,7 +641,7 @@ u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, GLuint program, 
         texture_samplers[current_bindpoint].SyncWithConfig(texture.tsc);
         Surface surface = res_cache.GetTextureSurface(texture);
         if (surface != nullptr) {
-            state.texture_units[current_bindpoint].texture_2d = surface->texture.handle;
+            state.texture_units[current_bindpoint].texture_2d = surface->Texture().handle;
             state.texture_units[current_bindpoint].swizzle.r =
                 MaxwellToGL::SwizzleSource(texture.tic.x_source);
             state.texture_units[current_bindpoint].swizzle.g =
@@ -700,16 +667,16 @@ void RasterizerOpenGL::BindFramebufferSurfaces(const Surface& color_surface,
     state.Apply();
 
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                           color_surface != nullptr ? color_surface->texture.handle : 0, 0);
+                           color_surface != nullptr ? color_surface->Texture().handle : 0, 0);
     if (depth_surface != nullptr) {
         if (has_stencil) {
             // attach both depth and stencil
             glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
-                                   depth_surface->texture.handle, 0);
+                                   depth_surface->Texture().handle, 0);
         } else {
             // attach depth
             glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
-                                   depth_surface->texture.handle, 0);
+                                   depth_surface->Texture().handle, 0);
             // clear stencil attachment
             glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
         }
@@ -720,14 +687,14 @@ void RasterizerOpenGL::BindFramebufferSurfaces(const Surface& color_surface,
     }
 }
 
-void RasterizerOpenGL::SyncViewport(const MathUtil::Rectangle<u32>& surfaces_rect, u16 res_scale) {
+void RasterizerOpenGL::SyncViewport(const MathUtil::Rectangle<u32>& surfaces_rect) {
     const auto& regs = Core::System().GetInstance().GPU().Maxwell3D().regs;
     const MathUtil::Rectangle<s32> viewport_rect{regs.viewport_transform[0].GetRect()};
 
-    state.viewport.x = static_cast<GLint>(surfaces_rect.left) + viewport_rect.left * res_scale;
-    state.viewport.y = static_cast<GLint>(surfaces_rect.bottom) + viewport_rect.bottom * res_scale;
-    state.viewport.width = static_cast<GLsizei>(viewport_rect.GetWidth() * res_scale);
-    state.viewport.height = static_cast<GLsizei>(viewport_rect.GetHeight() * res_scale);
+    state.viewport.x = static_cast<GLint>(surfaces_rect.left) + viewport_rect.left;
+    state.viewport.y = static_cast<GLint>(surfaces_rect.bottom) + viewport_rect.bottom;
+    state.viewport.width = static_cast<GLsizei>(viewport_rect.GetWidth());
+    state.viewport.height = static_cast<GLsizei>(viewport_rect.GetHeight());
 }
 
 void RasterizerOpenGL::SyncClipEnabled() {

@@ -109,7 +109,7 @@ private:
                       u32 current_unit, const std::vector<GLShader::SamplerEntry>& entries);
 
     /// Syncs the viewport to match the guest state
-    void SyncViewport(const MathUtil::Rectangle<u32>& surfaces_rect, u16 res_scale);
+    void SyncViewport(const MathUtil::Rectangle<u32>& surfaces_rect);
 
     /// Syncs the clip enabled status to match the guest state
     void SyncClipEnabled();
