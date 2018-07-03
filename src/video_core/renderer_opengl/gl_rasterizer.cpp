@@ -297,6 +297,87 @@ bool RasterizerOpenGL::AccelerateDrawBatch(bool is_indexed) {
     return true;
 }
 
+void RasterizerOpenGL::Clear() {
+    const auto& regs = Core::System().GetInstance().GPU().Maxwell3D().regs;
+
+    GLbitfield clear_mask = 0;
+    if (regs.clear_buffers.R && regs.clear_buffers.G && regs.clear_buffers.B &&
+        regs.clear_buffers.A) {
+        clear_mask |= GL_COLOR_BUFFER_BIT;
+    }
+    if (regs.clear_buffers.Z)
+        clear_mask |= GL_DEPTH_BUFFER_BIT;
+
+    if (clear_mask == 0)
+        return;
+
+    // Sync the depth test state before configuring the framebuffer surfaces.
+    SyncDepthTestState();
+
+    // TODO(bunnei): Implement these
+    const bool has_stencil = false;
+    const bool using_color_fb = true;
+    const bool using_depth_fb = regs.zeta.Address() != 0;
+    const MathUtil::Rectangle<s32> viewport_rect{regs.viewport_transform[0].GetRect()};
+
+    const bool write_color_fb =
+        state.color_mask.red_enabled == GL_TRUE || state.color_mask.green_enabled == GL_TRUE ||
+        state.color_mask.blue_enabled == GL_TRUE || state.color_mask.alpha_enabled == GL_TRUE;
+
+    const bool write_depth_fb =
+        (state.depth.test_enabled && state.depth.write_mask == GL_TRUE) ||
+        (has_stencil && state.stencil.test_enabled && state.stencil.write_mask != 0);
+
+    Surface color_surface;
+    Surface depth_surface;
+    MathUtil::Rectangle<u32> surfaces_rect;
+    std::tie(color_surface, depth_surface, surfaces_rect) =
+        res_cache.GetFramebufferSurfaces(using_color_fb, using_depth_fb, viewport_rect);
+
+    MathUtil::Rectangle<u32> draw_rect{
+        static_cast<u32>(std::clamp<s32>(static_cast<s32>(surfaces_rect.left) + viewport_rect.left,
+                                         surfaces_rect.left, surfaces_rect.right)), // Left
+        static_cast<u32>(std::clamp<s32>(static_cast<s32>(surfaces_rect.bottom) + viewport_rect.top,
+                                         surfaces_rect.bottom, surfaces_rect.top)), // Top
+        static_cast<u32>(std::clamp<s32>(static_cast<s32>(surfaces_rect.left) + viewport_rect.right,
+                                         surfaces_rect.left, surfaces_rect.right)), // Right
+        static_cast<u32>(
+            std::clamp<s32>(static_cast<s32>(surfaces_rect.bottom) + viewport_rect.bottom,
+                            surfaces_rect.bottom, surfaces_rect.top))}; // Bottom
+
+    // Bind the framebuffer surfaces
+    BindFramebufferSurfaces(color_surface, depth_surface, has_stencil);
+
+    // Sync the viewport
+    SyncViewport(surfaces_rect);
+
+    // TODO(bunnei): Sync scissorbox uniform(s) here
+
+    // Viewport can have negative offsets or larger dimensions than our framebuffer sub-rect. Enable
+    // scissor test to prevent drawing outside of the framebuffer region
+    state.scissor.enabled = true;
+    state.scissor.x = draw_rect.left;
+    state.scissor.y = draw_rect.bottom;
+    state.scissor.width = draw_rect.GetWidth();
+    state.scissor.height = draw_rect.GetHeight();
+    state.Apply();
+
+    // TODO(Subv): Support clearing only partial colors.
+    glClearColor(regs.clear_color[0], regs.clear_color[1], regs.clear_color[2],
+                 regs.clear_color[3]);
+    glClearDepth(regs.clear_depth);
+
+    glClear(clear_mask);
+
+    // Mark framebuffer surfaces as dirty
+    if (color_surface != nullptr && write_color_fb) {
+        res_cache.MarkSurfaceAsDirty(color_surface);
+    }
+    if (depth_surface != nullptr && write_depth_fb) {
+        res_cache.MarkSurfaceAsDirty(depth_surface);
+    }
+}
+
 void RasterizerOpenGL::DrawArrays() {
     if (accelerate_draw == AccelDraw::Disabled)
         return;

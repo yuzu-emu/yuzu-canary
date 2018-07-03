@@ -19,6 +19,9 @@ public:
     /// Draw the current batch of vertex arrays
     virtual void DrawArrays() = 0;
 
+    /// Clear the current framebuffer
+    virtual void Clear() = 0;
+
     /// Notify rasterizer that the specified Maxwell register has been changed
     virtual void NotifyMaxwellRegisterChanged(u32 method) = 0;
 
