@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <memory>
+#include <utility>
 #include <vector>
 #include <glad/glad.h>
 #include "common/common_types.h"
@@ -28,6 +29,7 @@ public:
     ~RasterizerOpenGL() override;
 
     void DrawArrays() override;
+    void Clear() override;
     void NotifyMaxwellRegisterChanged(u32 method) override;
     void FlushAll() override;
     void FlushRegion(Tegra::GPUVAddr addr, u64 size) override;
@@ -80,6 +82,10 @@ private:
         u32 border_color_b;
         u32 border_color_a;
     };
+
+    /// Configures the color and depth framebuffer states and returns the dirty <Color, Depth>
+    /// surfaces if writing was enabled.
+    std::pair<Surface, Surface> ConfigureFramebuffers();
 
     /// Binds the framebuffer color and depth surface
     void BindFramebufferSurfaces(const Surface& color_surface, const Surface& depth_surface,

@@ -436,7 +436,12 @@ public:
                     u32 count;
                 } vertex_buffer;
 
-                INSERT_PADDING_WORDS(0x99);
+                INSERT_PADDING_WORDS(1);
+
+                float clear_color[4];
+                float clear_depth;
+
+                INSERT_PADDING_WORDS(0x93);
 
                 struct {
                     u32 address_high;
@@ -584,7 +589,21 @@ public:
 
                 Cull cull;
 
-                INSERT_PADDING_WORDS(0x77);
+                INSERT_PADDING_WORDS(0x2B);
+
+                union {
+                    u32 raw;
+                    BitField<0, 1, u32> Z;
+                    BitField<1, 1, u32> S;
+                    BitField<2, 1, u32> R;
+                    BitField<3, 1, u32> G;
+                    BitField<4, 1, u32> B;
+                    BitField<5, 1, u32> A;
+                    BitField<6, 4, u32> RT;
+                    BitField<10, 11, u32> layer;
+                } clear_buffers;
+
+                INSERT_PADDING_WORDS(0x4B);
 
                 struct {
                     u32 query_address_high;
@@ -766,6 +785,9 @@ private:
     /// Handles writes to the macro uploading registers.
     void ProcessMacroUpload(u32 data);
 
+    /// Handles a write to the CLEAR_BUFFERS register.
+    void ProcessClearBuffers();
+
     /// Handles a write to the QUERY_GET register.
     void ProcessQueryGet();
 
@@ -788,6 +810,8 @@ ASSERT_REG_POSITION(rt, 0x200);
 ASSERT_REG_POSITION(viewport_transform[0], 0x280);
 ASSERT_REG_POSITION(viewport, 0x300);
 ASSERT_REG_POSITION(vertex_buffer, 0x35D);
+ASSERT_REG_POSITION(clear_color[0], 0x360);
+ASSERT_REG_POSITION(clear_depth, 0x364);
 ASSERT_REG_POSITION(zeta, 0x3F8);
 ASSERT_REG_POSITION(vertex_attrib_format[0], 0x458);
 ASSERT_REG_POSITION(rt_control, 0x487);
@@ -803,6 +827,7 @@ ASSERT_REG_POSITION(code_address, 0x582);
 ASSERT_REG_POSITION(draw, 0x585);
 ASSERT_REG_POSITION(index_array, 0x5F2);
 ASSERT_REG_POSITION(cull, 0x646);
+ASSERT_REG_POSITION(clear_buffers, 0x674);
 ASSERT_REG_POSITION(query, 0x6C0);
 ASSERT_REG_POSITION(vertex_array[0], 0x700);
 ASSERT_REG_POSITION(independent_blend, 0x780);
