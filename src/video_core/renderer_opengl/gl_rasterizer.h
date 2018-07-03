@@ -28,6 +28,7 @@ public:
     ~RasterizerOpenGL() override;
 
     void DrawArrays() override;
+    void Clear() override;
     void NotifyMaxwellRegisterChanged(u32 method) override;
     void FlushAll() override;
     void FlushRegion(Tegra::GPUVAddr addr, u64 size) override;

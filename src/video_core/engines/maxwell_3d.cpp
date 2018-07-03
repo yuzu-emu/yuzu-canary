@@ -126,6 +126,10 @@ void Maxwell3D::WriteReg(u32 method, u32 value, u32 remaining_params) {
         DrawArrays();
         break;
     }
+    case MAXWELL3D_REG_INDEX(clear_buffers): {
+        ProcessClearBuffers();
+        break;
+    }
     case MAXWELL3D_REG_INDEX(query.query_get): {
         ProcessQueryGet();
         break;
@@ -413,6 +417,14 @@ bool Maxwell3D::IsShaderStageEnabled(Regs::ShaderStage stage) const {
     }
 
     UNREACHABLE();
+}
+
+void Maxwell3D::ProcessClearBuffers() {
+    ASSERT(regs.clear_buffers.R == regs.clear_buffers.G &&
+           regs.clear_buffers.R == regs.clear_buffers.B &&
+           regs.clear_buffers.R == regs.clear_buffers.A);
+
+    VideoCore::g_renderer->Rasterizer()->Clear();
 }
 
 } // namespace Engines
