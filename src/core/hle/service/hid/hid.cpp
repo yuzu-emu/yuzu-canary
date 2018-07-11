@@ -75,7 +75,7 @@ private:
 
         // Set up controllers as neon red+blue Joy-Con attached to console
         ControllerHeader& controller_header = mem.controllers[Controller_Handheld].header;
-        controller_header.type = ControllerType_Handheld | ControllerType_JoyconPair;
+        controller_header.type = ControllerType_Handheld;
         controller_header.single_colors_descriptor = ColorDesc_ColorsNonexistent;
         controller_header.right_color_body = JOYCON_BODY_NEON_RED;
         controller_header.right_color_buttons = JOYCON_BUTTONS_NEON_RED;
@@ -84,23 +84,21 @@ private:
 
         for (size_t controller = 0; controller < mem.controllers.size(); controller++) {
             for (int index = 0; index < HID_NUM_LAYOUTS; index++) {
-                // TODO(DarkLordZach): Is this layout/controller config actually invalid?
-                if (controller == Controller_Handheld && index == Layout_Single)
-                    continue;
-
                 ControllerLayout& layout = mem.controllers[controller].layouts[index];
                 layout.header.num_entries = HID_NUM_ENTRIES;
                 layout.header.max_entry_index = HID_NUM_ENTRIES - 1;
 
                 // HID shared memory stores the state of the past 17 samples in a circlular buffer,
                 // each with a timestamp in number of samples since boot.
+                const ControllerInputEntry& last_entry = layout.entries[layout.header.latest_entry];
+
                 layout.header.timestamp_ticks = CoreTiming::GetTicks();
                 layout.header.latest_entry = (layout.header.latest_entry + 1) % HID_NUM_ENTRIES;
 
                 ControllerInputEntry& entry = layout.entries[layout.header.latest_entry];
-                entry.timestamp++;
+                entry.timestamp = last_entry.timestamp + 1;
                 // TODO(shinyquagsire23): Is this always identical to timestamp?
-                entry.timestamp_2++;
+                entry.timestamp_2 = entry.timestamp;
 
                 // TODO(shinyquagsire23): More than just handheld input
                 if (controller != Controller_Handheld)
