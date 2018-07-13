@@ -379,6 +379,14 @@ public:
             }
         };
 
+        bool IsShaderConfigEnabled(size_t index) const {
+            // The VertexB is always enabled.
+            if (index == static_cast<size_t>(Regs::ShaderProgram::VertexB)) {
+                return true;
+            }
+            return shader_config[index].enable != 0;
+        }
+
         union {
             struct {
                 INSERT_PADDING_WORDS(0x45);
@@ -779,9 +787,6 @@ public:
 
     /// Returns the texture information for a specific texture in a specific shader stage.
     Texture::FullTextureInfo GetStageTexture(Regs::ShaderStage stage, size_t offset) const;
-
-    /// Returns whether the specified shader stage is enabled or not.
-    bool IsShaderStageEnabled(Regs::ShaderStage stage) const;
 
 private:
     std::unordered_map<u32, std::vector<u32>> uploaded_macros;

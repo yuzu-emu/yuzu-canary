@@ -42,13 +42,14 @@ enum class ExitMethod {
 struct Subroutine {
     /// Generates a name suitable for GLSL source code.
     std::string GetName() const {
-        return "sub_" + std::to_string(begin) + '_' + std::to_string(end);
+        return "sub_" + std::to_string(begin) + '_' + std::to_string(end) + '_' + suffix;
     }
 
-    u32 begin;              ///< Entry point of the subroutine.
-    u32 end;                ///< Return point of the subroutine.
-    ExitMethod exit_method; ///< Exit method of the subroutine.
-    std::set<u32> labels;   ///< Addresses refereced by JMP instructions.
+    u32 begin;                 ///< Entry point of the subroutine.
+    u32 end;                   ///< Return point of the subroutine.
+    const std::string& suffix; ///< Suffix of the shader, used to make a unique subroutine name
+    ExitMethod exit_method;    ///< Exit method of the subroutine.
+    std::set<u32> labels;      ///< Addresses refereced by JMP instructions.
 
     bool operator<(const Subroutine& rhs) const {
         return std::tie(begin, end) < std::tie(rhs.begin, rhs.end);
@@ -58,11 +59,11 @@ struct Subroutine {
 /// Analyzes shader code and produces a set of subroutines.
 class ControlFlowAnalyzer {
 public:
-    ControlFlowAnalyzer(const ProgramCode& program_code, u32 main_offset)
+    ControlFlowAnalyzer(const ProgramCode& program_code, u32 main_offset, const std::string& suffix)
         : program_code(program_code) {
 
         // Recursively finds all subroutines.
-        const Subroutine& program_main = AddSubroutine(main_offset, PROGRAM_END);
+        const Subroutine& program_main = AddSubroutine(main_offset, PROGRAM_END, suffix);
         if (program_main.exit_method != ExitMethod::AlwaysEnd)
             throw DecompileFail("Program does not always end");
     }
@@ -77,12 +78,12 @@ private:
     std::map<std::pair<u32, u32>, ExitMethod> exit_method_map;
 
     /// Adds and analyzes a new subroutine if it is not added yet.
-    const Subroutine& AddSubroutine(u32 begin, u32 end) {
-        auto iter = subroutines.find(Subroutine{begin, end});
+    const Subroutine& AddSubroutine(u32 begin, u32 end, const std::string& suffix) {
+        auto iter = subroutines.find(Subroutine{begin, end, suffix});
         if (iter != subroutines.end())
             return *iter;
 
-        Subroutine subroutine{begin, end};
+        Subroutine subroutine{begin, end, suffix};
         subroutine.exit_method = Scan(begin, end, subroutine.labels);
         if (subroutine.exit_method == ExitMethod::Undetermined)
             throw DecompileFail("Recursive function detected");
@@ -191,7 +192,8 @@ public:
         UnsignedInteger,
     };
 
-    GLSLRegister(size_t index, ShaderWriter& shader) : index{index}, shader{shader} {}
+    GLSLRegister(size_t index, ShaderWriter& shader, const std::string& suffix)
+        : index{index}, shader{shader}, suffix{suffix} {}
 
     /// Gets the GLSL type string for a register
     static std::string GetTypeString(Type type) {
@@ -216,7 +218,7 @@ public:
     /// Returns a GLSL string representing the current state of the register
     const std::string GetActiveString() {
         declr_type.insert(active_type);
-        return GetPrefixString(active_type) + std::to_string(index);
+        return GetPrefixString(active_type) + std::to_string(index) + '_' + suffix;
     }
 
     /// Returns true if the active type is a float
@@ -251,6 +253,7 @@ private:
     ShaderWriter& shader;
     Type active_type{Type::Float};
     std::set<Type> declr_type;
+    const std::string& suffix;
 };
 
 /**
@@ -262,8 +265,8 @@ private:
 class GLSLRegisterManager {
 public:
     GLSLRegisterManager(ShaderWriter& shader, ShaderWriter& declarations,
-                        const Maxwell3D::Regs::ShaderStage& stage)
-        : shader{shader}, declarations{declarations}, stage{stage} {
+                        const Maxwell3D::Regs::ShaderStage& stage, const std::string& suffix)
+        : shader{shader}, declarations{declarations}, stage{stage}, suffix{suffix} {
         BuildRegisterList();
     }
 
@@ -430,12 +433,12 @@ public:
     }
 
     /// Add declarations for registers
-    void GenerateDeclarations() {
+    void GenerateDeclarations(const std::string& suffix) {
         for (const auto& reg : regs) {
             for (const auto& type : reg.DeclaredTypes()) {
                 declarations.AddLine(GLSLRegister::GetTypeString(type) + ' ' +
-                                     GLSLRegister::GetPrefixString(type) +
-                                     std::to_string(reg.GetIndex()) + " = 0;");
+                                     reg.GetPrefixString(type) + std::to_string(reg.GetIndex()) +
+                                     '_' + suffix + " = 0;");
             }
         }
         declarations.AddNewLine();
@@ -558,7 +561,7 @@ private:
     /// Build the GLSL register list.
     void BuildRegisterList() {
         for (size_t index = 0; index < Register::NumRegisters; ++index) {
-            regs.emplace_back(index, shader);
+            regs.emplace_back(index, shader, suffix);
         }
     }
 
@@ -620,16 +623,17 @@ private:
     std::array<ConstBufferEntry, Maxwell3D::Regs::MaxConstBuffers> declr_const_buffers;
     std::vector<SamplerEntry> used_samplers;
     const Maxwell3D::Regs::ShaderStage& stage;
+    const std::string& suffix;
 };
 
 class GLSLGenerator {
 public:
     GLSLGenerator(const std::set<Subroutine>& subroutines, const ProgramCode& program_code,
-                  u32 main_offset, Maxwell3D::Regs::ShaderStage stage)
+                  u32 main_offset, Maxwell3D::Regs::ShaderStage stage, const std::string& suffix)
         : subroutines(subroutines), program_code(program_code), main_offset(main_offset),
-          stage(stage) {
+          stage(stage), suffix(suffix) {
 
-        Generate();
+        Generate(suffix);
     }
 
     std::string GetShaderCode() {
@@ -644,7 +648,7 @@ public:
 private:
     /// Gets the Subroutine object corresponding to the specified address.
     const Subroutine& GetSubroutine(u32 begin, u32 end) const {
-        auto iter = subroutines.find(Subroutine{begin, end});
+        auto iter = subroutines.find(Subroutine{begin, end, suffix});
         ASSERT(iter != subroutines.end());
         return *iter;
     }
@@ -689,7 +693,7 @@ private:
         // Can't assign to the constant predicate.
         ASSERT(pred != static_cast<u64>(Pred::UnusedIndex));
 
-        std::string variable = 'p' + std::to_string(pred);
+        std::string variable = 'p' + std::to_string(pred) + '_' + suffix;
         shader.AddLine(variable + " = " + value + ';');
         declr_predicates.insert(std::move(variable));
     }
@@ -707,7 +711,7 @@ private:
         if (index == static_cast<u64>(Pred::UnusedIndex))
             variable = "true";
         else
-            variable = 'p' + std::to_string(index);
+            variable = 'p' + std::to_string(index) + '_' + suffix;
 
         if (negate) {
             return "!(" + variable + ')';
@@ -1728,7 +1732,7 @@ private:
         return program_counter;
     }
 
-    void Generate() {
+    void Generate(const std::string& suffix) {
         // Add declarations for all subroutines
         for (const auto& subroutine : subroutines) {
             shader.AddLine("bool " + subroutine.GetName() + "();");
@@ -1736,7 +1740,7 @@ private:
         shader.AddNewLine();
 
         // Add the main entry point
-        shader.AddLine("bool exec_shader() {");
+        shader.AddLine("bool exec_" + suffix + "() {");
         ++shader.scope;
         CallSubroutine(GetSubroutine(main_offset, PROGRAM_END));
         --shader.scope;
@@ -1799,7 +1803,7 @@ private:
 
     /// Add declarations for registers
     void GenerateDeclarations() {
-        regs.GenerateDeclarations();
+        regs.GenerateDeclarations(suffix);
 
         for (const auto& pred : declr_predicates) {
             declarations.AddLine("bool " + pred + " = false;");
@@ -1812,27 +1816,30 @@ private:
     const ProgramCode& program_code;
     const u32 main_offset;
     Maxwell3D::Regs::ShaderStage stage;
+    const std::string& suffix;
 
     ShaderWriter shader;
     ShaderWriter declarations;
-    GLSLRegisterManager regs{shader, declarations, stage};
+    GLSLRegisterManager regs{shader, declarations, stage, suffix};
 
     // Declarations
     std::set<std::string> declr_predicates;
 }; // namespace Decompiler
 
 std::string GetCommonDeclarations() {
-    std::string declarations = "bool exec_shader();\n";
+    std::string declarations;
     declarations += "#define MAX_CONSTBUFFER_ELEMENTS " +
                     std::to_string(RasterizerOpenGL::MaxConstbufferSize / (sizeof(GLvec4)));
+    declarations += '\n';
     return declarations;
 }
 
 boost::optional<ProgramResult> DecompileProgram(const ProgramCode& program_code, u32 main_offset,
-                                                Maxwell3D::Regs::ShaderStage stage) {
+                                                Maxwell3D::Regs::ShaderStage stage,
+                                                const std::string& suffix) {
     try {
-        auto subroutines = ControlFlowAnalyzer(program_code, main_offset).GetSubroutines();
-        GLSLGenerator generator(subroutines, program_code, main_offset, stage);
+        auto subroutines = ControlFlowAnalyzer(program_code, main_offset, suffix).GetSubroutines();
+        GLSLGenerator generator(subroutines, program_code, main_offset, stage, suffix);
         return ProgramResult{generator.GetShaderCode(), generator.GetEntries()};
     } catch (const DecompileFail& exception) {
         LOG_ERROR(HW_GPU, "Shader decompilation failed: {}", exception.what());

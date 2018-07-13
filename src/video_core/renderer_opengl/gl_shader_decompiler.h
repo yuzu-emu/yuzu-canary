@@ -20,7 +20,8 @@ using Tegra::Engines::Maxwell3D;
 std::string GetCommonDeclarations();
 
 boost::optional<ProgramResult> DecompileProgram(const ProgramCode& program_code, u32 main_offset,
-                                                Maxwell3D::Regs::ShaderStage stage);
+                                                Maxwell3D::Regs::ShaderStage stage,
+                                                const std::string& suffix);
 
 } // namespace Decompiler
 } // namespace GLShader

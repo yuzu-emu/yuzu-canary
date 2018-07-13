@@ -398,27 +398,6 @@ u32 Maxwell3D::GetRegisterValue(u32 method) const {
     return regs.reg_array[method];
 }
 
-bool Maxwell3D::IsShaderStageEnabled(Regs::ShaderStage stage) const {
-    // The Vertex stage is always enabled.
-    if (stage == Regs::ShaderStage::Vertex)
-        return true;
-
-    switch (stage) {
-    case Regs::ShaderStage::TesselationControl:
-        return regs.shader_config[static_cast<size_t>(Regs::ShaderProgram::TesselationControl)]
-                   .enable != 0;
-    case Regs::ShaderStage::TesselationEval:
-        return regs.shader_config[static_cast<size_t>(Regs::ShaderProgram::TesselationEval)]
-                   .enable != 0;
-    case Regs::ShaderStage::Geometry:
-        return regs.shader_config[static_cast<size_t>(Regs::ShaderProgram::Geometry)].enable != 0;
-    case Regs::ShaderStage::Fragment:
-        return regs.shader_config[static_cast<size_t>(Regs::ShaderProgram::Fragment)].enable != 0;
-    }
-
-    UNREACHABLE();
-}
-
 void Maxwell3D::ProcessClearBuffers() {
     ASSERT(regs.clear_buffers.R == regs.clear_buffers.G &&
            regs.clear_buffers.R == regs.clear_buffers.B &&

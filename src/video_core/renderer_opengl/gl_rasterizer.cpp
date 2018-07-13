@@ -181,6 +181,19 @@ std::pair<u8*, GLintptr> RasterizerOpenGL::SetupVertexArrays(u8* array_ptr,
     return {array_ptr, buffer_offset};
 }
 
+static GLShader::ProgramCode GetShaderProgramCode(Maxwell::ShaderProgram program) {
+    auto& gpu = Core::System().GetInstance().GPU().Maxwell3D();
+
+    // Fetch program code from memory
+    GLShader::ProgramCode program_code;
+    auto& shader_config = gpu.regs.shader_config[static_cast<size_t>(program)];
+    const u64 gpu_address{gpu.regs.code_address.CodeAddress() + shader_config.offset};
+    const boost::optional<VAddr> cpu_address{gpu.memory_manager.GpuToCpuAddress(gpu_address)};
+    Memory::ReadBlock(*cpu_address, program_code.data(), program_code.size() * sizeof(u64));
+
+    return program_code;
+}
+
 void RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr buffer_offset) {
     // Helper function for uploading uniform data
     const auto copy_buffer = [&](GLuint handle, GLintptr offset, GLsizeiptr size) {
@@ -193,25 +206,22 @@ void RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr buffer_offset) {
     };
 
     auto& gpu = Core::System().GetInstance().GPU().Maxwell3D();
-    ASSERT_MSG(!gpu.regs.shader_config[0].enable, "VertexA is unsupported!");
 
     // Next available bindpoints to use when uploading the const buffers and textures to the GLSL
     // shaders. The constbuffer bindpoint starts after the shader stage configuration bind points.
     u32 current_constbuffer_bindpoint = uniform_buffers.size();
     u32 current_texture_bindpoint = 0;
 
-    for (unsigned index = 1; index < Maxwell::MaxShaderProgram; ++index) {
+    for (size_t index = 0; index < Maxwell::MaxShaderProgram; ++index) {
         auto& shader_config = gpu.regs.shader_config[index];
         const Maxwell::ShaderProgram program{static_cast<Maxwell::ShaderProgram>(index)};
 
-        const auto& stage = index - 1; // Stage indices are 0 - 5
-
-        const bool is_enabled = gpu.IsShaderStageEnabled(static_cast<Maxwell::ShaderStage>(stage));
-
         // Skip stages that are not enabled
-        if (!is_enabled) {
+        if (!gpu.regs.IsShaderConfigEnabled(index)) {
             continue;
         }
+
+        const size_t stage{index == 0 ? 0 : index - 1}; // Stage indices are 0 - 5
 
         GLShader::MaxwellUniformData ubo{};
         ubo.SetFromRegs(gpu.state.shader_stages[stage]);
@@ -228,16 +238,21 @@ void RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr buffer_offset) {
         buffer_ptr += sizeof(GLShader::MaxwellUniformData);
         buffer_offset += sizeof(GLShader::MaxwellUniformData);
 
-        // Fetch program code from memory
-        GLShader::ProgramCode program_code;
-        const u64 gpu_address{gpu.regs.code_address.CodeAddress() + shader_config.offset};
-        const boost::optional<VAddr> cpu_address{gpu.memory_manager.GpuToCpuAddress(gpu_address)};
-        Memory::ReadBlock(*cpu_address, program_code.data(), program_code.size() * sizeof(u64));
-        GLShader::ShaderSetup setup{std::move(program_code)};
-
+        GLShader::ShaderSetup setup{GetShaderProgramCode(program)};
         GLShader::ShaderEntries shader_resources;
 
         switch (program) {
+        case Maxwell::ShaderProgram::VertexA: {
+            // VertexB is always enabled, so when VertexA is enabled, we have two vertex shaders.
+            // Conventional HW does not support this, so we combine VertexA and VertexB into one
+            // stage here.
+            setup.SetProgramB(GetShaderProgramCode(Maxwell::ShaderProgram::VertexB));
+            GLShader::MaxwellVSConfig vs_config{setup};
+            shader_resources =
+                shader_program_manager->UseProgrammableVertexShader(vs_config, setup);
+            break;
+        }
+
         case Maxwell::ShaderProgram::VertexB: {
             GLShader::MaxwellVSConfig vs_config{setup};
             shader_resources =
@@ -268,6 +283,12 @@ void RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr buffer_offset) {
         current_texture_bindpoint =
             SetupTextures(static_cast<Maxwell::ShaderStage>(stage), gl_stage_program,
                           current_texture_bindpoint, shader_resources.texture_samplers);
+
+        // When VertexA is enabled, we have dual vertex shaders
+        if (program == Maxwell::ShaderProgram::VertexA) {
+            // VertexB was combined with VertexA, so we skip the VertexB iteration
+            index++;
+        }
     }
 
     shader_program_manager->UseTrivialGeometryShader();
@@ -605,9 +626,6 @@ u32 RasterizerOpenGL::SetupConstBuffers(Maxwell::ShaderStage stage, GLuint progr
     auto& gpu = Core::System::GetInstance().GPU();
     auto& maxwell3d = gpu.Get3DEngine();
 
-    ASSERT_MSG(maxwell3d.IsShaderStageEnabled(stage),
-               "Attempted to upload constbuffer of disabled shader stage");
-
     // Reset all buffer draw state for this stage.
     for (auto& buffer : state.draw.const_buffers[static_cast<size_t>(stage)]) {
         buffer.bindpoint = 0;
@@ -673,9 +691,6 @@ u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, GLuint program, 
                                     const std::vector<GLShader::SamplerEntry>& entries) {
     auto& gpu = Core::System::GetInstance().GPU();
     auto& maxwell3d = gpu.Get3DEngine();
-
-    ASSERT_MSG(maxwell3d.IsShaderStageEnabled(stage),
-               "Attempted to upload textures of disabled shader stage");
 
     ASSERT_MSG(current_unit + entries.size() <= std::size(state.texture_units),
                "Exceeded the number of active textures.");

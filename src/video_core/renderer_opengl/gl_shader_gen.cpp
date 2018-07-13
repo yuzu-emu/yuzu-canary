@@ -17,10 +17,17 @@ ProgramResult GenerateVertexShader(const ShaderSetup& setup, const MaxwellVSConf
     std::string out = "#version 430 core\n";
     out += "#extension GL_ARB_separate_shader_objects : enable\n\n";
     out += Decompiler::GetCommonDeclarations();
+    out += "bool exec_vertex();\n";
 
-    ProgramResult program = Decompiler::DecompileProgram(setup.program_code, PROGRAM_OFFSET,
-                                                         Maxwell3D::Regs::ShaderStage::Vertex)
-                                .get_value_or({});
+    if (setup.IsDualProgram()) {
+        out += "bool exec_vertex_b();\n";
+    }
+
+    ProgramResult program =
+        Decompiler::DecompileProgram(setup.program.code, PROGRAM_OFFSET,
+                                     Maxwell3D::Regs::ShaderStage::Vertex, "vertex")
+            .get_value_or({});
+
     out += R"(
 
 out gl_PerVertex {
@@ -34,7 +41,14 @@ layout (std140) uniform vs_config {
 };
 
 void main() {
-    exec_shader();
+    exec_vertex();
+)";
+
+    if (setup.IsDualProgram()) {
+        out += "    exec_vertex_b();";
+    }
+
+    out += R"(
 
     // Viewport can be flipped, which is unsupported by glViewport
     position.xy *= viewport_flip.xy;
@@ -44,8 +58,19 @@ void main() {
     // For now, this is here to bring order in lieu of proper emulation
     position.w = 1.0;
 }
+
 )";
+
     out += program.first;
+
+    if (setup.IsDualProgram()) {
+        ProgramResult program_b =
+            Decompiler::DecompileProgram(setup.program.code_b, PROGRAM_OFFSET,
+                                         Maxwell3D::Regs::ShaderStage::Vertex, "vertex_b")
+                .get_value_or({});
+        out += program_b.first;
+    }
+
     return {out, program.second};
 }
 
@@ -53,12 +78,13 @@ ProgramResult GenerateFragmentShader(const ShaderSetup& setup, const MaxwellFSCo
     std::string out = "#version 430 core\n";
     out += "#extension GL_ARB_separate_shader_objects : enable\n\n";
     out += Decompiler::GetCommonDeclarations();
+    out += "bool exec_fragment();\n";
 
-    ProgramResult program = Decompiler::DecompileProgram(setup.program_code, PROGRAM_OFFSET,
-                                                         Maxwell3D::Regs::ShaderStage::Fragment)
-                                .get_value_or({});
+    ProgramResult program =
+        Decompiler::DecompileProgram(setup.program.code, PROGRAM_OFFSET,
+                                     Maxwell3D::Regs::ShaderStage::Fragment, "fragment")
+            .get_value_or({});
     out += R"(
-
 in vec4 position;
 out vec4 color;
 
@@ -67,7 +93,7 @@ layout (std140) uniform fs_config {
 };
 
 void main() {
-    exec_shader();
+    exec_fragment();
 }
 
 )";

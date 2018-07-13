@@ -115,21 +115,48 @@ struct ShaderEntries {
 using ProgramResult = std::pair<std::string, ShaderEntries>;
 
 struct ShaderSetup {
-    ShaderSetup(ProgramCode&& program_code) : program_code(std::move(program_code)) {}
+    ShaderSetup(const ProgramCode& program_code) {
+        program.code = program_code;
+    }
 
-    ProgramCode program_code;
+    struct {
+        ProgramCode code;
+        ProgramCode code_b; // Used for dual vertex shaders
+    } program;
+
     bool program_code_hash_dirty = true;
 
     u64 GetProgramCodeHash() {
         if (program_code_hash_dirty) {
-            program_code_hash = Common::ComputeHash64(&program_code, sizeof(program_code));
+            program_code_hash = GetNewHash();
             program_code_hash_dirty = false;
         }
         return program_code_hash;
     }
 
+    /// Used in scenarios where we have a dual vertex shaders
+    void SetProgramB(const ProgramCode& program_b) {
+        program.code_b = program_b;
+        has_program_b = true;
+    }
+
+    bool IsDualProgram() const {
+        return has_program_b;
+    }
+
 private:
+    u64 GetNewHash() const {
+        if (has_program_b) {
+            // Compute hash over dual shader programs
+            return Common::ComputeHash64(&program, sizeof(program));
+        } else {
+            // Compute hash over a single shader program
+            return Common::ComputeHash64(&program.code, program.code.size());
+        }
+    }
+
     u64 program_code_hash{};
+    bool has_program_b{};
 };
 
 struct MaxwellShaderConfigCommon {
