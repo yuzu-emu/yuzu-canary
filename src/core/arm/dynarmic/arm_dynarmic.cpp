@@ -226,6 +226,10 @@ void ARM_Dynarmic::ClearInstructionCache() {
     jit->ClearCache();
 }
 
+void ARM_Dynarmic::ClearExclusiveState() {
+    jit->ClearExclusiveState();
+}
+
 void ARM_Dynarmic::PageTableChanged() {
     jit = MakeJit(cb);
     current_page_table = Memory::GetCurrentPageTable();

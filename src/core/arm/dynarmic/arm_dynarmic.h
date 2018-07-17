@@ -39,6 +39,7 @@ public:
     void LoadContext(const ThreadContext& ctx) override;
 
     void PrepareReschedule() override;
+    void ClearExclusiveState() override;
 
     void ClearInstructionCache() override;
     void PageTableChanged() override;
