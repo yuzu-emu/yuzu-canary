@@ -116,6 +116,8 @@ public:
      */
     virtual void LoadContext(const ThreadContext& ctx) = 0;
 
+    virtual void ClearExclusiveState() = 0;
+
     /// Prepare core for thread reschedule (if needed to correctly handle state)
     virtual void PrepareReschedule() = 0;
 };

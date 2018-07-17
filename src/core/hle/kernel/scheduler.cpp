@@ -85,6 +85,7 @@ void Scheduler::SwitchContext(Thread* new_thread) {
 
         cpu_core->LoadContext(new_thread->context);
         cpu_core->SetTlsAddress(new_thread->GetTLSAddress());
+        cpu_core->ClearExclusiveState();
     } else {
         current_thread = nullptr;
         // Note: We do not reset the current process and current page table when idling because
