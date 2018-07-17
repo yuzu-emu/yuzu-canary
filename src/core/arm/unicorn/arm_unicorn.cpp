@@ -263,6 +263,8 @@ void ARM_Unicorn::PrepareReschedule() {
     CHECKED(uc_emu_stop(uc));
 }
 
+void ARM_Unicorn::ClearExclusiveState() {}
+
 void ARM_Unicorn::ClearInstructionCache() {}
 
 void ARM_Unicorn::RecordBreak(GDBStub::BreakpointAddress bkpt) {

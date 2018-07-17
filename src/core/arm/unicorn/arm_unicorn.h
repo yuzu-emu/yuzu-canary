@@ -31,6 +31,7 @@ public:
     void SaveContext(ThreadContext& ctx) override;
     void LoadContext(const ThreadContext& ctx) override;
     void PrepareReschedule() override;
+    void ClearExclusiveState() override;
     void ExecuteInstructions(int num_instructions);
     void Run() override;
     void Step() override;
