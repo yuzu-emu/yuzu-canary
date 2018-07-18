@@ -11,7 +11,7 @@ namespace FileSys {
 namespace ErrCodes {
 enum {
     NotFound = 1,
-    SaveDataNotFound = 1002,
+    TitleNotFound = 1002,
     SdCardNotFound = 2001,
     RomFSNotFound = 2520,
 };

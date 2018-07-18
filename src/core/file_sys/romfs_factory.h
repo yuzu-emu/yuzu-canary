@@ -5,10 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <string>
-#include <vector>
 #include "common/common_types.h"
-#include "core/file_sys/filesystem.h"
 #include "core/hle/result.h"
 #include "core/loader/loader.h"
 
@@ -19,12 +16,10 @@ class RomFSFactory {
 public:
     explicit RomFSFactory(Loader::AppLoader& app_loader);
 
-    ResultVal<std::unique_ptr<FileSystemBackend>> Open(u64 title_id);
+    ResultVal<VirtualFile> Open(u64 title_id);
 
 private:
-    std::shared_ptr<FileUtil::IOFile> romfs_file;
-    u64 data_offset;
-    u64 data_size;
+    VirtualFile file;
 };
 
 } // namespace FileSys

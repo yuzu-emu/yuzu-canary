@@ -4,10 +4,6 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
-#include "common/common_types.h"
-#include "core/file_sys/filesystem.h"
 #include "core/hle/result.h"
 
 namespace FileSys {
@@ -15,12 +11,12 @@ namespace FileSys {
 /// File system interface to the SDCard archive
 class SDMCFactory {
 public:
-    explicit SDMCFactory(std::string sd_directory);
+    explicit SDMCFactory(VirtualDir dir);
 
-    ResultVal<std::unique_ptr<FileSystemBackend>> Open();
+    ResultVal<VirtualDir> Open();
 
 private:
-    std::string sd_directory;
+    VirtualDir dir;
 };
 
 } // namespace FileSys

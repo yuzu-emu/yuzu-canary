@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 #include "common/common_types.h"
-#include "core/file_sys/filesystem.h"
 #include "core/hle/result.h"
 
 namespace FileSys {
@@ -45,14 +44,12 @@ static_assert(sizeof(SaveDataDescriptor) == 0x40, "SaveDataDescriptor has incorr
 /// File system interface to the SaveData archive
 class SaveDataFactory {
 public:
-    explicit SaveDataFactory(std::string nand_directory);
+    explicit SaveDataFactory(VirtualDir dir);
 
-    ResultVal<std::unique_ptr<FileSystemBackend>> Open(SaveDataSpaceId space,
-                                                       SaveDataDescriptor meta);
+    ResultVal<VirtualDir> Open(SaveDataSpaceId space, SaveDataDescriptor meta);
 
 private:
-    std::string nand_directory;
-    std::string sd_directory;
+    VirtualDir dir;
 
     std::string GetFullPath(SaveDataSpaceId space, SaveDataType type, u64 title_id, u128 user_id,
                             u64 save_id) const;

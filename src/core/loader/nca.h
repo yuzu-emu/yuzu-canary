@@ -6,44 +6,39 @@
 
 #include <string>
 #include "common/common_types.h"
-#include "core/file_sys/partition_filesystem.h"
+#include "core/file_sys/content_archive.h"
 #include "core/file_sys/program_metadata.h"
 #include "core/hle/kernel/kernel.h"
 #include "core/loader/loader.h"
 
 namespace Loader {
 
-class Nca;
-
 /// Loads an NCA file
 class AppLoader_NCA final : public AppLoader {
 public:
-    AppLoader_NCA(FileUtil::IOFile&& file, std::string filepath);
+    explicit AppLoader_NCA(FileSys::VirtualFile file);
 
     /**
      * Returns the type of the file
-     * @param file FileUtil::IOFile open file
-     * @param filepath Path of the file that we are opening.
+     * @param file std::shared_ptr<VfsFile> open file
      * @return FileType found, or FileType::Error if this loader doesn't know it
      */
-    static FileType IdentifyType(FileUtil::IOFile& file, const std::string& filepath);
+    static FileType IdentifyType(const FileSys::VirtualFile& file);
 
     FileType GetFileType() override {
-        return IdentifyType(file, filepath);
+        return IdentifyType(file);
     }
 
     ResultStatus Load(Kernel::SharedPtr<Kernel::Process>& process) override;
 
-    ResultStatus ReadRomFS(std::shared_ptr<FileUtil::IOFile>& romfs_file, u64& offset,
-                           u64& size) override;
+    ResultStatus ReadRomFS(FileSys::VirtualFile& dir) override;
 
     ~AppLoader_NCA();
 
 private:
-    std::string filepath;
     FileSys::ProgramMetadata metadata;
 
-    std::unique_ptr<Nca> nca;
+    std::unique_ptr<FileSys::NCA> nca;
 };
 
 } // namespace Loader
