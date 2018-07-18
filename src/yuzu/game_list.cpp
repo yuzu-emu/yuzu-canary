@@ -12,6 +12,7 @@
 #include "common/common_paths.h"
 #include "common/logging/log.h"
 #include "common/string_util.h"
+#include "core/file_sys/vfs_real.h"
 #include "core/loader/loader.h"
 #include "game_list.h"
 #include "game_list_p.h"
@@ -403,7 +404,8 @@ void GameListWorker::AddFstEntriesToGameList(const std::string& dir_path, unsign
         bool is_dir = FileUtil::IsDirectory(physical_name);
         if (!is_dir &&
             (HasSupportedFileExtension(physical_name) || IsExtractedNCAMain(physical_name))) {
-            std::unique_ptr<Loader::AppLoader> loader = Loader::GetLoader(physical_name);
+            std::unique_ptr<Loader::AppLoader> loader =
+                Loader::GetLoader(std::make_shared<FileSys::RealVfsFile>(physical_name));
             if (!loader)
                 return true;
 

@@ -20,29 +20,26 @@ namespace Loader {
  */
 class AppLoader_DeconstructedRomDirectory final : public AppLoader {
 public:
-    AppLoader_DeconstructedRomDirectory(FileUtil::IOFile&& file, std::string filepath);
+    explicit AppLoader_DeconstructedRomDirectory(FileSys::VirtualFile main_file);
 
     /**
      * Returns the type of the file
-     * @param file FileUtil::IOFile open file
-     * @param filepath Path of the file that we are opening.
+     * @param file std::shared_ptr<VfsFile> open file
      * @return FileType found, or FileType::Error if this loader doesn't know it
      */
-    static FileType IdentifyType(FileUtil::IOFile& file, const std::string& filepath);
+    static FileType IdentifyType(const FileSys::VirtualFile& file);
 
     FileType GetFileType() override {
-        return IdentifyType(file, filepath);
+        return IdentifyType(file);
     }
 
     ResultStatus Load(Kernel::SharedPtr<Kernel::Process>& process) override;
 
-    ResultStatus ReadRomFS(std::shared_ptr<FileUtil::IOFile>& romfs_file, u64& offset,
-                           u64& size) override;
+    ResultStatus ReadRomFS(FileSys::VirtualFile& dir) override;
 
 private:
-    std::string filepath_romfs;
-    std::string filepath;
     FileSys::ProgramMetadata metadata;
+    FileSys::VirtualFile romfs;
 };
 
 } // namespace Loader

@@ -15,26 +15,23 @@ namespace Loader {
 /// Loads an NRO file
 class AppLoader_NRO final : public AppLoader, Linker {
 public:
-    AppLoader_NRO(FileUtil::IOFile&& file, std::string filepath);
+    AppLoader_NRO(FileSys::VirtualFile file);
 
     /**
      * Returns the type of the file
-     * @param file FileUtil::IOFile open file
-     * @param filepath Path of the file that we are opening.
+     * @param file std::shared_ptr<VfsFile> open file
      * @return FileType found, or FileType::Error if this loader doesn't know it
      */
-    static FileType IdentifyType(FileUtil::IOFile& file, const std::string& filepath);
+    static FileType IdentifyType(const FileSys::VirtualFile& file);
 
     FileType GetFileType() override {
-        return IdentifyType(file, filepath);
+        return IdentifyType(file);
     }
 
     ResultStatus Load(Kernel::SharedPtr<Kernel::Process>& process) override;
 
 private:
-    bool LoadNro(const std::string& path, VAddr load_base);
-
-    std::string filepath;
+    bool LoadNro(FileSys::VirtualFile file, VAddr load_base);
 };
 
 } // namespace Loader

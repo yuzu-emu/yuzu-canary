@@ -38,6 +38,7 @@ struct NsoHeader {
     std::array<u32_le, 3> segments_compressed_size;
 };
 static_assert(sizeof(NsoHeader) == 0x6c, "NsoHeader has incorrect size.");
+static_assert(std::is_trivially_copyable_v<NsoHeader>, "NsoHeader isn't trivially copyable.");
 
 struct ModHeader {
     u32_le magic;
@@ -50,15 +51,11 @@ struct ModHeader {
 };
 static_assert(sizeof(ModHeader) == 0x1c, "ModHeader has incorrect size.");
 
-AppLoader_NSO::AppLoader_NSO(FileUtil::IOFile&& file, std::string filepath)
-    : AppLoader(std::move(file)), filepath(std::move(filepath)) {}
+AppLoader_NSO::AppLoader_NSO(FileSys::VirtualFile file) : AppLoader(std::move(file)) {}
 
-FileType AppLoader_NSO::IdentifyType(FileUtil::IOFile& file, const std::string&) {
+FileType AppLoader_NSO::IdentifyType(const FileSys::VirtualFile& file) {
     u32 magic = 0;
-    file.Seek(0, SEEK_SET);
-    if (1 != file.ReadArray<u32>(&magic, 1)) {
-        return FileType::Error;
-    }
+    file->ReadObject(&magic);
 
     if (Common::MakeMagic('N', 'S', 'O', '0') == magic) {
         return FileType::NSO;
@@ -99,13 +96,16 @@ static constexpr u32 PageAlignSize(u32 size) {
     return (size + Memory::PAGE_MASK) & ~Memory::PAGE_MASK;
 }
 
-VAddr AppLoader_NSO::LoadModule(const std::string& name, const std::vector<u8>& file_data,
-                                VAddr load_base) {
-    if (file_data.size() < sizeof(NsoHeader))
+VAddr AppLoader_NSO::LoadModule(FileSys::VirtualFile file, VAddr load_base) {
+    if (file == nullptr)
         return {};
 
-    NsoHeader nso_header;
-    std::memcpy(&nso_header, file_data.data(), sizeof(NsoHeader));
+    if (file->GetSize() < sizeof(NsoHeader))
+        return {};
+
+    NsoHeader nso_header{};
+    if (sizeof(NsoHeader) != file->ReadObject(&nso_header))
+        return {};
 
     if (nso_header.magic != Common::MakeMagic('N', 'S', 'O', '0'))
         return {};
@@ -114,9 +114,8 @@ VAddr AppLoader_NSO::LoadModule(const std::string& name, const std::vector<u8>& 
     Kernel::SharedPtr<Kernel::CodeSet> codeset = Kernel::CodeSet::Create("");
     std::vector<u8> program_image;
     for (int i = 0; i < nso_header.segments.size(); ++i) {
-        std::vector<u8> compressed_data(nso_header.segments_compressed_size[i]);
-        for (auto j = 0; j < nso_header.segments_compressed_size[i]; ++j)
-            compressed_data[j] = file_data[nso_header.segments[i].offset + j];
+        const std::vector<u8> compressed_data =
+            file->ReadBytes(nso_header.segments_compressed_size[i], nso_header.segments[i].offset);
         std::vector<u8> data = DecompressSegment(compressed_data, nso_header.segments[i]);
         program_image.resize(nso_header.segments[i].location);
         program_image.insert(program_image.end(), data.begin(), data.end());
@@ -144,7 +143,7 @@ VAddr AppLoader_NSO::LoadModule(const std::string& name, const std::vector<u8>& 
     program_image.resize(image_size);
 
     // Load codeset for current process
-    codeset->name = name;
+    codeset->name = file->GetName();
     codeset->memory = std::make_shared<std::vector<u8>>(std::move(program_image));
     Core::CurrentProcess()->LoadModule(codeset, load_base);
 
@@ -154,72 +153,14 @@ VAddr AppLoader_NSO::LoadModule(const std::string& name, const std::vector<u8>& 
     return load_base + image_size;
 }
 
-VAddr AppLoader_NSO::LoadModule(const std::string& path, VAddr load_base) {
-    FileUtil::IOFile file(path, "rb");
-    if (!file.IsOpen()) {
-        return {};
-    }
-
-    // Read NSO header
-    NsoHeader nso_header{};
-    file.Seek(0, SEEK_SET);
-    if (sizeof(NsoHeader) != file.ReadBytes(&nso_header, sizeof(NsoHeader))) {
-        return {};
-    }
-    if (nso_header.magic != Common::MakeMagic('N', 'S', 'O', '0')) {
-        return {};
-    }
-
-    // Build program image
-    Kernel::SharedPtr<Kernel::CodeSet> codeset = Kernel::CodeSet::Create("");
-    std::vector<u8> program_image;
-    for (int i = 0; i < nso_header.segments.size(); ++i) {
-        std::vector<u8> data =
-            ReadSegment(file, nso_header.segments[i], nso_header.segments_compressed_size[i]);
-        program_image.resize(nso_header.segments[i].location);
-        program_image.insert(program_image.end(), data.begin(), data.end());
-        codeset->segments[i].addr = nso_header.segments[i].location;
-        codeset->segments[i].offset = nso_header.segments[i].location;
-        codeset->segments[i].size = PageAlignSize(static_cast<u32>(data.size()));
-    }
-
-    // MOD header pointer is at .text offset + 4
-    u32 module_offset;
-    std::memcpy(&module_offset, program_image.data() + 4, sizeof(u32));
-
-    // Read MOD header
-    ModHeader mod_header{};
-    // Default .bss to size in segment header if MOD0 section doesn't exist
-    u32 bss_size{PageAlignSize(nso_header.segments[2].bss_size)};
-    std::memcpy(&mod_header, program_image.data() + module_offset, sizeof(ModHeader));
-    const bool has_mod_header{mod_header.magic == Common::MakeMagic('M', 'O', 'D', '0')};
-    if (has_mod_header) {
-        // Resize program image to include .bss section and page align each section
-        bss_size = PageAlignSize(mod_header.bss_end_offset - mod_header.bss_start_offset);
-    }
-    codeset->data.size += bss_size;
-    const u32 image_size{PageAlignSize(static_cast<u32>(program_image.size()) + bss_size)};
-    program_image.resize(image_size);
-
-    // Load codeset for current process
-    codeset->name = path;
-    codeset->memory = std::make_shared<std::vector<u8>>(std::move(program_image));
-    Core::CurrentProcess()->LoadModule(codeset, load_base);
-
-    return load_base + image_size;
-}
-
 ResultStatus AppLoader_NSO::Load(Kernel::SharedPtr<Kernel::Process>& process) {
     if (is_loaded) {
         return ResultStatus::ErrorAlreadyLoaded;
     }
-    if (!file.IsOpen()) {
-        return ResultStatus::Error;
-    }
 
     // Load module
-    LoadModule(filepath, Memory::PROCESS_IMAGE_VADDR);
-    LOG_DEBUG(Loader, "loaded module {} @ 0x{:X}", filepath, Memory::PROCESS_IMAGE_VADDR);
+    LoadModule(file, Memory::PROCESS_IMAGE_VADDR);
+    LOG_DEBUG(Loader, "loaded module {} @ 0x{:X}", file->GetName(), Memory::PROCESS_IMAGE_VADDR);
 
     process->svc_access_mask.set();
     process->address_mappings = default_address_mappings;

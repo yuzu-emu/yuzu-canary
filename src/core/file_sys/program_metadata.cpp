@@ -9,40 +9,29 @@
 
 namespace FileSys {
 
-Loader::ResultStatus ProgramMetadata::Load(const std::string& file_path) {
-    FileUtil::IOFile file(file_path, "rb");
-    if (!file.IsOpen())
-        return Loader::ResultStatus::Error;
-
-    std::vector<u8> file_data(file.GetSize());
-
-    if (!file.ReadBytes(file_data.data(), file_data.size()))
-        return Loader::ResultStatus::Error;
-
-    Loader::ResultStatus result = Load(file_data);
-    if (result != Loader::ResultStatus::Success)
-        LOG_ERROR(Service_FS, "Failed to load NPDM from file {}!", file_path);
-
-    return result;
-}
-
-Loader::ResultStatus ProgramMetadata::Load(const std::vector<u8> file_data, size_t offset) {
-    size_t total_size = static_cast<size_t>(file_data.size() - offset);
+Loader::ResultStatus ProgramMetadata::Load(VirtualFile file) {
+    size_t total_size = static_cast<size_t>(file->GetSize());
     if (total_size < sizeof(Header))
         return Loader::ResultStatus::Error;
 
-    size_t header_offset = offset;
-    memcpy(&npdm_header, &file_data[offset], sizeof(Header));
+    // TODO(DarkLordZach): Use ReadObject when Header/AcidHeader becomes trivially copyable.
+    std::vector<u8> npdm_header_data = file->ReadBytes(sizeof(Header));
+    if (sizeof(Header) != npdm_header_data.size())
+        return Loader::ResultStatus::Error;
+    std::memcpy(&npdm_header, npdm_header_data.data(), sizeof(Header));
 
-    size_t aci_offset = header_offset + npdm_header.aci_offset;
-    size_t acid_offset = header_offset + npdm_header.acid_offset;
-    memcpy(&aci_header, &file_data[aci_offset], sizeof(AciHeader));
-    memcpy(&acid_header, &file_data[acid_offset], sizeof(AcidHeader));
+    std::vector<u8> acid_header_data = file->ReadBytes(sizeof(AcidHeader), npdm_header.acid_offset);
+    if (sizeof(AcidHeader) != acid_header_data.size())
+        return Loader::ResultStatus::Error;
+    std::memcpy(&acid_header, acid_header_data.data(), sizeof(AcidHeader));
 
-    size_t fac_offset = acid_offset + acid_header.fac_offset;
-    size_t fah_offset = aci_offset + aci_header.fah_offset;
-    memcpy(&acid_file_access, &file_data[fac_offset], sizeof(FileAccessControl));
-    memcpy(&aci_file_access, &file_data[fah_offset], sizeof(FileAccessHeader));
+    if (sizeof(AciHeader) != file->ReadObject(&aci_header, npdm_header.aci_offset))
+        return Loader::ResultStatus::Error;
+
+    if (sizeof(FileAccessControl) != file->ReadObject(&acid_file_access, acid_header.fac_offset))
+        return Loader::ResultStatus::Error;
+    if (sizeof(FileAccessHeader) != file->ReadObject(&aci_file_access, aci_header.fah_offset))
+        return Loader::ResultStatus::Error;
 
     return Loader::ResultStatus::Success;
 }

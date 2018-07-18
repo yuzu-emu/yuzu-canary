@@ -8,12 +8,16 @@
 #include <cstddef>
 #include "common/common_funcs.h"
 #include "common/common_types.h"
-#include "core/file_sys/filesystem.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FileSys namespace
 
 namespace FileSys {
+
+enum EntryType : u8 {
+    Directory = 0,
+    File = 1,
+};
 
 // Structure of a directory entry, from
 // http://switchbrew.org/index.php?title=Filesystem_services#DirectoryEntry

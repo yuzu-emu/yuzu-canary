@@ -10,6 +10,7 @@
 #include "common/bit_field.h"
 #include "common/common_types.h"
 #include "common/swap.h"
+#include "partition_filesystem.h"
 
 namespace Loader {
 enum class ResultStatus;
@@ -37,8 +38,7 @@ enum class ProgramFilePermission : u64 {
  */
 class ProgramMetadata {
 public:
-    Loader::ResultStatus Load(const std::string& file_path);
-    Loader::ResultStatus Load(const std::vector<u8> file_data, size_t offset = 0);
+    Loader::ResultStatus Load(VirtualFile file);
 
     bool Is64BitProgram() const;
     ProgramAddressSpaceType GetAddressSpaceType() const;
@@ -51,6 +51,7 @@ public:
     void Print() const;
 
 private:
+    // TODO(DarkLordZach): BitField is not trivially copyable.
     struct Header {
         std::array<char, 4> magic;
         std::array<u8, 8> reserved;
@@ -77,6 +78,7 @@ private:
 
     static_assert(sizeof(Header) == 0x80, "NPDM header structure size is wrong");
 
+    // TODO(DarkLordZach): BitField is not trivially copyable.
     struct AcidHeader {
         std::array<u8, 0x100> signature;
         std::array<u8, 0x100> nca_modulus;

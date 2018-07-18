@@ -5,7 +5,6 @@
 #include <cinttypes>
 #include <stack>
 #include "core/core.h"
-#include "core/file_sys/filesystem.h"
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/kernel/event.h"
 #include "core/hle/kernel/process.h"

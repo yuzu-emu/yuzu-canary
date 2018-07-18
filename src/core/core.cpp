@@ -19,6 +19,7 @@
 #include "core/loader/loader.h"
 #include "core/memory_setup.h"
 #include "core/settings.h"
+#include "file_sys/vfs_real.h"
 #include "video_core/video_core.h"
 
 namespace Core {
@@ -84,7 +85,7 @@ System::ResultStatus System::SingleStep() {
 }
 
 System::ResultStatus System::Load(EmuWindow* emu_window, const std::string& filepath) {
-    app_loader = Loader::GetLoader(filepath);
+    app_loader = Loader::GetLoader(std::make_shared<FileSys::RealVfsFile>(filepath));
 
     if (!app_loader) {
         LOG_CRITICAL(Core, "Failed to obtain loader for {}!", filepath);

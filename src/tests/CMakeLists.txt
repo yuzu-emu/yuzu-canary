@@ -3,7 +3,6 @@ add_executable(tests
     core/arm/arm_test_common.cpp
     core/arm/arm_test_common.h
     core/core_timing.cpp
-    core/file_sys/path_parser.cpp
     core/memory/memory.cpp
     glad.cpp
     tests.cpp
