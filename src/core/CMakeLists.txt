@@ -305,7 +305,7 @@ add_library(core STATIC
 
 create_target_directory_groups(core)
 
-target_link_libraries(core PUBLIC common PRIVATE video_core)
+target_link_libraries(core PUBLIC common PRIVATE audio_core video_core)
 target_link_libraries(core PUBLIC Boost::boost PRIVATE fmt lz4_static unicorn)
 
 if (ARCHITECTURE_x86_64)
