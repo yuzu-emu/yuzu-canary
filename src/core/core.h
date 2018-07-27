@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include "audio_core/audio_out.h"
 #include "common/common_types.h"
 #include "core/arm/exclusive_monitor.h"
 #include "core/core_cpu.h"
@@ -131,6 +132,11 @@ public:
         return *gpu_core;
     }
 
+    /// Gets the AudioCore interface
+    AudioCore::AudioOut& AudioCore() {
+        return *audio_core;
+    }
+
     /// Gets the scheduler for the CPU core that is currently running
     Kernel::Scheduler& CurrentScheduler() {
         return *CurrentCpuCore().Scheduler();
@@ -195,6 +201,7 @@ private:
     /// AppLoader used to load the current executing application
     std::unique_ptr<Loader::AppLoader> app_loader;
     std::unique_ptr<Tegra::GPU> gpu_core;
+    std::unique_ptr<AudioCore::AudioOut> audio_core;
     std::shared_ptr<Tegra::DebugContext> debug_context;
     Kernel::SharedPtr<Kernel::Process> current_process;
     std::shared_ptr<ExclusiveMonitor> cpu_exclusive_monitor;
