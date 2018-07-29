@@ -12,16 +12,24 @@
 #include "common/common_funcs.h"
 #include "common/common_types.h"
 #include "common/swap.h"
+#include "core/crypto/key_manager.h"
 #include "core/file_sys/partition_filesystem.h"
+#include "core/loader/loader.h"
 
 namespace FileSys {
-
 enum class NCAContentType : u8 {
     Program = 0,
     Meta = 1,
     Control = 2,
     Manual = 3,
     Data = 4,
+};
+
+enum class NCASectionCryptoType : u8 {
+    NONE = 1,
+    XTS = 2,
+    CTR = 3,
+    BKTR = 4,
 };
 
 struct NCASectionTableEntry {
@@ -48,20 +56,19 @@ struct NCAHeader {
     std::array<u8, 0x10> rights_id;
     std::array<NCASectionTableEntry, 0x4> section_tables;
     std::array<std::array<u8, 0x20>, 0x4> hash_tables;
-    std::array<std::array<u8, 0x10>, 0x4> key_area;
+    std::array<u8, 0x40> key_area;
     INSERT_PADDING_BYTES(0xC0);
 };
 static_assert(sizeof(NCAHeader) == 0x400, "NCAHeader has incorrect size.");
+
+union NCASectionHeader;
 
 inline bool IsDirectoryExeFS(const std::shared_ptr<VfsDirectory>& pfs) {
     // According to switchbrew, an exefs must only contain these two files:
     return pfs->GetFile("main") != nullptr && pfs->GetFile("main.npdm") != nullptr;
 }
 
-inline bool IsValidNCA(const NCAHeader& header) {
-    return header.magic == Common::MakeMagic('N', 'C', 'A', '2') ||
-           header.magic == Common::MakeMagic('N', 'C', 'A', '3');
-}
+bool IsValidNCA(const NCAHeader& header);
 
 // An implementation of VfsDirectory that represents a Nintendo Content Archive (NCA) conatiner.
 // After construction, use GetStatus to determine if the file is valid and ready to be used.
@@ -81,6 +88,8 @@ public:
     VirtualFile GetRomFS() const;
     VirtualDir GetExeFS() const;
 
+    VirtualFile GetBaseFile() const;
+
 protected:
     bool ReplaceFileWithSubdirectory(VirtualFile file, VirtualDir dir) override;
 
@@ -95,6 +104,13 @@ private:
     NCAHeader header{};
 
     Loader::ResultStatus status{};
+
+    bool encrypted;
+
+    Core::Crypto::KeyManager keys;
+    Core::Crypto::Key128 GetKeyAreaKey(NCASectionCryptoType type);
+
+    VirtualFile Decrypt(NCASectionHeader header, VirtualFile in, u64 starting_offset);
 };
 
 } // namespace FileSys

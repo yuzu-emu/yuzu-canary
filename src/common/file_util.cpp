@@ -736,6 +736,19 @@ const std::string& GetUserPath(UserPath path, const std::string& new_path) {
     return paths[path];
 }
 
+std::string GetHactoolConfigurationPath() {
+#ifdef _WIN32
+    PWSTR pw_local_path = nullptr;
+    if (SHGetKnownFolderPath(FOLDERID_Profile, 0, nullptr, &pw_local_path) != S_OK)
+        return "";
+    std::string local_path = Common::UTF16ToUTF8(pw_local_path);
+    CoTaskMemFree(pw_local_path);
+    return local_path + "\\.switch";
+#else
+    return GetHomeDirectory() + "/.switch";
+#endif
+}
+
 size_t WriteStringToFile(bool text_file, const std::string& str, const char* filename) {
     return FileUtil::IOFile(filename, text_file ? "w" : "wb").WriteBytes(str.data(), str.size());
 }
