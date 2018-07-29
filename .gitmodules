@@ -7,6 +7,9 @@
 [submodule "catch"]
     path = externals/catch
     url = https://github.com/philsquared/Catch.git
+[submodule "cubeb"]
+    path = externals/cubeb
+    url = https://github.com/kinetiknz/cubeb.git
 [submodule "dynarmic"]
     path = externals/dynarmic
     url = https://github.com/MerryMage/dynarmic.git
