@@ -25,9 +25,8 @@ constexpr int DefaultSampleRate{48000};
 
 class IAudioOut final : public ServiceFramework<IAudioOut> {
 public:
-    IAudioOut(AudoutParams audio_params)
-        : ServiceFramework("IAudioOut"), audio_params(audio_params),
-          audio_core(Core::System::GetInstance().AudioCore()) {
+    IAudioOut(AudoutParams audio_params, AudioCore::AudioOut& audio_core)
+        : ServiceFramework("IAudioOut"), audio_params(audio_params), audio_core(audio_core) {
 
         static const FunctionInfo functions[] = {
             {0, &IAudioOut::GetAudioOutState, "GetAudioOutState"},
@@ -195,7 +194,7 @@ void AudOutU::OpenAudioOutImpl(Kernel::HLERequestContext& ctx) {
     // TODO(bunnei): Support more than one IAudioOut interface. When we add this, ListAudioOutsImpl
     // will likely need to be updated as well.
     ASSERT_MSG(!audio_out_interface, "Unimplemented");
-    audio_out_interface = std::make_shared<IAudioOut>(std::move(params));
+    audio_out_interface = std::make_shared<IAudioOut>(std::move(params), *audio_core);
 
     IPC::ResponseBuilder rb{ctx, 6, 0, 1};
     rb.Push(RESULT_SUCCESS);
@@ -212,6 +211,7 @@ AudOutU::AudOutU() : ServiceFramework("audout:u") {
                                              {2, &AudOutU::ListAudioOutsImpl, "ListAudioOutsAuto"},
                                              {3, &AudOutU::OpenAudioOutImpl, "OpenAudioOutAuto"}};
     RegisterHandlers(functions);
+    audio_core = std::make_unique<AudioCore::AudioOut>();
 }
 
 } // namespace Service::Audio
