@@ -23,6 +23,7 @@ namespace FileUtil {
 enum class UserPath {
     CacheDir,
     ConfigDir,
+    KeysDir,
     LogDir,
     NANDDir,
     RootDir,
@@ -124,6 +125,8 @@ bool SetCurrentDir(const std::string& directory);
 // Returns a pointer to a string with a yuzu data dir in the user's home
 // directory. To be used in "multi-user" mode (that is, installed).
 const std::string& GetUserPath(UserPath path, const std::string& new_path = "");
+
+std::string GetHactoolConfigurationPath();
 
 // Returns the path to where the sys file are
 std::string GetSysDirectory();
