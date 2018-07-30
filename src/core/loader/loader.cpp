@@ -13,6 +13,7 @@
 #include "core/loader/nca.h"
 #include "core/loader/nro.h"
 #include "core/loader/nso.h"
+#include "core/loader/xci.h"
 
 namespace Loader {
 
@@ -35,6 +36,7 @@ FileType IdentifyFile(FileSys::VirtualFile file) {
     CHECK_TYPE(NSO)
     CHECK_TYPE(NRO)
     CHECK_TYPE(NCA)
+    CHECK_TYPE(XCI)
 
 #undef CHECK_TYPE
 
@@ -60,6 +62,8 @@ FileType GuessFromFilename(const std::string& name) {
         return FileType::NSO;
     if (extension == "nca")
         return FileType::NCA;
+    if (extension == "xci")
+        return FileType::XCI;
 
     return FileType::Unknown;
 }
@@ -74,6 +78,8 @@ const char* GetFileTypeString(FileType type) {
         return "NSO";
     case FileType::NCA:
         return "NCA";
+    case FileType::XCI:
+        return "XCI";
     case FileType::DeconstructedRomDirectory:
         return "Directory";
     case FileType::Error:
@@ -110,6 +116,9 @@ static std::unique_ptr<AppLoader> GetFileLoader(FileSys::VirtualFile file, FileT
     // NX NCA file format.
     case FileType::NCA:
         return std::make_unique<AppLoader_NCA>(std::move(file));
+
+    case FileType::XCI:
+        return std::make_unique<AppLoader_XCI>(std::move(file));
 
     // NX deconstructed ROM directory.
     case FileType::DeconstructedRomDirectory:
