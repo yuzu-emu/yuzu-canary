@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "audio_core/audio_out.h"
 #include "core/hle/service/service.h"
 
 namespace Kernel {
@@ -33,6 +34,7 @@ public:
 
 private:
     std::shared_ptr<IAudioOut> audio_out_interface;
+    std::unique_ptr<AudioCore::AudioOut> audio_core;
 
     void ListAudioOutsImpl(Kernel::HLERequestContext& ctx);
     void OpenAudioOutImpl(Kernel::HLERequestContext& ctx);
