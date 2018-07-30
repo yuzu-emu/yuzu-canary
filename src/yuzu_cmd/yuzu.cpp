@@ -23,6 +23,7 @@
 #include "yuzu_cmd/emu_window/emu_window_sdl2.h"
 
 #include <getopt.h>
+#include "core/crypto/key_manager.h"
 #ifndef _MSC_VER
 #include <unistd.h>
 #endif
@@ -71,6 +72,7 @@ static void InitializeLogging() {
 /// Application entry point
 int main(int argc, char** argv) {
     Config config;
+
     int option_index = 0;
     bool use_gdbstub = Settings::values.use_gdbstub;
     u32 gdb_port = static_cast<u32>(Settings::values.gdbstub_port);
