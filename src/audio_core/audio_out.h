@@ -8,12 +8,11 @@
 #include <vector>
 
 #include "audio_core/buffer.h"
+#include "audio_core/sink.h"
 #include "audio_core/stream.h"
 #include "common/common_types.h"
 
 namespace AudioCore {
-
-using StreamPtr = std::shared_ptr<Stream>;
 
 /**
  * Represents an audio playback interface, used to open and play audio streams
@@ -21,7 +20,7 @@ using StreamPtr = std::shared_ptr<Stream>;
 class AudioOut {
 public:
     /// Opens a new audio stream
-    StreamPtr OpenStream(int sample_rate, int num_channels,
+    StreamPtr OpenStream(u32 sample_rate, u32 num_channels,
                          Stream::ReleaseCallback&& release_callback);
 
     /// Returns a vector of recently released buffers specified by tag for the specified stream
@@ -37,8 +36,7 @@ public:
     bool QueueBuffer(StreamPtr stream, Buffer::Tag tag, std::vector<u8>&& data);
 
 private:
-    /// Active audio streams on the interface
-    std::vector<StreamPtr> streams;
+    SinkPtr sink;
 };
 
 } // namespace AudioCore
