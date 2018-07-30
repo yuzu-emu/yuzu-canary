@@ -32,6 +32,7 @@
 #define SDMC_DIR "sdmc"
 #define NAND_DIR "nand"
 #define SYSDATA_DIR "sysdata"
+#define KEYS_DIR "keys"
 #define LOG_DIR "log"
 
 // Filenames
