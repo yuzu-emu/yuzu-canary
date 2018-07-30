@@ -10,13 +10,12 @@
 #include <queue>
 
 #include "audio_core/buffer.h"
+#include "audio_core/sink_stream.h"
 #include "common/assert.h"
 #include "common/common_types.h"
 #include "core/core_timing.h"
 
 namespace AudioCore {
-
-using BufferPtr = std::shared_ptr<Buffer>;
 
 /**
  * Represents an audio stream, which is a sequence of queued buffers, to be outputed by AudioOut
@@ -33,7 +32,8 @@ public:
     /// Callback function type, used to change guest state on a buffer being released
     using ReleaseCallback = std::function<void()>;
 
-    Stream(int sample_rate, Format format, ReleaseCallback&& release_callback);
+    Stream(u32 sample_rate, Format format, ReleaseCallback&& release_callback,
+           SinkStream& sink_stream);
 
     /// Plays the audio stream
     void Play();
@@ -60,6 +60,17 @@ public:
         return queued_buffers.size();
     }
 
+    /// Gets the sample rate
+    u32 GetSampleRate() const {
+        return sample_rate;
+    }
+
+    /// Gets the number of channels
+    u32 GetNumChannels() const;
+
+    /// Gets the sample size in bytes
+    u32 GetSampleSize() const;
+
 private:
     /// Current state of the stream
     enum class State {
@@ -76,7 +87,7 @@ private:
     /// Gets the number of core cycles when the specified buffer will be released
     s64 GetBufferReleaseCycles(const Buffer& buffer) const;
 
-    int sample_rate;                        ///< Sample rate of the stream
+    u32 sample_rate;                        ///< Sample rate of the stream
     Format format;                          ///< Format of the stream
     ReleaseCallback release_callback;       ///< Buffer release callback for the stream
     State state{State::Stopped};            ///< Playback state of the stream
@@ -84,6 +95,9 @@ private:
     BufferPtr active_buffer;                ///< Actively playing buffer in the stream
     std::queue<BufferPtr> queued_buffers;   ///< Buffers queued to be played in the stream
     std::queue<BufferPtr> released_buffers; ///< Buffers recently released from the stream
+    SinkStream& sink_stream;                ///< Output sink for the stream
 };
+
+using StreamPtr = std::shared_ptr<Stream>;
 
 } // namespace AudioCore
