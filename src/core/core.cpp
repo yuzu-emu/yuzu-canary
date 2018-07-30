@@ -177,7 +177,6 @@ System::ResultStatus System::Init(EmuWindow* emu_window, u32 system_mode) {
     }
 
     gpu_core = std::make_unique<Tegra::GPU>();
-    audio_core = std::make_unique<AudioCore::AudioOut>();
     telemetry_session = std::make_unique<Core::TelemetrySession>();
     service_manager = std::make_shared<Service::SM::ServiceManager>();
 
@@ -229,7 +228,6 @@ void System::Shutdown() {
     service_manager.reset();
     telemetry_session.reset();
     gpu_core.reset();
-    audio_core.reset();
 
     // Close all CPU/threading state
     cpu_barrier->NotifyEnd();

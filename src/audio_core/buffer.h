@@ -34,4 +34,6 @@ private:
     std::vector<u8> data;
 };
 
+using BufferPtr = std::shared_ptr<Buffer>;
+
 } // namespace AudioCore
