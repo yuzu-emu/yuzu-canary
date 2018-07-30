@@ -23,6 +23,7 @@
 #include "common/scope_exit.h"
 #include "common/string_util.h"
 #include "core/core.h"
+#include "core/crypto/key_manager.h"
 #include "core/gdbstub/gdbstub.h"
 #include "core/loader/loader.h"
 #include "core/settings.h"

@@ -31,6 +31,7 @@ enum class FileType {
     NSO,
     NRO,
     NCA,
+    XCI,
     DeconstructedRomDirectory,
 };
 
