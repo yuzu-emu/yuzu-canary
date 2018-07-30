@@ -25,3 +25,6 @@
 [submodule "unicorn"]
     path = externals/unicorn
     url = https://github.com/yuzu-emu/unicorn
+[submodule "externals/mbedtls"]
+	path = externals/mbedtls
+	url = https://github.com/DarkLordZach/mbedtls
