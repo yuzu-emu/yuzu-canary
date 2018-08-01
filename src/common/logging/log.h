@@ -97,6 +97,7 @@ enum class Class : ClassType {
     Audio_DSP,         ///< The HLE implementation of the DSP
     Audio_Sink,        ///< Emulator audio output backend
     Loader,            ///< ROM loader
+    Crypto,            ///< Cryptographic engine/functions
     Input,             ///< Input emulation
     Network,           ///< Network emulation
     WebService,        ///< Interface to yuzu Web Services
