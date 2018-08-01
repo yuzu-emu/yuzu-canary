@@ -11,6 +11,8 @@ add_executable(yuzu
     bootmanager.h
     configuration/config.cpp
     configuration/config.h
+    configuration/configure_audio.cpp
+    configuration/configure_audio.h
     configuration/configure_debug.cpp
     configuration/configure_debug.h
     configuration/configure_dialog.cpp
@@ -55,6 +57,7 @@ add_executable(yuzu
 set(UIS
     aboutdialog.ui
     configuration/configure.ui
+    configuration/configure_audio.ui
     configuration/configure_debug.ui
     configuration/configure_general.ui
     configuration/configure_graphics.ui

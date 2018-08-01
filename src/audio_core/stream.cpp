@@ -2,14 +2,17 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
-#include "common/assert.h"
-#include "common/logging/log.h"
-#include "core/core_timing.h"
-#include "core/core_timing_util.h"
+#include <algorithm>
+#include <cmath>
 
 #include "audio_core/sink.h"
 #include "audio_core/sink_details.h"
 #include "audio_core/stream.h"
+#include "common/assert.h"
+#include "common/logging/log.h"
+#include "core/core_timing.h"
+#include "core/core_timing_util.h"
+#include "core/settings.h"
 
 namespace AudioCore {
 
@@ -56,6 +59,24 @@ s64 Stream::GetBufferReleaseCycles(const Buffer& buffer) const {
     return CoreTiming::usToCycles((static_cast<u64>(num_samples) * 1000000) / sample_rate);
 }
 
+static std::vector<s16> GetVolumeAdjustedSamples(const std::vector<u8>& data) {
+    std::vector<s16> samples(data.size() / sizeof(s16));
+    std::memcpy(samples.data(), data.data(), data.size());
+    const float volume{std::clamp(Settings::values.volume, 0.0f, 1.0f)};
+
+    if (volume == 1.0f) {
+        return samples;
+    }
+
+    // Implementation of a volume slider with a dynamic range of 60 dB
+    const float volume_scale_factor{std::exp(6.90775f * volume) * 0.001f};
+    for (auto& sample : samples) {
+        sample = static_cast<s16>(sample * volume_scale_factor);
+    }
+
+    return samples;
+}
+
 void Stream::PlayNextBuffer() {
     if (!IsPlaying()) {
         // Ensure we are in playing state before playing the next buffer
@@ -75,9 +96,9 @@ void Stream::PlayNextBuffer() {
     active_buffer = queued_buffers.front();
     queued_buffers.pop();
 
-    sink_stream.EnqueueSamples(GetNumChannels(),
-                               reinterpret_cast<const s16*>(active_buffer->GetData().data()),
-                               active_buffer->GetData().size() / GetSampleSize());
+    const size_t sample_count{active_buffer->GetData().size() / GetSampleSize()};
+    sink_stream.EnqueueSamples(
+        GetNumChannels(), GetVolumeAdjustedSamples(active_buffer->GetData()).data(), sample_count);
 
     CoreTiming::ScheduleEventThreadsafe(GetBufferReleaseCycles(*active_buffer), release_event, {});
 }

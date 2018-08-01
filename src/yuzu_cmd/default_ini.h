@@ -143,18 +143,16 @@ swap_screen =
 
 [Audio]
 # Which audio output engine to use.
-# auto (default): Auto-select, null: No audio output, sdl2: SDL2 (if available)
+# auto (default): Auto-select, null: No audio output, cubeb: Cubeb audio engine (if available)
 output_engine =
-
-# Whether or not to enable the audio-stretching post-processing effect.
-# This effect adjusts audio speed to match emulation speed and helps prevent audio stutter,
-# at the cost of increasing audio latency.
-# 0: No, 1 (default): Yes
-enable_audio_stretching =
 
 # Which audio device to use.
 # auto (default): Auto-select
 output_device =
+
+# Output volume.
+# 1.0 (default): 100%, 0.0; mute
+volume =
 
 [Data Storage]
 # Whether to create a virtual SD card.

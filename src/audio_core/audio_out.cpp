@@ -7,6 +7,7 @@
 #include "audio_core/sink_details.h"
 #include "common/assert.h"
 #include "common/logging/log.h"
+#include "core/settings.h"
 
 namespace AudioCore {
 
@@ -29,8 +30,8 @@ static Stream::Format ChannelsToStreamFormat(u32 num_channels) {
 StreamPtr AudioOut::OpenStream(u32 sample_rate, u32 num_channels,
                                Stream::ReleaseCallback&& release_callback) {
     if (!sink) {
-        const SinkDetails& sink_details = GetSinkDetails("auto");
-        sink = sink_details.factory("");
+        const SinkDetails& sink_details = GetSinkDetails(Settings::values.sink_id);
+        sink = sink_details.factory(Settings::values.audio_device_id);
     }
 
     return std::make_shared<Stream>(sample_rate, ChannelsToStreamFormat(num_channels),
