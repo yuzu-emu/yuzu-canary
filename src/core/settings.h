@@ -139,6 +139,8 @@ struct Values {
 
     std::string log_filter;
 
+    bool use_dev_keys;
+
     // Audio
     std::string sink_id;
     std::string audio_device_id;
