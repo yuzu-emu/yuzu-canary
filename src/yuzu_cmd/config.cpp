@@ -119,6 +119,7 @@ void Config::ReadValues() {
 
     // Miscellaneous
     Settings::values.log_filter = sdl2_config->Get("Miscellaneous", "log_filter", "*:Trace");
+    Settings::values.use_dev_keys = sdl2_config->GetBoolean("Miscellaneous", "use_dev_keys", false);
 
     // Debugging
     Settings::values.use_gdbstub = sdl2_config->GetBoolean("Debugging", "use_gdbstub", false);
