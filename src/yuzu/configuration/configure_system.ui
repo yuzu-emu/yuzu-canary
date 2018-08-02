@@ -38,7 +38,7 @@
            </sizepolicy>
           </property>
           <property name="maxLength">
-           <number>10</number>
+           <number>32</number>
           </property>
          </widget>
         </item>
@@ -164,7 +164,7 @@
           </item>
           <item>
            <property name="text">
-            <string>Simplified Chinese (简体中文)</string>
+            <string>Chinese</string>
            </property>
           </item>
           <item>
@@ -187,6 +187,31 @@
             <string>Russian (Русский)</string>
            </property>
           </item>
+           <item>
+             <property name="text">
+               <string>Taiwanese</string>
+             </property>
+           </item>
+           <item>
+             <property name="text">
+               <string>British English</string>
+             </property>
+           </item>
+           <item>
+             <property name="text">
+               <string>Canadian French</string>
+             </property>
+           </item>
+           <item>
+             <property name="text">
+               <string>Latin American Spanish</string>
+             </property>
+           </item>
+           <item>
+             <property name="text">
+               <string>Simplified Chinese</string>
+             </property>
+           </item>
           <item>
            <property name="text">
             <string>Traditional Chinese (正體中文)</string>
