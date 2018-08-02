@@ -111,6 +111,7 @@ void Config::ReadValues() {
 
     qt_config->beginGroup("Miscellaneous");
     Settings::values.log_filter = qt_config->value("log_filter", "*:Info").toString().toStdString();
+    Settings::values.use_dev_keys = qt_config->value("use_dev_keys", false).toBool();
     qt_config->endGroup();
 
     qt_config->beginGroup("Debugging");
@@ -222,6 +223,7 @@ void Config::SaveValues() {
 
     qt_config->beginGroup("Miscellaneous");
     qt_config->setValue("log_filter", QString::fromStdString(Settings::values.log_filter));
+    qt_config->setValue("use_dev_keys", Settings::values.use_dev_keys);
     qt_config->endGroup();
 
     qt_config->beginGroup("Debugging");
