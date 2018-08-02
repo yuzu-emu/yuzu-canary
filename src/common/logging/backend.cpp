@@ -214,6 +214,7 @@ void FileBackend::Write(const Entry& entry) {
     CLS(Input)                                                                                     \
     CLS(Network)                                                                                   \
     CLS(Loader)                                                                                    \
+    CLS(Crypto)                                                                                    \
     CLS(WebService)
 
 // GetClassName is a macro defined by Windows.h, grrr...
