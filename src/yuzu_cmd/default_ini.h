@@ -164,6 +164,16 @@ use_virtual_sd =
 # 1: Yes, 0 (default): No
 use_docked_mode =
 
+# Sets the account username, max length is 32 characters
+# yuzu (default)
+username =
+
+# Sets the systems language index
+# 0: Japanese, 1: English (default), 2: French, 3: German, 4: Italian, 5: Spanish, 6: Chinese,
+# 7: Korean, 8: Dutch, 9: Portuguese, 10: Russian, 11: Taiwanese, 12: British English, 13: Canadian French,
+# 14: Latin American Spanish, 15: Simplified Chinese, 16: Traditional Chinese
+language_index =
+
 # The system region that yuzu will use during emulation
 # -1: Auto-select (default), 0: Japan, 1: USA, 2: Europe, 3: Australia, 4: China, 5: Korea, 6: Taiwan
 region_value =
