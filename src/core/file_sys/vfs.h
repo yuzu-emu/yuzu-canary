@@ -245,6 +245,9 @@ struct ReadOnlyVfsDirectory : public VfsDirectory {
     bool Rename(std::string_view name) override;
 };
 
+// Compare the two files, byte-for-byte, in increments specificed by block_size
+bool DeepEquals(const VirtualFile& file1, const VirtualFile& file2, size_t block_size = 0x200);
+
 // A method that copies the raw data between two different implementations of VirtualFile. If you
 // are using the same implementation, it is probably better to use the Copy method in the parent
 // directory of src/dest.
