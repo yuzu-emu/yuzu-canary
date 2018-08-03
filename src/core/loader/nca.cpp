@@ -25,12 +25,10 @@ namespace Loader {
 AppLoader_NCA::AppLoader_NCA(FileSys::VirtualFile file) : AppLoader(std::move(file)) {}
 
 FileType AppLoader_NCA::IdentifyType(const FileSys::VirtualFile& file) {
-    // TODO(DarkLordZach): Assuming everything is decrypted. Add crypto support.
-    FileSys::NCAHeader header{};
-    if (sizeof(FileSys::NCAHeader) != file->ReadObject(&header))
-        return FileType::Error;
+    FileSys::NCA nca(file);
 
-    if (IsValidNCA(header) && header.content_type == FileSys::NCAContentType::Program)
+    if (nca.GetStatus() == ResultStatus::Success &&
+        nca.GetType() == FileSys::NCAContentType::Program)
         return FileType::NCA;
 
     return FileType::Error;
@@ -98,9 +96,18 @@ ResultStatus AppLoader_NCA::Load(Kernel::SharedPtr<Kernel::Process>& process) {
 }
 
 ResultStatus AppLoader_NCA::ReadRomFS(FileSys::VirtualFile& dir) {
-    if (nca == nullptr || nca->GetRomFS() == nullptr || nca->GetRomFS()->GetSize() == 0)
+    if (nca == nullptr)
+        return ResultStatus::ErrorNotLoaded;
+    if (nca->GetRomFS() == nullptr || nca->GetRomFS()->GetSize() == 0)
         return ResultStatus::ErrorNotUsed;
     dir = nca->GetRomFS();
+    return ResultStatus::Success;
+}
+
+ResultStatus AppLoader_NCA::ReadProgramId(u64& out_program_id) {
+    if (nca == nullptr)
+        return ResultStatus::ErrorNotLoaded;
+    out_program_id = nca->GetTitleId();
     return ResultStatus::Success;
 }
 
