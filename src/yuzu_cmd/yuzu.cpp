@@ -23,6 +23,7 @@
 #include "yuzu_cmd/emu_window/emu_window_sdl2.h"
 
 #include <getopt.h>
+#include "core/crypto/key_manager.h"
 #ifndef _MSC_VER
 #include <unistd.h>
 #endif
@@ -71,6 +72,7 @@ static void InitializeLogging() {
 /// Application entry point
 int main(int argc, char** argv) {
     Config config;
+
     int option_index = 0;
     bool use_gdbstub = Settings::values.use_gdbstub;
     u32 gdb_port = static_cast<u32>(Settings::values.gdbstub_port);
@@ -171,11 +173,15 @@ int main(int argc, char** argv) {
     case Core::System::ResultStatus::ErrorLoader:
         LOG_CRITICAL(Frontend, "Failed to load ROM!");
         return -1;
-    case Core::System::ResultStatus::ErrorLoader_ErrorEncrypted:
-        LOG_CRITICAL(Frontend, "The game that you are trying to load must be decrypted before "
-                               "being used with yuzu. \n\n For more information on dumping and "
-                               "decrypting games, please refer to: "
-                               "https://yuzu-emu.org/wiki/dumping-game-cartridges/");
+    case Core::System::ResultStatus::ErrorLoader_ErrorMissingKeys:
+        LOG_CRITICAL(Frontend, "The game you are trying to load is encrypted and the keys required "
+                               "could not be found. Please refer to the yuzu wiki for help");
+        return -1;
+    case Core::System::ResultStatus::ErrorLoader_ErrorDecrypting:
+        LOG_CRITICAL(Frontend, "The game you are trying to load is encrypted and there was a "
+                               "general error while decrypting. This could mean that the keys are "
+                               "incorrect, game is invalid or game uses an unsupported method of "
+                               "crypto. Please double-check your keys");
         return -1;
     case Core::System::ResultStatus::ErrorLoader_ErrorInvalidFormat:
         LOG_CRITICAL(Frontend, "Error while loading ROM: The ROM format is not supported.");
