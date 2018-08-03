@@ -706,6 +706,7 @@ const std::string& GetUserPath(UserPath path, const std::string& new_path) {
         paths.emplace(UserPath::SDMCDir, user_path + SDMC_DIR DIR_SEP);
         paths.emplace(UserPath::NANDDir, user_path + NAND_DIR DIR_SEP);
         paths.emplace(UserPath::SysDataDir, user_path + SYSDATA_DIR DIR_SEP);
+        paths.emplace(UserPath::KeysDir, user_path + KEYS_DIR DIR_SEP);
         // TODO: Put the logs in a better location for each OS
         paths.emplace(UserPath::LogDir, user_path + LOG_DIR DIR_SEP);
     }
@@ -734,6 +735,19 @@ const std::string& GetUserPath(UserPath path, const std::string& new_path) {
     }
 
     return paths[path];
+}
+
+std::string GetHactoolConfigurationPath() {
+#ifdef _WIN32
+    PWSTR pw_local_path = nullptr;
+    if (SHGetKnownFolderPath(FOLDERID_Profile, 0, nullptr, &pw_local_path) != S_OK)
+        return "";
+    std::string local_path = Common::UTF16ToUTF8(pw_local_path);
+    CoTaskMemFree(pw_local_path);
+    return local_path + "\\.switch";
+#else
+    return GetHomeDirectory() + "/.switch";
+#endif
 }
 
 size_t WriteStringToFile(bool text_file, const std::string& str, const char* filename) {
