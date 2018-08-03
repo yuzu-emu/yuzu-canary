@@ -12,6 +12,16 @@ add_library(core STATIC
     core_timing.h
     core_timing_util.cpp
     core_timing_util.h
+    crypto/aes_util.cpp
+    crypto/aes_util.h
+    crypto/encryption_layer.cpp
+    crypto/encryption_layer.h
+    crypto/key_manager.cpp
+    crypto/key_manager.h
+    crypto/ctr_encryption_layer.cpp
+    crypto/ctr_encryption_layer.h
+    file_sys/card_image.cpp
+    file_sys/card_image.h
     file_sys/content_archive.cpp
     file_sys/content_archive.h
     file_sys/control_metadata.cpp
@@ -327,6 +337,8 @@ add_library(core STATIC
     loader/nro.h
     loader/nso.cpp
     loader/nso.h
+    loader/xci.cpp
+    loader/xci.h
     memory.cpp
     memory.h
     memory_hook.cpp
@@ -346,7 +358,7 @@ add_library(core STATIC
 create_target_directory_groups(core)
 
 target_link_libraries(core PUBLIC common PRIVATE audio_core video_core)
-target_link_libraries(core PUBLIC Boost::boost PRIVATE fmt lz4_static opus unicorn)
+target_link_libraries(core PUBLIC Boost::boost PRIVATE fmt lz4_static mbedtls opus unicorn)
 
 if (ARCHITECTURE_x86_64)
     target_sources(core PRIVATE
