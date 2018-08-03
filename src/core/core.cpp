@@ -99,8 +99,10 @@ System::ResultStatus System::Load(EmuWindow& emu_window, const std::string& file
                      static_cast<int>(system_mode.second));
 
         switch (system_mode.second) {
-        case Loader::ResultStatus::ErrorEncrypted:
-            return ResultStatus::ErrorLoader_ErrorEncrypted;
+        case Loader::ResultStatus::ErrorMissingKeys:
+            return ResultStatus::ErrorLoader_ErrorMissingKeys;
+        case Loader::ResultStatus::ErrorDecrypting:
+            return ResultStatus::ErrorLoader_ErrorDecrypting;
         case Loader::ResultStatus::ErrorInvalidFormat:
             return ResultStatus::ErrorLoader_ErrorInvalidFormat;
         case Loader::ResultStatus::ErrorUnsupportedArch:
@@ -124,8 +126,10 @@ System::ResultStatus System::Load(EmuWindow& emu_window, const std::string& file
         System::Shutdown();
 
         switch (load_result) {
-        case Loader::ResultStatus::ErrorEncrypted:
-            return ResultStatus::ErrorLoader_ErrorEncrypted;
+        case Loader::ResultStatus::ErrorMissingKeys:
+            return ResultStatus::ErrorLoader_ErrorMissingKeys;
+        case Loader::ResultStatus::ErrorDecrypting:
+            return ResultStatus::ErrorLoader_ErrorDecrypting;
         case Loader::ResultStatus::ErrorInvalidFormat:
             return ResultStatus::ErrorLoader_ErrorInvalidFormat;
         case Loader::ResultStatus::ErrorUnsupportedArch:
