@@ -10,6 +10,7 @@
 #include "core/hle/service/acc/acc_su.h"
 #include "core/hle/service/acc/acc_u0.h"
 #include "core/hle/service/acc/acc_u1.h"
+#include "core/settings.h"
 
 namespace Service::Account {
 
@@ -31,13 +32,14 @@ struct ProfileBase {
 };
 static_assert(sizeof(ProfileBase) == 0x38, "ProfileBase structure has incorrect size");
 
+// TODO(ogniK): Generate a real user id based on username, md5(username) maybe?
 static constexpr u128 DEFAULT_USER_ID{1ull, 0ull};
 
 class IProfile final : public ServiceFramework<IProfile> {
 public:
     explicit IProfile(u128 user_id) : ServiceFramework("IProfile"), user_id(user_id) {
         static const FunctionInfo functions[] = {
-            {0, nullptr, "Get"},
+            {0, &IProfile::Get, "Get"},
             {1, &IProfile::GetBase, "GetBase"},
             {10, nullptr, "GetImageSize"},
             {11, nullptr, "LoadImage"},
@@ -46,14 +48,36 @@ public:
     }
 
 private:
+    void Get(Kernel::HLERequestContext& ctx) {
+        LOG_WARNING(Service_ACC, "(STUBBED) called");
+        ProfileBase profile_base{};
+        profile_base.user_id = user_id;
+        if (Settings::values.username.size() > profile_base.username.size()) {
+            std::copy_n(Settings::values.username.begin(), profile_base.username.size(),
+                        profile_base.username.begin());
+        } else {
+            std::copy(Settings::values.username.begin(), Settings::values.username.end(),
+                      profile_base.username.begin());
+        }
+
+        IPC::ResponseBuilder rb{ctx, 16};
+        rb.Push(RESULT_SUCCESS);
+        rb.PushRaw(profile_base);
+    }
+
     void GetBase(Kernel::HLERequestContext& ctx) {
         LOG_WARNING(Service_ACC, "(STUBBED) called");
 
         // TODO(Subv): Retrieve this information from somewhere.
         ProfileBase profile_base{};
         profile_base.user_id = user_id;
-        profile_base.username = {'y', 'u', 'z', 'u'};
-
+        if (Settings::values.username.size() > profile_base.username.size()) {
+            std::copy_n(Settings::values.username.begin(), profile_base.username.size(),
+                        profile_base.username.begin());
+        } else {
+            std::copy(Settings::values.username.begin(), Settings::values.username.end(),
+                      profile_base.username.begin());
+        }
         IPC::ResponseBuilder rb{ctx, 16};
         rb.Push(RESULT_SUCCESS);
         rb.PushRaw(profile_base);
