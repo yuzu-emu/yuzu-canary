@@ -72,8 +72,8 @@ private:
                     buf.data() + sizeof(UpdateDataHeader) + config.behavior_size,
                     memory_pool_count * sizeof(MemoryPoolInfo));
 
-        std::vector<VoiceInfo> voice_info(worker_params.voice_count);
-        std::memcpy(voice_info.data(),
+        std::vector<VoiceInfo> voice_infos(worker_params.voice_count);
+        std::memcpy(voice_infos.data(),
                     buf.data() + sizeof(UpdateDataHeader) + config.behavior_size +
                         config.memory_pools_size + config.voice_resource_size,
                     worker_params.voice_count * sizeof(VoiceInfo));
@@ -94,18 +94,19 @@ private:
         std::memcpy(output.data() + sizeof(UpdateDataHeader), memory_pool.data(),
                     response_data.memory_pools_size);
 
-        for (unsigned i = 0; i < voice_info.size(); i++) {
-            if (voice_info[i].is_new) {
+        for (unsigned i = 0; i < voice_infos.size(); i++) {
+            auto& voice_info{voice_infos[i]};
+
+            if (voice_info.is_in_use == 0) {
+                continue;
+            }
+
+            if (voice_info.is_new) {
                 voice_status_list[i].played_sample_count = 0;
                 voice_status_list[i].wave_buffer_consumed = 0;
-            } else if (voice_info[i].play_state == (u8)PlayStates::Started) {
-                for (u32 buff_idx = 0; buff_idx < voice_info[i].wave_buffer_count; buff_idx++) {
-                    voice_status_list[i].played_sample_count +=
-                        (voice_info[i].wave_buffer[buff_idx].end_sample_offset -
-                         voice_info[i].wave_buffer[buff_idx].start_sample_offset) /
-                        2;
-                    voice_status_list[i].wave_buffer_consumed++;
-                }
+            } else if (voice_info.play_state == PlayState::Started) {
+                // TODO(bunnei): Properly update wave_buffer state here once playback has started.
+                // Doing this inaccurately breaks games.
             }
         }
         std::memcpy(output.data() + sizeof(UpdateDataHeader) + response_data.memory_pools_size,
@@ -155,7 +156,7 @@ private:
         Released = 0x6,
     };
 
-    enum class PlayStates : u8 {
+    enum class PlayState : u8 {
         Started = 0,
         Stopped = 1,
     };
@@ -235,7 +236,7 @@ private:
         u32_le node_id;
         u8 is_new;
         u8 is_in_use;
-        u8 play_state;
+        PlayState play_state;
         u8 sample_format;
         u32_le sample_rate;
         u32_le priority;
