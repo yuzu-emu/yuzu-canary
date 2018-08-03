@@ -285,6 +285,26 @@ bool ReadOnlyVfsDirectory::Rename(std::string_view name) {
     return false;
 }
 
+bool DeepEquals(const VirtualFile& file1, const VirtualFile& file2, size_t block_size) {
+    if (file1->GetSize() != file2->GetSize())
+        return false;
+
+    std::vector<u8> f1_v(block_size);
+    std::vector<u8> f2_v(block_size);
+    for (size_t i = 0; i < file1->GetSize(); i += block_size) {
+        auto f1_vs = file1->Read(f1_v.data(), block_size, i);
+        auto f2_vs = file2->Read(f2_v.data(), block_size, i);
+
+        if (f1_vs != f2_vs)
+            return false;
+        auto iters = std::mismatch(f1_v.begin(), f1_v.end(), f2_v.begin(), f2_v.end());
+        if (iters.first != f1_v.end() && iters.second != f2_v.end())
+            return false;
+    }
+
+    return true;
+}
+
 bool VfsRawCopy(VirtualFile src, VirtualFile dest) {
     if (src == nullptr || dest == nullptr)
         return false;

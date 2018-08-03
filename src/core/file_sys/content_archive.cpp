@@ -4,12 +4,14 @@
 
 #include <algorithm>
 #include <utility>
-
+#include <boost/optional.hpp>
 #include "common/logging/log.h"
+#include "core/crypto/aes_util.h"
+#include "core/crypto/ctr_encryption_layer.h"
 #include "core/file_sys/content_archive.h"
+#include "core/file_sys/romfs.h"
 #include "core/file_sys/vfs_offset.h"
 #include "core/loader/loader.h"
-#include "romfs.h"
 
 namespace FileSys {
 
@@ -29,10 +31,18 @@ enum class NCASectionFilesystemType : u8 {
 struct NCASectionHeaderBlock {
     INSERT_PADDING_BYTES(3);
     NCASectionFilesystemType filesystem_type;
-    u8 crypto_type;
+    NCASectionCryptoType crypto_type;
     INSERT_PADDING_BYTES(3);
 };
 static_assert(sizeof(NCASectionHeaderBlock) == 0x8, "NCASectionHeaderBlock has incorrect size.");
+
+struct NCASectionRaw {
+    NCASectionHeaderBlock header;
+    std::array<u8, 0x138> block_data;
+    std::array<u8, 0x8> section_ctr;
+    INSERT_PADDING_BYTES(0xB8);
+};
+static_assert(sizeof(NCASectionRaw) == 0x200, "NCASectionRaw has incorrect size.");
 
 struct PFS0Superblock {
     NCASectionHeaderBlock header_block;
@@ -43,67 +53,170 @@ struct PFS0Superblock {
     u64_le hash_table_size;
     u64_le pfs0_header_offset;
     u64_le pfs0_size;
-    INSERT_PADDING_BYTES(432);
+    INSERT_PADDING_BYTES(0x1B0);
 };
 static_assert(sizeof(PFS0Superblock) == 0x200, "PFS0Superblock has incorrect size.");
 
 struct RomFSSuperblock {
     NCASectionHeaderBlock header_block;
     IVFCHeader ivfc;
+    INSERT_PADDING_BYTES(0x118);
 };
-static_assert(sizeof(RomFSSuperblock) == 0xE8, "RomFSSuperblock has incorrect size.");
+static_assert(sizeof(RomFSSuperblock) == 0x200, "RomFSSuperblock has incorrect size.");
+
+union NCASectionHeader {
+    NCASectionRaw raw;
+    PFS0Superblock pfs0;
+    RomFSSuperblock romfs;
+};
+static_assert(sizeof(NCASectionHeader) == 0x200, "NCASectionHeader has incorrect size.");
+
+bool IsValidNCA(const NCAHeader& header) {
+    // TODO(DarkLordZach): Add NCA2/NCA0 support.
+    return header.magic == Common::MakeMagic('N', 'C', 'A', '3');
+}
+
+boost::optional<Core::Crypto::Key128> NCA::GetKeyAreaKey(NCASectionCryptoType type) const {
+    u8 master_key_id = header.crypto_type;
+    if (header.crypto_type_2 > master_key_id)
+        master_key_id = header.crypto_type_2;
+    if (master_key_id > 0)
+        --master_key_id;
+
+    if (!keys.HasKey(Core::Crypto::S128KeyType::KeyArea, master_key_id, header.key_index))
+        return boost::none;
+
+    std::vector<u8> key_area(header.key_area.begin(), header.key_area.end());
+    Core::Crypto::AESCipher<Core::Crypto::Key128> cipher(
+        keys.GetKey(Core::Crypto::S128KeyType::KeyArea, master_key_id, header.key_index),
+        Core::Crypto::Mode::ECB);
+    cipher.Transcode(key_area.data(), key_area.size(), key_area.data(), Core::Crypto::Op::Decrypt);
+
+    Core::Crypto::Key128 out;
+    if (type == NCASectionCryptoType::XTS)
+        std::copy(key_area.begin(), key_area.begin() + 0x10, out.begin());
+    else if (type == NCASectionCryptoType::CTR)
+        std::copy(key_area.begin() + 0x20, key_area.begin() + 0x30, out.begin());
+    else
+        LOG_CRITICAL(Crypto, "Called GetKeyAreaKey on invalid NCASectionCryptoType type={:02X}",
+                     static_cast<u8>(type));
+    u128 out_128{};
+    memcpy(out_128.data(), out.data(), 16);
+    LOG_DEBUG(Crypto, "called with crypto_rev={:02X}, kak_index={:02X}, key={:016X}{:016X}",
+              master_key_id, header.key_index, out_128[1], out_128[0]);
+
+    return out;
+}
+
+VirtualFile NCA::Decrypt(NCASectionHeader header, VirtualFile in, u64 starting_offset) const {
+    if (!encrypted)
+        return in;
+
+    switch (header.raw.header.crypto_type) {
+    case NCASectionCryptoType::NONE:
+        LOG_DEBUG(Crypto, "called with mode=NONE");
+        return in;
+    case NCASectionCryptoType::CTR:
+        LOG_DEBUG(Crypto, "called with mode=CTR, starting_offset={:016X}", starting_offset);
+        {
+            const auto key = GetKeyAreaKey(NCASectionCryptoType::CTR);
+            if (key == boost::none)
+                return nullptr;
+            auto out = std::make_shared<Core::Crypto::CTREncryptionLayer>(
+                std::move(in), key.value(), starting_offset);
+            std::vector<u8> iv(16);
+            for (u8 i = 0; i < 8; ++i)
+                iv[i] = header.raw.section_ctr[0x8 - i - 1];
+            out->SetIV(iv);
+            return std::static_pointer_cast<VfsFile>(out);
+        }
+    case NCASectionCryptoType::XTS:
+        // TODO(DarkLordZach): Implement XTSEncryptionLayer and title key encryption.
+    default:
+        LOG_ERROR(Crypto, "called with unhandled crypto type={:02X}",
+                  static_cast<u8>(header.raw.header.crypto_type));
+        return nullptr;
+    }
+}
 
 NCA::NCA(VirtualFile file_) : file(std::move(file_)) {
     if (sizeof(NCAHeader) != file->ReadObject(&header))
-        LOG_CRITICAL(Loader, "File reader errored out during header read.");
+        LOG_ERROR(Loader, "File reader errored out during header read.");
+
+    encrypted = false;
 
     if (!IsValidNCA(header)) {
-        status = Loader::ResultStatus::ErrorInvalidFormat;
-        return;
+        NCAHeader dec_header{};
+        Core::Crypto::AESCipher<Core::Crypto::Key256> cipher(
+            keys.GetKey(Core::Crypto::S256KeyType::Header), Core::Crypto::Mode::XTS);
+        cipher.XTSTranscode(&header, sizeof(NCAHeader), &dec_header, 0, 0x200,
+                            Core::Crypto::Op::Decrypt);
+        if (IsValidNCA(dec_header)) {
+            header = dec_header;
+            encrypted = true;
+        } else {
+            if (!keys.HasKey(Core::Crypto::S256KeyType::Header))
+                status = Loader::ResultStatus::ErrorMissingKeys;
+            else
+                status = Loader::ResultStatus::ErrorDecrypting;
+            return;
+        }
     }
 
-    std::ptrdiff_t number_sections =
+    const std::ptrdiff_t number_sections =
         std::count_if(std::begin(header.section_tables), std::end(header.section_tables),
                       [](NCASectionTableEntry entry) { return entry.media_offset > 0; });
 
+    std::vector<NCASectionHeader> sections(number_sections);
+    const auto length_sections = SECTION_HEADER_SIZE * number_sections;
+
+    if (encrypted) {
+        auto raw = file->ReadBytes(length_sections, SECTION_HEADER_OFFSET);
+        Core::Crypto::AESCipher<Core::Crypto::Key256> cipher(
+            keys.GetKey(Core::Crypto::S256KeyType::Header), Core::Crypto::Mode::XTS);
+        cipher.XTSTranscode(raw.data(), length_sections, sections.data(), 2, SECTION_HEADER_SIZE,
+                            Core::Crypto::Op::Decrypt);
+    } else {
+        file->ReadBytes(sections.data(), length_sections, SECTION_HEADER_OFFSET);
+    }
+
     for (std::ptrdiff_t i = 0; i < number_sections; ++i) {
-        // Seek to beginning of this section.
-        NCASectionHeaderBlock block{};
-        if (sizeof(NCASectionHeaderBlock) !=
-            file->ReadObject(&block, SECTION_HEADER_OFFSET + i * SECTION_HEADER_SIZE))
-            LOG_CRITICAL(Loader, "File reader errored out during header read.");
+        auto section = sections[i];
 
-        if (block.filesystem_type == NCASectionFilesystemType::ROMFS) {
-            RomFSSuperblock sb{};
-            if (sizeof(RomFSSuperblock) !=
-                file->ReadObject(&sb, SECTION_HEADER_OFFSET + i * SECTION_HEADER_SIZE))
-                LOG_CRITICAL(Loader, "File reader errored out during header read.");
-
+        if (section.raw.header.filesystem_type == NCASectionFilesystemType::ROMFS) {
             const size_t romfs_offset =
                 header.section_tables[i].media_offset * MEDIA_OFFSET_MULTIPLIER +
-                sb.ivfc.levels[IVFC_MAX_LEVEL - 1].offset;
-            const size_t romfs_size = sb.ivfc.levels[IVFC_MAX_LEVEL - 1].size;
-            files.emplace_back(std::make_shared<OffsetVfsFile>(file, romfs_size, romfs_offset));
-            romfs = files.back();
-        } else if (block.filesystem_type == NCASectionFilesystemType::PFS0) {
-            PFS0Superblock sb{};
-            // Seek back to beginning of this section.
-            if (sizeof(PFS0Superblock) !=
-                file->ReadObject(&sb, SECTION_HEADER_OFFSET + i * SECTION_HEADER_SIZE))
-                LOG_CRITICAL(Loader, "File reader errored out during header read.");
-
+                section.romfs.ivfc.levels[IVFC_MAX_LEVEL - 1].offset;
+            const size_t romfs_size = section.romfs.ivfc.levels[IVFC_MAX_LEVEL - 1].size;
+            auto dec =
+                Decrypt(section, std::make_shared<OffsetVfsFile>(file, romfs_size, romfs_offset),
+                        romfs_offset);
+            if (dec != nullptr) {
+                files.push_back(std::move(dec));
+                romfs = files.back();
+            } else {
+                status = Loader::ResultStatus::ErrorMissingKeys;
+                return;
+            }
+        } else if (section.raw.header.filesystem_type == NCASectionFilesystemType::PFS0) {
             u64 offset = (static_cast<u64>(header.section_tables[i].media_offset) *
                           MEDIA_OFFSET_MULTIPLIER) +
-                         sb.pfs0_header_offset;
+                         section.pfs0.pfs0_header_offset;
             u64 size = MEDIA_OFFSET_MULTIPLIER * (header.section_tables[i].media_end_offset -
                                                   header.section_tables[i].media_offset);
-            auto npfs = std::make_shared<PartitionFilesystem>(
-                std::make_shared<OffsetVfsFile>(file, size, offset));
+            auto dec =
+                Decrypt(section, std::make_shared<OffsetVfsFile>(file, size, offset), offset);
+            if (dec != nullptr) {
+                auto npfs = std::make_shared<PartitionFilesystem>(std::move(dec));
 
-            if (npfs->GetStatus() == Loader::ResultStatus::Success) {
-                dirs.emplace_back(npfs);
-                if (IsDirectoryExeFS(dirs.back()))
-                    exefs = dirs.back();
+                if (npfs->GetStatus() == Loader::ResultStatus::Success) {
+                    dirs.push_back(std::move(npfs));
+                    if (IsDirectoryExeFS(dirs.back()))
+                        exefs = dirs.back();
+                }
+            } else {
+                status = Loader::ResultStatus::ErrorMissingKeys;
+                return;
             }
         }
     }
@@ -151,6 +264,10 @@ VirtualFile NCA::GetRomFS() const {
 
 VirtualDir NCA::GetExeFS() const {
     return exefs;
+}
+
+VirtualFile NCA::GetBaseFile() const {
+    return file;
 }
 
 bool NCA::ReplaceFileWithSubdirectory(VirtualFile file, VirtualDir dir) {
