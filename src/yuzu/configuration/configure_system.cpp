@@ -4,9 +4,10 @@
 
 #include <QMessageBox>
 #include "core/core.h"
+#include "core/settings.h"
 #include "ui_configure_system.h"
 #include "yuzu/configuration/configure_system.h"
-#include "yuzu/ui_settings.h"
+#include "yuzu/main.h"
 
 static const std::array<int, 12> days_in_month = {{
     31,
@@ -38,6 +39,8 @@ ConfigureSystem::~ConfigureSystem() {}
 
 void ConfigureSystem::setConfiguration() {
     enabled = !Core::System::GetInstance().IsPoweredOn();
+    ui->edit_username->setText(QString::fromStdString(Settings::values.username));
+    ui->combo_language->setCurrentIndex(Settings::values.language_index);
 }
 
 void ConfigureSystem::ReadSystemSettings() {}
@@ -45,6 +48,9 @@ void ConfigureSystem::ReadSystemSettings() {}
 void ConfigureSystem::applyConfiguration() {
     if (!enabled)
         return;
+    Settings::values.username = ui->edit_username->text().toStdString();
+    Settings::values.language_index = ui->combo_language->currentIndex();
+    Settings::Apply();
 }
 
 void ConfigureSystem::updateBirthdayComboBox(int birthmonth_index) {
