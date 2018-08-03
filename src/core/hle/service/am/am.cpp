@@ -652,7 +652,8 @@ void IApplicationFunctions::GetDesiredLanguage(Kernel::HLERequestContext& ctx) {
     // TODO(bunnei): This should be configurable
     IPC::ResponseBuilder rb{ctx, 4};
     rb.Push(RESULT_SUCCESS);
-    rb.Push(static_cast<u64>(Service::Set::LanguageCode::EN_US));
+    rb.Push(
+        static_cast<u64>(Service::Set::GetLanguageCodeFromIndex(Settings::values.language_index)));
     LOG_DEBUG(Service_AM, "called");
 }
 
