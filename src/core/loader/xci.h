@@ -4,19 +4,19 @@
 
 #pragma once
 
-#include <string>
+#include <memory>
 #include "common/common_types.h"
-#include "core/file_sys/content_archive.h"
-#include "core/file_sys/program_metadata.h"
-#include "core/hle/kernel/object.h"
+#include "core/file_sys/card_image.h"
 #include "core/loader/loader.h"
+#include "core/loader/nca.h"
 
 namespace Loader {
 
-/// Loads an NCA file
-class AppLoader_NCA final : public AppLoader {
+/// Loads an XCI file
+class AppLoader_XCI final : public AppLoader {
 public:
-    explicit AppLoader_NCA(FileSys::VirtualFile file);
+    explicit AppLoader_XCI(FileSys::VirtualFile file);
+    ~AppLoader_XCI();
 
     /**
      * Returns the type of the file
@@ -32,15 +32,13 @@ public:
     ResultStatus Load(Kernel::SharedPtr<Kernel::Process>& process) override;
 
     ResultStatus ReadRomFS(FileSys::VirtualFile& dir) override;
-
     ResultStatus ReadProgramId(u64& out_program_id) override;
-
-    ~AppLoader_NCA();
 
 private:
     FileSys::ProgramMetadata metadata;
 
-    std::unique_ptr<FileSys::NCA> nca;
+    std::unique_ptr<FileSys::XCI> xci;
+    std::unique_ptr<AppLoader_NCA> nca_loader;
 };
 
 } // namespace Loader
