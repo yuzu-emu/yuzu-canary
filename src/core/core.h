@@ -43,12 +43,14 @@ public:
 
     /// Enumeration representing the return values of the System Initialize and Load process.
     enum class ResultStatus : u32 {
-        Success,                    ///< Succeeded
-        ErrorNotInitialized,        ///< Error trying to use core prior to initialization
-        ErrorGetLoader,             ///< Error finding the correct application loader
-        ErrorSystemMode,            ///< Error determining the system mode
-        ErrorLoader,                ///< Error loading the specified application
-        ErrorLoader_ErrorEncrypted, ///< Error loading the specified application due to encryption
+        Success,                      ///< Succeeded
+        ErrorNotInitialized,          ///< Error trying to use core prior to initialization
+        ErrorGetLoader,               ///< Error finding the correct application loader
+        ErrorSystemMode,              ///< Error determining the system mode
+        ErrorLoader,                  ///< Error loading the specified application
+        ErrorLoader_ErrorMissingKeys, ///< Error because the key/keys needed to run could not be
+                                      ///< found.
+        ErrorLoader_ErrorDecrypting,  ///< Error loading the specified application due to encryption
         ErrorLoader_ErrorInvalidFormat, ///< Error loading the specified application due to an
                                         /// invalid format
         ErrorSystemFiles,               ///< Error in finding system files

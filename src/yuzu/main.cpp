@@ -23,6 +23,7 @@
 #include "common/scope_exit.h"
 #include "common/string_util.h"
 #include "core/core.h"
+#include "core/crypto/key_manager.h"
 #include "core/gdbstub/gdbstub.h"
 #include "core/loader/loader.h"
 #include "core/settings.h"
@@ -424,18 +425,49 @@ bool GMainWindow::LoadROM(const QString& filename) {
                                   tr("Could not determine the system mode."));
             break;
 
-        case Core::System::ResultStatus::ErrorLoader_ErrorEncrypted: {
+        case Core::System::ResultStatus::ErrorLoader_ErrorMissingKeys: {
+            const auto reg_found = Core::Crypto::KeyManager::KeyFileExists(false);
+            const auto title_found = Core::Crypto::KeyManager::KeyFileExists(true);
+
+            std::string file_text;
+
+            if (!reg_found && !title_found) {
+                file_text = "A proper key file (prod.keys, dev.keys, or title.keys) could not be "
+                            "found. You will need to dump your keys from your switch to continue.";
+            } else if (reg_found && title_found) {
+                file_text =
+                    "Both key files were found in your config directory, but the correct key could"
+                    "not be found. You may be missing a titlekey or general key, depending on "
+                    "the game.";
+            } else if (reg_found) {
+                file_text =
+                    "The regular keys file (prod.keys/dev.keys) was found in your config, but the "
+                    "titlekeys file (title.keys) was not. You are either missing the correct "
+                    "titlekey or missing a general key required to decrypt the game.";
+            } else {
+                file_text = "The title keys file (title.keys) was found in your config, but "
+                            "the regular keys file (prod.keys/dev.keys) was not. Unfortunately, "
+                            "having the titlekey is not enough, you need additional general keys "
+                            "to properly decrypt the game. You should double-check to make sure "
+                            "your keys are correct.";
+            }
+
             QMessageBox::critical(
                 this, tr("Error while loading ROM!"),
-                tr("The game that you are trying to load must be decrypted before being used with "
-                   "yuzu. A real Switch is required.<br/><br/>"
-                   "For more information on dumping and decrypting games, please see the following "
-                   "wiki pages: <ul>"
-                   "<li><a href='https://yuzu-emu.org/wiki/dumping-game-cartridges/'>Dumping Game "
-                   "Cartridges</a></li>"
-                   "<li><a href='https://yuzu-emu.org/wiki/dumping-installed-titles/'>Dumping "
-                   "Installed Titles</a></li>"
-                   "</ul>"));
+                tr(("The game you are trying to load is encrypted and the required keys to load "
+                    "the game could not be found in your configuration. " +
+                    file_text + " Please refer to the yuzu wiki for help.")
+                       .c_str()));
+            break;
+        }
+        case Core::System::ResultStatus::ErrorLoader_ErrorDecrypting: {
+            QMessageBox::critical(
+                this, tr("Error while loading ROM!"),
+                tr("There was a general error while decrypting the game. This means that the keys "
+                   "necessary were found, but were either incorrect, the game itself was not a "
+                   "valid game or the game uses an unhandled cryptographic scheme. Please double "
+                   "check that you have the correct "
+                   "keys."));
             break;
         }
         case Core::System::ResultStatus::ErrorLoader_ErrorInvalidFormat:
