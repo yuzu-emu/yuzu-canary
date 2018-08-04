@@ -1,3 +1,21 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 206f2e3436a2c1dddee7503edc4e142fb9a9dbd4
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[883](https://github.com/yuzu-emu/yuzu/pull/883)|[309384d](https://github.com/yuzu-emu/yuzu/pull/883/files/)|audren_u: Remove incorrect wave_buffer updates.|[bunnei](https://github.com/bunnei)|Yes|
+|[849](https://github.com/yuzu-emu/yuzu/pull/849)|[13cdf1f](https://github.com/yuzu-emu/yuzu/pull/849/files/)|XCI and Encrypted NCA Support|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
