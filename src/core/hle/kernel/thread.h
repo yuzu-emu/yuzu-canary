@@ -265,6 +265,8 @@ public:
 private:
     Thread();
     ~Thread() override;
+
+    std::shared_ptr<std::vector<u8>> tls_memory = std::make_shared<std::vector<u8>>();
 };
 
 /**

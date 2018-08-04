@@ -339,6 +339,17 @@ ResultVal<SharedPtr<Thread>> Thread::Create(std::string name, VAddr entry_point,
         tls_slots.emplace_back(0); // The page is completely available at the start
         available_page = tls_slots.size() - 1;
         available_slot = 0; // Use the first slot in the new page
+
+        // Allocate some memory from the end of the linear heap for this region.
+        const size_t offset = thread->tls_memory->size();
+        thread->tls_memory->insert(thread->tls_memory->end(), Memory::PAGE_SIZE, 0);
+
+        auto& vm_manager = owner_process->vm_manager;
+        vm_manager.RefreshMemoryBlockMappings(thread->tls_memory.get());
+
+        vm_manager.MapMemoryBlock(Memory::TLS_AREA_VADDR + available_page * Memory::PAGE_SIZE,
+                                  thread->tls_memory, 0, Memory::PAGE_SIZE,
+                                  MemoryState::ThreadLocal);
     }
 
     // Mark the slot as used

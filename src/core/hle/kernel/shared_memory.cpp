@@ -28,20 +28,31 @@ SharedPtr<SharedMemory> SharedMemory::Create(SharedPtr<Process> owner_process, u
     shared_memory->permissions = permissions;
     shared_memory->other_permissions = other_permissions;
 
-    auto& vm_manager = shared_memory->owner_process->vm_manager;
+    if (address == 0) {
+        shared_memory->backing_block = std::make_shared<std::vector<u8>>(size);
+        shared_memory->backing_block_offset = 0;
 
-    // The memory is already available and mapped in the owner process.
-    auto vma = vm_manager.FindVMA(address);
-    ASSERT_MSG(vma != vm_manager.vma_map.end(), "Invalid memory address");
-    ASSERT_MSG(vma->second.backing_block, "Backing block doesn't exist for address");
+        // Refresh the address mappings for the current process.
+        if (Core::CurrentProcess() != nullptr) {
+            Core::CurrentProcess()->vm_manager.RefreshMemoryBlockMappings(shared_memory->backing_block.get());
+        }
+    } else {
+        auto& vm_manager = shared_memory->owner_process->vm_manager;
 
-    // The returned VMA might be a bigger one encompassing the desired address.
-    auto vma_offset = address - vma->first;
-    ASSERT_MSG(vma_offset + size <= vma->second.size,
-               "Shared memory exceeds bounds of mapped block");
+        // The memory is already available and mapped in the owner process.
+        auto vma = vm_manager.FindVMA(address);
+        ASSERT_MSG(vma != vm_manager.vma_map.end(), "Invalid memory address");
+        ASSERT_MSG(vma->second.backing_block, "Backing block doesn't exist for address");
 
-    shared_memory->backing_block = vma->second.backing_block;
-    shared_memory->backing_block_offset = vma->second.offset + vma_offset;
+        // The returned VMA might be a bigger one encompassing the desired address.
+        auto vma_offset = address - vma->first;
+        ASSERT_MSG(vma_offset + size <= vma->second.size,
+                   "Shared memory exceeds bounds of mapped block");
+
+        shared_memory->backing_block = vma->second.backing_block;
+        shared_memory->backing_block_offset = vma->second.offset + vma_offset;
+    }
+
     shared_memory->base_address = address;
 
     return shared_memory;
