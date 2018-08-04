@@ -31,6 +31,7 @@ enum class FileType {
     NSO,
     NRO,
     NCA,
+    XCI,
     DeconstructedRomDirectory,
 };
 
@@ -72,7 +73,8 @@ enum class ResultStatus {
     ErrorNotUsed,
     ErrorAlreadyLoaded,
     ErrorMemoryAllocationFailed,
-    ErrorEncrypted,
+    ErrorMissingKeys,
+    ErrorDecrypting,
     ErrorUnsupportedArch,
 };
 
