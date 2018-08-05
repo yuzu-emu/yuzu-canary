@@ -1,9 +1,13 @@
 add_library(audio_core STATIC
     audio_out.cpp
     audio_out.h
+    audio_renderer.cpp
+    audio_renderer.h
     buffer.h
     cubeb_sink.cpp
     cubeb_sink.h
+    codec.cpp
+    codec.h
     null_sink.h
     stream.cpp
     stream.h
