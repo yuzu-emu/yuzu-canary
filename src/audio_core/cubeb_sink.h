@@ -18,7 +18,8 @@ public:
     explicit CubebSink(std::string device_id);
     ~CubebSink() override;
 
-    SinkStream& AcquireSinkStream(u32 sample_rate, u32 num_channels) override;
+    SinkStream& AcquireSinkStream(u32 sample_rate, u32 num_channels,
+                                  const std::string& name) override;
 
 private:
     cubeb* ctx{};

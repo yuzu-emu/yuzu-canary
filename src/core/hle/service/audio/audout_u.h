@@ -38,16 +38,6 @@ private:
 
     void ListAudioOutsImpl(Kernel::HLERequestContext& ctx);
     void OpenAudioOutImpl(Kernel::HLERequestContext& ctx);
-
-    enum class PcmFormat : u32 {
-        Invalid = 0,
-        Int8 = 1,
-        Int16 = 2,
-        Int24 = 3,
-        Int32 = 4,
-        PcmFloat = 5,
-        Adpcm = 6,
-    };
 };
 
 } // namespace Service::Audio
