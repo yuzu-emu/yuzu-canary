@@ -13,20 +13,30 @@ namespace AudioCore {
 
 class SinkStreamImpl final : public SinkStream {
 public:
-    SinkStreamImpl(cubeb* ctx, cubeb_devid output_device) : ctx{ctx} {
-        cubeb_stream_params params;
-        params.rate = 48000;
-        params.channels = GetNumChannels();
-        params.format = CUBEB_SAMPLE_S16NE;
-        params.layout = CUBEB_LAYOUT_STEREO;
+    SinkStreamImpl(cubeb* ctx, u32 sample_rate, u32 num_channels_, cubeb_devid output_device,
+                   const std::string& name)
+        : ctx{ctx}, num_channels{num_channels_} {
 
-        u32 minimum_latency = 0;
+        if (num_channels == 6) {
+            // 6-channel audio does not seem to work with cubeb + SDL, so we downsample this to 2
+            // channel for now
+            is_6_channel = true;
+            num_channels = 2;
+        }
+
+        cubeb_stream_params params{};
+        params.rate = sample_rate;
+        params.channels = num_channels;
+        params.format = CUBEB_SAMPLE_S16NE;
+        params.layout = num_channels == 1 ? CUBEB_LAYOUT_MONO : CUBEB_LAYOUT_STEREO;
+
+        u32 minimum_latency{};
         if (cubeb_get_min_latency(ctx, &params, &minimum_latency) != CUBEB_OK) {
             LOG_CRITICAL(Audio_Sink, "Error getting minimum latency");
         }
 
-        if (cubeb_stream_init(ctx, &stream_backend, "yuzu Audio Output", nullptr, nullptr,
-                              output_device, &params, std::max(512u, minimum_latency),
+        if (cubeb_stream_init(ctx, &stream_backend, name.c_str(), nullptr, nullptr, output_device,
+                              &params, std::max(512u, minimum_latency),
                               &SinkStreamImpl::DataCallback, &SinkStreamImpl::StateCallback,
                               this) != CUBEB_OK) {
             LOG_CRITICAL(Audio_Sink, "Error initializing cubeb stream");
@@ -51,33 +61,29 @@ public:
         cubeb_stream_destroy(stream_backend);
     }
 
-    void EnqueueSamples(u32 num_channels, const s16* samples, size_t sample_count) override {
+    void EnqueueSamples(u32 num_channels, const std::vector<s16>& samples) override {
         if (!ctx) {
             return;
         }
 
-        queue.reserve(queue.size() + sample_count * GetNumChannels());
+        queue.reserve(queue.size() + samples.size() * GetNumChannels());
 
-        if (num_channels == 2) {
-            // Copy as-is
-            std::copy(samples, samples + sample_count * GetNumChannels(),
-                      std::back_inserter(queue));
-        } else if (num_channels == 6) {
+        if (is_6_channel) {
             // Downsample 6 channels to 2
-            const size_t sample_count_copy_size = sample_count * num_channels * 2;
+            const size_t sample_count_copy_size = samples.size() * 2;
             queue.reserve(sample_count_copy_size);
-            for (size_t i = 0; i < sample_count * num_channels; i += num_channels) {
+            for (size_t i = 0; i < samples.size(); i += num_channels) {
                 queue.push_back(samples[i]);
                 queue.push_back(samples[i + 1]);
             }
         } else {
-            ASSERT_MSG(false, "Unimplemented");
+            // Copy as-is
+            std::copy(samples.begin(), samples.end(), std::back_inserter(queue));
         }
     }
 
     u32 GetNumChannels() const {
-        // Only support 2-channel stereo output for now
-        return 2;
+        return num_channels;
     }
 
 private:
@@ -85,6 +91,8 @@ private:
 
     cubeb* ctx{};
     cubeb_stream* stream_backend{};
+    u32 num_channels{};
+    bool is_6_channel{};
 
     std::vector<s16> queue;
 
@@ -129,8 +137,10 @@ CubebSink::~CubebSink() {
     cubeb_destroy(ctx);
 }
 
-SinkStream& CubebSink::AcquireSinkStream(u32 sample_rate, u32 num_channels) {
-    sink_streams.push_back(std::make_unique<SinkStreamImpl>(ctx, output_device));
+SinkStream& CubebSink::AcquireSinkStream(u32 sample_rate, u32 num_channels,
+                                         const std::string& name) {
+    sink_streams.push_back(
+        std::make_unique<SinkStreamImpl>(ctx, sample_rate, num_channels, output_device, name));
     return *sink_streams.back();
 }
 
