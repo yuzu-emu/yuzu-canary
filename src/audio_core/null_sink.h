@@ -13,14 +13,14 @@ public:
     explicit NullSink(std::string){};
     ~NullSink() override = default;
 
-    SinkStream& AcquireSinkStream(u32 /*sample_rate*/, u32 /*num_channels*/) override {
+    SinkStream& AcquireSinkStream(u32 /*sample_rate*/, u32 /*num_channels*/,
+                                  const std::string& /*name*/) override {
         return null_sink_stream;
     }
 
 private:
     struct NullSinkStreamImpl final : SinkStream {
-        void EnqueueSamples(u32 /*num_channels*/, const s16* /*samples*/,
-                            size_t /*sample_count*/) override {}
+        void EnqueueSamples(u32 /*num_channels*/, const std::vector<s16>& /*samples*/) override {}
     } null_sink_stream;
 };
 
