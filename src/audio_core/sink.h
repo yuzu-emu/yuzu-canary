@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include "audio_core/sink_stream.h"
 #include "common/common_types.h"
@@ -21,7 +22,8 @@ constexpr char auto_device_name[] = "auto";
 class Sink {
 public:
     virtual ~Sink() = default;
-    virtual SinkStream& AcquireSinkStream(u32 sample_rate, u32 num_channels) = 0;
+    virtual SinkStream& AcquireSinkStream(u32 sample_rate, u32 num_channels,
+                                          const std::string& name) = 0;
 };
 
 using SinkPtr = std::unique_ptr<Sink>;

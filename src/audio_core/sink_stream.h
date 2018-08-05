@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "common/common_types.h"
 
@@ -22,9 +23,8 @@ public:
      * Feed stereo samples to sink.
      * @param num_channels Number of channels used.
      * @param samples Samples in interleaved stereo PCM16 format.
-     * @param sample_count Number of samples.
      */
-    virtual void EnqueueSamples(u32 num_channels, const s16* samples, size_t sample_count) = 0;
+    virtual void EnqueueSamples(u32 num_channels, const std::vector<s16>& samples) = 0;
 };
 
 using SinkStreamPtr = std::unique_ptr<SinkStream>;

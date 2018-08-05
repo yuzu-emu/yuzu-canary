@@ -18,11 +18,16 @@ class Buffer {
 public:
     using Tag = u64;
 
-    Buffer(Tag tag, std::vector<u8>&& data) : tag{tag}, data{std::move(data)} {}
+    Buffer(Tag tag, std::vector<s16>&& samples) : tag{tag}, samples{std::move(samples)} {}
 
     /// Returns the raw audio data for the buffer
-    const std::vector<u8>& GetData() const {
-        return data;
+    std::vector<s16>& Samples() {
+        return samples;
+    }
+
+    /// Returns the raw audio data for the buffer
+    const std::vector<s16>& GetSamples() const {
+        return samples;
     }
 
     /// Returns the buffer tag, this is provided by the game to the audout service
@@ -32,7 +37,7 @@ public:
 
 private:
     Tag tag;
-    std::vector<u8> data;
+    std::vector<s16> samples;
 };
 
 using BufferPtr = std::shared_ptr<Buffer>;
