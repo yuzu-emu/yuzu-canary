@@ -27,16 +27,16 @@ static Stream::Format ChannelsToStreamFormat(u32 num_channels) {
     return {};
 }
 
-StreamPtr AudioOut::OpenStream(u32 sample_rate, u32 num_channels,
+StreamPtr AudioOut::OpenStream(u32 sample_rate, u32 num_channels, std::string&& name,
                                Stream::ReleaseCallback&& release_callback) {
     if (!sink) {
         const SinkDetails& sink_details = GetSinkDetails(Settings::values.sink_id);
         sink = sink_details.factory(Settings::values.audio_device_id);
     }
 
-    return std::make_shared<Stream>(sample_rate, ChannelsToStreamFormat(num_channels),
-                                    std::move(release_callback),
-                                    sink->AcquireSinkStream(sample_rate, num_channels));
+    return std::make_shared<Stream>(
+        sample_rate, ChannelsToStreamFormat(num_channels), std::move(release_callback),
+        sink->AcquireSinkStream(sample_rate, num_channels, name), std::move(name));
 }
 
 std::vector<Buffer::Tag> AudioOut::GetTagsAndReleaseBuffers(StreamPtr stream, size_t max_count) {
@@ -51,7 +51,7 @@ void AudioOut::StopStream(StreamPtr stream) {
     stream->Stop();
 }
 
-bool AudioOut::QueueBuffer(StreamPtr stream, Buffer::Tag tag, std::vector<u8>&& data) {
+bool AudioOut::QueueBuffer(StreamPtr stream, Buffer::Tag tag, std::vector<s16>&& data) {
     return stream->QueueBuffer(std::make_shared<Buffer>(tag, std::move(data)));
 }
 
