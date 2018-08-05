@@ -1,3 +1,22 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: c0af42d6eb7dbe7879f555aa9a415faee4c3d6d1
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[927](https://github.com/yuzu-emu/yuzu/pull/927)|[fd715e5](https://github.com/yuzu-emu/yuzu/pull/927/files/)|gl_shader_decompiler: Fix TEXS mask and dest.|[bunnei](https://github.com/bunnei)|Yes|
+|[925](https://github.com/yuzu-emu/yuzu/pull/925)|[b46df98](https://github.com/yuzu-emu/yuzu/pull/925/files/)|Implement audren audio output|[bunnei](https://github.com/bunnei)|Yes|
+|[920](https://github.com/yuzu-emu/yuzu/pull/920)|[2cc962e](https://github.com/yuzu-emu/yuzu/pull/920/files/)|content_archive: Add support for titlekey cryptography|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
