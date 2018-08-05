@@ -4,6 +4,8 @@
 
 #include <array>
 #include <vector>
+
+#include "audio_core/codec.h"
 #include "common/logging/log.h"
 #include "core/core.h"
 #include "core/hle/ipc_helpers.h"
@@ -48,7 +50,7 @@ public:
         buffer_event = Kernel::Event::Create(Kernel::ResetType::Sticky, "IAudioOutBufferReleased");
 
         stream = audio_core.OpenStream(audio_params.sample_rate, audio_params.channel_count,
-                                       [=]() { buffer_event->Signal(); });
+                                       "IAudioOut", [=]() { buffer_event->Signal(); });
     }
 
 private:
@@ -111,10 +113,10 @@ private:
         std::memcpy(&audio_buffer, input_buffer.data(), sizeof(AudioBuffer));
         const u64 tag{rp.Pop<u64>()};
 
-        std::vector<u8> data(audio_buffer.buffer_size);
-        Memory::ReadBlock(audio_buffer.buffer, data.data(), data.size());
+        std::vector<s16> samples(audio_buffer.buffer_size / sizeof(s16));
+        Memory::ReadBlock(audio_buffer.buffer, samples.data(), audio_buffer.buffer_size);
 
-        if (!audio_core.QueueBuffer(stream, tag, std::move(data))) {
+        if (!audio_core.QueueBuffer(stream, tag, std::move(samples))) {
             IPC::ResponseBuilder rb{ctx, 2};
             rb.Push(ResultCode(ErrorModule::Audio, ErrCodes::BufferCountExceeded));
         }
@@ -200,7 +202,7 @@ void AudOutU::OpenAudioOutImpl(Kernel::HLERequestContext& ctx) {
     rb.Push(RESULT_SUCCESS);
     rb.Push<u32>(DefaultSampleRate);
     rb.Push<u32>(params.channel_count);
-    rb.Push<u32>(static_cast<u32>(PcmFormat::Int16));
+    rb.Push<u32>(static_cast<u32>(AudioCore::Codec::PcmFormat::Int16));
     rb.Push<u32>(static_cast<u32>(AudioState::Stopped));
     rb.PushIpcInterface<Audio::IAudioOut>(audio_out_interface);
 }

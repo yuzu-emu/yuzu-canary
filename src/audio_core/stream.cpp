@@ -32,17 +32,13 @@ u32 Stream::GetNumChannels() const {
     return {};
 }
 
-u32 Stream::GetSampleSize() const {
-    return GetNumChannels() * 2;
-}
-
 Stream::Stream(u32 sample_rate, Format format, ReleaseCallback&& release_callback,
-               SinkStream& sink_stream)
+               SinkStream& sink_stream, std::string&& name_)
     : sample_rate{sample_rate}, format{format}, release_callback{std::move(release_callback)},
-      sink_stream{sink_stream} {
+      sink_stream{sink_stream}, name{std::move(name_)} {
 
     release_event = CoreTiming::RegisterEvent(
-        "Stream::Release", [this](u64 userdata, int cycles_late) { ReleaseActiveBuffer(); });
+        name, [this](u64 userdata, int cycles_late) { ReleaseActiveBuffer(); });
 }
 
 void Stream::Play() {
@@ -55,17 +51,15 @@ void Stream::Stop() {
 }
 
 s64 Stream::GetBufferReleaseCycles(const Buffer& buffer) const {
-    const size_t num_samples{buffer.GetData().size() / GetSampleSize()};
+    const size_t num_samples{buffer.GetSamples().size() / GetNumChannels()};
     return CoreTiming::usToCycles((static_cast<u64>(num_samples) * 1000000) / sample_rate);
 }
 
-static std::vector<s16> GetVolumeAdjustedSamples(const std::vector<u8>& data) {
-    std::vector<s16> samples(data.size() / sizeof(s16));
-    std::memcpy(samples.data(), data.data(), data.size());
+static void VolumeAdjustSamples(std::vector<s16>& samples) {
     const float volume{std::clamp(Settings::values.volume, 0.0f, 1.0f)};
 
     if (volume == 1.0f) {
-        return samples;
+        return;
     }
 
     // Implementation of a volume slider with a dynamic range of 60 dB
@@ -73,8 +67,6 @@ static std::vector<s16> GetVolumeAdjustedSamples(const std::vector<u8>& data) {
     for (auto& sample : samples) {
         sample = static_cast<s16>(sample * volume_scale_factor);
     }
-
-    return samples;
 }
 
 void Stream::PlayNextBuffer() {
@@ -96,14 +88,14 @@ void Stream::PlayNextBuffer() {
     active_buffer = queued_buffers.front();
     queued_buffers.pop();
 
-    const size_t sample_count{active_buffer->GetData().size() / GetSampleSize()};
-    sink_stream.EnqueueSamples(
-        GetNumChannels(), GetVolumeAdjustedSamples(active_buffer->GetData()).data(), sample_count);
+    VolumeAdjustSamples(active_buffer->Samples());
+    sink_stream.EnqueueSamples(GetNumChannels(), active_buffer->GetSamples());
 
     CoreTiming::ScheduleEventThreadsafe(GetBufferReleaseCycles(*active_buffer), release_event, {});
 }
 
 void Stream::ReleaseActiveBuffer() {
+    ASSERT(active_buffer);
     released_buffers.push(std::move(active_buffer));
     release_callback();
     PlayNextBuffer();
