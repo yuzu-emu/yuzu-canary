@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "audio_core/buffer.h"
@@ -20,7 +21,7 @@ namespace AudioCore {
 class AudioOut {
 public:
     /// Opens a new audio stream
-    StreamPtr OpenStream(u32 sample_rate, u32 num_channels,
+    StreamPtr OpenStream(u32 sample_rate, u32 num_channels, std::string&& name,
                          Stream::ReleaseCallback&& release_callback);
 
     /// Returns a vector of recently released buffers specified by tag for the specified stream
@@ -33,7 +34,7 @@ public:
     void StopStream(StreamPtr stream);
 
     /// Queues a buffer into the specified audio stream, returns true on success
-    bool QueueBuffer(StreamPtr stream, Buffer::Tag tag, std::vector<u8>&& data);
+    bool QueueBuffer(StreamPtr stream, Buffer::Tag tag, std::vector<s16>&& data);
 
 private:
     SinkPtr sink;

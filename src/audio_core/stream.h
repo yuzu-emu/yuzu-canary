@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <memory>
+#include <string>
 #include <vector>
 #include <queue>
 
@@ -33,7 +34,7 @@ public:
     using ReleaseCallback = std::function<void()>;
 
     Stream(u32 sample_rate, Format format, ReleaseCallback&& release_callback,
-           SinkStream& sink_stream);
+           SinkStream& sink_stream, std::string&& name_);
 
     /// Plays the audio stream
     void Play();
@@ -68,9 +69,6 @@ public:
     /// Gets the number of channels
     u32 GetNumChannels() const;
 
-    /// Gets the sample size in bytes
-    u32 GetSampleSize() const;
-
 private:
     /// Current state of the stream
     enum class State {
@@ -96,6 +94,7 @@ private:
     std::queue<BufferPtr> queued_buffers;   ///< Buffers queued to be played in the stream
     std::queue<BufferPtr> released_buffers; ///< Buffers recently released from the stream
     SinkStream& sink_stream;                ///< Output sink for the stream
+    std::string name;                       ///< Name of the stream, must be unique
 };
 
 using StreamPtr = std::shared_ptr<Stream>;
