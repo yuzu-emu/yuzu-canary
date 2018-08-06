@@ -285,8 +285,6 @@ Texture::TICEntry Maxwell3D::GetTICEntry(u32 tic_index) const {
 
     // TODO(Subv): Different data types for separate components are not supported
     ASSERT(r_type == g_type && r_type == b_type && r_type == a_type);
-    // TODO(Subv): Only UNORM formats are supported for now.
-    ASSERT(r_type == Texture::ComponentType::UNORM);
 
     return tic_entry;
 }
