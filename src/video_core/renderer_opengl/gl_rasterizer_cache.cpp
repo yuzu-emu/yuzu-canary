@@ -46,6 +46,8 @@ struct FormatTuple {
     params.height = Common::AlignUp(config.tic.Height(), GetCompressionFactor(params.pixel_format));
     params.unaligned_height = config.tic.Height();
     params.size_in_bytes = params.SizeInBytes();
+    params.cache_width = Common::AlignUp(params.width, 16);
+    params.cache_height = Common::AlignUp(params.height, 16);
     return params;
 }
 
@@ -63,6 +65,8 @@ struct FormatTuple {
     params.height = config.height;
     params.unaligned_height = config.height;
     params.size_in_bytes = params.SizeInBytes();
+    params.cache_width = Common::AlignUp(params.width, 16);
+    params.cache_height = Common::AlignUp(params.height, 16);
     return params;
 }
 
@@ -82,6 +86,8 @@ struct FormatTuple {
     params.height = zeta_height;
     params.unaligned_height = zeta_height;
     params.size_in_bytes = params.SizeInBytes();
+    params.cache_width = Common::AlignUp(params.width, 16);
+    params.cache_height = Common::AlignUp(params.height, 16);
     return params;
 }
 
@@ -680,12 +686,12 @@ Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params) {
             // If use_accurate_framebuffers is enabled, always load from memory
             FlushSurface(surface);
             UnregisterSurface(surface);
-        } else if (surface->GetSurfaceParams() != params) {
-            // If surface parameters changed, recreate the surface from the old one
-            return RecreateSurface(surface, params);
-        } else {
+        } else if (surface->GetSurfaceParams().IsCompatibleSurface(params)) {
             // Use the cached surface as-is
             return surface;
+        } else {
+            // If surface parameters changed, recreate the surface from the old one
+            return RecreateSurface(surface, params);
         }
     }
 
