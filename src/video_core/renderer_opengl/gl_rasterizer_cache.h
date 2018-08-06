@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include <boost/icl/interval_map.hpp>
+
 #include "common/common_types.h"
 #include "common/math_util.h"
 #include "video_core/engines/maxwell_3d.h"
@@ -546,6 +547,12 @@ struct SurfaceParams {
         return !operator==(other);
     }
 
+    /// Checks if surfaces are compatible for caching
+    bool IsCompatibleSurface(const SurfaceParams& other) const {
+        return std::tie(pixel_format, type, cache_width, cache_height) ==
+               std::tie(other.pixel_format, other.type, other.cache_width, other.cache_height);
+    }
+
     Tegra::GPUVAddr addr;
     bool is_tiled;
     u32 block_height;
@@ -556,6 +563,10 @@ struct SurfaceParams {
     u32 height;
     u32 unaligned_height;
     size_t size_in_bytes;
+
+    // Parameters used for caching only
+    u32 cache_width;
+    u32 cache_height;
 };
 
 class CachedSurface final {
