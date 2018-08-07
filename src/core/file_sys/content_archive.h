@@ -95,7 +95,9 @@ protected:
     bool ReplaceFileWithSubdirectory(VirtualFile file, VirtualDir dir) override;
 
 private:
+    u8 GetCryptoRevision() const;
     boost::optional<Core::Crypto::Key128> GetKeyAreaKey(NCASectionCryptoType type) const;
+    boost::optional<Core::Crypto::Key128> GetTitlekey() const;
     VirtualFile Decrypt(NCASectionHeader header, VirtualFile in, u64 starting_offset) const;
 
     std::vector<VirtualDir> dirs;
