@@ -76,12 +76,17 @@ bool IsValidNCA(const NCAHeader& header) {
     return header.magic == Common::MakeMagic('N', 'C', 'A', '3');
 }
 
-boost::optional<Core::Crypto::Key128> NCA::GetKeyAreaKey(NCASectionCryptoType type) const {
+u8 NCA::GetCryptoRevision() const {
     u8 master_key_id = header.crypto_type;
     if (header.crypto_type_2 > master_key_id)
         master_key_id = header.crypto_type_2;
     if (master_key_id > 0)
         --master_key_id;
+    return master_key_id;
+}
+
+boost::optional<Core::Crypto::Key128> NCA::GetKeyAreaKey(NCASectionCryptoType type) const {
+    const auto master_key_id = GetCryptoRevision();
 
     if (!keys.HasKey(Core::Crypto::S128KeyType::KeyArea, master_key_id, header.key_index))
         return boost::none;
@@ -108,33 +113,58 @@ boost::optional<Core::Crypto::Key128> NCA::GetKeyAreaKey(NCASectionCryptoType ty
     return out;
 }
 
-VirtualFile NCA::Decrypt(NCASectionHeader header, VirtualFile in, u64 starting_offset) const {
+boost::optional<Core::Crypto::Key128> NCA::GetTitlekey() const {
+    const auto master_key_id = GetCryptoRevision();
+
+    u128 rights_id{};
+    memcpy(rights_id.data(), header.rights_id.data(), 16);
+    if (rights_id == u128{})
+        return boost::none;
+
+    auto titlekey = keys.GetKey(Core::Crypto::S128KeyType::Titlekey, rights_id[1], rights_id[0]);
+    if (titlekey == Core::Crypto::Key128{})
+        return boost::none;
+    Core::Crypto::AESCipher<Core::Crypto::Key128> cipher(
+        keys.GetKey(Core::Crypto::S128KeyType::Titlekek, master_key_id), Core::Crypto::Mode::ECB);
+    cipher.Transcode(titlekey.data(), titlekey.size(), titlekey.data(), Core::Crypto::Op::Decrypt);
+
+    return titlekey;
+}
+
+VirtualFile NCA::Decrypt(NCASectionHeader s_header, VirtualFile in, u64 starting_offset) const {
     if (!encrypted)
         return in;
 
-    switch (header.raw.header.crypto_type) {
+    switch (s_header.raw.header.crypto_type) {
     case NCASectionCryptoType::NONE:
         LOG_DEBUG(Crypto, "called with mode=NONE");
         return in;
     case NCASectionCryptoType::CTR:
         LOG_DEBUG(Crypto, "called with mode=CTR, starting_offset={:016X}", starting_offset);
         {
-            const auto key = GetKeyAreaKey(NCASectionCryptoType::CTR);
+            boost::optional<Core::Crypto::Key128> key = boost::none;
+            if (std::find_if_not(header.rights_id.begin(), header.rights_id.end(),
+                                 [](char c) { return c == 0; }) == header.rights_id.end()) {
+                key = GetKeyAreaKey(NCASectionCryptoType::CTR);
+            } else {
+                key = GetTitlekey();
+            }
+
             if (key == boost::none)
                 return nullptr;
             auto out = std::make_shared<Core::Crypto::CTREncryptionLayer>(
                 std::move(in), key.value(), starting_offset);
             std::vector<u8> iv(16);
             for (u8 i = 0; i < 8; ++i)
-                iv[i] = header.raw.section_ctr[0x8 - i - 1];
+                iv[i] = s_header.raw.section_ctr[0x8 - i - 1];
             out->SetIV(iv);
             return std::static_pointer_cast<VfsFile>(out);
         }
     case NCASectionCryptoType::XTS:
-        // TODO(DarkLordZach): Implement XTSEncryptionLayer and title key encryption.
+        // TODO(DarkLordZach): Implement XTSEncryptionLayer.
     default:
         LOG_ERROR(Crypto, "called with unhandled crypto type={:02X}",
-                  static_cast<u8>(header.raw.header.crypto_type));
+                  static_cast<u8>(s_header.raw.header.crypto_type));
         return nullptr;
     }
 }
