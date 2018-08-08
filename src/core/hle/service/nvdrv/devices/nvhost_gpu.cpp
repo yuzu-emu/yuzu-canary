@@ -147,7 +147,7 @@ u32 nvhost_gpu::SubmitGPFIFO(const std::vector<u8>& input, std::vector<u8>& outp
     }
     params.fence_out.id = 0;
     params.fence_out.value = 0;
-    std::memcpy(output.data(), &params, output.size());
+    std::memcpy(output.data(), &params, sizeof(IoctlSubmitGpfifo));
     return 0;
 }
 
