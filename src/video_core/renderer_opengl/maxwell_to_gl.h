@@ -27,6 +27,7 @@ inline GLenum VertexType(Maxwell::VertexAttribute attrib) {
     case Maxwell::VertexAttribute::Type::UnsignedNorm: {
 
         switch (attrib.size) {
+        case Maxwell::VertexAttribute::Size::Size_8_8:
         case Maxwell::VertexAttribute::Size::Size_8_8_8_8:
             return GL_UNSIGNED_BYTE;
         case Maxwell::VertexAttribute::Size::Size_16_16:
