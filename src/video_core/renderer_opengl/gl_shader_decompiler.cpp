@@ -602,12 +602,12 @@ private:
 
     /// Generates code representing a 19-bit immediate value
     static std::string GetImmediate19(const Instruction& instr) {
-        return std::to_string(instr.alu.GetImm20_19());
+        return fmt::format("uintBitsToFloat({})", instr.alu.GetImm20_19());
     }
 
     /// Generates code representing a 32-bit immediate value
     static std::string GetImmediate32(const Instruction& instr) {
-        return std::to_string(instr.alu.GetImm20_32());
+        return fmt::format("uintBitsToFloat({})", instr.alu.GetImm20_32());
     }
 
     /// Generates code representing a texture sampler.
