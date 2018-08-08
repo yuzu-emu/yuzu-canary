@@ -659,7 +659,10 @@ u32 RasterizerOpenGL::SetupConstBuffers(Maxwell::ShaderStage stage, GLuint progr
         auto& buffer_draw_state =
             state.draw.const_buffers[static_cast<size_t>(stage)][used_buffer.GetIndex()];
 
-        ASSERT_MSG(buffer.enabled, "Attempted to upload disabled constbuffer");
+        if (!buffer.enabled) {
+            continue;
+        }
+
         buffer_draw_state.enabled = true;
         buffer_draw_state.bindpoint = current_bindpoint + bindpoint;
 
