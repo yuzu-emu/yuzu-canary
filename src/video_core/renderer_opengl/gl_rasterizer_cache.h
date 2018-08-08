@@ -221,6 +221,8 @@ struct SurfaceParams {
             return PixelFormat::RG32F;
         case Tegra::RenderTargetFormat::R11G11B10_FLOAT:
             return PixelFormat::R11FG11FB10F;
+        case Tegra::RenderTargetFormat::B5G6R5_UNORM:
+            return PixelFormat::B5G6R5;
         case Tegra::RenderTargetFormat::RGBA32_UINT:
             return PixelFormat::RGBA32UI;
         case Tegra::RenderTargetFormat::R8_UNORM:
@@ -441,6 +443,7 @@ struct SurfaceParams {
         case Tegra::RenderTargetFormat::RGB10_A2_UNORM:
         case Tegra::RenderTargetFormat::R8_UNORM:
         case Tegra::RenderTargetFormat::RG16_UNORM:
+        case Tegra::RenderTargetFormat::B5G6R5_UNORM:
             return ComponentType::UNorm;
         case Tegra::RenderTargetFormat::RG16_SNORM:
             return ComponentType::SNorm;
