@@ -54,6 +54,12 @@ struct Values {
 
     // logging
     bool show_console;
+
+    // Game List
+    bool show_unknown;
+    uint32_t icon_size;
+    uint8_t row_1_text_id;
+    uint8_t row_2_text_id;
 };
 
 extern Values values;

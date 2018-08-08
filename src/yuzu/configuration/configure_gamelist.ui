@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ConfigureGameList</class>
+  <widget class="QWidget" name="ConfigureGeneral">
+    <property name="geometry">
+      <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>300</width>
+        <height>377</height>
+      </rect>
+    </property>
+    <property name="windowTitle">
+      <string>Form</string>
+    </property>
+    <layout class="QHBoxLayout" name="HorizontalLayout">
+      <item>
+        <layout class="QVBoxLayout" name="VerticalLayout">
+          <item>
+            <widget class="QGroupBox" name="GeneralGroupBox">
+              <property name="title">
+                <string>General</string>
+              </property>
+              <layout class="QHBoxLayout" name="GeneralHorizontalLayout">
+                <item>
+                  <layout class="QVBoxLayout" name="GeneralVerticalLayout">
+                    <item>
+                      <widget class="QCheckBox" name="show_unknown">
+                        <property name="text">
+                          <string>Show files with type 'Unknown'</string>
+                        </property>
+                      </widget>
+                    </item>
+                  </layout>
+                </item>
+              </layout>
+            </widget>
+          </item>
+          <item>
+            <widget class="QGroupBox" name="IconSizeGroupBox">
+              <property name="title">
+                <string>Icon Size</string>
+              </property>
+              <layout class="QHBoxLayout" name="icon_size_qhbox_layout">
+                <item>
+                  <layout class="QVBoxLayout" name="icon_size_qvbox_layout">
+                    <item>
+                      <layout class="QHBoxLayout" name="icon_size_qhbox_layout_2">
+                        <item>
+                          <widget class="QLabel" name="icon_size_label">
+                            <property name="text">
+                              <string>Icon Size:</string>
+                            </property>
+                          </widget>
+                        </item>
+                        <item>
+                          <widget class="QComboBox" name="icon_size_combobox"/>
+                        </item>
+                      </layout>
+                    </item>
+                  </layout>
+                </item>
+              </layout>
+            </widget>
+          </item>
+          <item>
+            <widget class="QGroupBox" name="RowGroupBox">
+              <property name="title">
+                <string>Row Text</string>
+              </property>
+              <layout class="QHBoxLayout" name="RowHorizontalLayout">
+                <item>
+                  <layout class="QVBoxLayout" name="RowVerticalLayout">
+                    <item>
+                      <layout class="QHBoxLayout" name="row_1_qhbox_layout">
+                        <item>
+                          <widget class="QLabel" name="row_1_label">
+                            <property name="text">
+                              <string>Row 1 Text:</string>
+                            </property>
+                          </widget>
+                        </item>
+                        <item>
+                          <widget class="QComboBox" name="row_1_text_combobox"/>
+                        </item>
+                      </layout>
+                    </item>
+                    <item>
+                      <layout class="QHBoxLayout" name="row_2_qhbox_layout">
+                        <item>
+                          <widget class="QLabel" name="row_2_label">
+                            <property name="text">
+                              <string>Row 2 Text:</string>
+                            </property>
+                          </widget>
+                        </item>
+                        <item>
+                          <widget class="QComboBox" name="row_2_text_combobox"/>
+                        </item>
+                      </layout>
+                    </item>
+                  </layout>
+                </item>
+              </layout>
+            </widget>
+          </item>
+          <item>
+            <spacer name="verticalSpacer">
+              <property name="orientation">
+                <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+                <size>
+                  <width>20</width>
+                  <height>40</height>
+                </size>
+              </property>
+            </spacer>
+          </item>
+        </layout>
+      </item>
+    </layout>
+  </widget>
+ <resources/>
+ <connections/>
+</ui>

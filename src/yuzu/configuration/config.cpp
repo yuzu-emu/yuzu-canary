@@ -122,6 +122,13 @@ void Config::ReadValues() {
     qt_config->beginGroup("UI");
     UISettings::values.theme = qt_config->value("theme", UISettings::themes[0].second).toString();
 
+    qt_config->beginGroup("UIGameList");
+    UISettings::values.show_unknown = qt_config->value("show_unknown", true).toBool();
+    UISettings::values.icon_size = qt_config->value("icon_size", 48).toUInt();
+    UISettings::values.row_1_text_id = qt_config->value("row_1_text_id", 0).toUInt();
+    UISettings::values.row_2_text_id = qt_config->value("row_2_text_id", 3).toUInt();
+    qt_config->endGroup();
+
     qt_config->beginGroup("UILayout");
     UISettings::values.geometry = qt_config->value("geometry").toByteArray();
     UISettings::values.state = qt_config->value("state").toByteArray();
@@ -233,6 +240,13 @@ void Config::SaveValues() {
 
     qt_config->beginGroup("UI");
     qt_config->setValue("theme", UISettings::values.theme);
+
+    qt_config->beginGroup("UIGameList");
+    qt_config->setValue("show_unknown", UISettings::values.show_unknown);
+    qt_config->setValue("icon_size", UISettings::values.icon_size);
+    qt_config->setValue("row_1_text_id", UISettings::values.row_1_text_id);
+    qt_config->setValue("row_2_text_id", UISettings::values.row_2_text_id);
+    qt_config->endGroup();
 
     qt_config->beginGroup("UILayout");
     qt_config->setValue("geometry", UISettings::values.geometry);

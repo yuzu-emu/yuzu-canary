@@ -9,9 +9,12 @@
 #include <QKeyEvent>
 #include <QMenu>
 #include <QThreadPool>
+#include <boost/container/flat_map.hpp>
 #include "common/common_paths.h"
 #include "common/logging/log.h"
 #include "common/string_util.h"
+#include "core/file_sys/content_archive.h"
+#include "core/file_sys/control_metadata.h"
 #include "core/file_sys/vfs_real.h"
 #include "core/loader/loader.h"
 #include "game_list.h"
@@ -398,8 +401,32 @@ void GameList::RefreshGameDirectory() {
 }
 
 void GameListWorker::AddFstEntriesToGameList(const std::string& dir_path, unsigned int recursion) {
-    const auto callback = [this, recursion](u64* num_entries_out, const std::string& directory,
-                                            const std::string& virtual_name) -> bool {
+    boost::container::flat_map<u64, std::shared_ptr<FileSys::NCA>> nca_control_map;
+
+    const auto nca_control_callback =
+        [this, &nca_control_map](u64* num_entries_out, const std::string& directory,
+                                 const std::string& virtual_name) -> bool {
+        std::string physical_name = directory + DIR_SEP + virtual_name;
+
+        if (stop_processing)
+            return false; // Breaks the callback loop.
+
+        bool is_dir = FileUtil::IsDirectory(physical_name);
+        QFileInfo file_info(physical_name.c_str());
+        if (!is_dir && file_info.suffix().toStdString() == "nca") {
+            auto nca = std::make_shared<FileSys::NCA>(
+                std::make_shared<FileSys::RealVfsFile>(physical_name));
+            if (nca->GetType() == FileSys::NCAContentType::Control)
+                nca_control_map.insert_or_assign(nca->GetTitleId(), nca);
+        }
+        return true;
+    };
+
+    FileUtil::ForeachDirectoryEntry(nullptr, dir_path, nca_control_callback);
+
+    const auto callback = [this, recursion,
+                           &nca_control_map](u64* num_entries_out, const std::string& directory,
+                                             const std::string& virtual_name) -> bool {
         std::string physical_name = directory + DIR_SEP + virtual_name;
 
         if (stop_processing)
@@ -410,17 +437,50 @@ void GameListWorker::AddFstEntriesToGameList(const std::string& dir_path, unsign
             (HasSupportedFileExtension(physical_name) || IsExtractedNCAMain(physical_name))) {
             std::unique_ptr<Loader::AppLoader> loader =
                 Loader::GetLoader(std::make_shared<FileSys::RealVfsFile>(physical_name));
-            if (!loader)
+            if (!loader || ((loader->GetFileType() == Loader::FileType::Unknown ||
+                             loader->GetFileType() == Loader::FileType::Error) &&
+                            !UISettings::values.show_unknown))
                 return true;
 
-            std::vector<u8> smdh;
-            loader->ReadIcon(smdh);
+            std::vector<u8> icon;
+            const auto res1 = loader->ReadIcon(icon);
 
-            u64 program_id = 0;
-            loader->ReadProgramId(program_id);
+            u64 program_id;
+            const auto res2 = loader->ReadProgramId(program_id);
+
+            std::string name = " ";
+            const auto res3 = loader->ReadTitle(name);
+
+            if ((res1 == Loader::ResultStatus::ErrorNotUsed ||
+                 res1 == Loader::ResultStatus::ErrorNotImplemented) &&
+                (res3 == Loader::ResultStatus::ErrorNotUsed ||
+                 res3 == Loader::ResultStatus::ErrorNotImplemented) &&
+                res2 == Loader::ResultStatus::Success) {
+                // Use from metadata pool.
+                if (nca_control_map.find(program_id) != nca_control_map.end()) {
+                    const auto nca = nca_control_map[program_id];
+                    const auto control_dir = nca->GetSubdirectories()[0];
+
+                    const auto nacp_file = control_dir->GetFile("control.nacp");
+                    FileSys::NACP nacp(nacp_file);
+                    name = nacp.GetApplicationName();
+
+                    FileSys::VirtualFile icon_file = nullptr;
+                    for (const auto& language : FileSys::LANGUAGE_NAMES) {
+                        icon_file = control_dir->GetFile("icon_" + std::string(language) + ".dat");
+                        if (icon_file != nullptr) {
+                            icon = icon_file->ReadAllBytes();
+                            break;
+                        }
+                    }
+                }
+            }
 
             emit EntryReady({
-                new GameListItemPath(FormatGameName(physical_name), smdh, program_id),
+                new GameListItemPath(
+                    FormatGameName(physical_name), icon, QString::fromStdString(name),
+                    QString::fromStdString(Loader::GetFileTypeString(loader->GetFileType())),
+                    program_id),
                 new GameListItem(
                     QString::fromStdString(Loader::GetFileTypeString(loader->GetFileType()))),
                 new GameListItemSize(FileUtil::GetSize(physical_name)),
