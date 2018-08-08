@@ -136,7 +136,7 @@ ISelfController::ISelfController(std::shared_ptr<NVFlinger::NVFlinger> nvflinger
         {16, &ISelfController::SetOutOfFocusSuspendingEnabled, "SetOutOfFocusSuspendingEnabled"},
         {17, nullptr, "SetControllerFirmwareUpdateSection"},
         {18, nullptr, "SetRequiresCaptureButtonShortPressedMessage"},
-        {19, nullptr, "SetScreenShotImageOrientation"},
+        {19, &ISelfController::SetScreenShotImageOrientation, "SetScreenShotImageOrientation"},
         {20, nullptr, "SetDesirableKeyboardLayout"},
         {40, &ISelfController::CreateManagedDisplayLayer, "CreateManagedDisplayLayer"},
         {41, nullptr, "IsSystemBufferSharingEnabled"},
@@ -250,6 +250,13 @@ void ISelfController::GetLibraryAppletLaunchableEvent(Kernel::HLERequestContext&
     IPC::ResponseBuilder rb{ctx, 2, 1};
     rb.Push(RESULT_SUCCESS);
     rb.PushCopyObjects(launchable_event);
+
+    LOG_WARNING(Service_AM, "(STUBBED) called");
+}
+
+void ISelfController::SetScreenShotImageOrientation(Kernel::HLERequestContext& ctx) {
+    IPC::ResponseBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
 
     LOG_WARNING(Service_AM, "(STUBBED) called");
 }
