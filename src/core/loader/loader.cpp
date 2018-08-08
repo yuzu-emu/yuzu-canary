@@ -68,7 +68,7 @@ FileType GuessFromFilename(const std::string& name) {
     return FileType::Unknown;
 }
 
-const char* GetFileTypeString(FileType type) {
+std::string GetFileTypeString(FileType type) {
     switch (type) {
     case FileType::ELF:
         return "ELF";

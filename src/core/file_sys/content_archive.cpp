@@ -170,6 +170,10 @@ VirtualFile NCA::Decrypt(NCASectionHeader s_header, VirtualFile in, u64 starting
 }
 
 NCA::NCA(VirtualFile file_) : file(std::move(file_)) {
+    if (file == nullptr) {
+        status = Loader::ResultStatus::ErrorInvalidFormat;
+        return;
+    }
     if (sizeof(NCAHeader) != file->ReadObject(&header))
         LOG_ERROR(Loader, "File reader errored out during header read.");
 
