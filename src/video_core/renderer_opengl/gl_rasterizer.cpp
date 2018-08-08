@@ -324,6 +324,11 @@ std::pair<Surface, Surface> RasterizerOpenGL::ConfigureFramebuffers(bool using_c
                                                                     bool using_depth_fb) {
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
 
+    if (regs.rt[0].format == Tegra::RenderTargetFormat::NONE) {
+        LOG_ERROR(HW_GPU, "RenderTargetFormat is not configured");
+        return {};
+    }
+
     // TODO(bunnei): Implement this
     const bool has_stencil = false;
 
@@ -405,6 +410,10 @@ void RasterizerOpenGL::Clear() {
     auto [dirty_color_surface, dirty_depth_surface] =
         ConfigureFramebuffers(use_color_fb, use_depth_fb);
 
+    if (!dirty_color_surface && !dirty_depth_surface) {
+        return;
+    }
+
     // TODO(Subv): Support clearing only partial colors.
     glClearColor(regs.clear_color[0], regs.clear_color[1], regs.clear_color[2],
                  regs.clear_color[3]);
@@ -434,6 +443,10 @@ void RasterizerOpenGL::DrawArrays() {
 
     auto [dirty_color_surface, dirty_depth_surface] =
         ConfigureFramebuffers(true, regs.zeta.Address() != 0 && regs.zeta_enable != 0);
+
+    if (!dirty_color_surface && !dirty_depth_surface) {
+        return;
+    }
 
     SyncDepthTestState();
     SyncBlendState();
