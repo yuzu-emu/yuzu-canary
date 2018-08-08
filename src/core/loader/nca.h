@@ -33,7 +33,6 @@ public:
     ResultStatus Load(Kernel::SharedPtr<Kernel::Process>& process) override;
 
     ResultStatus ReadRomFS(FileSys::VirtualFile& dir) override;
-
     ResultStatus ReadProgramId(u64& out_program_id) override;
 
     ~AppLoader_NCA();
@@ -41,6 +40,7 @@ public:
 private:
     FileSys::ProgramMetadata metadata;
 
+    FileSys::NCAHeader header;
     std::unique_ptr<FileSys::NCA> nca;
     std::unique_ptr<AppLoader_DeconstructedRomDirectory> directory_loader;
 };
