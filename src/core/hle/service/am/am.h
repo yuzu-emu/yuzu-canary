@@ -83,6 +83,7 @@ private:
     void LockExit(Kernel::HLERequestContext& ctx);
     void UnlockExit(Kernel::HLERequestContext& ctx);
     void GetLibraryAppletLaunchableEvent(Kernel::HLERequestContext& ctx);
+    void SetScreenShotImageOrientation(Kernel::HLERequestContext& ctx);
     void CreateManagedDisplayLayer(Kernel::HLERequestContext& ctx);
     void SetScreenShotPermission(Kernel::HLERequestContext& ctx);
     void SetHandlesRequestToDisplay(Kernel::HLERequestContext& ctx);
