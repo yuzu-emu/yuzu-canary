@@ -1,3 +1,28 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: fd9da4232b2f989257630884511ba50e108ad703
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[985](https://github.com/yuzu-emu/yuzu/pull/985)|[7bf422d](https://github.com/yuzu-emu/yuzu/pull/985/files/)|gpu: Add R11G11B10_FLOAT to RenderTargetBytesPerPixel.|[bunnei](https://github.com/bunnei)|Yes|
+|[984](https://github.com/yuzu-emu/yuzu/pull/984)|[cd660da](https://github.com/yuzu-emu/yuzu/pull/984/files/)|gl_rasterizer: Do not render when no render target is configured.|[bunnei](https://github.com/bunnei)|Yes|
+|[982](https://github.com/yuzu-emu/yuzu/pull/982)|[7f0d0a9](https://github.com/yuzu-emu/yuzu/pull/982/files/)|gl_shader_decompiler: Stub input attribute Unknown_63.|[bunnei](https://github.com/bunnei)|Yes|
+|[981](https://github.com/yuzu-emu/yuzu/pull/981)|[57982df](https://github.com/yuzu-emu/yuzu/pull/981/files/)|maxwell_3d: Use correct const buffer size and check bounds.|[bunnei](https://github.com/bunnei)|Yes|
+|[979](https://github.com/yuzu-emu/yuzu/pull/979)|[c120ed7](https://github.com/yuzu-emu/yuzu/pull/979/files/)|maxwell_to_gl: Implement VertexAttribute::Size::Size_8_8.|[bunnei](https://github.com/bunnei)|Yes|
+|[978](https://github.com/yuzu-emu/yuzu/pull/978)|[0f834e2](https://github.com/yuzu-emu/yuzu/pull/978/files/)|nvhost_gpu: Don't over copy IoctlSubmitGpfifo.|[bunnei](https://github.com/bunnei)|Yes|
+|[977](https://github.com/yuzu-emu/yuzu/pull/977)|[aaf8d9a](https://github.com/yuzu-emu/yuzu/pull/977/files/)|gl_rasterizer_cached: Implement RenderTargetFormat::B5G6R5_UNORM.|[bunnei](https://github.com/bunnei)|Yes|
+|[976](https://github.com/yuzu-emu/yuzu/pull/976)|[e542356](https://github.com/yuzu-emu/yuzu/pull/976/files/)|gl_shader_decompiler: Let OpenGL interpret floats.|[bunnei](https://github.com/bunnei)|Yes|
+|[975](https://github.com/yuzu-emu/yuzu/pull/975)|[b7fb9f2](https://github.com/yuzu-emu/yuzu/pull/975/files/)|am: Stub SetScreenShotImageOrientation.|[bunnei](https://github.com/bunnei)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
