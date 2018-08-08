@@ -33,12 +33,17 @@ public:
 
     ResultStatus ReadRomFS(FileSys::VirtualFile& dir) override;
     ResultStatus ReadProgramId(u64& out_program_id) override;
+    ResultStatus ReadIcon(std::vector<u8>& buffer) override;
+    ResultStatus ReadTitle(std::string& title) override;
 
 private:
     FileSys::ProgramMetadata metadata;
 
     std::unique_ptr<FileSys::XCI> xci;
     std::unique_ptr<AppLoader_NCA> nca_loader;
+
+    FileSys::VirtualFile icon_file;
+    std::shared_ptr<FileSys::NACP> nacp_file;
 };
 
 } // namespace Loader

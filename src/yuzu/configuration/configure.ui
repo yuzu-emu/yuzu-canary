@@ -24,6 +24,11 @@
        <string>General</string>
       </attribute>
      </widget>
+      <widget class="ConfigureGameList" name="gameListTab">
+        <attribute name="title">
+          <string>Game List</string>
+        </attribute>
+      </widget>
      <widget class="ConfigureSystem" name="systemTab">
       <attribute name="title">
        <string>System</string>
@@ -67,6 +72,12 @@
    <header>configuration/configure_general.h</header>
    <container>1</container>
   </customwidget>
+   <customwidget>
+     <class>ConfigureGameList</class>
+     <extends>QWidget</extends>
+     <header>configuration/configure_gamelist.h</header>
+     <container>1</container>
+   </customwidget>
   <customwidget>
    <class>ConfigureSystem</class>
    <extends>QWidget</extends>

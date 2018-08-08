@@ -77,8 +77,8 @@ ResultStatus AppLoader_NCA::ReadRomFS(FileSys::VirtualFile& dir) {
 }
 
 ResultStatus AppLoader_NCA::ReadProgramId(u64& out_program_id) {
-    if (nca == nullptr)
-        return ResultStatus::ErrorNotLoaded;
+    if (nca == nullptr || nca->GetStatus() != ResultStatus::Success)
+        return ResultStatus::ErrorInvalidFormat;
     out_program_id = nca->GetTitleId();
     return ResultStatus::Success;
 }
