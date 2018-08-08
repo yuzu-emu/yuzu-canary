@@ -254,20 +254,15 @@ union Instruction {
             BitField<56, 1, u64> invert_b;
         } lop32i;
 
-        float GetImm20_19() const {
-            float result{};
+        u32 GetImm20_19() const {
             u32 imm{static_cast<u32>(imm20_19)};
             imm <<= 12;
             imm |= negate_imm ? 0x80000000 : 0;
-            std::memcpy(&result, &imm, sizeof(imm));
-            return result;
+            return imm;
         }
 
-        float GetImm20_32() const {
-            float result{};
-            s32 imm{static_cast<s32>(imm20_32)};
-            std::memcpy(&result, &imm, sizeof(imm));
-            return result;
+        u32 GetImm20_32() const {
+            return static_cast<u32>(imm20_32);
         }
 
         s32 GetSignedImm20_20() const {
