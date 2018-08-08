@@ -768,6 +768,7 @@ void GMainWindow::OnConfigure() {
         configureDialog.applyConfiguration();
         if (UISettings::values.theme != old_theme)
             UpdateUITheme();
+        game_list->PopulateAsync(UISettings::values.gamedir, UISettings::values.gamedir_deepscan);
         config->Save();
     }
 }
