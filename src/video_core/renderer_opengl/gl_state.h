@@ -7,6 +7,10 @@
 #include <array>
 #include <glad/glad.h>
 
+#include "video_core/engines/maxwell_3d.h"
+
+using Regs = Tegra::Engines::Maxwell3D::Regs;
+
 namespace TextureUnits {
 
 struct TextureUnit {
@@ -120,7 +124,7 @@ public:
             GLuint bindpoint;
             GLuint ssbo;
         };
-        std::array<std::array<ConstBufferConfig, 16>, 5> const_buffers{};
+        std::array<std::array<ConstBufferConfig, Regs::MaxConstBuffers>, 5> const_buffers;
     } draw;
 
     struct {
