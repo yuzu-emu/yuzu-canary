@@ -1,3 +1,23 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: f156a45c0155c7fe227dfb74a92d797e3d3f2032
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[977](https://github.com/yuzu-emu/yuzu/pull/977)|[aaf8d9a](https://github.com/yuzu-emu/yuzu/pull/977/files/)|gl_rasterizer_cached: Implement RenderTargetFormat::B5G6R5_UNORM.|[bunnei](https://github.com/bunnei)|Yes|
+|[976](https://github.com/yuzu-emu/yuzu/pull/976)|[e542356](https://github.com/yuzu-emu/yuzu/pull/976/files/)|gl_shader_decompiler: Let OpenGL interpret floats.|[bunnei](https://github.com/bunnei)|Yes|
+|[975](https://github.com/yuzu-emu/yuzu/pull/975)|[b7fb9f2](https://github.com/yuzu-emu/yuzu/pull/975/files/)|am: Stub SetScreenShotImageOrientation.|[bunnei](https://github.com/bunnei)|Yes|
+|[850](https://github.com/yuzu-emu/yuzu/pull/850)|[1abfd41](https://github.com/yuzu-emu/yuzu/pull/850/files/)|Add Icons and Metadata Support|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
