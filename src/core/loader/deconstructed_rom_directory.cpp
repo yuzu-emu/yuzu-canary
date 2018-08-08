@@ -7,6 +7,7 @@
 #include "common/file_util.h"
 #include "common/logging/log.h"
 #include "core/file_sys/content_archive.h"
+#include "core/file_sys/control_metadata.h"
 #include "core/gdbstub/gdbstub.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/kernel/resource_limit.h"
@@ -17,8 +18,50 @@
 
 namespace Loader {
 
-AppLoader_DeconstructedRomDirectory::AppLoader_DeconstructedRomDirectory(FileSys::VirtualFile file)
-    : AppLoader(std::move(file)) {}
+AppLoader_DeconstructedRomDirectory::AppLoader_DeconstructedRomDirectory(FileSys::VirtualFile file_)
+    : AppLoader(std::move(file_)) {
+    const auto dir = file->GetContainingDirectory();
+
+    // Icon
+    FileSys::VirtualFile icon_file = nullptr;
+    for (const auto& language : FileSys::LANGUAGE_NAMES) {
+        icon_file = dir->GetFile("icon_" + std::string(language) + ".dat");
+        if (icon_file != nullptr) {
+            icon_data = icon_file->ReadAllBytes();
+            break;
+        }
+    }
+
+    if (icon_data.empty()) {
+        // Any png, jpeg, or bmp file
+        const auto& files = dir->GetFiles();
+        const auto icon_iter =
+            std::find_if(files.begin(), files.end(), [](const FileSys::VirtualFile& file) {
+                return file->GetExtension() == "png" || file->GetExtension() == "jpg" ||
+                       file->GetExtension() == "bmp" || file->GetExtension() == "jpeg";
+            });
+        if (icon_iter != files.end())
+            icon_data = (*icon_iter)->ReadAllBytes();
+    }
+
+    // Metadata
+    FileSys::VirtualFile nacp_file = dir->GetFile("control.nacp");
+    if (nacp_file == nullptr) {
+        const auto& files = dir->GetFiles();
+        const auto nacp_iter =
+            std::find_if(files.begin(), files.end(), [](const FileSys::VirtualFile& file) {
+                return file->GetExtension() == "nacp";
+            });
+        if (nacp_iter != files.end())
+            nacp_file = *nacp_iter;
+    }
+
+    if (nacp_file != nullptr) {
+        FileSys::NACP nacp(nacp_file);
+        title_id = nacp.GetTitleId();
+        name = nacp.GetApplicationName();
+    }
+}
 
 AppLoader_DeconstructedRomDirectory::AppLoader_DeconstructedRomDirectory(
     FileSys::VirtualDir directory)
@@ -102,6 +145,27 @@ ResultStatus AppLoader_DeconstructedRomDirectory::ReadRomFS(FileSys::VirtualFile
     if (romfs == nullptr)
         return ResultStatus::ErrorNotUsed;
     dir = romfs;
+    return ResultStatus::Success;
+}
+
+ResultStatus AppLoader_DeconstructedRomDirectory::ReadIcon(std::vector<u8>& buffer) {
+    if (icon_data.empty())
+        return ResultStatus::ErrorNotUsed;
+    buffer = icon_data;
+    return ResultStatus::Success;
+}
+
+ResultStatus AppLoader_DeconstructedRomDirectory::ReadProgramId(u64& out_program_id) {
+    if (name.empty())
+        return ResultStatus::ErrorNotUsed;
+    out_program_id = title_id;
+    return ResultStatus::Success;
+}
+
+ResultStatus AppLoader_DeconstructedRomDirectory::ReadTitle(std::string& title) {
+    if (name.empty())
+        return ResultStatus::ErrorNotUsed;
+    title = name;
     return ResultStatus::Success;
 }
 

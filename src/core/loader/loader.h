@@ -61,7 +61,7 @@ FileType GuessFromFilename(const std::string& name);
 /**
  * Convert a FileType into a string which can be displayed to the user.
  */
-const char* GetFileTypeString(FileType type);
+std::string GetFileTypeString(FileType type);
 
 /// Return type for functions in Loader namespace
 enum class ResultStatus {
