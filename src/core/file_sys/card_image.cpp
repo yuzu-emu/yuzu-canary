@@ -5,6 +5,7 @@
 #include <array>
 #include <string>
 #include <core/loader/loader.h>
+#include "common/logging/log.h"
 #include "core/file_sys/card_image.h"
 #include "core/file_sys/partition_filesystem.h"
 #include "core/file_sys/vfs_offset.h"
