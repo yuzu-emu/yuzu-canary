@@ -78,6 +78,8 @@ union Attribute {
         // shader, and a tuple of (TessCoord.x, TessCoord.y, TessCoord.z, ~) when inside a Tess Eval
         // shader.
         TessCoordInstanceIDVertexID = 47,
+        // TODO(bunnei): Figure out what this is used for. Super Mario Odyssey uses this.
+        Unknown_63 = 63,
     };
 
     union {
