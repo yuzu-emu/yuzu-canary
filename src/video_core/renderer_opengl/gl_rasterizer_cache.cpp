@@ -761,9 +761,11 @@ void RasterizerCacheOpenGL::FlushRegion(Tegra::GPUVAddr /*addr*/, size_t /*size*
 }
 
 void RasterizerCacheOpenGL::InvalidateRegion(Tegra::GPUVAddr addr, size_t size) {
-    for (const auto& pair : surface_cache) {
-        const auto& surface{pair.second};
+    for (auto iter = surface_cache.cbegin(); iter != surface_cache.cend();) {
+        const auto& surface{iter->second};
         const auto& params{surface->GetSurfaceParams()};
+
+        ++iter;
 
         if (params.IsOverlappingRegion(addr, size)) {
             UnregisterSurface(surface);
