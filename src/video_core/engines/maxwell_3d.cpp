@@ -23,12 +23,17 @@ Maxwell3D::Maxwell3D(VideoCore::RasterizerInterface& rasterizer, MemoryManager& 
     : memory_manager(memory_manager), rasterizer{rasterizer}, macro_interpreter(*this) {}
 
 void Maxwell3D::CallMacroMethod(u32 method, std::vector<u32> parameters) {
-    auto macro_code = uploaded_macros.find(method);
-    // The requested macro must have been uploaded already.
-    ASSERT_MSG(macro_code != uploaded_macros.end(), "Macro %08X was not uploaded", method);
-
-    // Reset the current macro and execute it.
+    // Reset the current macro.
     executing_macro = 0;
+
+    // The requested macro must have been uploaded already.
+    auto macro_code = uploaded_macros.find(method);
+    if (macro_code == uploaded_macros.end()) {
+        LOG_ERROR(HW_GPU, "Macro {:04X} was not uploaded", method);
+        return;
+    }
+
+    // Execute the current macro.
     macro_interpreter.Execute(macro_code->second, std::move(parameters));
 }
 
