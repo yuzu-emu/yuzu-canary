@@ -324,6 +324,11 @@ std::pair<Surface, Surface> RasterizerOpenGL::ConfigureFramebuffers(bool using_c
                                                                     bool using_depth_fb) {
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
 
+    if (regs.rt[0].format == Tegra::RenderTargetFormat::NONE) {
+        LOG_ERROR(HW_GPU, "RenderTargetFormat is not configured");
+        using_color_fb = false;
+    }
+
     // TODO(bunnei): Implement this
     const bool has_stencil = false;
 
