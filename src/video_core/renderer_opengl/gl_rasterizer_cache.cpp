@@ -182,35 +182,37 @@ MathUtil::Rectangle<u32> SurfaceParams::GetRect() const {
 }
 
 template <bool morton_to_gl, PixelFormat format>
-void MortonCopy(u32 stride, u32 block_height, u32 height, u8* gl_buffer, Tegra::GPUVAddr addr) {
+void MortonCopy(u32 stride, u32 block_height, u32 height, std::vector<u8>& gl_buffer,
+                Tegra::GPUVAddr addr) {
     constexpr u32 bytes_per_pixel = SurfaceParams::GetFormatBpp(format) / CHAR_BIT;
     constexpr u32 gl_bytes_per_pixel = CachedSurface::GetGLBytesPerPixel(format);
     const auto& gpu = Core::System::GetInstance().GPU();
 
     if (morton_to_gl) {
+        std::vector<u8> data;
         if (SurfaceParams::GetFormatType(format) == SurfaceType::ColorTexture) {
-            auto data = Tegra::Texture::UnswizzleTexture(
+            data = Tegra::Texture::UnswizzleTexture(
                 *gpu.memory_manager->GpuToCpuAddress(addr),
                 SurfaceParams::TextureFormatFromPixelFormat(format), stride, height, block_height);
-            std::memcpy(gl_buffer, data.data(), data.size());
         } else {
-            auto data = Tegra::Texture::UnswizzleDepthTexture(
+            data = Tegra::Texture::UnswizzleDepthTexture(
                 *gpu.memory_manager->GpuToCpuAddress(addr),
                 SurfaceParams::DepthFormatFromPixelFormat(format), stride, height, block_height);
-            std::memcpy(gl_buffer, data.data(), data.size());
         }
+        const size_t size_to_copy{std::min(gl_buffer.size(), data.size())};
+        std::memcpy(gl_buffer.data(), data.data(), size_to_copy);
     } else {
         // TODO(bunnei): Assumes the default rendering GOB size of 16 (128 lines). We should
         // check the configuration for this and perform more generic un/swizzle
         LOG_WARNING(Render_OpenGL, "need to use correct swizzle/GOB parameters!");
         VideoCore::MortonCopyPixels128(
             stride, height, bytes_per_pixel, gl_bytes_per_pixel,
-            Memory::GetPointer(*gpu.memory_manager->GpuToCpuAddress(addr)), gl_buffer,
+            Memory::GetPointer(*gpu.memory_manager->GpuToCpuAddress(addr)), gl_buffer.data(),
             morton_to_gl);
     }
 }
 
-static constexpr std::array<void (*)(u32, u32, u32, u8*, Tegra::GPUVAddr),
+static constexpr std::array<void (*)(u32, u32, u32, std::vector<u8>&, Tegra::GPUVAddr),
                             SurfaceParams::MaxPixelFormat>
     morton_to_gl_fns = {
         MortonCopy<true, PixelFormat::ABGR8>,        MortonCopy<true, PixelFormat::B5G6R5>,
@@ -232,7 +234,7 @@ static constexpr std::array<void (*)(u32, u32, u32, u8*, Tegra::GPUVAddr),
         MortonCopy<true, PixelFormat::Z16>,          MortonCopy<true, PixelFormat::Z32FS8>,
 };
 
-static constexpr std::array<void (*)(u32, u32, u32, u8*, Tegra::GPUVAddr),
+static constexpr std::array<void (*)(u32, u32, u32, std::vector<u8>&, Tegra::GPUVAddr),
                             SurfaceParams::MaxPixelFormat>
     gl_to_morton_fns = {
         MortonCopy<false, PixelFormat::ABGR8>,
@@ -464,7 +466,7 @@ void CachedSurface::LoadGLBuffer() {
                     bytes_per_pixel * params.width * params.height);
     } else {
         morton_to_gl_fns[static_cast<size_t>(params.pixel_format)](
-            params.width, params.block_height, params.height, gl_buffer.data(), params.addr);
+            params.width, params.block_height, params.height, gl_buffer, params.addr);
     }
 
     ConvertFormatAsNeeded_LoadGLBuffer(gl_buffer, params.pixel_format, params.width, params.height);
@@ -487,7 +489,7 @@ void CachedSurface::FlushGLBuffer() {
         std::memcpy(dst_buffer, gl_buffer.data(), params.size_in_bytes);
     } else {
         gl_to_morton_fns[static_cast<size_t>(params.pixel_format)](
-            params.width, params.block_height, params.height, gl_buffer.data(), params.addr);
+            params.width, params.block_height, params.height, gl_buffer, params.addr);
     }
 }
 
