@@ -657,16 +657,17 @@ private:
      * @param instr Instruction to generate the if condition for.
      * @returns string containing the predicate condition.
      */
-    std::string GetPredicateCondition(u64 index, bool negate) const {
+    std::string GetPredicateCondition(u64 index, bool negate) {
         using Tegra::Shader::Pred;
         std::string variable;
 
         // Index 7 is used as an 'Always True' condition.
-        if (index == static_cast<u64>(Pred::UnusedIndex))
+        if (index == static_cast<u64>(Pred::UnusedIndex)) {
             variable = "true";
-        else
+        } else {
             variable = 'p' + std::to_string(index) + '_' + suffix;
-
+            declr_predicates.insert(variable);
+        }
         if (negate) {
             return "!(" + variable + ')';
         }
