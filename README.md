@@ -1,3 +1,21 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 5b1b758326485e8fe868d81f2e63ea1b66bd1efe
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[984](https://github.com/yuzu-emu/yuzu/pull/984)|[ddec200](https://github.com/yuzu-emu/yuzu/pull/984/files/)|gl_rasterizer: Do not render when no render target is configured.|[bunnei](https://github.com/bunnei)|Yes|
+|[977](https://github.com/yuzu-emu/yuzu/pull/977)|[aaf8d9a](https://github.com/yuzu-emu/yuzu/pull/977/files/)|gl_rasterizer_cached: Implement RenderTargetFormat::B5G6R5_UNORM.|[bunnei](https://github.com/bunnei)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
