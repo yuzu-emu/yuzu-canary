@@ -1,3 +1,23 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 5c908c03734cab6cd11f9dda0bfbdb80f5c0e1d7
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[995](https://github.com/yuzu-emu/yuzu/pull/995)|[a7cd965](https://github.com/yuzu-emu/yuzu/pull/995/files/)|gl_rasterizer_cache: Add bounds checking for gl_buffer copies.|[bunnei](https://github.com/bunnei)|Yes|
+|[993](https://github.com/yuzu-emu/yuzu/pull/993)|[dfc3eed](https://github.com/yuzu-emu/yuzu/pull/993/files/)|Implement VertexAttribute::Size::Size_16_16_16_16 and PrimitiveTopology::Points.|[bunnei](https://github.com/bunnei)|Yes|
+|[992](https://github.com/yuzu-emu/yuzu/pull/992)|[4283019](https://github.com/yuzu-emu/yuzu/pull/992/files/)|gl_shader_decompiler: Declare predicates on use.|[bunnei](https://github.com/bunnei)|Yes|
+|[984](https://github.com/yuzu-emu/yuzu/pull/984)|[ddec200](https://github.com/yuzu-emu/yuzu/pull/984/files/)|gl_rasterizer: Do not render when no render target is configured.|[bunnei](https://github.com/bunnei)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
