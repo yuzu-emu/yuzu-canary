@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <memory>
+#include <tuple>
 #include <utility>
 #include <vector>
 #include <glad/glad.h>
@@ -97,9 +98,10 @@ private:
      * @param entries Vector describing the buffers that are actually used in the guest shader.
      * @returns The next available bindpoint for use in the next shader stage.
      */
-    u32 SetupConstBuffers(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage, GLuint program,
-                          u32 current_bindpoint,
-                          const std::vector<GLShader::ConstBufferEntry>& entries);
+    std::tuple<u8*, GLintptr, u32> SetupConstBuffers(
+        u8* buffer_ptr, GLintptr buffer_offset, Tegra::Engines::Maxwell3D::Regs::ShaderStage stage,
+        GLuint program, u32 current_bindpoint,
+        const std::vector<GLShader::ConstBufferEntry>& entries);
 
     /*
      * Configures the current textures to use for the draw command.
@@ -136,7 +138,6 @@ private:
     /// Syncs the blend state to match the guest state
     void SyncBlendState();
 
-    bool has_ARB_buffer_storage = false;
     bool has_ARB_direct_state_access = false;
     bool has_ARB_separate_shader_objects = false;
     bool has_ARB_vertex_attrib_binding = false;
@@ -152,22 +153,20 @@ private:
     OGLVertexArray hw_vao;
 
     std::array<SamplerInfo, GLShader::NumTextureSamplers> texture_samplers;
-    std::array<std::array<OGLBuffer, Tegra::Engines::Maxwell3D::Regs::MaxConstBuffers>,
-               Tegra::Engines::Maxwell3D::Regs::MaxShaderStage>
-        ssbos;
 
     static constexpr size_t STREAM_BUFFER_SIZE = 128 * 1024 * 1024;
-    std::unique_ptr<OGLStreamBuffer> stream_buffer;
+    OGLStreamBuffer stream_buffer;
     OGLBuffer uniform_buffer;
     OGLFramebuffer framebuffer;
+    GLint uniform_buffer_alignment;
 
     size_t CalculateVertexArraysSize() const;
 
     std::pair<u8*, GLintptr> SetupVertexArrays(u8* array_ptr, GLintptr buffer_offset);
 
-    std::array<OGLBuffer, Tegra::Engines::Maxwell3D::Regs::MaxShaderStage> uniform_buffers;
+    std::pair<u8*, GLintptr> SetupShaders(u8* buffer_ptr, GLintptr buffer_offset);
 
-    void SetupShaders(u8* buffer_ptr, GLintptr buffer_offset);
+    std::pair<u8*, GLintptr> AlignBuffer(u8* buffer_ptr, GLintptr buffer_offset, size_t alignment);
 
     enum class AccelDraw { Disabled, Arrays, Indexed };
     AccelDraw accelerate_draw = AccelDraw::Disabled;
