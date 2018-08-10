@@ -349,7 +349,12 @@ public:
     void SetOutputAttributeToRegister(Attribute::Index attribute, u64 elem, const Register& reg) {
         std::string dest = GetOutputAttribute(attribute) + GetSwizzle(elem);
         std::string src = GetRegisterAsFloat(reg);
-        shader.AddLine(dest + " = " + src + ';');
+
+        if (!dest.empty()) {
+            // Can happen with unknown/unimplemented output attributes, in which case we ignore the
+            // instruction for now.
+            shader.AddLine(dest + " = " + src + ';');
+        }
     }
 
     /// Generates code representing a uniform (C buffer) register, interpreted as the input type.
@@ -525,20 +530,16 @@ private:
             // shader.
             ASSERT(stage == Maxwell3D::Regs::ShaderStage::Vertex);
             return "vec4(0, 0, uintBitsToFloat(gl_InstanceID), uintBitsToFloat(gl_VertexID))";
-        case Attribute::Index::Unknown_63:
-            // TODO(bunnei): Figure out what this is used for. Super Mario Odyssey uses this.
-            LOG_CRITICAL(HW_GPU, "Unhandled input attribute Unknown_63");
-            UNREACHABLE();
-            break;
         default:
             const u32 index{static_cast<u32>(attribute) -
                             static_cast<u32>(Attribute::Index::Attribute_0)};
-            if (attribute >= Attribute::Index::Attribute_0) {
+            if (attribute >= Attribute::Index::Attribute_0 &&
+                attribute <= Attribute::Index::Attribute_31) {
                 declr_input_attribute.insert(attribute);
                 return "input_attribute_" + std::to_string(index);
             }
 
-            LOG_CRITICAL(HW_GPU, "Unhandled input attribute: {}", index);
+            LOG_CRITICAL(HW_GPU, "Unhandled input attribute: {}", static_cast<u32>(attribute));
             UNREACHABLE();
         }
 
@@ -560,6 +561,7 @@ private:
 
             LOG_CRITICAL(HW_GPU, "Unhandled output attribute: {}", index);
             UNREACHABLE();
+            return {};
         }
     }
 
