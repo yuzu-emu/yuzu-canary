@@ -812,9 +812,7 @@ void RasterizerOpenGL::SyncClipCoef() {
 void RasterizerOpenGL::SyncCullMode() {
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
 
-    // TODO(bunnei): Enable the below once more things work - until then, this may hide regressions
-    // state.cull.enabled = regs.cull.enabled != 0;
-    state.cull.enabled = false;
+    state.cull.enabled = regs.cull.enabled != 0;
 
     if (state.cull.enabled) {
         state.cull.front_face = MaxwellToGL::FrontFace(regs.cull.front_face);
