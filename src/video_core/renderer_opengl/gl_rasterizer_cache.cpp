@@ -92,7 +92,8 @@ struct FormatTuple {
 }
 
 static constexpr std::array<FormatTuple, SurfaceParams::MaxPixelFormat> tex_format_tuples = {{
-    {GL_RGBA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, ComponentType::UNorm, false}, // ABGR8
+    {GL_RGBA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, ComponentType::UNorm, false}, // ABGR8U
+    {GL_RGBA8, GL_RGBA, GL_BYTE, ComponentType::SNorm, false},                     // ABGR8S
     {GL_RGB, GL_RGB, GL_UNSIGNED_SHORT_5_6_5_REV, ComponentType::UNorm, false},    // B5G6R5
     {GL_RGB10_A2, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, ComponentType::UNorm,
      false}, // A2B10G10R10
@@ -132,6 +133,7 @@ static constexpr std::array<FormatTuple, SurfaceParams::MaxPixelFormat> tex_form
     {GL_RG16_SNORM, GL_RG, GL_SHORT, ComponentType::SNorm, false},             // RG16S
     {GL_RGB32F, GL_RGB, GL_FLOAT, ComponentType::Float, false},                // RGB32F
     {GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, ComponentType::UNorm, false}, // SRGBA8
+    {GL_RG8, GL_RG, GL_BYTE, ComponentType::SNorm, false},                                // RG8S
 
     // DepthStencil formats
     {GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, ComponentType::UNorm,
@@ -231,31 +233,33 @@ void MortonCopy(u32 stride, u32 block_height, u32 height, std::vector<u8>& gl_bu
 static constexpr std::array<void (*)(u32, u32, u32, std::vector<u8>&, Tegra::GPUVAddr),
                             SurfaceParams::MaxPixelFormat>
     morton_to_gl_fns = {
-        MortonCopy<true, PixelFormat::ABGR8>,        MortonCopy<true, PixelFormat::B5G6R5>,
-        MortonCopy<true, PixelFormat::A2B10G10R10>,  MortonCopy<true, PixelFormat::A1B5G5R5>,
-        MortonCopy<true, PixelFormat::R8>,           MortonCopy<true, PixelFormat::RGBA16F>,
-        MortonCopy<true, PixelFormat::R11FG11FB10F>, MortonCopy<true, PixelFormat::RGBA32UI>,
-        MortonCopy<true, PixelFormat::DXT1>,         MortonCopy<true, PixelFormat::DXT23>,
-        MortonCopy<true, PixelFormat::DXT45>,        MortonCopy<true, PixelFormat::DXN1>,
-        MortonCopy<true, PixelFormat::DXN2UNORM>,    MortonCopy<true, PixelFormat::DXN2SNORM>,
-        MortonCopy<true, PixelFormat::BC7U>,         MortonCopy<true, PixelFormat::ASTC_2D_4X4>,
-        MortonCopy<true, PixelFormat::G8R8>,         MortonCopy<true, PixelFormat::BGRA8>,
-        MortonCopy<true, PixelFormat::RGBA32F>,      MortonCopy<true, PixelFormat::RG32F>,
-        MortonCopy<true, PixelFormat::R32F>,         MortonCopy<true, PixelFormat::R16F>,
-        MortonCopy<true, PixelFormat::R16UNORM>,     MortonCopy<true, PixelFormat::R16S>,
-        MortonCopy<true, PixelFormat::R16UI>,        MortonCopy<true, PixelFormat::R16I>,
-        MortonCopy<true, PixelFormat::RG16>,         MortonCopy<true, PixelFormat::RG16F>,
-        MortonCopy<true, PixelFormat::RG16UI>,       MortonCopy<true, PixelFormat::RG16I>,
-        MortonCopy<true, PixelFormat::RG16S>,        MortonCopy<true, PixelFormat::RGB32F>,
-        MortonCopy<true, PixelFormat::SRGBA8>,       MortonCopy<true, PixelFormat::Z24S8>,
-        MortonCopy<true, PixelFormat::S8Z24>,        MortonCopy<true, PixelFormat::Z32F>,
-        MortonCopy<true, PixelFormat::Z16>,          MortonCopy<true, PixelFormat::Z32FS8>,
+        MortonCopy<true, PixelFormat::ABGR8U>,      MortonCopy<true, PixelFormat::ABGR8S>,
+        MortonCopy<true, PixelFormat::B5G6R5>,      MortonCopy<true, PixelFormat::A2B10G10R10>,
+        MortonCopy<true, PixelFormat::A1B5G5R5>,    MortonCopy<true, PixelFormat::R8>,
+        MortonCopy<true, PixelFormat::RGBA16F>,     MortonCopy<true, PixelFormat::R11FG11FB10F>,
+        MortonCopy<true, PixelFormat::RGBA32UI>,    MortonCopy<true, PixelFormat::DXT1>,
+        MortonCopy<true, PixelFormat::DXT23>,       MortonCopy<true, PixelFormat::DXT45>,
+        MortonCopy<true, PixelFormat::DXN1>,        MortonCopy<true, PixelFormat::DXN2UNORM>,
+        MortonCopy<true, PixelFormat::DXN2SNORM>,   MortonCopy<true, PixelFormat::BC7U>,
+        MortonCopy<true, PixelFormat::ASTC_2D_4X4>, MortonCopy<true, PixelFormat::G8R8>,
+        MortonCopy<true, PixelFormat::BGRA8>,       MortonCopy<true, PixelFormat::RGBA32F>,
+        MortonCopy<true, PixelFormat::RG32F>,       MortonCopy<true, PixelFormat::R32F>,
+        MortonCopy<true, PixelFormat::R16F>,        MortonCopy<true, PixelFormat::R16UNORM>,
+        MortonCopy<true, PixelFormat::R16S>,        MortonCopy<true, PixelFormat::R16UI>,
+        MortonCopy<true, PixelFormat::R16I>,        MortonCopy<true, PixelFormat::RG16>,
+        MortonCopy<true, PixelFormat::RG16F>,       MortonCopy<true, PixelFormat::RG16UI>,
+        MortonCopy<true, PixelFormat::RG16I>,       MortonCopy<true, PixelFormat::RG16S>,
+        MortonCopy<true, PixelFormat::RGB32F>,      MortonCopy<true, PixelFormat::SRGBA8>,
+        MortonCopy<true, PixelFormat::RG8S>,        MortonCopy<true, PixelFormat::Z24S8>,
+        MortonCopy<true, PixelFormat::S8Z24>,       MortonCopy<true, PixelFormat::Z32F>,
+        MortonCopy<true, PixelFormat::Z16>,         MortonCopy<true, PixelFormat::Z32FS8>,
 };
 
 static constexpr std::array<void (*)(u32, u32, u32, std::vector<u8>&, Tegra::GPUVAddr),
                             SurfaceParams::MaxPixelFormat>
     gl_to_morton_fns = {
-        MortonCopy<false, PixelFormat::ABGR8>,
+        MortonCopy<false, PixelFormat::ABGR8U>,
+        MortonCopy<false, PixelFormat::ABGR8S>,
         MortonCopy<false, PixelFormat::B5G6R5>,
         MortonCopy<false, PixelFormat::A2B10G10R10>,
         MortonCopy<false, PixelFormat::A1B5G5R5>,
@@ -290,6 +294,7 @@ static constexpr std::array<void (*)(u32, u32, u32, std::vector<u8>&, Tegra::GPU
         MortonCopy<false, PixelFormat::RG16S>,
         MortonCopy<false, PixelFormat::RGB32F>,
         MortonCopy<false, PixelFormat::SRGBA8>,
+        MortonCopy<false, PixelFormat::RG8S>,
         MortonCopy<false, PixelFormat::Z24S8>,
         MortonCopy<false, PixelFormat::S8Z24>,
         MortonCopy<false, PixelFormat::Z32F>,
