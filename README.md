@@ -1,3 +1,23 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: bc286c169fb8b07d21e082e05152cfd6bc611b33
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1017](https://github.com/yuzu-emu/yuzu/pull/1017)|[10f494e](https://github.com/yuzu-emu/yuzu/pull/1017/files/)|New account backend to allow for future extended support|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1010](https://github.com/yuzu-emu/yuzu/pull/1010)|[0b668d5](https://github.com/yuzu-emu/yuzu/pull/1010/files/)|gl_shader_decompiler: Improve handling of unknown input/output attributes.|[bunnei](https://github.com/bunnei)|Yes|
+|[1009](https://github.com/yuzu-emu/yuzu/pull/1009)|[88ffa42](https://github.com/yuzu-emu/yuzu/pull/1009/files/)|Implement render target formats RGBA8_SNORM and RG8_SNORM.|[bunnei](https://github.com/bunnei)|Yes|
+|[1006](https://github.com/yuzu-emu/yuzu/pull/1006)|[ad4d6d8](https://github.com/yuzu-emu/yuzu/pull/1006/files/)|GL renderer: Pick the streambuffer from citra and use them.|[degasus](https://github.com/degasus)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
