@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include "audio_core/algorithm/interpolate.h"
 #include "audio_core/audio_renderer.h"
 #include "common/assert.h"
 #include "common/logging/log.h"
@@ -199,6 +200,8 @@ void AudioRenderer::VoiceState::RefreshBuffer() {
         break;
     }
 
+    samples = Interpolate(interp_state, std::move(samples), Info().sample_rate, STREAM_SAMPLE_RATE);
+
     is_refresh_pending = false;
 }
 
@@ -224,7 +227,7 @@ void AudioRenderer::QueueMixedBuffer(Buffer::Tag tag) {
                 break;
             }
 
-            samples_remaining -= samples.size();
+            samples_remaining -= samples.size() / stream->GetNumChannels();
 
             for (const auto& sample : samples) {
                 const s32 buffer_sample{buffer[offset]};
