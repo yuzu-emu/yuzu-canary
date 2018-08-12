@@ -37,11 +37,16 @@ void SetShaderUniformBlockBindings(GLuint shader) {
 } // namespace Impl
 
 void MaxwellUniformData::SetFromRegs(const Maxwell3D::State::ShaderStageInfo& shader_stage) {
-    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
+    const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
+    const auto& regs = gpu.regs;
+    const auto& state = gpu.state;
 
     // TODO(bunnei): Support more than one viewport
     viewport_flip[0] = regs.viewport_transform[0].scale_x < 0.0 ? -1.0f : 1.0f;
     viewport_flip[1] = regs.viewport_transform[0].scale_y < 0.0 ? -1.0f : 1.0f;
+
+    // We only assign the instance to the first component of the vector, the rest is just padding.
+    instance_id[0] = state.current_instance;
 }
 
 } // namespace GLShader

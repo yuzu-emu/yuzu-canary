@@ -638,6 +638,8 @@ public:
                     union {
                         u32 vertex_begin_gl;
                         BitField<0, 16, PrimitiveTopology> topology;
+                        BitField<26, 1, u32> instance_next;
+                        BitField<27, 1, u32> instance_cont;
                     };
                 } draw;
 
@@ -830,6 +832,7 @@ public:
         };
 
         std::array<ShaderStageInfo, Regs::MaxShaderStage> shader_stages;
+        u32 current_instance = 0; ///< Current instance to be used to simulate instanced rendering.
     };
 
     State state{};
