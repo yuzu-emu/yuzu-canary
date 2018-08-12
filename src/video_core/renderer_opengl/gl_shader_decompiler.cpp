@@ -376,6 +376,8 @@ public:
             return value;
         } else if (type == GLSLRegister::Type::Integer) {
             return "floatBitsToInt(" + value + ')';
+        } else if (type == GLSLRegister::Type::UnsignedInteger) {
+            return "floatBitsToUint(" + value + ')';
         } else {
             UNREACHABLE();
         }
@@ -1628,6 +1630,99 @@ private:
                 regs.SetRegisterToInteger(instr.gpr0, false, 0, predicate + " ? 0xFFFFFFFF : 0", 1,
                                           1);
             }
+            break;
+        }
+        case OpCode::Type::Xmad: {
+            ASSERT_MSG(!instr.xmad.sign_a, "Unimplemented");
+            ASSERT_MSG(!instr.xmad.sign_b, "Unimplemented");
+
+            std::string op_a{regs.GetRegisterAsInteger(instr.gpr8, 0, instr.xmad.sign_a)};
+            std::string op_b;
+            std::string op_c;
+
+            // TODO(bunnei): Needs to be fixed once op_a or op_b is signed
+            ASSERT_MSG(instr.xmad.sign_a == instr.xmad.sign_b, "Unimplemented");
+            const bool is_signed{instr.xmad.sign_a == 1};
+
+            bool is_merge{};
+            switch (opcode->GetId()) {
+            case OpCode::Id::XMAD_CR: {
+                is_merge = instr.xmad.merge_56;
+                op_b += regs.GetUniform(instr.cbuf34.index, instr.cbuf34.offset,
+                                        instr.xmad.sign_b ? GLSLRegister::Type::Integer
+                                                          : GLSLRegister::Type::UnsignedInteger);
+                op_c += regs.GetRegisterAsInteger(instr.gpr39, 0, is_signed);
+                break;
+            }
+            case OpCode::Id::XMAD_RR: {
+                is_merge = instr.xmad.merge_37;
+                op_b += regs.GetRegisterAsInteger(instr.gpr20, 0, instr.xmad.sign_b);
+                op_c += regs.GetRegisterAsInteger(instr.gpr39, 0, is_signed);
+                break;
+            }
+            case OpCode::Id::XMAD_RC: {
+                op_b += regs.GetRegisterAsInteger(instr.gpr39, 0, instr.xmad.sign_b);
+                op_c += regs.GetUniform(instr.cbuf34.index, instr.cbuf34.offset,
+                                        is_signed ? GLSLRegister::Type::Integer
+                                                  : GLSLRegister::Type::UnsignedInteger);
+                break;
+            }
+            case OpCode::Id::XMAD_IMM: {
+                is_merge = instr.xmad.merge_37;
+                op_b += std::to_string(instr.xmad.imm20_16);
+                op_c += regs.GetRegisterAsInteger(instr.gpr39, 0, is_signed);
+                break;
+            }
+            default: {
+                LOG_CRITICAL(HW_GPU, "Unhandled XMAD instruction: {}", opcode->GetName());
+                UNREACHABLE();
+            }
+            }
+
+            // TODO(bunnei): Ensure this is right with signed operands
+            if (instr.xmad.high_a) {
+                op_a = "((" + op_a + ") >> 16)";
+            } else {
+                op_a = "((" + op_a + ") & 0xFFFF)";
+            }
+
+            std::string src2 = '(' + op_b + ')'; // Preserve original source 2
+            if (instr.xmad.high_b) {
+                op_b = '(' + src2 + " >> 16)";
+            } else {
+                op_b = '(' + src2 + " & 0xFFFF)";
+            }
+
+            std::string product = '(' + op_a + " * " + op_b + ')';
+            if (instr.xmad.product_shift_left) {
+                product = '(' + product + " << 16)";
+            }
+
+            switch (instr.xmad.mode) {
+            case Tegra::Shader::XmadMode::None:
+                break;
+            case Tegra::Shader::XmadMode::CLo:
+                op_c = "((" + op_c + ") & 0xFFFF)";
+                break;
+            case Tegra::Shader::XmadMode::CHi:
+                op_c = "((" + op_c + ") >> 16)";
+                break;
+            case Tegra::Shader::XmadMode::CBcc:
+                op_c = "((" + op_c + ") + (" + src2 + "<< 16))";
+                break;
+            default: {
+                LOG_CRITICAL(HW_GPU, "Unhandled XMAD mode: {}",
+                             static_cast<u32>(instr.xmad.mode.Value()));
+                UNREACHABLE();
+            }
+            }
+
+            std::string sum{'(' + product + " + " + op_c + ')'};
+            if (is_merge) {
+                sum = "((" + sum + " & 0xFFFF) | (" + src2 + "<< 16))";
+            }
+
+            regs.SetRegisterToInteger(instr.gpr0, is_signed, 0, sum, 1, 1);
             break;
         }
         default: {

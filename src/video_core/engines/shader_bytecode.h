@@ -200,6 +200,14 @@ enum class IMinMaxExchange : u64 {
     XHi = 3,
 };
 
+enum class XmadMode : u64 {
+    None = 0,
+    CLo = 1,
+    CHi = 2,
+    CSfu = 3,
+    CBcc = 4,
+};
+
 enum class FlowCondition : u64 {
     Always = 0xF,
     Fcsm_Tr = 0x1C, // TODO(bunnei): What is this used for?
@@ -457,6 +465,18 @@ union Instruction {
     } bra;
 
     union {
+        BitField<20, 16, u64> imm20_16;
+        BitField<36, 1, u64> product_shift_left;
+        BitField<37, 1, u64> merge_37;
+        BitField<48, 1, u64> sign_a;
+        BitField<49, 1, u64> sign_b;
+        BitField<50, 3, XmadMode> mode;
+        BitField<52, 1, u64> high_b;
+        BitField<53, 1, u64> high_a;
+        BitField<56, 1, u64> merge_56;
+    } xmad;
+
+    union {
         BitField<20, 14, u64> offset;
         BitField<34, 5, u64> index;
     } cbuf34;
@@ -593,6 +613,7 @@ public:
         IntegerSetPredicate,
         PredicateSetPredicate,
         Conversion,
+        Xmad,
         Unknown,
     };
 
@@ -782,10 +803,10 @@ private:
             INST("010010110101----", Id::ISET_C, Type::IntegerSet, "ISET_C"),
             INST("0011011-0101----", Id::ISET_IMM, Type::IntegerSet, "ISET_IMM"),
             INST("0101000010010---", Id::PSETP, Type::PredicateSetPredicate, "PSETP"),
-            INST("0011011-00------", Id::XMAD_IMM, Type::Arithmetic, "XMAD_IMM"),
-            INST("0100111---------", Id::XMAD_CR, Type::Arithmetic, "XMAD_CR"),
-            INST("010100010-------", Id::XMAD_RC, Type::Arithmetic, "XMAD_RC"),
-            INST("0101101100------", Id::XMAD_RR, Type::Arithmetic, "XMAD_RR"),
+            INST("0011011-00------", Id::XMAD_IMM, Type::Xmad, "XMAD_IMM"),
+            INST("0100111---------", Id::XMAD_CR, Type::Xmad, "XMAD_CR"),
+            INST("010100010-------", Id::XMAD_RC, Type::Xmad, "XMAD_RC"),
+            INST("0101101100------", Id::XMAD_RR, Type::Xmad, "XMAD_RR"),
         };
 #undef INST
         std::stable_sort(table.begin(), table.end(), [](const auto& a, const auto& b) {
