@@ -24,14 +24,15 @@ void SetShaderUniformBlockBindings(GLuint shader);
 } // namespace Impl
 
 /// Uniform structure for the Uniform Buffer Object, all vectors must be 16-byte aligned
-// NOTE: Always keep a vec4 at the end. The GL spec is not clear wether the alignment at
+// NOTE: Always keep a vec4 at the end. The GL spec is not clear whether the alignment at
 //       the end of a uniform block is included in UNIFORM_BLOCK_DATA_SIZE or not.
 //       Not following that rule will cause problems on some AMD drivers.
 struct MaxwellUniformData {
     void SetFromRegs(const Maxwell3D::State::ShaderStageInfo& shader_stage);
     alignas(16) GLvec4 viewport_flip;
+    alignas(16) GLuvec4 instance_id;
 };
-static_assert(sizeof(MaxwellUniformData) == 16, "MaxwellUniformData structure size is incorrect");
+static_assert(sizeof(MaxwellUniformData) == 32, "MaxwellUniformData structure size is incorrect");
 static_assert(sizeof(MaxwellUniformData) < 16384,
               "MaxwellUniformData structure must be less than 16kb as per the OpenGL spec");
 
