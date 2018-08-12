@@ -38,6 +38,7 @@ out vec4 position;
 
 layout (std140) uniform vs_config {
     vec4 viewport_flip;
+    uvec4 instance_id;
 };
 
 void main() {
@@ -90,6 +91,7 @@ out vec4 color;
 
 layout (std140) uniform fs_config {
     vec4 viewport_flip;
+    uvec4 instance_id;
 };
 
 void main() {
