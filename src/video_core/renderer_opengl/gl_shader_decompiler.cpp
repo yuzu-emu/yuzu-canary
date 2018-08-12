@@ -1667,7 +1667,15 @@ private:
             }
             case OpCode::Id::KIL: {
                 ASSERT(instr.flow.cond == Tegra::Shader::FlowCondition::Always);
+
+                // Enclose "discard" in a conditional, so that GLSL compilation does not complain
+                // about unexecuted instructions that may follow this.
+                shader.AddLine("if (true) {");
+                ++shader.scope;
                 shader.AddLine("discard;");
+                --shader.scope;
+                shader.AddLine("}");
+
                 break;
             }
             case OpCode::Id::BRA: {
