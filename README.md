@@ -1,3 +1,24 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: a970709d5dbe83a39c98831f015e15029baa1ab7
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1040](https://github.com/yuzu-emu/yuzu/pull/1040)|[534abf9](https://github.com/yuzu-emu/yuzu/pull/1040/files/)|gl_shader_decompiler: Implement XMAD instruction.|[bunnei](https://github.com/bunnei)|Yes|
+|[1033](https://github.com/yuzu-emu/yuzu/pull/1033)|[50b381b](https://github.com/yuzu-emu/yuzu/pull/1033/files/)|audio_core: Interpolate|[MerryMage](https://github.com/MerryMage)|Yes|
+|[1017](https://github.com/yuzu-emu/yuzu/pull/1017)|[10f494e](https://github.com/yuzu-emu/yuzu/pull/1017/files/)|New account backend to allow for future extended support|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1005](https://github.com/yuzu-emu/yuzu/pull/1005)|[35e4a47](https://github.com/yuzu-emu/yuzu/pull/1005/files/)|file_sys: Add support for registration format|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
