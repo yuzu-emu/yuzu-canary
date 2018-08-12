@@ -5,6 +5,7 @@
 #include <memory>
 #include <utility>
 #include "common/logging/log.h"
+#include "common/string_util.h"
 #include "core/core.h"
 #include "core/core_timing.h"
 #include "core/gdbstub/gdbstub.h"
@@ -17,6 +18,7 @@
 #include "core/hle/service/sm/sm.h"
 #include "core/loader/loader.h"
 #include "core/settings.h"
+#include "file_sys/vfs_concat.h"
 #include "file_sys/vfs_real.h"
 #include "video_core/renderer_base.h"
 #include "video_core/video_core.h"
@@ -88,8 +90,39 @@ System::ResultStatus System::SingleStep() {
     return RunLoop(false);
 }
 
+static FileSys::VirtualFile GetGameFileFromPath(const FileSys::VirtualFilesystem& vfs,
+                                                const std::string& path) {
+    // To account for split 00+01+etc files.
+    std::string dir_name;
+    std::string filename;
+    Common::SplitPath(path, &dir_name, &filename, nullptr);
+    if (filename == "00") {
+        const auto dir = vfs->OpenDirectory(dir_name, FileSys::Mode::Read);
+        std::vector<FileSys::VirtualFile> concat;
+        for (u8 i = 0; i < 0x10; ++i) {
+            auto next = dir->GetFile(fmt::format("{:02X}", i));
+            if (next != nullptr)
+                concat.push_back(std::move(next));
+            else {
+                next = dir->GetFile(fmt::format("{:02x}", i));
+                if (next != nullptr)
+                    concat.push_back(std::move(next));
+                else
+                    break;
+            }
+        }
+
+        if (concat.empty())
+            return nullptr;
+
+        return FileSys::ConcatenateFiles(concat, dir->GetName());
+    }
+
+    return vfs->OpenFile(path, FileSys::Mode::Read);
+}
+
 System::ResultStatus System::Load(Frontend::EmuWindow& emu_window, const std::string& filepath) {
-    app_loader = Loader::GetLoader(virtual_filesystem->OpenFile(filepath, FileSys::Mode::Read));
+    app_loader = Loader::GetLoader(GetGameFileFromPath(virtual_filesystem, filepath));
 
     if (!app_loader) {
         LOG_CRITICAL(Core, "Failed to obtain loader for {}!", filepath);

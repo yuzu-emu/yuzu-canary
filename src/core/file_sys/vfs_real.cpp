@@ -83,8 +83,12 @@ VirtualFile RealVfsFilesystem::OpenFile(std::string_view path_, Mode perms) {
 
 VirtualFile RealVfsFilesystem::CreateFile(std::string_view path_, Mode perms) {
     const auto path = FileUtil::SanitizePath(path_, FileUtil::DirectorySeparator::PlatformDefault);
-    if (!FileUtil::Exists(path) && !FileUtil::CreateEmptyFile(path))
-        return nullptr;
+    const auto path_fwd = FileUtil::SanitizePath(path, FileUtil::DirectorySeparator::ForwardSlash);
+    if (!FileUtil::Exists(path)) {
+        FileUtil::CreateFullPath(path_fwd);
+        if (!FileUtil::CreateEmptyFile(path))
+            return nullptr;
+    }
     return OpenFile(path, perms);
 }
 
@@ -140,8 +144,12 @@ VirtualDir RealVfsFilesystem::OpenDirectory(std::string_view path_, Mode perms) 
 
 VirtualDir RealVfsFilesystem::CreateDirectory(std::string_view path_, Mode perms) {
     const auto path = FileUtil::SanitizePath(path_, FileUtil::DirectorySeparator::PlatformDefault);
-    if (!FileUtil::Exists(path) && !FileUtil::CreateDir(path))
-        return nullptr;
+    const auto path_fwd = FileUtil::SanitizePath(path, FileUtil::DirectorySeparator::ForwardSlash);
+    if (!FileUtil::Exists(path)) {
+        FileUtil::CreateFullPath(path_fwd);
+        if (!FileUtil::CreateDir(path))
+            return nullptr;
+    }
     // Cannot use make_shared as RealVfsDirectory constructor is private
     return std::shared_ptr<RealVfsDirectory>(new RealVfsDirectory(*this, path, perms));
 }
@@ -306,14 +314,14 @@ RealVfsDirectory::RealVfsDirectory(RealVfsFilesystem& base_, const std::string& 
 
 std::shared_ptr<VfsFile> RealVfsDirectory::GetFileRelative(std::string_view path) const {
     const auto full_path = FileUtil::SanitizePath(this->path + DIR_SEP + std::string(path));
-    if (!FileUtil::Exists(full_path))
+    if (!FileUtil::Exists(full_path) || FileUtil::IsDirectory(full_path))
         return nullptr;
     return base.OpenFile(full_path, perms);
 }
 
 std::shared_ptr<VfsDirectory> RealVfsDirectory::GetDirectoryRelative(std::string_view path) const {
     const auto full_path = FileUtil::SanitizePath(this->path + DIR_SEP + std::string(path));
-    if (!FileUtil::Exists(full_path))
+    if (!FileUtil::Exists(full_path) || !FileUtil::IsDirectory(full_path))
         return nullptr;
     return base.OpenDirectory(full_path, perms);
 }
