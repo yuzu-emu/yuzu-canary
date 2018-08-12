@@ -16,7 +16,7 @@ std::string LanguageEntry::GetDeveloperName() const {
     return Common::StringFromFixedZeroTerminatedBuffer(developer_name.data(), 0x100);
 }
 
-NACP::NACP(VirtualFile file_) : file(std::move(file_)), raw(std::make_unique<RawNACP>()) {
+NACP::NACP(VirtualFile file) : raw(std::make_unique<RawNACP>()) {
     file->ReadObject(raw.get());
 }
 
