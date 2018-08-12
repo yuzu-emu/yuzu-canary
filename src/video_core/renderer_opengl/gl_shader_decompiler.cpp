@@ -538,7 +538,7 @@ private:
             // vertex shader, and what's the value of the fourth element when inside a Tess Eval
             // shader.
             ASSERT(stage == Maxwell3D::Regs::ShaderStage::Vertex);
-            return "vec4(0, 0, uintBitsToFloat(gl_InstanceID), uintBitsToFloat(gl_VertexID))";
+            return "vec4(0, 0, uintBitsToFloat(instance_id.x), uintBitsToFloat(gl_VertexID))";
         default:
             const u32 index{static_cast<u32>(attribute) -
                             static_cast<u32>(Attribute::Index::Attribute_0)};
