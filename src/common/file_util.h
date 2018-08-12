@@ -129,6 +129,8 @@ const std::string& GetUserPath(UserPath path, const std::string& new_path = "");
 
 std::string GetHactoolConfigurationPath();
 
+std::string GetNANDRegistrationDir(bool system = false);
+
 // Returns the path to where the sys file are
 std::string GetSysDirectory();
 
