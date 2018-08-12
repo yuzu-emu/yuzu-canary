@@ -12,8 +12,8 @@ namespace FileSys {
 // Vector data is supplied upon construction.
 struct VectorVfsDirectory : public VfsDirectory {
     explicit VectorVfsDirectory(std::vector<VirtualFile> files = {},
-                                std::vector<VirtualDir> dirs = {}, VirtualDir parent = nullptr,
-                                std::string name = "");
+                                std::vector<VirtualDir> dirs = {}, std::string name = "",
+                                VirtualDir parent = nullptr);
 
     std::vector<std::shared_ptr<VfsFile>> GetFiles() const override;
     std::vector<std::shared_ptr<VfsDirectory>> GetSubdirectories() const override;
