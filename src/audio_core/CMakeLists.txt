@@ -1,4 +1,8 @@
 add_library(audio_core STATIC
+    algorithm/filter.cpp
+    algorithm/filter.h
+    algorithm/interpolate.cpp
+    algorithm/interpolate.h
     audio_out.cpp
     audio_out.h
     audio_renderer.cpp
@@ -7,12 +11,12 @@ add_library(audio_core STATIC
     codec.cpp
     codec.h
     null_sink.h
-    stream.cpp
-    stream.h
     sink.h
     sink_details.cpp
     sink_details.h
     sink_stream.h
+    stream.cpp
+    stream.h
 
     $<$<BOOL:${ENABLE_CUBEB}>:cubeb_sink.cpp cubeb_sink.h>
 )
