@@ -10,7 +10,8 @@ namespace Service::Account {
 
 class ACC_U0 final : public Module::Interface {
 public:
-    explicit ACC_U0(std::shared_ptr<Module> module);
+    explicit ACC_U0(std::shared_ptr<Module> module,
+                    std::shared_ptr<ProfileManager> profile_manager);
 };
 
 } // namespace Service::Account
