@@ -12,6 +12,8 @@
 #include "core/hle/service/nvdrv/devices/nvhost_ctrl_gpu.h"
 #include "core/hle/service/nvdrv/devices/nvhost_gpu.h"
 #include "core/hle/service/nvdrv/devices/nvhost_nvdec.h"
+#include "core/hle/service/nvdrv/devices/nvhost_nvjpg.h"
+#include "core/hle/service/nvdrv/devices/nvhost_vic.h"
 #include "core/hle/service/nvdrv/devices/nvmap.h"
 #include "core/hle/service/nvdrv/interface.h"
 #include "core/hle/service/nvdrv/nvdrv.h"
@@ -39,6 +41,8 @@ Module::Module() {
     devices["/dev/nvdisp_disp0"] = std::make_shared<Devices::nvdisp_disp0>(nvmap_dev);
     devices["/dev/nvhost-ctrl"] = std::make_shared<Devices::nvhost_ctrl>();
     devices["/dev/nvhost-nvdec"] = std::make_shared<Devices::nvhost_nvdec>();
+    devices["/dev/nvhost-nvjpg"] = std::make_shared<Devices::nvhost_nvjpg>();
+    devices["/dev/nvhost-vic"] = std::make_shared<Devices::nvhost_vic>();
 }
 
 u32 Module::Open(const std::string& device_name) {
