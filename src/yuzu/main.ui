@@ -57,6 +57,8 @@
       <string>Recent Files</string>
      </property>
     </widget>
+     <addaction name="action_Install_File_NAND" />
+     <addaction name="separator"/>
     <addaction name="action_Load_File"/>
     <addaction name="action_Load_Folder"/>
     <addaction name="separator"/>
@@ -102,6 +104,11 @@
    <addaction name="menu_View"/>
    <addaction name="menu_Help"/>
   </widget>
+   <action name="action_Install_File_NAND">
+     <property name="text">
+       <string>Install File to NAND...</string>
+     </property>
+   </action>
   <action name="action_Load_File">
    <property name="text">
     <string>Load File...</string>
