@@ -6,6 +6,7 @@
 
 #include <memory>
 #include "common/common_types.h"
+#include "core/file_sys/bis_factory.h"
 #include "core/file_sys/directory.h"
 #include "core/file_sys/mode.h"
 #include "core/file_sys/romfs_factory.h"
@@ -24,16 +25,15 @@ namespace FileSystem {
 ResultCode RegisterRomFS(std::unique_ptr<FileSys::RomFSFactory>&& factory);
 ResultCode RegisterSaveData(std::unique_ptr<FileSys::SaveDataFactory>&& factory);
 ResultCode RegisterSDMC(std::unique_ptr<FileSys::SDMCFactory>&& factory);
+ResultCode RegisterBIS(std::unique_ptr<FileSys::BISFactory>&& factory);
 
-// TODO(DarkLordZach): BIS Filesystem
-// ResultCode RegisterBIS(std::unique_ptr<FileSys::BISFactory>&& factory);
 ResultVal<FileSys::VirtualFile> OpenRomFS(u64 title_id);
 ResultVal<FileSys::VirtualDir> OpenSaveData(FileSys::SaveDataSpaceId space,
                                             FileSys::SaveDataDescriptor save_struct);
 ResultVal<FileSys::VirtualDir> OpenSDMC();
 
-// TODO(DarkLordZach): BIS Filesystem
-// ResultVal<std::unique_ptr<FileSys::FileSystemBackend>> OpenBIS();
+std::shared_ptr<FileSys::RegisteredCache> GetSystemNANDContents();
+std::shared_ptr<FileSys::RegisteredCache> GetUserNANDContents();
 
 /// Registers all Filesystem services with the specified service manager.
 void InstallInterfaces(SM::ServiceManager& service_manager, const FileSys::VirtualFilesystem& vfs);
