@@ -20,6 +20,8 @@ add_library(core STATIC
     crypto/key_manager.h
     crypto/ctr_encryption_layer.cpp
     crypto/ctr_encryption_layer.h
+    file_sys/bis_factory.cpp
+    file_sys/bis_factory.h
     file_sys/card_image.cpp
     file_sys/card_image.h
     file_sys/content_archive.cpp
@@ -29,10 +31,14 @@ add_library(core STATIC
     file_sys/directory.h
     file_sys/errors.h
     file_sys/mode.h
+    file_sys/nca_metadata.cpp
+    file_sys/nca_metadata.h
     file_sys/partition_filesystem.cpp
     file_sys/partition_filesystem.h
     file_sys/program_metadata.cpp
     file_sys/program_metadata.h
+    file_sys/registered_cache.cpp
+    file_sys/registered_cache.h
     file_sys/romfs.cpp
     file_sys/romfs.h
     file_sys/romfs_factory.cpp
@@ -43,6 +49,8 @@ add_library(core STATIC
     file_sys/sdmc_factory.h
     file_sys/vfs.cpp
     file_sys/vfs.h
+    file_sys/vfs_concat.cpp
+    file_sys/vfs_concat.h
     file_sys/vfs_offset.cpp
     file_sys/vfs_offset.h
     file_sys/vfs_real.cpp
