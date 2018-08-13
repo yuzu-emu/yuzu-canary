@@ -163,10 +163,13 @@ signals:
 
 private:
     FileSys::VirtualFilesystem vfs;
+    std::map<u64, std::shared_ptr<FileSys::NCA>> nca_control_map;
     QStringList watch_list;
     QString dir_path;
     bool deep_scan;
     std::atomic_bool stop_processing;
 
+    void AddInstalledTitlesToGameList();
+    void FillControlMap(const std::string& dir_path);
     void AddFstEntriesToGameList(const std::string& dir_path, unsigned int recursion = 0);
 };
