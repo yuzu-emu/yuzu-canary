@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "audio_core/algorithm/interpolate.h"
 #include "audio_core/audio_out.h"
 #include "audio_core/codec.h"
 #include "audio_core/stream.h"
@@ -194,6 +195,7 @@ private:
         size_t wave_index{};
         size_t offset{};
         Codec::ADPCMState adpcm_state{};
+        InterpolationState interp_state{};
         std::vector<s16> samples;
         VoiceOutStatus out_status{};
         VoiceInfo info{};
