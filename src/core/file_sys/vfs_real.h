@@ -5,7 +5,6 @@
 #pragma once
 
 #include <string_view>
-
 #include <boost/container/flat_map.hpp>
 #include "common/file_util.h"
 #include "core/file_sys/mode.h"
