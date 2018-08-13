@@ -81,7 +81,6 @@ public:
     std::string GetVersionString() const;
 
 private:
-    VirtualFile file;
     std::unique_ptr<RawNACP> raw;
 };
 
