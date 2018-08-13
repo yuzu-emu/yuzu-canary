@@ -8,8 +8,8 @@
 
 namespace FileSys {
 VectorVfsDirectory::VectorVfsDirectory(std::vector<VirtualFile> files_,
-                                       std::vector<VirtualDir> dirs_, VirtualDir parent_,
-                                       std::string name_)
+                                       std::vector<VirtualDir> dirs_, std::string name_,
+                                       VirtualDir parent_)
     : files(std::move(files_)), dirs(std::move(dirs_)), parent(std::move(parent_)),
       name(std::move(name_)) {}
 
