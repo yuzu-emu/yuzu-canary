@@ -68,6 +68,7 @@ public:
     VirtualDir GetUpdatePartition() const;
     VirtualDir GetLogoPartition() const;
 
+    const std::vector<std::shared_ptr<NCA>>& GetNCAs() const;
     std::shared_ptr<NCA> GetNCAByType(NCAContentType type) const;
     VirtualFile GetNCAFileByType(NCAContentType type) const;
 
