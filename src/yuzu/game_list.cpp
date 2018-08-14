@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <regex>
 #include <QApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -402,12 +403,72 @@ void GameList::RefreshGameDirectory() {
     }
 }
 
-void GameListWorker::AddFstEntriesToGameList(const std::string& dir_path, unsigned int recursion) {
-    boost::container::flat_map<u64, std::shared_ptr<FileSys::NCA>> nca_control_map;
+static void GetMetadataFromControlNCA(const std::shared_ptr<FileSys::NCA>& nca,
+                                      std::vector<u8>& icon, std::string& name) {
+    const auto control_dir = FileSys::ExtractRomFS(nca->GetRomFS());
+    if (control_dir == nullptr)
+        return;
 
-    const auto nca_control_callback =
-        [this, &nca_control_map](u64* num_entries_out, const std::string& directory,
-                                 const std::string& virtual_name) -> bool {
+    const auto nacp_file = control_dir->GetFile("control.nacp");
+    if (nacp_file == nullptr)
+        return;
+    FileSys::NACP nacp(nacp_file);
+    name = nacp.GetApplicationName();
+
+    FileSys::VirtualFile icon_file = nullptr;
+    for (const auto& language : FileSys::LANGUAGE_NAMES) {
+        icon_file = control_dir->GetFile("icon_" + std::string(language) + ".dat");
+        if (icon_file != nullptr) {
+            icon = icon_file->ReadAllBytes();
+            break;
+        }
+    }
+}
+
+void GameListWorker::AddInstalledTitlesToGameList() {
+    const auto usernand = Service::FileSystem::GetUserNANDContents();
+    const auto installed_games = usernand->ListEntriesFilter(FileSys::TitleType::Application,
+                                                             FileSys::ContentRecordType::Program);
+
+    for (const auto& game : installed_games) {
+        const auto& file = usernand->GetEntryRaw(game);
+        std::unique_ptr<Loader::AppLoader> loader = Loader::GetLoader(file);
+        if (!loader)
+            continue;
+
+        std::vector<u8> icon;
+        std::string name;
+        u64 program_id;
+        loader->ReadProgramId(program_id);
+
+        const auto& control =
+            usernand->GetEntry(game.title_id, FileSys::ContentRecordType::Control);
+        if (control != nullptr)
+            GetMetadataFromControlNCA(control, icon, name);
+        emit EntryReady({
+            new GameListItemPath(
+                FormatGameName(file->GetFullPath()), icon, QString::fromStdString(name),
+                QString::fromStdString(Loader::GetFileTypeString(loader->GetFileType())),
+                program_id),
+            new GameListItem(
+                QString::fromStdString(Loader::GetFileTypeString(loader->GetFileType()))),
+            new GameListItemSize(file->GetSize()),
+        });
+    }
+
+    const auto control_data = usernand->ListEntriesFilter(FileSys::TitleType::Application,
+                                                          FileSys::ContentRecordType::Control);
+
+    for (const auto& entry : control_data) {
+        const auto nca = usernand->GetEntry(entry);
+        if (nca != nullptr)
+            nca_control_map.insert_or_assign(entry.title_id, nca);
+    }
+}
+
+void GameListWorker::FillControlMap(const std::string& dir_path) {
+    const auto nca_control_callback = [this](u64* num_entries_out, const std::string& directory,
+                                             const std::string& virtual_name) -> bool {
         std::string physical_name = directory + DIR_SEP + virtual_name;
 
         if (stop_processing)
@@ -425,10 +486,11 @@ void GameListWorker::AddFstEntriesToGameList(const std::string& dir_path, unsign
     };
 
     FileUtil::ForeachDirectoryEntry(nullptr, dir_path, nca_control_callback);
+}
 
-    const auto callback = [this, recursion,
-                           &nca_control_map](u64* num_entries_out, const std::string& directory,
-                                             const std::string& virtual_name) -> bool {
+void GameListWorker::AddFstEntriesToGameList(const std::string& dir_path, unsigned int recursion) {
+    const auto callback = [this, recursion](u64* num_entries_out, const std::string& directory,
+                                            const std::string& virtual_name) -> bool {
         std::string physical_name = directory + DIR_SEP + virtual_name;
 
         if (stop_processing)
@@ -458,20 +520,7 @@ void GameListWorker::AddFstEntriesToGameList(const std::string& dir_path, unsign
                 // Use from metadata pool.
                 if (nca_control_map.find(program_id) != nca_control_map.end()) {
                     const auto nca = nca_control_map[program_id];
-                    const auto control_dir = FileSys::ExtractRomFS(nca->GetRomFS());
-
-                    const auto nacp_file = control_dir->GetFile("control.nacp");
-                    FileSys::NACP nacp(nacp_file);
-                    name = nacp.GetApplicationName();
-
-                    FileSys::VirtualFile icon_file = nullptr;
-                    for (const auto& language : FileSys::LANGUAGE_NAMES) {
-                        icon_file = control_dir->GetFile("icon_" + std::string(language) + ".dat");
-                        if (icon_file != nullptr) {
-                            icon = icon_file->ReadAllBytes();
-                            break;
-                        }
-                    }
+                    GetMetadataFromControlNCA(nca, icon, name);
                 }
             }
 
@@ -498,7 +547,10 @@ void GameListWorker::AddFstEntriesToGameList(const std::string& dir_path, unsign
 void GameListWorker::run() {
     stop_processing = false;
     watch_list.append(dir_path);
+    FillControlMap(dir_path.toStdString());
+    AddInstalledTitlesToGameList();
     AddFstEntriesToGameList(dir_path.toStdString(), deep_scan ? 256 : 0);
+    nca_control_map.clear();
     emit Finished(watch_list);
 }
 

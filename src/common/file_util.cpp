@@ -750,6 +750,12 @@ std::string GetHactoolConfigurationPath() {
 #endif
 }
 
+std::string GetNANDRegistrationDir(bool system) {
+    if (system)
+        return GetUserPath(UserPath::NANDDir) + "system/Contents/registered/";
+    return GetUserPath(UserPath::NANDDir) + "user/Contents/registered/";
+}
+
 size_t WriteStringToFile(bool text_file, const std::string& str, const char* filename) {
     return FileUtil::IOFile(filename, text_file ? "w" : "wb").WriteBytes(str.data(), str.size());
 }
