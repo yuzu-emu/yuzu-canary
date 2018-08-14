@@ -114,6 +114,8 @@ add_library(core STATIC
     hle/service/acc/acc_u0.h
     hle/service/acc/acc_u1.cpp
     hle/service/acc/acc_u1.h
+    hle/service/acc/profile_manager.cpp
+    hle/service/acc/profile_manager.h
     hle/service/am/am.cpp
     hle/service/am/am.h
     hle/service/am/applet_ae.cpp
