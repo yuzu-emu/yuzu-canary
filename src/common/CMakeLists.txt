@@ -38,6 +38,8 @@ add_library(common STATIC
     file_util.cpp
     file_util.h
     hash.h
+    hex_util.cpp
+    hex_util.h
     logging/backend.cpp
     logging/backend.h
     logging/filter.cpp
