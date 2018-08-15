@@ -167,7 +167,7 @@ void Thread::WakeAfterDelay(s64 nanoseconds) {
 }
 
 void Thread::CancelWakeupTimer() {
-    CoreTiming::UnscheduleEvent(ThreadWakeupEventType, callback_handle);
+    CoreTiming::UnscheduleEventThreadsafe(ThreadWakeupEventType, callback_handle);
 }
 
 static boost::optional<s32> GetNextProcessorId(u64 mask) {
