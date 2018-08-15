@@ -87,9 +87,6 @@ struct hash<Core::Crypto::KeyIndex<KeyType>> {
 
 namespace Core::Crypto {
 
-std::array<u8, 0x10> operator"" _array16(const char* str, size_t len);
-std::array<u8, 0x20> operator"" _array32(const char* str, size_t len);
-
 class KeyManager {
 public:
     KeyManager();
