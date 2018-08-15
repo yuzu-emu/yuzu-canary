@@ -65,6 +65,7 @@ void ScheduleEvent(s64 cycles_into_future, const EventType* event_type, u64 user
 void ScheduleEventThreadsafe(s64 cycles_into_future, const EventType* event_type, u64 userdata);
 
 void UnscheduleEvent(const EventType* event_type, u64 userdata);
+void UnscheduleEventThreadsafe(const EventType* event_type, u64 userdata);
 
 /// We only permit one event of each type in the queue at a time.
 void RemoveEvent(const EventType* event_type);
