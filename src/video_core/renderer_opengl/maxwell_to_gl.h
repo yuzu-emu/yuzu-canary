@@ -24,16 +24,25 @@ using Maxwell = Tegra::Engines::Maxwell3D::Regs;
 
 inline GLenum VertexType(Maxwell::VertexAttribute attrib) {
     switch (attrib.type) {
+    case Maxwell::VertexAttribute::Type::UnsignedInt:
     case Maxwell::VertexAttribute::Type::UnsignedNorm: {
 
         switch (attrib.size) {
         case Maxwell::VertexAttribute::Size::Size_8:
         case Maxwell::VertexAttribute::Size::Size_8_8:
+        case Maxwell::VertexAttribute::Size::Size_8_8_8:
         case Maxwell::VertexAttribute::Size::Size_8_8_8_8:
             return GL_UNSIGNED_BYTE;
+        case Maxwell::VertexAttribute::Size::Size_16:
         case Maxwell::VertexAttribute::Size::Size_16_16:
+        case Maxwell::VertexAttribute::Size::Size_16_16_16:
         case Maxwell::VertexAttribute::Size::Size_16_16_16_16:
             return GL_UNSIGNED_SHORT;
+        case Maxwell::VertexAttribute::Size::Size_32:
+        case Maxwell::VertexAttribute::Size::Size_32_32:
+        case Maxwell::VertexAttribute::Size::Size_32_32_32:
+        case Maxwell::VertexAttribute::Size::Size_32_32_32_32:
+            return GL_UNSIGNED_INT;
         case Maxwell::VertexAttribute::Size::Size_10_10_10_2:
             return GL_UNSIGNED_INT_2_10_10_10_REV;
         }
@@ -43,16 +52,25 @@ inline GLenum VertexType(Maxwell::VertexAttribute attrib) {
         return {};
     }
 
+    case Maxwell::VertexAttribute::Type::SignedInt:
     case Maxwell::VertexAttribute::Type::SignedNorm: {
 
         switch (attrib.size) {
-        case Maxwell::VertexAttribute::Size::Size_32_32_32:
-            return GL_INT;
+        case Maxwell::VertexAttribute::Size::Size_8:
         case Maxwell::VertexAttribute::Size::Size_8_8:
+        case Maxwell::VertexAttribute::Size::Size_8_8_8:
         case Maxwell::VertexAttribute::Size::Size_8_8_8_8:
             return GL_BYTE;
+        case Maxwell::VertexAttribute::Size::Size_16:
         case Maxwell::VertexAttribute::Size::Size_16_16:
+        case Maxwell::VertexAttribute::Size::Size_16_16_16:
+        case Maxwell::VertexAttribute::Size::Size_16_16_16_16:
             return GL_SHORT;
+        case Maxwell::VertexAttribute::Size::Size_32:
+        case Maxwell::VertexAttribute::Size::Size_32_32:
+        case Maxwell::VertexAttribute::Size::Size_32_32_32:
+        case Maxwell::VertexAttribute::Size::Size_32_32_32_32:
+            return GL_INT;
         case Maxwell::VertexAttribute::Size::Size_10_10_10_2:
             return GL_INT_2_10_10_10_REV;
         }
@@ -61,9 +79,6 @@ inline GLenum VertexType(Maxwell::VertexAttribute attrib) {
         UNREACHABLE();
         return {};
     }
-
-    case Maxwell::VertexAttribute::Type::UnsignedInt:
-        return GL_UNSIGNED_INT;
 
     case Maxwell::VertexAttribute::Type::Float:
         return GL_FLOAT;
