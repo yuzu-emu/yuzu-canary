@@ -10,43 +10,12 @@
 #include <string_view>
 #include "common/common_paths.h"
 #include "common/file_util.h"
+#include "common/hex_util.h"
+#include "common/logging/log.h"
 #include "core/crypto/key_manager.h"
 #include "core/settings.h"
 
 namespace Core::Crypto {
-
-static u8 ToHexNibble(char c1) {
-    if (c1 >= 65 && c1 <= 70)
-        return c1 - 55;
-    if (c1 >= 97 && c1 <= 102)
-        return c1 - 87;
-    if (c1 >= 48 && c1 <= 57)
-        return c1 - 48;
-    throw std::logic_error("Invalid hex digit");
-}
-
-template <size_t Size>
-static std::array<u8, Size> HexStringToArray(std::string_view str) {
-    std::array<u8, Size> out{};
-    for (size_t i = 0; i < 2 * Size; i += 2) {
-        auto d1 = str[i];
-        auto d2 = str[i + 1];
-        out[i / 2] = (ToHexNibble(d1) << 4) | ToHexNibble(d2);
-    }
-    return out;
-}
-
-std::array<u8, 16> operator""_array16(const char* str, size_t len) {
-    if (len != 32)
-        throw std::logic_error("Not of correct size.");
-    return HexStringToArray<16>(str);
-}
-
-std::array<u8, 32> operator""_array32(const char* str, size_t len) {
-    if (len != 64)
-        throw std::logic_error("Not of correct size.");
-    return HexStringToArray<32>(str);
-}
 
 KeyManager::KeyManager() {
     // Initialize keys
