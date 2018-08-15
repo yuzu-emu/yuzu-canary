@@ -229,6 +229,7 @@ ResultVal<FileSys::EntryType> VfsDirectoryServiceWrapper::GetEntryType(
 static std::unique_ptr<FileSys::RomFSFactory> romfs_factory;
 static std::unique_ptr<FileSys::SaveDataFactory> save_data_factory;
 static std::unique_ptr<FileSys::SDMCFactory> sdmc_factory;
+static std::unique_ptr<FileSys::BISFactory> bis_factory;
 
 ResultCode RegisterRomFS(std::unique_ptr<FileSys::RomFSFactory>&& factory) {
     ASSERT_MSG(romfs_factory == nullptr, "Tried to register a second RomFS");
@@ -248,6 +249,13 @@ ResultCode RegisterSDMC(std::unique_ptr<FileSys::SDMCFactory>&& factory) {
     ASSERT_MSG(sdmc_factory == nullptr, "Tried to register a second SDMC");
     sdmc_factory = std::move(factory);
     LOG_DEBUG(Service_FS, "Registered SDMC");
+    return RESULT_SUCCESS;
+}
+
+ResultCode RegisterBIS(std::unique_ptr<FileSys::BISFactory>&& factory) {
+    ASSERT_MSG(bis_factory == nullptr, "Tried to register a second BIS");
+    bis_factory = std::move(factory);
+    LOG_DEBUG(Service_FS, "Registred BIS");
     return RESULT_SUCCESS;
 }
 
@@ -284,6 +292,14 @@ ResultVal<FileSys::VirtualDir> OpenSDMC() {
     return sdmc_factory->Open();
 }
 
+std::shared_ptr<FileSys::RegisteredCache> GetSystemNANDContents() {
+    return bis_factory->GetSystemNANDContents();
+}
+
+std::shared_ptr<FileSys::RegisteredCache> GetUserNANDContents() {
+    return bis_factory->GetUserNANDContents();
+}
+
 void RegisterFileSystems(const FileSys::VirtualFilesystem& vfs) {
     romfs_factory = nullptr;
     save_data_factory = nullptr;
@@ -293,6 +309,9 @@ void RegisterFileSystems(const FileSys::VirtualFilesystem& vfs) {
                                              FileSys::Mode::ReadWrite);
     auto sd_directory = vfs->OpenDirectory(FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir),
                                            FileSys::Mode::ReadWrite);
+
+    if (bis_factory == nullptr)
+        bis_factory = std::make_unique<FileSys::BISFactory>(nand_directory);
 
     auto savedata = std::make_unique<FileSys::SaveDataFactory>(std::move(nand_directory));
     save_data_factory = std::move(savedata);

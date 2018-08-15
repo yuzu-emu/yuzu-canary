@@ -65,7 +65,7 @@ void ProcessFile(VirtualFile file, size_t file_offset, size_t data_offset, u32 t
         auto entry = GetEntry<FileEntry>(file, file_offset + this_file_offset);
 
         parent->AddFile(std::make_shared<OffsetVfsFile>(
-            file, entry.first.size, entry.first.offset + data_offset, entry.second, parent));
+            file, entry.first.size, entry.first.offset + data_offset, entry.second));
 
         if (entry.first.sibling == ROMFS_ENTRY_EMPTY)
             break;
@@ -79,7 +79,7 @@ void ProcessDirectory(VirtualFile file, size_t dir_offset, size_t file_offset, s
     while (true) {
         auto entry = GetEntry<DirectoryEntry>(file, dir_offset + this_dir_offset);
         auto current = std::make_shared<VectorVfsDirectory>(
-            std::vector<VirtualFile>{}, std::vector<VirtualDir>{}, parent, entry.second);
+            std::vector<VirtualFile>{}, std::vector<VirtualDir>{}, entry.second);
 
         if (entry.first.child_file != ROMFS_ENTRY_EMPTY) {
             ProcessFile(file, file_offset, data_offset, entry.first.child_file, current);
@@ -108,9 +108,9 @@ VirtualDir ExtractRomFS(VirtualFile file) {
     const u64 file_offset = header.file_meta.offset;
     const u64 dir_offset = header.directory_meta.offset + 4;
 
-    const auto root =
+    auto root =
         std::make_shared<VectorVfsDirectory>(std::vector<VirtualFile>{}, std::vector<VirtualDir>{},
-                                             file->GetContainingDirectory(), file->GetName());
+                                             file->GetName(), file->GetContainingDirectory());
 
     ProcessDirectory(file, dir_offset, file_offset, header.data_offset, 0, root);
 
