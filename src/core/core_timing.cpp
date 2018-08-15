@@ -56,6 +56,9 @@ static u64 event_fifo_id;
 // to the event_queue by the emu thread
 static Common::MPSCQueue<Event, false> ts_queue;
 
+// the queue for unscheduling the events from other threads threadsafe
+static Common::MPSCQueue<std::pair<const EventType*, u64>, false> unschedule_queue;
+
 constexpr int MAX_SLICE_LENGTH = 20000;
 
 static s64 idled_cycles;
@@ -158,6 +161,10 @@ void UnscheduleEvent(const EventType* event_type, u64 userdata) {
     }
 }
 
+void UnscheduleEventThreadsafe(const EventType* event_type, u64 userdata) {
+    unschedule_queue.Push(std::make_pair(event_type, userdata));
+}
+
 void RemoveEvent(const EventType* event_type) {
     auto itr = std::remove_if(event_queue.begin(), event_queue.end(),
                               [&](const Event& e) { return e.type == event_type; });
@@ -194,6 +201,9 @@ void MoveEvents() {
 
 void Advance() {
     MoveEvents();
+    for (std::pair<const EventType*, u64> ev; unschedule_queue.Pop(ev);) {
+        UnscheduleEvent(ev.first, ev.second);
+    }
 
     int cycles_executed = slice_length - downcount;
     global_timer += cycles_executed;
