@@ -41,6 +41,8 @@ FileType IdentifyFile(FileSys::VirtualFile file) {
 FileType GuessFromFilename(const std::string& name) {
     if (name == "main")
         return FileType::DeconstructedRomDirectory;
+    if (name == "00")
+        return FileType::NCA;
 
     const std::string extension =
         Common::ToLower(std::string(FileUtil::GetExtensionFromFilename(name)));
