@@ -119,7 +119,8 @@ static constexpr std::array<FormatTuple, SurfaceParams::MaxPixelFormat> tex_form
     {GL_COMPRESSED_RGBA_BPTC_UNORM_ARB, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, ComponentType::UNorm,
      true},                                                                    // BC7U
     {GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},        // ASTC_2D_4X4
-    {GL_RG8, GL_RG, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},            // G8R8
+    {GL_RG8, GL_RG, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},            // G8R8U
+    {GL_RG8, GL_RG, GL_BYTE, ComponentType::SNorm, false},                     // G8R8S
     {GL_RGBA8, GL_BGRA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},        // BGRA8
     {GL_RGBA32F, GL_RGBA, GL_FLOAT, ComponentType::Float, false},              // RGBA32F
     {GL_RG32F, GL_RG, GL_FLOAT, ComponentType::Float, false},                  // RG32F
@@ -260,7 +261,8 @@ static constexpr std::array<void (*)(u32, u32, u32, std::vector<u8>&, Tegra::GPU
         MortonCopy<true, PixelFormat::DXN2SNORM>,
         MortonCopy<true, PixelFormat::BC7U>,
         MortonCopy<true, PixelFormat::ASTC_2D_4X4>,
-        MortonCopy<true, PixelFormat::G8R8>,
+        MortonCopy<true, PixelFormat::G8R8U>,
+        MortonCopy<true, PixelFormat::G8R8S>,
         MortonCopy<true, PixelFormat::BGRA8>,
         MortonCopy<true, PixelFormat::RGBA32F>,
         MortonCopy<true, PixelFormat::RG32F>,
@@ -315,7 +317,8 @@ static constexpr std::array<void (*)(u32, u32, u32, std::vector<u8>&, Tegra::GPU
         nullptr,
         nullptr,
         nullptr,
-        MortonCopy<false, PixelFormat::G8R8>,
+        MortonCopy<false, PixelFormat::G8R8U>,
+        MortonCopy<false, PixelFormat::G8R8S>,
         MortonCopy<false, PixelFormat::BGRA8>,
         MortonCopy<false, PixelFormat::RGBA32F>,
         MortonCopy<false, PixelFormat::RG32F>,
@@ -461,7 +464,7 @@ static void ConvertS8Z24ToZ24S8(std::vector<u8>& data, u32 width, u32 height) {
 }
 
 static void ConvertG8R8ToR8G8(std::vector<u8>& data, u32 width, u32 height) {
-    const auto bpp{CachedSurface::GetGLBytesPerPixel(PixelFormat::G8R8)};
+    const auto bpp{CachedSurface::GetGLBytesPerPixel(PixelFormat::G8R8U)};
     for (size_t y = 0; y < height; ++y) {
         for (size_t x = 0; x < width; ++x) {
             const size_t offset{bpp * (y * width + x)};
@@ -493,7 +496,8 @@ static void ConvertFormatAsNeeded_LoadGLBuffer(std::vector<u8>& data, PixelForma
         ConvertS8Z24ToZ24S8(data, width, height);
         break;
 
-    case PixelFormat::G8R8:
+    case PixelFormat::G8R8U:
+    case PixelFormat::G8R8S:
         // Convert the G8R8 color format to R8G8, as OpenGL does not support G8R8.
         ConvertG8R8ToR8G8(data, width, height);
         break;
