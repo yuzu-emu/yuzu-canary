@@ -648,11 +648,11 @@ std::tuple<u8*, GLintptr, u32> RasterizerOpenGL::SetupConstBuffers(
 
         if (used_buffer.IsIndirect()) {
             // Buffer is accessed indirectly, so upload the entire thing
-            size = buffer.size * sizeof(float);
+            size = buffer.size;
 
             if (size > MaxConstbufferSize) {
-                LOG_ERROR(HW_GPU, "indirect constbuffer size {} exceeds maximum {}", size,
-                          MaxConstbufferSize);
+                LOG_CRITICAL(HW_GPU, "indirect constbuffer size {} exceeds maximum {}", size,
+                             MaxConstbufferSize);
                 size = MaxConstbufferSize;
             }
         } else {
