@@ -43,36 +43,37 @@ struct SurfaceParams {
         DXN2SNORM = 17,
         BC7U = 18,
         ASTC_2D_4X4 = 19,
-        G8R8 = 20,
-        BGRA8 = 21,
-        RGBA32F = 22,
-        RG32F = 23,
-        R32F = 24,
-        R16F = 25,
-        R16UNORM = 26,
-        R16S = 27,
-        R16UI = 28,
-        R16I = 29,
-        RG16 = 30,
-        RG16F = 31,
-        RG16UI = 32,
-        RG16I = 33,
-        RG16S = 34,
-        RGB32F = 35,
-        SRGBA8 = 36,
-        RG8U = 37,
-        RG8S = 38,
-        RG32UI = 39,
-        R32UI = 40,
+        G8R8U = 20,
+        G8R8S = 21,
+        BGRA8 = 22,
+        RGBA32F = 23,
+        RG32F = 24,
+        R32F = 25,
+        R16F = 26,
+        R16UNORM = 27,
+        R16S = 28,
+        R16UI = 29,
+        R16I = 30,
+        RG16 = 31,
+        RG16F = 32,
+        RG16UI = 33,
+        RG16I = 34,
+        RG16S = 35,
+        RGB32F = 36,
+        SRGBA8 = 37,
+        RG8U = 38,
+        RG8S = 39,
+        RG32UI = 40,
+        R32UI = 41,
 
         MaxColorFormat,
 
         // DepthStencil formats
-        Z24S8 = 41,
-        S8Z24 = 42,
-        Z32F = 43,
-        Z16 = 44,
-        Z32FS8 = 45,
+        Z24S8 = 42,
+        S8Z24 = 43,
+        Z32F = 44,
+        Z16 = 45,
+        Z32FS8 = 46,
 
         MaxDepthStencilFormat,
 
@@ -130,7 +131,8 @@ struct SurfaceParams {
             4, // DXN2SNORM
             4, // BC7U
             4, // ASTC_2D_4X4
-            1, // G8R8
+            1, // G8R8U
+            1, // G8R8S
             1, // BGRA8
             1, // RGBA32F
             1, // RG32F
@@ -187,7 +189,8 @@ struct SurfaceParams {
             128, // DXN2SNORM
             128, // BC7U
             32,  // ASTC_2D_4X4
-            16,  // G8R8
+            16,  // G8R8U
+            16,  // G8R8S
             32,  // BGRA8
             128, // RGBA32F
             64,  // RG32F
@@ -341,7 +344,15 @@ struct SurfaceParams {
                          static_cast<u32>(component_type));
             UNREACHABLE();
         case Tegra::Texture::TextureFormat::G8R8:
-            return PixelFormat::G8R8;
+            switch (component_type) {
+            case Tegra::Texture::ComponentType::UNORM:
+                return PixelFormat::G8R8U;
+            case Tegra::Texture::ComponentType::SNORM:
+                return PixelFormat::G8R8S;
+            }
+            LOG_CRITICAL(HW_GPU, "Unimplemented component_type={}",
+                         static_cast<u32>(component_type));
+            UNREACHABLE();
         case Tegra::Texture::TextureFormat::R16_G16_B16_A16:
             return PixelFormat::RGBA16F;
         case Tegra::Texture::TextureFormat::BF10GF11RF11:
