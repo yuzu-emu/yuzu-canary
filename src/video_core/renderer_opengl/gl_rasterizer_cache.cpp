@@ -142,14 +142,16 @@ static constexpr std::array<FormatTuple, SurfaceParams::MaxPixelFormat> tex_form
     {GL_RG32UI, GL_RG_INTEGER, GL_UNSIGNED_INT, ComponentType::UInt, false},              // RG32UI
     {GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, ComponentType::UInt, false},              // R32UI
 
+    // Depth formats
+    {GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT, ComponentType::Float, false}, // Z32F
+    {GL_DEPTH_COMPONENT16, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, ComponentType::UNorm,
+     false}, // Z16
+
     // DepthStencil formats
     {GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, ComponentType::UNorm,
      false}, // Z24S8
     {GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, ComponentType::UNorm,
-     false},                                                                            // S8Z24
-    {GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT, ComponentType::Float, false}, // Z32F
-    {GL_DEPTH_COMPONENT16, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, ComponentType::UNorm,
-     false}, // Z16
+     false}, // S8Z24
     {GL_DEPTH32F_STENCIL8, GL_DEPTH_STENCIL, GL_FLOAT_32_UNSIGNED_INT_24_8_REV,
      ComponentType::Float, false}, // Z32FS8
 }};
@@ -283,10 +285,10 @@ static constexpr std::array<void (*)(u32, u32, u32, std::vector<u8>&, Tegra::GPU
         MortonCopy<true, PixelFormat::RG8S>,
         MortonCopy<true, PixelFormat::RG32UI>,
         MortonCopy<true, PixelFormat::R32UI>,
-        MortonCopy<true, PixelFormat::Z24S8>,
-        MortonCopy<true, PixelFormat::S8Z24>,
         MortonCopy<true, PixelFormat::Z32F>,
         MortonCopy<true, PixelFormat::Z16>,
+        MortonCopy<true, PixelFormat::Z24S8>,
+        MortonCopy<true, PixelFormat::S8Z24>,
         MortonCopy<true, PixelFormat::Z32FS8>,
         // clang-format on
 };
@@ -339,10 +341,10 @@ static constexpr std::array<void (*)(u32, u32, u32, std::vector<u8>&, Tegra::GPU
         MortonCopy<false, PixelFormat::RG8S>,
         MortonCopy<false, PixelFormat::RG32UI>,
         MortonCopy<false, PixelFormat::R32UI>,
-        MortonCopy<false, PixelFormat::Z24S8>,
-        MortonCopy<false, PixelFormat::S8Z24>,
         MortonCopy<false, PixelFormat::Z32F>,
         MortonCopy<false, PixelFormat::Z16>,
+        MortonCopy<false, PixelFormat::Z24S8>,
+        MortonCopy<false, PixelFormat::S8Z24>,
         MortonCopy<false, PixelFormat::Z32FS8>,
         // clang-format on
 };
