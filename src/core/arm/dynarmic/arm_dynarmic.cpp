@@ -134,6 +134,9 @@ std::unique_ptr<Dynarmic::A64::Jit> ARM_Dynarmic::MakeJit() const {
     config.dczid_el0 = 4;
     config.ctr_el0 = 0x8444c004;
 
+    // Unpredictable instructions
+    config.define_unpredictable_behaviour = true;
+
     return std::make_unique<Dynarmic::A64::Jit>(config);
 }
 
