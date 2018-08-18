@@ -815,6 +815,33 @@ private:
         shader.AddLine('}');
     }
 
+    /*
+     * Emits code to push the input target address to the SSY address stack, incrementing the stack
+     * top.
+     */
+    void EmitPushToSSYStack(u32 target) {
+        shader.AddLine('{');
+        ++shader.scope;
+        shader.AddLine("ssy_stack[ssy_stack_top] = " + std::to_string(target) + "u;");
+        shader.AddLine("ssy_stack_top++;");
+        --shader.scope;
+        shader.AddLine('}');
+    }
+
+    /*
+     * Emits code to pop an address from the SSY address stack, setting the jump address to the
+     * popped address and decrementing the stack top.
+     */
+    void EmitPopFromSSYStack() {
+        shader.AddLine('{');
+        ++shader.scope;
+        shader.AddLine("ssy_stack_top--;");
+        shader.AddLine("jmp_to = ssy_stack[ssy_stack_top];");
+        shader.AddLine("break;");
+        --shader.scope;
+        shader.AddLine('}');
+    }
+
     /**
      * Compiles a single instruction from Tegra to GLSL.
      * @param offset the offset of the Tegra shader instruction.
@@ -1843,13 +1870,13 @@ private:
                 ASSERT_MSG(instr.bra.constant_buffer == 0, "Constant buffer SSY is not supported");
 
                 u32 target = offset + instr.bra.GetBranchTarget();
-                shader.AddLine("ssy_target = " + std::to_string(target) + "u;");
+                EmitPushToSSYStack(target);
                 break;
             }
             case OpCode::Id::SYNC: {
                 // The SYNC opcode jumps to the address previously set by the SSY opcode
                 ASSERT(instr.flow.cond == Tegra::Shader::FlowCondition::Always);
-                shader.AddLine("{ jmp_to = ssy_target; break; }");
+                EmitPopFromSSYStack();
                 break;
             }
             case OpCode::Id::DEPBAR: {
@@ -1920,7 +1947,13 @@ private:
             } else {
                 labels.insert(subroutine.begin);
                 shader.AddLine("uint jmp_to = " + std::to_string(subroutine.begin) + "u;");
-                shader.AddLine("uint ssy_target = 0u;");
+
+                // TODO(Subv): Figure out the actual depth of the SSY stack, for now it seems
+                // unlikely that shaders will use 20 nested SSYs.
+                constexpr u32 SSY_STACK_SIZE = 20;
+                shader.AddLine("uint ssy_stack[" + std::to_string(SSY_STACK_SIZE) + "];");
+                shader.AddLine("uint ssy_stack_top = 0u;");
+
                 shader.AddLine("while (true) {");
                 ++shader.scope;
 
