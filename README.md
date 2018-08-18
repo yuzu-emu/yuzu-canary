@@ -1,3 +1,25 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 367feaefa04679b009941054a4bad58aa9ef6b01
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1101](https://github.com/yuzu-emu/yuzu/pull/1101)|[ff358d9](https://github.com/yuzu-emu/yuzu/pull/1101/files/)|Shaders: Implemented a stack for the SSY/SYNC instructions.|[Subv](https://github.com/Subv)|Yes|
+|[1092](https://github.com/yuzu-emu/yuzu/pull/1092)|[7a7b47c](https://github.com/yuzu-emu/yuzu/pull/1092/files/)|Implement BC6H_UF16 & BC6H_SF16|[greggameplayer](https://github.com/greggameplayer)|Yes|
+|[1089](https://github.com/yuzu-emu/yuzu/pull/1089)|[2e95ba2](https://github.com/yuzu-emu/yuzu/pull/1089/files/)|Shaders: Corrected the 'abs' and 'neg' bit usage in the float arithmetic instructions.|[Subv](https://github.com/Subv)|Yes|
+|[1088](https://github.com/yuzu-emu/yuzu/pull/1088)|[57bf5d0](https://github.com/yuzu-emu/yuzu/pull/1088/files/)|PL:U Added BFTTF loading(Loading from System NAND dumps)|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1017](https://github.com/yuzu-emu/yuzu/pull/1017)|[10f494e](https://github.com/yuzu-emu/yuzu/pull/1017/files/)|New account backend to allow for future extended support|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
