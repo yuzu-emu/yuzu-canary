@@ -117,7 +117,11 @@ static constexpr std::array<FormatTuple, SurfaceParams::MaxPixelFormat> tex_form
      true},                                                                     // DXN2UNORM
     {GL_COMPRESSED_SIGNED_RG_RGTC2, GL_RG, GL_INT, ComponentType::SNorm, true}, // DXN2SNORM
     {GL_COMPRESSED_RGBA_BPTC_UNORM_ARB, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, ComponentType::UNorm,
-     true},                                                                    // BC7U
+     true}, // BC7U
+    {GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB, GL_RGB, GL_UNSIGNED_INT_8_8_8_8,
+     ComponentType::UNorm, true}, // BC6H_UF16
+    {GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_ARB, GL_RGB, GL_UNSIGNED_INT_8_8_8_8, ComponentType::UNorm,
+     true},                                                                    // BC6H_SF16
     {GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},        // ASTC_2D_4X4
     {GL_RG8, GL_RG, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},            // G8R8U
     {GL_RG8, GL_RG, GL_BYTE, ComponentType::SNorm, false},                     // G8R8S
@@ -207,6 +211,8 @@ static bool IsFormatBCn(PixelFormat format) {
     case PixelFormat::DXN2SNORM:
     case PixelFormat::DXN2UNORM:
     case PixelFormat::BC7U:
+    case PixelFormat::BC6H_UF16:
+    case PixelFormat::BC6H_SF16:
         return true;
     }
     return false;
@@ -262,6 +268,8 @@ static constexpr std::array<void (*)(u32, u32, u32, std::vector<u8>&, Tegra::GPU
         MortonCopy<true, PixelFormat::DXN2UNORM>,
         MortonCopy<true, PixelFormat::DXN2SNORM>,
         MortonCopy<true, PixelFormat::BC7U>,
+        MortonCopy<true, PixelFormat::BC6H_UF16>,
+        MortonCopy<true, PixelFormat::BC6H_SF16>,
         MortonCopy<true, PixelFormat::ASTC_2D_4X4>,
         MortonCopy<true, PixelFormat::G8R8U>,
         MortonCopy<true, PixelFormat::G8R8S>,
@@ -309,8 +317,10 @@ static constexpr std::array<void (*)(u32, u32, u32, std::vector<u8>&, Tegra::GPU
         MortonCopy<false, PixelFormat::RGBA16UI>,
         MortonCopy<false, PixelFormat::R11FG11FB10F>,
         MortonCopy<false, PixelFormat::RGBA32UI>,
-        // TODO(Subv): Swizzling DXT1/DXT23/DXT45/DXN1/DXN2/BC7U/ASTC_2D_4X4 formats is not
-        // supported
+        // TODO(Subv): Swizzling DXT1/DXT23/DXT45/DXN1/DXN2/BC7U/BC6H_UF16/BC6H_SF16/ASTC_2D_4X4
+        // formats are not supported
+        nullptr,
+        nullptr,
         nullptr,
         nullptr,
         nullptr,
