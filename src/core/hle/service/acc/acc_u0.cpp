@@ -6,7 +6,8 @@
 
 namespace Service::Account {
 
-ACC_U0::ACC_U0(std::shared_ptr<Module> module) : Module::Interface(std::move(module), "acc:u0") {
+ACC_U0::ACC_U0(std::shared_ptr<Module> module, std::shared_ptr<ProfileManager> profile_manager)
+    : Module::Interface(std::move(module), std::move(profile_manager), "acc:u0") {
     static const FunctionInfo functions[] = {
         {0, &ACC_U0::GetUserCount, "GetUserCount"},
         {1, &ACC_U0::GetUserExistence, "GetUserExistence"},
@@ -15,7 +16,7 @@ ACC_U0::ACC_U0(std::shared_ptr<Module> module) : Module::Interface(std::move(mod
         {4, &ACC_U0::GetLastOpenedUser, "GetLastOpenedUser"},
         {5, &ACC_U0::GetProfile, "GetProfile"},
         {6, nullptr, "GetProfileDigest"},
-        {50, nullptr, "IsUserRegistrationRequestPermitted"},
+        {50, &ACC_U0::IsUserRegistrationRequestPermitted, "IsUserRegistrationRequestPermitted"},
         {51, nullptr, "TrySelectUserWithoutInteraction"},
         {60, nullptr, "ListOpenContextStoredUsers"},
         {100, &ACC_U0::InitializeApplicationInfo, "InitializeApplicationInfo"},
