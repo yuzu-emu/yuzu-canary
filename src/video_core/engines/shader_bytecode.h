@@ -293,6 +293,10 @@ union Instruction {
     } alu;
 
     union {
+        BitField<48, 1, u64> negate_b;
+    } fmul;
+
+    union {
         BitField<48, 1, u64> is_signed;
     } shift;
 
