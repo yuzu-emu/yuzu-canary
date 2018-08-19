@@ -42,42 +42,44 @@ struct SurfaceParams {
         DXN2UNORM = 16,
         DXN2SNORM = 17,
         BC7U = 18,
-        ASTC_2D_4X4 = 19,
-        G8R8U = 20,
-        G8R8S = 21,
-        BGRA8 = 22,
-        RGBA32F = 23,
-        RG32F = 24,
-        R32F = 25,
-        R16F = 26,
-        R16U = 27,
-        R16S = 28,
-        R16UI = 29,
-        R16I = 30,
-        RG16 = 31,
-        RG16F = 32,
-        RG16UI = 33,
-        RG16I = 34,
-        RG16S = 35,
-        RGB32F = 36,
-        SRGBA8 = 37,
-        RG8U = 38,
-        RG8S = 39,
-        RG32UI = 40,
-        R32UI = 41,
+        BC6H_UF16 = 19,
+        BC6H_SF16 = 20,
+        ASTC_2D_4X4 = 21,
+        G8R8U = 22,
+        G8R8S = 23,
+        BGRA8 = 24,
+        RGBA32F = 25,
+        RG32F = 26,
+        R32F = 27,
+        R16F = 28,
+        R16U = 29,
+        R16S = 30,
+        R16UI = 31,
+        R16I = 32,
+        RG16 = 33,
+        RG16F = 34,
+        RG16UI = 35,
+        RG16I = 36,
+        RG16S = 37,
+        RGB32F = 38,
+        SRGBA8 = 39,
+        RG8U = 40,
+        RG8S = 41,
+        RG32UI = 42,
+        R32UI = 43,
 
         MaxColorFormat,
 
         // Depth formats
-        Z32F = 42,
-        Z16 = 43,
+        Z32F = 44,
+        Z16 = 45,
 
         MaxDepthFormat,
 
         // DepthStencil formats
-        Z24S8 = 44,
-        S8Z24 = 45,
-        Z32FS8 = 46,
+        Z24S8 = 46,
+        S8Z24 = 47,
+        Z32FS8 = 48,
 
         MaxDepthStencilFormat,
 
@@ -134,6 +136,8 @@ struct SurfaceParams {
             4, // DXN2UNORM
             4, // DXN2SNORM
             4, // BC7U
+            4, // BC6H_UF16
+            4, // BC6H_SF16
             4, // ASTC_2D_4X4
             1, // G8R8U
             1, // G8R8S
@@ -192,6 +196,8 @@ struct SurfaceParams {
             128, // DXN2UNORM
             128, // DXN2SNORM
             128, // BC7U
+            128, // BC6H_UF16
+            128, // BC6H_SF16
             32,  // ASTC_2D_4X4
             16,  // G8R8U
             16,  // G8R8S
@@ -473,6 +479,10 @@ struct SurfaceParams {
             UNREACHABLE();
         case Tegra::Texture::TextureFormat::BC7U:
             return PixelFormat::BC7U;
+        case Tegra::Texture::TextureFormat::BC6H_UF16:
+            return PixelFormat::BC6H_UF16;
+        case Tegra::Texture::TextureFormat::BC6H_SF16:
+            return PixelFormat::BC6H_SF16;
         case Tegra::Texture::TextureFormat::ASTC_2D_4X4:
             return PixelFormat::ASTC_2D_4X4;
         case Tegra::Texture::TextureFormat::R16_G16:
