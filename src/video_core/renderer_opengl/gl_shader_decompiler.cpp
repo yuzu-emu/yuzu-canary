@@ -747,6 +747,30 @@ private:
         return op->second;
     }
 
+    /**
+     * Transforms the input string GLSL operand into one that applies the abs() function and negates
+     * the output if necessary. When both abs and neg are true, the negation will be applied after
+     * taking the absolute value.
+     * @param operand The input operand to take the abs() of, negate, or both.
+     * @param abs Whether to apply the abs() function to the input operand.
+     * @param neg Whether to negate the input operand.
+     * @returns String corresponding to the operand after being transformed by the abs() and
+     * negation operations.
+     */
+    static std::string GetOperandAbsNeg(const std::string& operand, bool abs, bool neg) {
+        std::string result = operand;
+
+        if (abs) {
+            result = "abs(" + result + ')';
+        }
+
+        if (neg) {
+            result = "-(" + result + ')';
+        }
+
+        return result;
+    }
+
     /*
      * Returns whether the instruction at the specified offset is a 'sched' instruction.
      * Sched instructions always appear before a sequence of 3 instructions.
@@ -913,13 +937,6 @@ private:
         switch (opcode->GetType()) {
         case OpCode::Type::Arithmetic: {
             std::string op_a = regs.GetRegisterAsFloat(instr.gpr8);
-            if (instr.alu.abs_a) {
-                op_a = "abs(" + op_a + ')';
-            }
-
-            if (instr.alu.negate_a) {
-                op_a = "-(" + op_a + ')';
-            }
 
             std::string op_b;
 
@@ -934,17 +951,10 @@ private:
                 }
             }
 
-            if (instr.alu.abs_b) {
-                op_b = "abs(" + op_b + ')';
-            }
-
-            if (instr.alu.negate_b) {
-                op_b = "-(" + op_b + ')';
-            }
-
             switch (opcode->GetId()) {
             case OpCode::Id::MOV_C:
             case OpCode::Id::MOV_R: {
+                // MOV does not have neither 'abs' nor 'neg' bits.
                 regs.SetRegisterToFloat(instr.gpr0, 0, op_b, 1, 1);
                 break;
             }
@@ -952,6 +962,8 @@ private:
             case OpCode::Id::FMUL_C:
             case OpCode::Id::FMUL_R:
             case OpCode::Id::FMUL_IMM: {
+                // FMUL does not have 'abs' bits and only the second operand has a 'neg' bit.
+                op_b = GetOperandAbsNeg(op_b, false, instr.fmul.negate_b);
                 regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " * " + op_b, 1, 1,
                                         instr.alu.saturate_d);
                 break;
@@ -959,11 +971,14 @@ private:
             case OpCode::Id::FADD_C:
             case OpCode::Id::FADD_R:
             case OpCode::Id::FADD_IMM: {
+                op_a = GetOperandAbsNeg(op_a, instr.alu.abs_a, instr.alu.negate_a);
+                op_b = GetOperandAbsNeg(op_b, instr.alu.abs_b, instr.alu.negate_b);
                 regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " + " + op_b, 1, 1,
                                         instr.alu.saturate_d);
                 break;
             }
             case OpCode::Id::MUFU: {
+                op_a = GetOperandAbsNeg(op_a, instr.alu.abs_a, instr.alu.negate_a);
                 switch (instr.sub_op) {
                 case SubOp::Cos:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "cos(" + op_a + ')', 1, 1,
@@ -1003,6 +1018,9 @@ private:
             case OpCode::Id::FMNMX_C:
             case OpCode::Id::FMNMX_R:
             case OpCode::Id::FMNMX_IMM: {
+                op_a = GetOperandAbsNeg(op_a, instr.alu.abs_a, instr.alu.negate_a);
+                op_b = GetOperandAbsNeg(op_b, instr.alu.abs_b, instr.alu.negate_b);
+
                 std::string condition =
                     GetPredicateCondition(instr.alu.fmnmx.pred, instr.alu.fmnmx.negate_pred != 0);
                 std::string parameters = op_a + ',' + op_b;
@@ -1016,7 +1034,7 @@ private:
             case OpCode::Id::RRO_R:
             case OpCode::Id::RRO_IMM: {
                 // Currently RRO is only implemented as a register move.
-                // Usage of `abs_b` and `negate_b` here should also be correct.
+                op_b = GetOperandAbsNeg(op_b, instr.alu.abs_b, instr.alu.negate_b);
                 regs.SetRegisterToFloat(instr.gpr0, 0, op_b, 1, 1);
                 LOG_WARNING(HW_GPU, "RRO instruction is incomplete");
                 break;
