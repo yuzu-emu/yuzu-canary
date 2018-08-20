@@ -27,7 +27,9 @@ ResultCode RegisterSaveData(std::unique_ptr<FileSys::SaveDataFactory>&& factory)
 ResultCode RegisterSDMC(std::unique_ptr<FileSys::SDMCFactory>&& factory);
 ResultCode RegisterBIS(std::unique_ptr<FileSys::BISFactory>&& factory);
 
-ResultVal<FileSys::VirtualFile> OpenRomFS(u64 title_id);
+ResultVal<FileSys::VirtualFile> OpenRomFSCurrentProcess();
+ResultVal<FileSys::VirtualFile> OpenRomFS(u64 title_id, FileSys::StorageId storage_id,
+                                          FileSys::ContentRecordType type);
 ResultVal<FileSys::VirtualDir> OpenSaveData(FileSys::SaveDataSpaceId space,
                                             FileSys::SaveDataDescriptor save_struct);
 ResultVal<FileSys::VirtualDir> OpenSDMC();
