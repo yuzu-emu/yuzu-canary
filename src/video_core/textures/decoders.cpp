@@ -56,6 +56,8 @@ u32 BytesPerPixel(TextureFormat format) {
     case TextureFormat::DXT45:
     case TextureFormat::DXN2:
     case TextureFormat::BC7U:
+    case TextureFormat::BC6H_UF16:
+    case TextureFormat::BC6H_SF16:
         // In this case a 'pixel' actually refers to a 4x4 tile.
         return 16;
     case TextureFormat::R32_G32_B32:
@@ -106,6 +108,8 @@ std::vector<u8> DecodeTexture(const std::vector<u8>& texture_data, TextureFormat
     case TextureFormat::DXN1:
     case TextureFormat::DXN2:
     case TextureFormat::BC7U:
+    case TextureFormat::BC6H_UF16:
+    case TextureFormat::BC6H_SF16:
     case TextureFormat::ASTC_2D_4X4:
     case TextureFormat::A8R8G8B8:
     case TextureFormat::A2B10G10R10:
