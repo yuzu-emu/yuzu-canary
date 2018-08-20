@@ -256,15 +256,28 @@ ResultCode RegisterBIS(std::unique_ptr<FileSys::BISFactory>&& factory) {
     return RESULT_SUCCESS;
 }
 
-ResultVal<FileSys::VirtualFile> OpenRomFS(u64 title_id) {
-    LOG_TRACE(Service_FS, "Opening RomFS for title_id={:016X}", title_id);
+ResultVal<FileSys::VirtualFile> OpenRomFSCurrentProcess() {
+    LOG_TRACE(Service_FS, "Opening RomFS for current process");
 
     if (romfs_factory == nullptr) {
         // TODO(bunnei): Find a better error code for this
         return ResultCode(-1);
     }
 
-    return romfs_factory->Open(title_id);
+    return romfs_factory->OpenCurrentProcess();
+}
+
+ResultVal<FileSys::VirtualFile> OpenRomFS(u64 title_id, FileSys::StorageId storage_id,
+                                          FileSys::ContentRecordType type) {
+    LOG_TRACE(Service_FS, "Opening RomFS for title_id={:016X}, storage_id={:02X}, type={:02X}",
+              title_id, static_cast<u8>(storage_id), static_cast<u8>(type));
+
+    if (romfs_factory == nullptr) {
+        // TODO(bunnei): Find a better error code for this
+        return ResultCode(-1);
+    }
+
+    return romfs_factory->Open(title_id, storage_id, type);
 }
 
 ResultVal<FileSys::VirtualDir> OpenSaveData(FileSys::SaveDataSpaceId space,
