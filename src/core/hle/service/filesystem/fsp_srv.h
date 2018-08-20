@@ -25,6 +25,7 @@ private:
     void MountSaveData(Kernel::HLERequestContext& ctx);
     void GetGlobalAccessLogMode(Kernel::HLERequestContext& ctx);
     void OpenDataStorageByCurrentProcess(Kernel::HLERequestContext& ctx);
+    void OpenDataStorageByDataId(Kernel::HLERequestContext& ctx);
     void OpenRomStorage(Kernel::HLERequestContext& ctx);
 
     FileSys::VirtualFile romfs;

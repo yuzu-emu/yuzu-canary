@@ -27,6 +27,7 @@ enum class NCAContentType : u8 {
     Control = 2,
     Manual = 3,
     Data = 4,
+    Data_Unknown5 = 5, ///< Seems to be used on some system archives
 };
 
 enum class NCASectionCryptoType : u8 {

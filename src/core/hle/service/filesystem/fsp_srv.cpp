@@ -23,15 +23,6 @@
 
 namespace Service::FileSystem {
 
-enum class StorageId : u8 {
-    None = 0,
-    Host = 1,
-    GameCard = 2,
-    NandSystem = 3,
-    NandUser = 4,
-    SdCard = 5,
-};
-
 class IStorage final : public ServiceFramework<IStorage> {
 public:
     explicit IStorage(FileSys::VirtualFile backend_)
@@ -467,7 +458,7 @@ FSP_SRV::FSP_SRV() : ServiceFramework("fsp-srv") {
         {110, nullptr, "OpenContentStorageFileSystem"},
         {200, &FSP_SRV::OpenDataStorageByCurrentProcess, "OpenDataStorageByCurrentProcess"},
         {201, nullptr, "OpenDataStorageByProgramId"},
-        {202, nullptr, "OpenDataStorageByDataId"},
+        {202, &FSP_SRV::OpenDataStorageByDataId, "OpenDataStorageByDataId"},
         {203, &FSP_SRV::OpenRomStorage, "OpenRomStorage"},
         {400, nullptr, "OpenDeviceOperator"},
         {500, nullptr, "OpenSdCardDetectionEventNotifier"},
@@ -580,7 +571,7 @@ void FSP_SRV::GetGlobalAccessLogMode(Kernel::HLERequestContext& ctx) {
 void FSP_SRV::OpenDataStorageByCurrentProcess(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service_FS, "called");
 
-    auto romfs = OpenRomFS(Core::System::GetInstance().CurrentProcess()->program_id);
+    auto romfs = OpenRomFSCurrentProcess();
     if (romfs.Failed()) {
         // TODO (bunnei): Find the right error code to use here
         LOG_CRITICAL(Service_FS, "no file system interface available!");
@@ -596,10 +587,37 @@ void FSP_SRV::OpenDataStorageByCurrentProcess(Kernel::HLERequestContext& ctx) {
     rb.PushIpcInterface<IStorage>(std::move(storage));
 }
 
+void FSP_SRV::OpenDataStorageByDataId(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp{ctx};
+    const auto storage_id = rp.PopRaw<FileSys::StorageId>();
+    const auto unknown = rp.PopRaw<u32>();
+    const auto title_id = rp.PopRaw<u64>();
+
+    LOG_DEBUG(Service_FS, "called with storage_id={:02X}, unknown={:08X}, title_id={:016X}",
+              static_cast<u8>(storage_id), unknown, title_id);
+
+    auto data = OpenRomFS(title_id, storage_id, FileSys::ContentRecordType::Data);
+    if (data.Failed()) {
+        // TODO(DarkLordZach): Find the right error code to use here
+        LOG_ERROR(Service_FS,
+                  "could not open data storage with title_id={:016X}, storage_id={:02X}", title_id,
+                  static_cast<u8>(storage_id));
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(ResultCode(-1));
+        return;
+    }
+
+    IStorage storage(std::move(data.Unwrap()));
+
+    IPC::ResponseBuilder rb{ctx, 2, 0, 1};
+    rb.Push(RESULT_SUCCESS);
+    rb.PushIpcInterface<IStorage>(std::move(storage));
+}
+
 void FSP_SRV::OpenRomStorage(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp{ctx};
 
-    auto storage_id = rp.PopRaw<StorageId>();
+    auto storage_id = rp.PopRaw<FileSys::StorageId>();
     auto title_id = rp.PopRaw<u64>();
 
     LOG_DEBUG(Service_FS, "called with storage_id={:02X}, title_id={:016X}",
