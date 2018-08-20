@@ -11,12 +11,22 @@
 
 namespace FileSys {
 
+enum class StorageId : u8 {
+    None = 0,
+    Host = 1,
+    GameCard = 2,
+    NandSystem = 3,
+    NandUser = 4,
+    SdCard = 5,
+};
+
 /// File system interface to the RomFS archive
 class RomFSFactory {
 public:
     explicit RomFSFactory(Loader::AppLoader& app_loader);
 
-    ResultVal<VirtualFile> Open(u64 title_id);
+    ResultVal<VirtualFile> OpenCurrentProcess();
+    ResultVal<VirtualFile> Open(u64 title_id, StorageId storage, ContentRecordType type);
 
 private:
     VirtualFile file;
