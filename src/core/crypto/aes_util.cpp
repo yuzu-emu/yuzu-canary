@@ -99,10 +99,7 @@ void AESCipher<Key, KeySize>::Transcode(const u8* src, size_t size, u8* dest, Op
 template <typename Key, size_t KeySize>
 void AESCipher<Key, KeySize>::XTSTranscode(const u8* src, size_t size, u8* dest, size_t sector_id,
                                            size_t sector_size, Op op) {
-    if (size % sector_size > 0) {
-        LOG_CRITICAL(Crypto, "Data size must be a multiple of sector size.");
-        return;
-    }
+    ASSERT_MSG(size % sector_size == 0, "XTS decryption size must be a multiple of sector size.");
 
     for (size_t i = 0; i < size; i += sector_size) {
         SetIV(CalculateNintendoTweak(sector_id++));
