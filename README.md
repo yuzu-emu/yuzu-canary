@@ -1,3 +1,24 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: ac68c8a60529fede551378fe03e527930b998c71
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1135](https://github.com/yuzu-emu/yuzu/pull/1135)|[cda72cd](https://github.com/yuzu-emu/yuzu/pull/1135/files/)|gl_rasterizer_cache: Use CPU address for caching surfaces, and misc. changes.|[bunnei](https://github.com/bunnei)|Yes|
+|[1124](https://github.com/yuzu-emu/yuzu/pull/1124)|[2b9eee4](https://github.com/yuzu-emu/yuzu/pull/1124/files/)|GPU: Implemented logic ops.|[Subv](https://github.com/Subv)|Yes|
+|[1098](https://github.com/yuzu-emu/yuzu/pull/1098)|[4dc8d77](https://github.com/yuzu-emu/yuzu/pull/1098/files/)|gl_rasterizer: Implement partial color clear and stencil clear.|[bunnei](https://github.com/bunnei)|Yes|
+|[1088](https://github.com/yuzu-emu/yuzu/pull/1088)|[57bf5d0](https://github.com/yuzu-emu/yuzu/pull/1088/files/)|PL:U Added BFTTF loading(Loading from System NAND dumps)|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
