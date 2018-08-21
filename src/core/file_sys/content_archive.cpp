@@ -178,7 +178,7 @@ VirtualFile NCA::Decrypt(NCASectionHeader s_header, VirtualFile in, u64 starting
             return std::static_pointer_cast<VfsFile>(out);
         }
     case NCASectionCryptoType::XTS:
-        // TODO(DarkLordZach): Implement XTSEncryptionLayer.
+        // TODO(DarkLordZach): Find a test case for XTS-encrypted NCAs
     default:
         LOG_ERROR(Crypto, "called with unhandled crypto type={:02X}",
                   static_cast<u8>(s_header.raw.header.crypto_type));
