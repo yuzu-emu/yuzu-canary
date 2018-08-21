@@ -77,12 +77,13 @@ static ContentRecordType GetCRTypeFromNCAType(NCAContentType type) {
     case NCAContentType::Control:
         return ContentRecordType::Control;
     case NCAContentType::Data:
+    case NCAContentType::Data_Unknown5:
         return ContentRecordType::Data;
     case NCAContentType::Manual:
         // TODO(DarkLordZach): Peek at NCA contents to differentiate Manual and Legal.
         return ContentRecordType::Manual;
     default:
-        UNREACHABLE();
+        UNREACHABLE_MSG("Invalid NCAContentType={:02X}", static_cast<u8>(type));
     }
 }
 
