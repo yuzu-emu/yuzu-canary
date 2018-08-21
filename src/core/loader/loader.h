@@ -32,6 +32,7 @@ enum class FileType {
     NRO,
     NCA,
     XCI,
+    NAX,
     DeconstructedRomDirectory,
 };
 
@@ -93,6 +94,19 @@ enum class ResultStatus : u16 {
     ErrorLoadingNRO,
     ErrorNoIcon,
     ErrorNoControl,
+    ErrorBadNAXHeader,
+    ErrorIncorrectNAXFileSize,
+    ErrorNAXKeyHMACFailed,
+    ErrorNAXValidationHMACFailed,
+    ErrorNAXKeyDerivationFailed,
+    ErrorNAXInconvertibleToNCA,
+    ErrorBadNAXFilePath,
+    ErrorMissingSDSeed,
+    ErrorMissingSDKEKSource,
+    ErrorMissingAESKEKGenerationSource,
+    ErrorMissingAESKeyGenerationSource,
+    ErrorMissingSDSaveKeySource,
+    ErrorMissingSDNCAKeySource,
 };
 
 std::ostream& operator<<(std::ostream& os, ResultStatus status);
