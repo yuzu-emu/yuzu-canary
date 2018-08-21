@@ -311,6 +311,25 @@ public:
             AlwaysOld = 8,
         };
 
+        enum class LogicOperation : u32 {
+            Clear = 0x1500,
+            And = 0x1501,
+            AndReverse = 0x1502,
+            Copy = 0x1503,
+            AndInverted = 0x1504,
+            NoOp = 0x1505,
+            Xor = 0x1506,
+            Or = 0x1507,
+            Nor = 0x1508,
+            Equiv = 0x1509,
+            Invert = 0x150A,
+            OrReverse = 0x150B,
+            CopyInverted = 0x150C,
+            OrInverted = 0x150D,
+            Nand = 0x150E,
+            Set = 0x150F,
+        };
+
         struct Cull {
             enum class FrontFace : u32 {
                 ClockWise = 0x0900,
@@ -695,7 +714,14 @@ public:
 
                 Cull cull;
 
-                INSERT_PADDING_WORDS(0x2B);
+                INSERT_PADDING_WORDS(0x28);
+
+                struct {
+                    u32 enable;
+                    LogicOperation operation;
+                } logic_op;
+
+                INSERT_PADDING_WORDS(0x1);
 
                 union {
                     u32 raw;
@@ -942,6 +968,7 @@ ASSERT_REG_POSITION(draw, 0x585);
 ASSERT_REG_POSITION(index_array, 0x5F2);
 ASSERT_REG_POSITION(instanced_arrays, 0x620);
 ASSERT_REG_POSITION(cull, 0x646);
+ASSERT_REG_POSITION(logic_op, 0x671);
 ASSERT_REG_POSITION(clear_buffers, 0x674);
 ASSERT_REG_POSITION(query, 0x6C0);
 ASSERT_REG_POSITION(vertex_array[0], 0x700);
