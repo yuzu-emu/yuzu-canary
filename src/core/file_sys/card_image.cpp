@@ -43,6 +43,8 @@ XCI::XCI(VirtualFile file_) : file(std::move(file_)), partitions(0x4) {
             partitions[static_cast<size_t>(partition)] = std::make_shared<PartitionFilesystem>(raw);
     }
 
+    program_nca_status = Loader::ResultStatus::ErrorXCIMissingProgramNCA;
+
     auto result = AddNCAFromPartition(XCIPartition::Secure);
     if (result != Loader::ResultStatus::Success) {
         status = result;
@@ -74,6 +76,10 @@ XCI::XCI(VirtualFile file_) : file(std::move(file_)), partitions(0x4) {
 
 Loader::ResultStatus XCI::GetStatus() const {
     return status;
+}
+
+Loader::ResultStatus XCI::GetProgramNCAStatus() const {
+    return program_nca_status;
 }
 
 VirtualDir XCI::GetPartition(XCIPartition partition) const {
@@ -143,6 +149,9 @@ Loader::ResultStatus XCI::AddNCAFromPartition(XCIPartition part) {
         if (file->GetExtension() != "nca")
             continue;
         auto nca = std::make_shared<NCA>(file);
+        if (nca->GetType() == NCAContentType::Program) {
+            program_nca_status = nca->GetStatus();
+        }
         if (nca->GetStatus() == Loader::ResultStatus::Success) {
             ncas.push_back(std::move(nca));
         } else {
