@@ -626,12 +626,9 @@ struct SurfaceParams {
                GetFormatBpp(pixel_format) / CHAR_BIT;
     }
 
-    /// Returns the CPU virtual address for this surface
-    VAddr GetCpuAddr() const;
-
     /// Returns true if the specified region overlaps with this surface's region in Switch memory
-    bool IsOverlappingRegion(Tegra::GPUVAddr region_addr, size_t region_size) const {
-        return addr <= (region_addr + region_size) && region_addr <= (addr + size_in_bytes);
+    bool IsOverlappingRegion(VAddr region_addr, size_t region_size) const {
+        return cpu_addr <= (region_addr + region_size) && region_addr <= (cpu_addr + size_in_bytes);
     }
 
     /// Creates SurfaceParams from a texture configuration
@@ -647,9 +644,9 @@ struct SurfaceParams {
                                               Tegra::DepthFormat format);
 
     bool operator==(const SurfaceParams& other) const {
-        return std::tie(addr, is_tiled, block_height, pixel_format, component_type, type, width,
+        return std::tie(cpu_addr, is_tiled, block_height, pixel_format, component_type, type, width,
                         height, unaligned_height, size_in_bytes) ==
-               std::tie(other.addr, other.is_tiled, other.block_height, other.pixel_format,
+               std::tie(other.cpu_addr, other.is_tiled, other.block_height, other.pixel_format,
                         other.component_type, other.type, other.width, other.height,
                         other.unaligned_height, other.size_in_bytes);
     }
@@ -664,7 +661,7 @@ struct SurfaceParams {
                std::tie(other.pixel_format, other.type, other.cache_width, other.cache_height);
     }
 
-    Tegra::GPUVAddr addr;
+    VAddr cpu_addr;
     bool is_tiled;
     u32 block_height;
     PixelFormat pixel_format;
@@ -732,10 +729,10 @@ public:
     Surface TryFindFramebufferSurface(VAddr cpu_addr) const;
 
     /// Write any cached resources overlapping the region back to memory (if dirty)
-    void FlushRegion(Tegra::GPUVAddr addr, size_t size);
+    void FlushRegion(VAddr addr, size_t size);
 
     /// Mark the specified region as being invalidated
-    void InvalidateRegion(Tegra::GPUVAddr addr, size_t size);
+    void InvalidateRegion(VAddr addr, size_t size);
 
 private:
     void LoadSurface(const Surface& surface);
@@ -751,9 +748,9 @@ private:
     void UnregisterSurface(const Surface& surface);
 
     /// Increase/decrease the number of surface in pages touching the specified region
-    void UpdatePagesCachedCount(Tegra::GPUVAddr addr, u64 size, int delta);
+    void UpdatePagesCachedCount(VAddr addr, u64 size, int delta);
 
-    std::unordered_map<Tegra::GPUVAddr, Surface> surface_cache;
+    std::unordered_map<VAddr, Surface> surface_cache;
     PageMap cached_pages;
 
     OGLFramebuffer read_framebuffer;
