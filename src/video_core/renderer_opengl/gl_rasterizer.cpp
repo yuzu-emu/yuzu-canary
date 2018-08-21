@@ -449,6 +449,7 @@ void RasterizerOpenGL::DrawArrays() {
 
     SyncDepthTestState();
     SyncBlendState();
+    SyncLogicOpState();
     SyncCullMode();
 
     // TODO(bunnei): Sync framebuffer_scale uniform here
@@ -847,6 +848,9 @@ void RasterizerOpenGL::SyncBlendState() {
     if (!state.blend.enabled)
         return;
 
+    ASSERT_MSG(regs.logic_op.enable == 0,
+               "Blending and logic op can't be enabled at the same time.");
+
     ASSERT_MSG(regs.independent_blend_enable == 1, "Only independent blending is implemented");
     ASSERT_MSG(!regs.independent_blend[0].separate_alpha, "Unimplemented");
     state.blend.rgb_equation = MaxwellToGL::BlendEquation(regs.independent_blend[0].equation_rgb);
@@ -855,4 +859,18 @@ void RasterizerOpenGL::SyncBlendState() {
     state.blend.a_equation = MaxwellToGL::BlendEquation(regs.independent_blend[0].equation_a);
     state.blend.src_a_func = MaxwellToGL::BlendFunc(regs.independent_blend[0].factor_source_a);
     state.blend.dst_a_func = MaxwellToGL::BlendFunc(regs.independent_blend[0].factor_dest_a);
+}
+
+void RasterizerOpenGL::SyncLogicOpState() {
+    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
+
+    // TODO(Subv): Support more than just render target 0.
+    state.logic_op.enabled = regs.logic_op.enable != 0;
+
+    if (!state.logic_op.enabled)
+        return;
+
+    ASSERT_MSG(regs.blend.enable == 0, "Blending and logic op can't be enabled at the same time.");
+
+    state.logic_op.operation = MaxwellToGL::LogicOp(regs.logic_op.operation);
 }
