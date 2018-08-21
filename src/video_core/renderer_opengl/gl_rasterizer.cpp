@@ -14,6 +14,7 @@
 #include "common/logging/log.h"
 #include "common/math_util.h"
 #include "common/microprofile.h"
+#include "common/scope_exit.h"
 #include "core/core.h"
 #include "core/frontend/emu_window.h"
 #include "core/hle/kernel/process.h"
@@ -363,15 +364,30 @@ std::pair<Surface, Surface> RasterizerOpenGL::ConfigureFramebuffers(bool using_c
 
 void RasterizerOpenGL::Clear() {
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
-
+    const auto prev_state{state};
+    SCOPE_EXIT({
+        state = prev_state;
+        state.Apply();
+    });
     bool use_color_fb = false;
     bool use_depth_fb = false;
 
-    GLbitfield clear_mask = 0;
-    if (regs.clear_buffers.R && regs.clear_buffers.G && regs.clear_buffers.B &&
+    state.color_mask.red_enabled = regs.clear_buffers.R ? GL_TRUE : GL_FALSE;
+    state.color_mask.green_enabled = regs.clear_buffers.G ? GL_TRUE : GL_FALSE;
+    state.color_mask.blue_enabled = regs.clear_buffers.B ? GL_TRUE : GL_FALSE;
+    state.color_mask.alpha_enabled = regs.clear_buffers.A ? GL_TRUE : GL_FALSE;
+
+    GLbitfield clear_mask{};
+    if (regs.clear_buffers.R || regs.clear_buffers.G || regs.clear_buffers.B ||
         regs.clear_buffers.A) {
         clear_mask |= GL_COLOR_BUFFER_BIT;
         use_color_fb = true;
+
+        if (regs.clear_buffers.RT != 0) {
+            LOG_CRITICAL(HW_GPU, "Clear unimplemented for RT {}", regs.clear_buffers.RT);
+            UNREACHABLE();
+            return;
+        }
     }
     if (regs.clear_buffers.Z) {
         clear_mask |= GL_DEPTH_BUFFER_BIT;
@@ -382,21 +398,29 @@ void RasterizerOpenGL::Clear() {
         state.depth.test_enabled = true;
         state.depth.write_mask = GL_TRUE;
         state.depth.test_func = GL_ALWAYS;
-        state.Apply();
+    }
+    if (regs.clear_buffers.S) {
+        clear_mask |= GL_STENCIL_BUFFER_BIT;
+        state.stencil.test_enabled = true;
+        state.stencil.write_mask = GL_TRUE;
+        state.stencil.test_func = GL_ALWAYS;
     }
 
-    if (clear_mask == 0)
+    if (clear_mask == 0) {
         return;
+    }
+
+    state.Apply();
 
     ScopeAcquireGLContext acquire_context{emu_window};
 
     auto [dirty_color_surface, dirty_depth_surface] =
         ConfigureFramebuffers(use_color_fb, use_depth_fb, false);
 
-    // TODO(Subv): Support clearing only partial colors.
     glClearColor(regs.clear_color[0], regs.clear_color[1], regs.clear_color[2],
                  regs.clear_color[3]);
     glClearDepth(regs.clear_depth);
+    glClearStencil(regs.clear_stencil);
 
     glClear(clear_mask);
 
