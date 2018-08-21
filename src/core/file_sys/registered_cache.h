@@ -63,11 +63,15 @@ public:
     explicit RegisteredCache(VirtualDir dir,
                              RegisteredCacheParsingFunction parsing_function =
                                  [](const VirtualFile& file, const NcaID& id) { return file; });
+    ~RegisteredCache();
 
     void Refresh();
 
     bool HasEntry(u64 title_id, ContentRecordType type) const;
     bool HasEntry(RegisteredCacheEntry entry) const;
+
+    VirtualFile GetEntryUnparsed(u64 title_id, ContentRecordType type) const;
+    VirtualFile GetEntryUnparsed(RegisteredCacheEntry entry) const;
 
     VirtualFile GetEntryRaw(u64 title_id, ContentRecordType type) const;
     VirtualFile GetEntryRaw(RegisteredCacheEntry entry) const;
