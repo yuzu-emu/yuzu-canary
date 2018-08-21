@@ -83,7 +83,10 @@ public:
         } color; // GL_BLEND_COLOR
     } blend;
 
-    GLenum logic_op; // GL_LOGIC_OP_MODE
+    struct {
+        bool enabled; // GL_LOGIC_OP_MODE
+        GLenum operation;
+    } logic_op;
 
     // 3 texture units - one for each that is used in PICA fragment shader emulation
     struct TextureUnit {
