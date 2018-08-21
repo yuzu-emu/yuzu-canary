@@ -37,9 +37,9 @@ public:
     void Clear() override;
     void NotifyMaxwellRegisterChanged(u32 method) override;
     void FlushAll() override;
-    void FlushRegion(Tegra::GPUVAddr addr, u64 size) override;
-    void InvalidateRegion(Tegra::GPUVAddr addr, u64 size) override;
-    void FlushAndInvalidateRegion(Tegra::GPUVAddr addr, u64 size) override;
+    void FlushRegion(VAddr addr, u64 size) override;
+    void InvalidateRegion(VAddr addr, u64 size) override;
+    void FlushAndInvalidateRegion(VAddr addr, u64 size) override;
     bool AccelerateDisplayTransfer(const void* config) override;
     bool AccelerateTextureCopy(const void* config) override;
     bool AccelerateFill(const void* config) override;
