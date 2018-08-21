@@ -45,7 +45,8 @@ OpenGLState::OpenGLState() {
     blend.color.blue = 0.0f;
     blend.color.alpha = 0.0f;
 
-    logic_op = GL_COPY;
+    logic_op.enabled = false;
+    logic_op.operation = GL_COPY;
 
     for (auto& texture_unit : texture_units) {
         texture_unit.Reset();
@@ -148,11 +149,10 @@ void OpenGLState::Apply() const {
     // Blending
     if (blend.enabled != cur_state.blend.enabled) {
         if (blend.enabled) {
+            ASSERT(!logic_op.enabled);
             glEnable(GL_BLEND);
-            glDisable(GL_COLOR_LOGIC_OP);
         } else {
             glDisable(GL_BLEND);
-            glEnable(GL_COLOR_LOGIC_OP);
         }
     }
 
@@ -176,8 +176,18 @@ void OpenGLState::Apply() const {
         glBlendEquationSeparate(blend.rgb_equation, blend.a_equation);
     }
 
-    if (logic_op != cur_state.logic_op) {
-        glLogicOp(logic_op);
+    // Logic Operation
+    if (logic_op.enabled != cur_state.logic_op.enabled) {
+        if (logic_op.enabled) {
+            ASSERT(!blend.enabled);
+            glEnable(GL_COLOR_LOGIC_OP);
+        } else {
+            glDisable(GL_COLOR_LOGIC_OP);
+        }
+    }
+
+    if (logic_op.operation != cur_state.logic_op.operation) {
+        glLogicOp(logic_op.operation);
     }
 
     // Textures
