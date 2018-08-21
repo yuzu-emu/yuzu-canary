@@ -59,6 +59,7 @@ public:
     explicit XCI(VirtualFile file);
 
     Loader::ResultStatus GetStatus() const;
+    Loader::ResultStatus GetProgramNCAStatus() const;
 
     u8 GetFormatVersion() const;
 
@@ -90,6 +91,7 @@ private:
     GamecardHeader header{};
 
     Loader::ResultStatus status;
+    Loader::ResultStatus program_nca_status;
 
     std::vector<VirtualDir> partitions;
     std::vector<std::shared_ptr<NCA>> ncas;

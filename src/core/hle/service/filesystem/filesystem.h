@@ -46,8 +46,12 @@ ResultVal<FileSys::VirtualDir> OpenSDMC();
 
 std::shared_ptr<FileSys::RegisteredCache> GetSystemNANDContents();
 std::shared_ptr<FileSys::RegisteredCache> GetUserNANDContents();
+std::shared_ptr<FileSys::RegisteredCache> GetSDMCContents();
 
-/// Registers all Filesystem services with the specified service manager.
+// Creates the SaveData, SDMC, and BIS Factories. Should be called once and before any function
+// above is called.
+void CreateFactories(const FileSys::VirtualFilesystem& vfs, bool overwrite = true);
+
 void InstallInterfaces(SM::ServiceManager& service_manager, const FileSys::VirtualFilesystem& vfs);
 
 // A class that wraps a VfsDirectory with methods that return ResultVal and ResultCode instead of
