@@ -61,11 +61,12 @@ ResultStatus AppLoader_XCI::Load(Kernel::SharedPtr<Kernel::Process>& process) {
     if (xci->GetStatus() != ResultStatus::Success)
         return xci->GetStatus();
 
-    if (xci->GetNCAFileByType(FileSys::NCAContentType::Program) == nullptr) {
-        if (!Core::Crypto::KeyManager::KeyFileExists(false))
-            return ResultStatus::ErrorMissingProductionKeyFile;
-        return ResultStatus::ErrorXCIMissingProgramNCA;
-    }
+    if (xci->GetProgramNCAStatus() != ResultStatus::Success)
+        return xci->GetProgramNCAStatus();
+
+    const auto nca = xci->GetNCAFileByType(FileSys::NCAContentType::Program);
+    if (nca == nullptr && !Core::Crypto::KeyManager::KeyFileExists(false))
+        return ResultStatus::ErrorMissingProductionKeyFile;
 
     auto result = nca_loader->Load(process);
     if (result != ResultStatus::Success)

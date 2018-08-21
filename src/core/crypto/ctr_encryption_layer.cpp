@@ -20,10 +20,8 @@ size_t CTREncryptionLayer::Read(u8* data, size_t length, size_t offset) const {
     if (sector_offset == 0) {
         UpdateIV(base_offset + offset);
         std::vector<u8> raw = base->ReadBytes(length, offset);
-        if (raw.size() != length)
-            return Read(data, raw.size(), offset);
-        cipher.Transcode(raw.data(), length, data, Op::Decrypt);
-        return length;
+        cipher.Transcode(raw.data(), raw.size(), data, Op::Decrypt);
+        return raw.size();
     }
 
     // offset does not fall on block boundary (0x10)
@@ -34,7 +32,7 @@ size_t CTREncryptionLayer::Read(u8* data, size_t length, size_t offset) const {
 
     if (length + sector_offset < 0x10) {
         std::memcpy(data, block.data() + sector_offset, std::min<u64>(length, read));
-        return read;
+        return std::min<u64>(length, read);
     }
     std::memcpy(data, block.data() + sector_offset, read);
     return read + Read(data + read, length - read, offset + read);
