@@ -142,6 +142,9 @@ private:
     /// Syncs the blend state to match the guest state
     void SyncBlendState();
 
+    /// Syncs the LogicOp state to match the guest state
+    void SyncLogicOpState();
+
     bool has_ARB_direct_state_access = false;
     bool has_ARB_separate_shader_objects = false;
     bool has_ARB_vertex_attrib_binding = false;
