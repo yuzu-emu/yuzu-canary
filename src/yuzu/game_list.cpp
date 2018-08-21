@@ -426,13 +426,12 @@ static void GetMetadataFromControlNCA(const std::shared_ptr<FileSys::NCA>& nca,
     }
 }
 
-void GameListWorker::AddInstalledTitlesToGameList() {
-    const auto usernand = Service::FileSystem::GetUserNANDContents();
-    const auto installed_games = usernand->ListEntriesFilter(FileSys::TitleType::Application,
-                                                             FileSys::ContentRecordType::Program);
+void GameListWorker::AddInstalledTitlesToGameList(std::shared_ptr<FileSys::RegisteredCache> cache) {
+    const auto installed_games = cache->ListEntriesFilter(FileSys::TitleType::Application,
+                                                          FileSys::ContentRecordType::Program);
 
     for (const auto& game : installed_games) {
-        const auto& file = usernand->GetEntryRaw(game);
+        const auto& file = cache->GetEntryUnparsed(game);
         std::unique_ptr<Loader::AppLoader> loader = Loader::GetLoader(file);
         if (!loader)
             continue;
@@ -442,8 +441,7 @@ void GameListWorker::AddInstalledTitlesToGameList() {
         u64 program_id = 0;
         loader->ReadProgramId(program_id);
 
-        const auto& control =
-            usernand->GetEntry(game.title_id, FileSys::ContentRecordType::Control);
+        const auto& control = cache->GetEntry(game.title_id, FileSys::ContentRecordType::Control);
         if (control != nullptr)
             GetMetadataFromControlNCA(control, icon, name);
         emit EntryReady({
@@ -457,11 +455,11 @@ void GameListWorker::AddInstalledTitlesToGameList() {
         });
     }
 
-    const auto control_data = usernand->ListEntriesFilter(FileSys::TitleType::Application,
-                                                          FileSys::ContentRecordType::Control);
+    const auto control_data = cache->ListEntriesFilter(FileSys::TitleType::Application,
+                                                       FileSys::ContentRecordType::Control);
 
     for (const auto& entry : control_data) {
-        const auto nca = usernand->GetEntry(entry);
+        const auto nca = cache->GetEntry(entry);
         if (nca != nullptr)
             nca_control_map.insert_or_assign(entry.title_id, nca);
     }
@@ -549,7 +547,9 @@ void GameListWorker::run() {
     stop_processing = false;
     watch_list.append(dir_path);
     FillControlMap(dir_path.toStdString());
-    AddInstalledTitlesToGameList();
+    AddInstalledTitlesToGameList(Service::FileSystem::GetUserNANDContents());
+    AddInstalledTitlesToGameList(Service::FileSystem::GetSystemNANDContents());
+    AddInstalledTitlesToGameList(Service::FileSystem::GetSDMCContents());
     AddFstEntriesToGameList(dir_path.toStdString(), deep_scan ? 256 : 0);
     nca_control_map.clear();
     emit Finished(watch_list);
