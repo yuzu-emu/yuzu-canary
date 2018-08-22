@@ -508,8 +508,10 @@ public:
 
                 float clear_color[4];
                 float clear_depth;
+                INSERT_PADDING_WORDS(0x3);
+                s32 clear_stencil;
 
-                INSERT_PADDING_WORDS(0x93);
+                INSERT_PADDING_WORDS(0x8F);
 
                 struct {
                     u32 address_high;
@@ -944,6 +946,7 @@ ASSERT_REG_POSITION(viewport, 0x300);
 ASSERT_REG_POSITION(vertex_buffer, 0x35D);
 ASSERT_REG_POSITION(clear_color[0], 0x360);
 ASSERT_REG_POSITION(clear_depth, 0x364);
+ASSERT_REG_POSITION(clear_stencil, 0x368);
 ASSERT_REG_POSITION(zeta, 0x3F8);
 ASSERT_REG_POSITION(vertex_attrib_format[0], 0x458);
 ASSERT_REG_POSITION(rt_control, 0x487);
