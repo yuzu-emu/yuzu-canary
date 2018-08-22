@@ -440,12 +440,13 @@ public:
         }
         declarations.AddNewLine();
 
-        const auto& samplers = GetSamplers();
-        for (const auto& sampler : samplers) {
-            declarations.AddLine("uniform " + sampler.GetTypeString() + ' ' + sampler.GetName() +
-                                 ';');
+        // Append the sampler2D array for the used textures.
+        size_t num_samplers = GetSamplers().size();
+        if (num_samplers > 0) {
+            declarations.AddLine("uniform sampler2D " + SamplerEntry::GetArrayName(stage) + '[' +
+                                 std::to_string(num_samplers) + "];");
+            declarations.AddNewLine();
         }
-        declarations.AddNewLine();
     }
 
     /// Returns a list of constant buffer declarations
@@ -457,14 +458,13 @@ public:
     }
 
     /// Returns a list of samplers used in the shader
-    const std::vector<SamplerEntry>& GetSamplers() const {
+    std::vector<SamplerEntry> GetSamplers() const {
         return used_samplers;
     }
 
     /// Returns the GLSL sampler used for the input shader sampler, and creates a new one if
     /// necessary.
-    std::string AccessSampler(const Sampler& sampler, Tegra::Shader::TextureType type,
-                              bool is_array) {
+    std::string AccessSampler(const Sampler& sampler) {
         size_t offset = static_cast<size_t>(sampler.index.Value());
 
         // If this sampler has already been used, return the existing mapping.
@@ -473,13 +473,12 @@ public:
                          [&](const SamplerEntry& entry) { return entry.GetOffset() == offset; });
 
         if (itr != used_samplers.end()) {
-            ASSERT(itr->GetType() == type && itr->IsArray() == is_array);
             return itr->GetName();
         }
 
         // Otherwise create a new mapping for this sampler
         size_t next_index = used_samplers.size();
-        SamplerEntry entry{stage, offset, next_index, type, is_array};
+        SamplerEntry entry{stage, offset, next_index};
         used_samplers.emplace_back(entry);
         return entry.GetName();
     }
@@ -657,8 +656,8 @@ private:
     }
 
     /// Generates code representing a texture sampler.
-    std::string GetSampler(const Sampler& sampler, Tegra::Shader::TextureType type, bool is_array) {
-        return regs.AccessSampler(sampler, type, is_array);
+    std::string GetSampler(const Sampler& sampler) {
+        return regs.AccessSampler(sampler);
     }
 
     /**
@@ -1556,39 +1555,10 @@ private:
                 break;
             }
             case OpCode::Id::TEX: {
-                ASSERT_MSG(instr.tex.array == 0, "TEX arrays unimplemented");
-                std::string coord{};
-
-                switch (instr.tex.texture_type) {
-                case Tegra::Shader::TextureType::Texture2D: {
-                    std::string x = regs.GetRegisterAsFloat(instr.gpr8);
-                    std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
-                    coord = "vec2 coords = vec2(" + x + ", " + y + ");";
-                    break;
-                }
-                case Tegra::Shader::TextureType::Texture3D: {
-                    std::string x = regs.GetRegisterAsFloat(instr.gpr8);
-                    std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
-                    std::string z = regs.GetRegisterAsFloat(instr.gpr20);
-                    coord = "vec3 coords = vec3(" + x + ", " + y + ", " + z + ");";
-                    break;
-                }
-                case Tegra::Shader::TextureType::TextureCube: {
-                    std::string x = regs.GetRegisterAsFloat(instr.gpr8);
-                    std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
-                    std::string z = regs.GetRegisterAsFloat(instr.gpr8.Value() + 2);
-                    ASSERT(instr.gpr20.Value() == Register::ZeroIndex);
-                    coord = "vec3 coords = vec3(" + x + ", " + y + ", " + z + ");";
-                    break;
-                }
-                default:
-                    LOG_CRITICAL(HW_GPU, "Unhandled texture type {}",
-                                 static_cast<u32>(instr.tex.texture_type.Value()));
-                    UNREACHABLE();
-                }
-
-                const std::string sampler =
-                    GetSampler(instr.sampler, instr.tex.texture_type, instr.tex.array);
+                const std::string op_a = regs.GetRegisterAsFloat(instr.gpr8);
+                const std::string op_b = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                const std::string sampler = GetSampler(instr.sampler);
+                const std::string coord = "vec2 coords = vec2(" + op_a + ", " + op_b + ");";
                 // Add an extra scope and declare the texture coords inside to prevent
                 // overwriting them in case they are used as outputs of the texs instruction.
                 shader.AddLine("{");
@@ -1610,72 +1580,20 @@ private:
                 break;
             }
             case OpCode::Id::TEXS: {
-                std::string coord{};
-
-                switch (instr.texs.GetTextureType()) {
-                case Tegra::Shader::TextureType::Texture2D: {
-                    if (instr.texs.IsArrayTexture()) {
-                        std::string index = regs.GetRegisterAsInteger(instr.gpr8);
-                        std::string x = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
-                        std::string y = regs.GetRegisterAsFloat(instr.gpr20);
-                        coord = "vec3 coords = vec3(" + x + ", " + y + ", " + index + ");";
-                    } else {
-                        std::string x = regs.GetRegisterAsFloat(instr.gpr8);
-                        std::string y = regs.GetRegisterAsFloat(instr.gpr20);
-                        coord = "vec2 coords = vec2(" + x + ", " + y + ");";
-                    }
-                    break;
-                }
-                case Tegra::Shader::TextureType::Texture3D: {
-                    std::string x = regs.GetRegisterAsFloat(instr.gpr8);
-                    std::string y = regs.GetRegisterAsFloat(instr.gpr20);
-                    std::string z = regs.GetRegisterAsFloat(instr.gpr20.Value() + 1);
-                    coord = "vec3 coords = vec3(" + x + ", " + y + ", " + z + ");";
-                    break;
-                }
-                case Tegra::Shader::TextureType::TextureCube: {
-                    std::string x = regs.GetRegisterAsFloat(instr.gpr8);
-                    std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
-                    std::string z = regs.GetRegisterAsFloat(instr.gpr20);
-                    coord = "vec3 coords = vec3(" + x + ", " + y + ", " + z + ");";
-                    break;
-                }
-                default:
-                    LOG_CRITICAL(HW_GPU, "Unhandled texture type {}",
-                                 static_cast<u32>(instr.texs.GetTextureType()));
-                    UNREACHABLE();
-                }
-                const std::string sampler = GetSampler(instr.sampler, instr.texs.GetTextureType(),
-                                                       instr.texs.IsArrayTexture());
+                const std::string op_a = regs.GetRegisterAsFloat(instr.gpr8);
+                const std::string op_b = regs.GetRegisterAsFloat(instr.gpr20);
+                const std::string sampler = GetSampler(instr.sampler);
+                const std::string coord = "vec2 coords = vec2(" + op_a + ", " + op_b + ");";
 
                 const std::string texture = "texture(" + sampler + ", coords)";
                 WriteTexsInstruction(instr, coord, texture);
                 break;
             }
             case OpCode::Id::TLDS: {
-                ASSERT(instr.tlds.GetTextureType() == Tegra::Shader::TextureType::Texture2D);
-                ASSERT(instr.tlds.IsArrayTexture() == false);
-                std::string coord{};
-
-                switch (instr.tlds.GetTextureType()) {
-                case Tegra::Shader::TextureType::Texture2D: {
-                    if (instr.tlds.IsArrayTexture()) {
-                        LOG_CRITICAL(HW_GPU, "Unhandled 2d array texture");
-                        UNREACHABLE();
-                    } else {
-                        std::string x = regs.GetRegisterAsInteger(instr.gpr8);
-                        std::string y = regs.GetRegisterAsInteger(instr.gpr20);
-                        coord = "ivec2 coords = ivec2(" + x + ", " + y + ");";
-                    }
-                    break;
-                }
-                default:
-                    LOG_CRITICAL(HW_GPU, "Unhandled texture type {}",
-                                 static_cast<u32>(instr.tlds.GetTextureType()));
-                    UNREACHABLE();
-                }
-                const std::string sampler = GetSampler(instr.sampler, instr.tlds.GetTextureType(),
-                                                       instr.tlds.IsArrayTexture());
+                const std::string op_a = regs.GetRegisterAsInteger(instr.gpr8);
+                const std::string op_b = regs.GetRegisterAsInteger(instr.gpr20);
+                const std::string sampler = GetSampler(instr.sampler);
+                const std::string coord = "ivec2 coords = ivec2(" + op_a + ", " + op_b + ");";
                 const std::string texture = "texelFetch(" + sampler + ", coords, 0)";
                 WriteTexsInstruction(instr, coord, texture);
                 break;
@@ -1698,8 +1616,7 @@ private:
                     UNREACHABLE();
                 }
 
-                const std::string sampler =
-                    GetSampler(instr.sampler, instr.tld4.texture_type, instr.tld4.array);
+                const std::string sampler = GetSampler(instr.sampler);
                 // Add an extra scope and declare the texture coords inside to prevent
                 // overwriting them in case they are used as outputs of the texs instruction.
                 shader.AddLine("{");
@@ -1725,8 +1642,7 @@ private:
                 const std::string op_a = regs.GetRegisterAsFloat(instr.gpr8);
                 const std::string op_b = regs.GetRegisterAsFloat(instr.gpr20);
                 // TODO(Subv): Figure out how the sampler type is encoded in the TLD4S instruction.
-                const std::string sampler =
-                    GetSampler(instr.sampler, Tegra::Shader::TextureType::Texture2D, false);
+                const std::string sampler = GetSampler(instr.sampler);
                 const std::string coord = "vec2 coords = vec2(" + op_a + ", " + op_b + ");";
                 const std::string texture = "textureGather(" + sampler + ", coords, " +
                                             std::to_string(instr.tld4s.component) + ')';
