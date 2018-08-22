@@ -280,6 +280,19 @@ union Instruction {
             BitField<56, 1, u64> invert_b;
         } lop32i;
 
+        union {
+            BitField<28, 8, u64> imm_lut28;
+            BitField<48, 8, u64> imm_lut48;
+
+            u32 GetImmLut28() const {
+                return static_cast<u32>(imm_lut28);
+            }
+
+            u32 GetImmLut48() const {
+                return static_cast<u32>(imm_lut48);
+            }
+        } lop3;
+
         u32 GetImm20_19() const {
             u32 imm{static_cast<u32>(imm20_19)};
             imm <<= 12;
@@ -650,6 +663,9 @@ public:
         LOP_R,
         LOP_IMM,
         LOP32I,
+        LOP3_C,
+        LOP3_R,
+        LOP3_IMM,
         MOV_C,
         MOV_R,
         MOV_IMM,
@@ -872,6 +888,9 @@ private:
             INST("0101110001000---", Id::LOP_R, Type::ArithmeticInteger, "LOP_R"),
             INST("0011100001000---", Id::LOP_IMM, Type::ArithmeticInteger, "LOP_IMM"),
             INST("000001----------", Id::LOP32I, Type::ArithmeticIntegerImmediate, "LOP32I"),
+            INST("0000001---------", Id::LOP3_C, Type::ArithmeticInteger, "LOP3_C"),
+            INST("0101101111100---", Id::LOP3_R, Type::ArithmeticInteger, "LOP3_R"),
+            INST("0011110---------", Id::LOP3_IMM, Type::ArithmeticInteger, "LOP3_IMM"),
             INST("0100110001001---", Id::SHL_C, Type::Shift, "SHL_C"),
             INST("0101110001001---", Id::SHL_R, Type::Shift, "SHL_R"),
             INST("0011100-01001---", Id::SHL_IMM, Type::Shift, "SHL_IMM"),
