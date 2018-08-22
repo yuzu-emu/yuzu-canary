@@ -1,3 +1,23 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 38517241ec5427e57802a245f758013d05e703fe
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1151](https://github.com/yuzu-emu/yuzu/pull/1151)|[d63b1d2](https://github.com/yuzu-emu/yuzu/pull/1151/files/)|Revert "Shader: Use the right sampler type in the TEX, TEXS and TLDS …"|[bunnei](https://github.com/bunnei)|Yes|
+|[1124](https://github.com/yuzu-emu/yuzu/pull/1124)|[2b9eee4](https://github.com/yuzu-emu/yuzu/pull/1124/files/)|GPU: Implemented logic ops.|[Subv](https://github.com/Subv)|Yes|
+|[1098](https://github.com/yuzu-emu/yuzu/pull/1098)|[c78cd6f](https://github.com/yuzu-emu/yuzu/pull/1098/files/)|gl_rasterizer: Implement partial color clear and stencil clear.|[bunnei](https://github.com/bunnei)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
