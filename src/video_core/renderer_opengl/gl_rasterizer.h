@@ -141,6 +141,9 @@ private:
     /// Syncs the depth test state to match the guest state
     void SyncDepthTestState();
 
+    /// Syncs the stencil test state to match the guest state
+    void SyncStencilTestState();
+
     /// Syncs the blend state to match the guest state
     void SyncBlendState();
 

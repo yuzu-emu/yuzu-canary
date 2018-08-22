@@ -27,13 +27,17 @@ OpenGLState::OpenGLState() {
     color_mask.alpha_enabled = GL_TRUE;
 
     stencil.test_enabled = false;
-    stencil.test_func = GL_ALWAYS;
-    stencil.test_ref = 0;
-    stencil.test_mask = 0xFF;
-    stencil.write_mask = 0xFF;
-    stencil.action_depth_fail = GL_KEEP;
-    stencil.action_depth_pass = GL_KEEP;
-    stencil.action_stencil_fail = GL_KEEP;
+    auto reset_stencil = [](auto& config) {
+        config.test_func = GL_ALWAYS;
+        config.test_ref = 0;
+        config.test_mask = 0xFFFFFFFF;
+        config.write_mask = 0xFFFFFFFF;
+        config.action_depth_fail = GL_KEEP;
+        config.action_depth_pass = GL_KEEP;
+        config.action_stencil_fail = GL_KEEP;
+    };
+    reset_stencil(stencil.front);
+    reset_stencil(stencil.back);
 
     blend.enabled = true;
     blend.rgb_equation = GL_FUNC_ADD;
@@ -129,24 +133,23 @@ void OpenGLState::Apply() const {
             glDisable(GL_STENCIL_TEST);
         }
     }
-
-    if (stencil.test_func != cur_state.stencil.test_func ||
-        stencil.test_ref != cur_state.stencil.test_ref ||
-        stencil.test_mask != cur_state.stencil.test_mask) {
-        glStencilFunc(stencil.test_func, stencil.test_ref, stencil.test_mask);
-    }
-
-    if (stencil.action_depth_fail != cur_state.stencil.action_depth_fail ||
-        stencil.action_depth_pass != cur_state.stencil.action_depth_pass ||
-        stencil.action_stencil_fail != cur_state.stencil.action_stencil_fail) {
-        glStencilOp(stencil.action_stencil_fail, stencil.action_depth_fail,
-                    stencil.action_depth_pass);
-    }
-
-    // Stencil mask
-    if (stencil.write_mask != cur_state.stencil.write_mask) {
-        glStencilMask(stencil.write_mask);
-    }
+    auto config_stencil = [](GLenum face, const auto& config, const auto& prev_config) {
+        if (config.test_func != prev_config.test_func || config.test_ref != prev_config.test_ref ||
+            config.test_mask != prev_config.test_mask) {
+            glStencilFuncSeparate(face, config.test_func, config.test_ref, config.test_mask);
+        }
+        if (config.action_depth_fail != prev_config.action_depth_fail ||
+            config.action_depth_pass != prev_config.action_depth_pass ||
+            config.action_stencil_fail != prev_config.action_stencil_fail) {
+            glStencilOpSeparate(face, config.action_stencil_fail, config.action_depth_fail,
+                                config.action_depth_pass);
+        }
+        if (config.write_mask != prev_config.write_mask) {
+            glStencilMaskSeparate(face, config.write_mask);
+        }
+    };
+    config_stencil(GL_FRONT, stencil.front, cur_state.stencil.front);
+    config_stencil(GL_BACK, stencil.back, cur_state.stencil.back);
 
     // Blending
     if (blend.enabled != cur_state.blend.enabled) {
