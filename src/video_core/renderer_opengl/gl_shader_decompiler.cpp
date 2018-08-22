@@ -849,6 +849,33 @@ private:
         }
     }
 
+    void WriteLop3Instruction(Register dest, const std::string& op_a, const std::string& op_b,
+                              const std::string& op_c, const std::string& imm_lut) {
+        if (dest == Tegra::Shader::Register::ZeroIndex) {
+            return;
+        }
+
+        static constexpr std::array<const char*, 32> shift_amounts = {
+            "0",  "1",  "2",  "3",  "4",  "5",  "6",  "7",  "8",  "9",  "10",
+            "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21",
+            "22", "23", "24", "25", "26", "27", "28", "29", "30", "31"};
+
+        std::string result;
+        result += '(';
+
+        for (size_t i = 0; i < shift_amounts.size(); ++i) {
+            if (i)
+                result += '|';
+            result += "(((" + imm_lut + " >> (((" + op_c + " >> " + shift_amounts[i] +
+                      ") & 1) | ((" + op_b + " >> " + shift_amounts[i] + ") & 1) << 1 | ((" + op_a +
+                      " >> " + shift_amounts[i] + ") & 1) << 2)) & 1) << " + shift_amounts[i] + ")";
+        }
+
+        result += ')';
+
+        regs.SetRegisterToInteger(dest, true, 0, result, 1, 1);
+    }
+
     void WriteTexsInstruction(const Instruction& instr, const std::string& coord,
                               const std::string& texture) {
         // Add an extra scope and declare the texture coords inside to prevent
@@ -1295,6 +1322,20 @@ private:
 
                 WriteLogicOperation(instr.gpr0, instr.alu.lop.operation, op_a, op_b,
                                     instr.alu.lop.pred_result_mode, instr.alu.lop.pred48);
+                break;
+            }
+            case OpCode::Id::LOP3_C:
+            case OpCode::Id::LOP3_R:
+            case OpCode::Id::LOP3_IMM: {
+                std::string op_c = regs.GetRegisterAsInteger(instr.gpr39);
+                std::string lut;
+                if (opcode->GetId() == OpCode::Id::LOP3_R) {
+                    lut = '(' + std::to_string(instr.alu.lop3.GetImmLut28()) + ')';
+                } else {
+                    lut = '(' + std::to_string(instr.alu.lop3.GetImmLut48()) + ')';
+                }
+
+                WriteLop3Instruction(instr.gpr0, op_a, op_b, op_c, lut);
                 break;
             }
             case OpCode::Id::IMNMX_C:
