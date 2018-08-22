@@ -849,6 +849,26 @@ private:
         }
     }
 
+    void WriteLop3Instruction(Register dest, const std::string& op_a, const std::string& op_b,
+                              const std::string& op_c, const std::string& imm_lut) {
+        std::string result;
+        result += '(';
+
+        for (u32 i = 0; i < 32; ++i) {
+            std::string ix = std::to_string(i);
+            if (i)
+                result += '|';
+            result += "(((" + imm_lut + ">>(((" + op_c + ">>" + ix + ")&1)|((" + op_b + ">>" + ix +
+                      ")&1)<<1|((" + op_a + ">>" + ix + ")&1)<<2))&1)<<" + ix + ")";
+        }
+
+        result += ')';
+
+        if (dest != Tegra::Shader::Register::ZeroIndex) {
+            regs.SetRegisterToInteger(dest, true, 0, result, 1, 1);
+        }
+    }
+
     void WriteTexsInstruction(const Instruction& instr, const std::string& coord,
                               const std::string& texture) {
         // Add an extra scope and declare the texture coords inside to prevent
@@ -1295,6 +1315,20 @@ private:
 
                 WriteLogicOperation(instr.gpr0, instr.alu.lop.operation, op_a, op_b,
                                     instr.alu.lop.pred_result_mode, instr.alu.lop.pred48);
+                break;
+            }
+            case OpCode::Id::LOP3_C:
+            case OpCode::Id::LOP3_R:
+            case OpCode::Id::LOP3_IMM: {
+                std::string op_c = regs.GetRegisterAsInteger(instr.gpr39);
+                std::string lut;
+                if (opcode->GetId() == OpCode::Id::LOP3_R) {
+                    lut = '(' + std::to_string(instr.alu.lop3.GetImmLut28()) + ')';
+                } else {
+                    lut = '(' + std::to_string(instr.alu.lop3.GetImmLut48()) + ')';
+                }
+
+                WriteLop3Instruction(instr.gpr0, op_a, op_b, op_c, lut);
                 break;
             }
             case OpCode::Id::IMNMX_C:
