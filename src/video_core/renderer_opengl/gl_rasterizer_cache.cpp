@@ -780,17 +780,30 @@ Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, bool pres
         } else if (preserve_contents) {
             // If surface parameters changed and we care about keeping the previous data, recreate
             // the surface from the old one
-            return RecreateSurface(surface, params);
+            UnregisterSurface(surface);
+            Surface new_surface{RecreateSurface(surface, params)};
+            RegisterSurface(new_surface);
+            return new_surface;
         } else {
             // Delete the old surface before creating a new one to prevent collisions.
             UnregisterSurface(surface);
         }
     }
 
+    // Try to get a previously reserved surface
+    surface = TryGetReservedSurface(params);
+
     // No surface found - create a new one
-    surface = std::make_shared<CachedSurface>(params);
-    RegisterSurface(surface);
-    LoadSurface(surface);
+    if (!surface) {
+        surface = std::make_shared<CachedSurface>(params);
+        ReserveSurface(surface);
+        RegisterSurface(surface);
+    }
+
+    // Only load surface from memory if we care about the contents
+    if (preserve_contents) {
+        LoadSurface(surface);
+    }
 
     return surface;
 }
@@ -799,12 +812,17 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& surface,
                                                const SurfaceParams& new_params) {
     // Verify surface is compatible for blitting
     const auto& params{surface->GetSurfaceParams()};
-    ASSERT(params.type == new_params.type);
-    ASSERT_MSG(params.GetCompressionFactor(params.pixel_format) == 1,
-               "Compressed texture reinterpretation is not supported");
 
     // Create a new surface with the new parameters, and blit the previous surface to it
     Surface new_surface{std::make_shared<CachedSurface>(new_params)};
+
+    // If format is unchanged, we can do a faster blit without reinterpreting pixel data
+    if (params.pixel_format == new_params.pixel_format) {
+        BlitTextures(surface->Texture().handle, params.GetRect(), new_surface->Texture().handle,
+                     new_surface->GetSurfaceParams().GetRect(), params.type,
+                     read_framebuffer.handle, draw_framebuffer.handle);
+        return new_surface;
+    }
 
     auto source_format = GetFormatTuple(params.pixel_format, params.component_type);
     auto dest_format = GetFormatTuple(new_params.pixel_format, new_params.component_type);
@@ -818,9 +836,13 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& surface,
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo.handle);
     glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size, nullptr, GL_STREAM_DRAW_ARB);
-    glGetTextureImage(surface->Texture().handle, 0, source_format.format, source_format.type,
-                      params.SizeInBytes(), nullptr);
-
+    if (source_format.compressed) {
+        glGetCompressedTextureImage(surface->Texture().handle, 0,
+                                    static_cast<GLsizei>(params.SizeInBytes()), nullptr);
+    } else {
+        glGetTextureImage(surface->Texture().handle, 0, source_format.format, source_format.type,
+                          static_cast<GLsizei>(params.SizeInBytes()), nullptr);
+    }
     // If the new texture is bigger than the previous one, we need to fill in the rest with data
     // from the CPU.
     if (params.SizeInBytes() < new_params.SizeInBytes()) {
@@ -846,16 +868,20 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& surface,
     const auto& dest_rect{new_params.GetRect()};
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo.handle);
-    glTextureSubImage2D(
-        new_surface->Texture().handle, 0, 0, 0, static_cast<GLsizei>(dest_rect.GetWidth()),
-        static_cast<GLsizei>(dest_rect.GetHeight()), dest_format.format, dest_format.type, nullptr);
+    if (dest_format.compressed) {
+        glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+                                  static_cast<GLsizei>(dest_rect.GetWidth()),
+                                  static_cast<GLsizei>(dest_rect.GetHeight()), dest_format.format,
+                                  static_cast<GLsizei>(new_params.SizeInBytes()), nullptr);
+    } else {
+        glTextureSubImage2D(new_surface->Texture().handle, 0, 0, 0,
+                            static_cast<GLsizei>(dest_rect.GetWidth()),
+                            static_cast<GLsizei>(dest_rect.GetHeight()), dest_format.format,
+                            dest_format.type, nullptr);
+    }
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
     pbo.Release();
-
-    // Update cache accordingly
-    UnregisterSurface(surface);
-    RegisterSurface(new_surface);
 
     return new_surface;
 }
@@ -929,6 +955,21 @@ void RasterizerCacheOpenGL::UnregisterSurface(const Surface& surface) {
 
     UpdatePagesCachedCount(params.addr, params.size_in_bytes, -1);
     surface_cache.erase(search);
+}
+
+void RasterizerCacheOpenGL::ReserveSurface(const Surface& surface) {
+    const auto& surface_reserve_key{SurfaceReserveKey::Create(surface->GetSurfaceParams())};
+    surface_reserve[surface_reserve_key] = surface;
+}
+
+Surface RasterizerCacheOpenGL::TryGetReservedSurface(const SurfaceParams& params) {
+    const auto& surface_reserve_key{SurfaceReserveKey::Create(params)};
+    auto search{surface_reserve.find(surface_reserve_key)};
+    if (search != surface_reserve.end()) {
+        RegisterSurface(search->second);
+        return search->second;
+    }
+    return {};
 }
 
 template <typename Map, typename Interval>

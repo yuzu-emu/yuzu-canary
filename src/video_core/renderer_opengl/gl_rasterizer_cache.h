@@ -11,6 +11,7 @@
 #include <boost/icl/interval_map.hpp>
 
 #include "common/common_types.h"
+#include "common/hash.h"
 #include "common/math_util.h"
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
@@ -682,6 +683,27 @@ struct SurfaceParams {
     u32 cache_height;
 };
 
+}; // namespace OpenGL
+
+/// Hashable variation of SurfaceParams, used for a key in the surface cache
+struct SurfaceReserveKey : Common::HashableStruct<OpenGL::SurfaceParams> {
+    static SurfaceReserveKey Create(const OpenGL::SurfaceParams& params) {
+        SurfaceReserveKey res;
+        res.state = params;
+        return res;
+    }
+};
+namespace std {
+template <>
+struct hash<SurfaceReserveKey> {
+    size_t operator()(const SurfaceReserveKey& k) const {
+        return k.Hash();
+    }
+};
+} // namespace std
+
+namespace OpenGL {
+
 class CachedSurface final {
 public:
     CachedSurface(const SurfaceParams& params);
@@ -752,11 +774,22 @@ private:
     /// Remove surface from the cache
     void UnregisterSurface(const Surface& surface);
 
+    /// Reserves a unique surface that can be reused later
+    void ReserveSurface(const Surface& surface);
+
+    /// Tries to get a reserved surface for the specified parameters
+    Surface TryGetReservedSurface(const SurfaceParams& params);
+
     /// Increase/decrease the number of surface in pages touching the specified region
     void UpdatePagesCachedCount(Tegra::GPUVAddr addr, u64 size, int delta);
 
     std::unordered_map<Tegra::GPUVAddr, Surface> surface_cache;
     PageMap cached_pages;
+
+    /// The surface reserve is a "backup" cache, this is where we put unique surfaces that have
+    /// previously been used. This is to prevent surfaces from being constantly created and
+    /// destroyed when used with different surface parameters.
+    std::unordered_map<SurfaceReserveKey, Surface> surface_reserve;
 
     OGLFramebuffer read_framebuffer;
     OGLFramebuffer draw_framebuffer;
