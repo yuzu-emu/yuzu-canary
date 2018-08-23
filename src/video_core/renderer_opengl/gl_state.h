@@ -58,14 +58,16 @@ public:
     } color_mask; // GL_COLOR_WRITEMASK
 
     struct {
-        bool test_enabled;          // GL_STENCIL_TEST
-        GLenum test_func;           // GL_STENCIL_FUNC
-        GLint test_ref;             // GL_STENCIL_REF
-        GLuint test_mask;           // GL_STENCIL_VALUE_MASK
-        GLuint write_mask;          // GL_STENCIL_WRITEMASK
-        GLenum action_stencil_fail; // GL_STENCIL_FAIL
-        GLenum action_depth_fail;   // GL_STENCIL_PASS_DEPTH_FAIL
-        GLenum action_depth_pass;   // GL_STENCIL_PASS_DEPTH_PASS
+        bool test_enabled; // GL_STENCIL_TEST
+        struct {
+            GLenum test_func;           // GL_STENCIL_FUNC
+            GLint test_ref;             // GL_STENCIL_REF
+            GLuint test_mask;           // GL_STENCIL_VALUE_MASK
+            GLuint write_mask;          // GL_STENCIL_WRITEMASK
+            GLenum action_stencil_fail; // GL_STENCIL_FAIL
+            GLenum action_depth_fail;   // GL_STENCIL_PASS_DEPTH_FAIL
+            GLenum action_depth_pass;   // GL_STENCIL_PASS_DEPTH_PASS
+        } front, back;
     } stencil;
 
     struct {
