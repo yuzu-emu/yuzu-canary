@@ -318,4 +318,8 @@ bool DeepEquals(const VirtualFile& file1, const VirtualFile& file2, size_t block
 // directory of src/dest.
 bool VfsRawCopy(VirtualFile src, VirtualFile dest);
 
+// Checks if the directory at path relative to rel exists. If it does, returns that. If it does not
+// it attempts to create it and returns the new dir or nullptr on failure.
+VirtualDir GetOrCreateDirectoryRelative(const VirtualDir& rel, std::string_view path);
+
 } // namespace FileSys
