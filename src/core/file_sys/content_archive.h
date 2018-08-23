@@ -93,6 +93,8 @@ public:
 
     VirtualFile GetBaseFile() const;
 
+    bool IsUpdate() const;
+
 protected:
     bool ReplaceFileWithSubdirectory(VirtualFile file, VirtualDir dir) override;
 
@@ -111,6 +113,7 @@ private:
 
     NCAHeader header{};
     bool has_rights_id{};
+    bool is_update{};
 
     Loader::ResultStatus status{};
 
