@@ -133,8 +133,7 @@ GMainWindow::GMainWindow()
     show();
 
     // Necessary to load titles from nand in gamelist.
-    Service::FileSystem::RegisterBIS(std::make_unique<FileSys::BISFactory>(vfs->OpenDirectory(
-        FileUtil::GetUserPath(FileUtil::UserPath::NANDDir), FileSys::Mode::ReadWrite)));
+    Service::FileSystem::CreateFactories(vfs);
     game_list->PopulateAsync(UISettings::values.gamedir, UISettings::values.gamedir_deepscan);
 
     // Show one-time "callout" messages to the user

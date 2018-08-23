@@ -172,7 +172,7 @@ private:
     bool deep_scan;
     std::atomic_bool stop_processing;
 
-    void AddInstalledTitlesToGameList();
+    void AddInstalledTitlesToGameList(std::shared_ptr<FileSys::RegisteredCache> cache);
     void FillControlMap(const std::string& dir_path);
     void AddFstEntriesToGameList(const std::string& dir_path, unsigned int recursion = 0);
 };
