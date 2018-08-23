@@ -14,6 +14,7 @@
 #include "common/logging/log.h"
 #include "common/math_util.h"
 #include "common/microprofile.h"
+#include "common/scope_exit.h"
 #include "core/core.h"
 #include "core/frontend/emu_window.h"
 #include "core/hle/kernel/process.h"
@@ -315,16 +316,14 @@ std::pair<Surface, Surface> RasterizerOpenGL::ConfigureFramebuffers(bool using_c
         using_color_fb = false;
     }
 
-    // TODO(bunnei): Implement this
-    const bool has_stencil = false;
-
+    const bool has_stencil = regs.stencil_enable;
     const bool write_color_fb =
         state.color_mask.red_enabled == GL_TRUE || state.color_mask.green_enabled == GL_TRUE ||
         state.color_mask.blue_enabled == GL_TRUE || state.color_mask.alpha_enabled == GL_TRUE;
 
     const bool write_depth_fb =
         (state.depth.test_enabled && state.depth.write_mask == GL_TRUE) ||
-        (has_stencil && state.stencil.test_enabled && state.stencil.write_mask != 0);
+        (has_stencil && (state.stencil.front.write_mask || state.stencil.back.write_mask));
 
     Surface color_surface;
     Surface depth_surface;
@@ -364,16 +363,31 @@ std::pair<Surface, Surface> RasterizerOpenGL::ConfigureFramebuffers(bool using_c
 }
 
 void RasterizerOpenGL::Clear() {
-    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
+    const auto prev_state{state};
+    SCOPE_EXIT({ prev_state.Apply(); });
 
+    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
     bool use_color_fb = false;
     bool use_depth_fb = false;
 
-    GLbitfield clear_mask = 0;
-    if (regs.clear_buffers.R && regs.clear_buffers.G && regs.clear_buffers.B &&
+    OpenGLState clear_state;
+    clear_state.draw.draw_framebuffer = state.draw.draw_framebuffer;
+    clear_state.color_mask.red_enabled = regs.clear_buffers.R ? GL_TRUE : GL_FALSE;
+    clear_state.color_mask.green_enabled = regs.clear_buffers.G ? GL_TRUE : GL_FALSE;
+    clear_state.color_mask.blue_enabled = regs.clear_buffers.B ? GL_TRUE : GL_FALSE;
+    clear_state.color_mask.alpha_enabled = regs.clear_buffers.A ? GL_TRUE : GL_FALSE;
+
+    GLbitfield clear_mask{};
+    if (regs.clear_buffers.R || regs.clear_buffers.G || regs.clear_buffers.B ||
         regs.clear_buffers.A) {
-        clear_mask |= GL_COLOR_BUFFER_BIT;
-        use_color_fb = true;
+        if (regs.clear_buffers.RT == 0) {
+            // We only support clearing the first color attachment for now
+            clear_mask |= GL_COLOR_BUFFER_BIT;
+            use_color_fb = true;
+        } else {
+            // TODO(subv): Add support for the other color attachments
+            LOG_CRITICAL(HW_GPU, "Clear unimplemented for RT {}", regs.clear_buffers.RT);
+        }
     }
     if (regs.clear_buffers.Z) {
         clear_mask |= GL_DEPTH_BUFFER_BIT;
@@ -381,24 +395,35 @@ void RasterizerOpenGL::Clear() {
 
         // Always enable the depth write when clearing the depth buffer. The depth write mask is
         // ignored when clearing the buffer in the Switch, but OpenGL obeys it so we set it to true.
-        state.depth.test_enabled = true;
-        state.depth.write_mask = GL_TRUE;
-        state.depth.test_func = GL_ALWAYS;
-        state.Apply();
+        clear_state.depth.test_enabled = true;
+        clear_state.depth.test_func = GL_ALWAYS;
+    }
+    if (regs.clear_buffers.S) {
+        clear_mask |= GL_STENCIL_BUFFER_BIT;
+        clear_state.stencil.test_enabled = true;
     }
 
-    if (clear_mask == 0)
+    if (!use_color_fb && !use_depth_fb) {
+        // No color surface nor depth/stencil surface are enabled
         return;
+    }
+
+    if (clear_mask == 0) {
+        // No clear mask is enabled
+        return;
+    }
 
     ScopeAcquireGLContext acquire_context{emu_window};
 
     auto [dirty_color_surface, dirty_depth_surface] =
         ConfigureFramebuffers(use_color_fb, use_depth_fb, false);
 
-    // TODO(Subv): Support clearing only partial colors.
+    clear_state.Apply();
+
     glClearColor(regs.clear_color[0], regs.clear_color[1], regs.clear_color[2],
                  regs.clear_color[3]);
     glClearDepth(regs.clear_depth);
+    glClearStencil(regs.clear_stencil);
 
     glClear(clear_mask);
 
@@ -451,6 +476,7 @@ void RasterizerOpenGL::DrawArrays() {
         ConfigureFramebuffers(true, regs.zeta.Address() != 0 && regs.zeta_enable != 0, true);
 
     SyncDepthTestState();
+    SyncStencilTestState();
     SyncBlendState();
     SyncLogicOpState();
     SyncCullMode();
@@ -839,6 +865,34 @@ void RasterizerOpenGL::SyncDepthTestState() {
         return;
 
     state.depth.test_func = MaxwellToGL::ComparisonOp(regs.depth_test_func);
+}
+
+void RasterizerOpenGL::SyncStencilTestState() {
+    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
+    state.stencil.test_enabled = regs.stencil_enable != 0;
+
+    if (!regs.stencil_enable) {
+        return;
+    }
+
+    // TODO(bunnei): Verify behavior when this is not set
+    ASSERT(regs.stencil_two_side_enable);
+
+    state.stencil.front.test_func = MaxwellToGL::ComparisonOp(regs.stencil_front_func_func);
+    state.stencil.front.test_ref = regs.stencil_front_func_ref;
+    state.stencil.front.test_mask = regs.stencil_front_func_mask;
+    state.stencil.front.action_stencil_fail = MaxwellToGL::StencilOp(regs.stencil_front_op_fail);
+    state.stencil.front.action_depth_fail = MaxwellToGL::StencilOp(regs.stencil_front_op_zfail);
+    state.stencil.front.action_depth_pass = MaxwellToGL::StencilOp(regs.stencil_front_op_zpass);
+    state.stencil.front.write_mask = regs.stencil_front_mask;
+
+    state.stencil.back.test_func = MaxwellToGL::ComparisonOp(regs.stencil_back_func_func);
+    state.stencil.back.test_ref = regs.stencil_back_func_ref;
+    state.stencil.back.test_mask = regs.stencil_back_func_mask;
+    state.stencil.back.action_stencil_fail = MaxwellToGL::StencilOp(regs.stencil_back_op_fail);
+    state.stencil.back.action_depth_fail = MaxwellToGL::StencilOp(regs.stencil_back_op_zfail);
+    state.stencil.back.action_depth_pass = MaxwellToGL::StencilOp(regs.stencil_back_op_zpass);
+    state.stencil.back.write_mask = regs.stencil_back_mask;
 }
 
 void RasterizerOpenGL::SyncBlendState() {
