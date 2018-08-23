@@ -295,6 +295,30 @@ inline GLenum ComparisonOp(Maxwell::ComparisonOp comparison) {
     return {};
 }
 
+inline GLenum StencilOp(Maxwell::StencilOp stencil) {
+    switch (stencil) {
+    case Maxwell::StencilOp::Keep:
+        return GL_KEEP;
+    case Maxwell::StencilOp::Zero:
+        return GL_ZERO;
+    case Maxwell::StencilOp::Replace:
+        return GL_REPLACE;
+    case Maxwell::StencilOp::Incr:
+        return GL_INCR;
+    case Maxwell::StencilOp::Decr:
+        return GL_DECR;
+    case Maxwell::StencilOp::Invert:
+        return GL_INVERT;
+    case Maxwell::StencilOp::IncrWrap:
+        return GL_INCR_WRAP;
+    case Maxwell::StencilOp::DecrWrap:
+        return GL_DECR_WRAP;
+    }
+    LOG_CRITICAL(Render_OpenGL, "Unimplemented stencil op={}", static_cast<u32>(stencil));
+    UNREACHABLE();
+    return {};
+}
+
 inline GLenum FrontFace(Maxwell::Cull::FrontFace front_face) {
     switch (front_face) {
     case Maxwell::Cull::FrontFace::ClockWise:
