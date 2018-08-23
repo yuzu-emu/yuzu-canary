@@ -21,6 +21,10 @@ public:
 private:
     struct NullSinkStreamImpl final : SinkStream {
         void EnqueueSamples(u32 /*num_channels*/, const std::vector<s16>& /*samples*/) override {}
+
+        size_t SamplesInQueue() const override {
+            return 0;
+        }
     } null_sink_stream;
 };
 
