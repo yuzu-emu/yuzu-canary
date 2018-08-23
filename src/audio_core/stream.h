@@ -12,6 +12,7 @@
 
 #include "audio_core/buffer.h"
 #include "audio_core/sink_stream.h"
+#include "audio_core/time_stretch.h"
 #include "common/assert.h"
 #include "common/common_types.h"
 #include "core/core_timing.h"
@@ -95,6 +96,8 @@ private:
     std::queue<BufferPtr> released_buffers; ///< Buffers recently released from the stream
     SinkStream& sink_stream;                ///< Output sink for the stream
     std::string name;                       ///< Name of the stream, must be unique
+
+    TimeStretcher time_stretcher;
 };
 
 using StreamPtr = std::shared_ptr<Stream>;
