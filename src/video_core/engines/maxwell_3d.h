@@ -330,6 +330,17 @@ public:
             Set = 0x150F,
         };
 
+        enum class StencilOp : u32 {
+            Keep = 1,
+            Zero = 2,
+            Replace = 3,
+            Incr = 4,
+            Decr = 5,
+            Invert = 6,
+            IncrWrap = 7,
+            DecrWrap = 8,
+        };
+
         struct Cull {
             enum class FrontFace : u32 {
                 ClockWise = 0x0900,
@@ -508,8 +519,16 @@ public:
 
                 float clear_color[4];
                 float clear_depth;
+                INSERT_PADDING_WORDS(0x3);
+                s32 clear_stencil;
 
-                INSERT_PADDING_WORDS(0x93);
+                INSERT_PADDING_WORDS(0x6C);
+
+                s32 stencil_back_func_ref;
+                u32 stencil_back_mask;
+                u32 stencil_back_func_mask;
+
+                INSERT_PADDING_WORDS(0x20);
 
                 struct {
                     u32 address_high;
@@ -573,16 +592,14 @@ public:
                     u32 enable[NumRenderTargets];
                 } blend;
 
-                struct {
-                    u32 enable;
-                    u32 front_op_fail;
-                    u32 front_op_zfail;
-                    u32 front_op_zpass;
-                    u32 front_func_func;
-                    u32 front_func_ref;
-                    u32 front_func_mask;
-                    u32 front_mask;
-                } stencil;
+                u32 stencil_enable;
+                StencilOp stencil_front_op_fail;
+                StencilOp stencil_front_op_zfail;
+                StencilOp stencil_front_op_zpass;
+                ComparisonOp stencil_front_func_func;
+                s32 stencil_front_func_ref;
+                u32 stencil_front_func_mask;
+                u32 stencil_front_mask;
 
                 INSERT_PADDING_WORDS(0x3);
 
@@ -626,13 +643,11 @@ public:
 
                 INSERT_PADDING_WORDS(0x5);
 
-                struct {
-                    u32 enable;
-                    u32 back_op_fail;
-                    u32 back_op_zfail;
-                    u32 back_op_zpass;
-                    u32 back_func_func;
-                } stencil_two_side;
+                u32 stencil_two_side_enable;
+                StencilOp stencil_back_op_fail;
+                StencilOp stencil_back_op_zfail;
+                StencilOp stencil_back_op_zpass;
+                ComparisonOp stencil_back_func_func;
 
                 INSERT_PADDING_WORDS(0x17);
 
@@ -944,6 +959,10 @@ ASSERT_REG_POSITION(viewport, 0x300);
 ASSERT_REG_POSITION(vertex_buffer, 0x35D);
 ASSERT_REG_POSITION(clear_color[0], 0x360);
 ASSERT_REG_POSITION(clear_depth, 0x364);
+ASSERT_REG_POSITION(clear_stencil, 0x368);
+ASSERT_REG_POSITION(stencil_back_func_ref, 0x3D5);
+ASSERT_REG_POSITION(stencil_back_mask, 0x3D6);
+ASSERT_REG_POSITION(stencil_back_func_mask, 0x3D7);
 ASSERT_REG_POSITION(zeta, 0x3F8);
 ASSERT_REG_POSITION(vertex_attrib_format[0], 0x458);
 ASSERT_REG_POSITION(rt_control, 0x487);
@@ -955,13 +974,24 @@ ASSERT_REG_POSITION(depth_write_enabled, 0x4BA);
 ASSERT_REG_POSITION(d3d_cull_mode, 0x4C2);
 ASSERT_REG_POSITION(depth_test_func, 0x4C3);
 ASSERT_REG_POSITION(blend, 0x4CF);
-ASSERT_REG_POSITION(stencil, 0x4E0);
+ASSERT_REG_POSITION(stencil_enable, 0x4E0);
+ASSERT_REG_POSITION(stencil_front_op_fail, 0x4E1);
+ASSERT_REG_POSITION(stencil_front_op_zfail, 0x4E2);
+ASSERT_REG_POSITION(stencil_front_op_zpass, 0x4E3);
+ASSERT_REG_POSITION(stencil_front_func_func, 0x4E4);
+ASSERT_REG_POSITION(stencil_front_func_ref, 0x4E5);
+ASSERT_REG_POSITION(stencil_front_func_mask, 0x4E6);
+ASSERT_REG_POSITION(stencil_front_mask, 0x4E7);
 ASSERT_REG_POSITION(screen_y_control, 0x4EB);
 ASSERT_REG_POSITION(vb_element_base, 0x50D);
 ASSERT_REG_POSITION(zeta_enable, 0x54E);
 ASSERT_REG_POSITION(tsc, 0x557);
 ASSERT_REG_POSITION(tic, 0x55D);
-ASSERT_REG_POSITION(stencil_two_side, 0x565);
+ASSERT_REG_POSITION(stencil_two_side_enable, 0x565);
+ASSERT_REG_POSITION(stencil_back_op_fail, 0x566);
+ASSERT_REG_POSITION(stencil_back_op_zfail, 0x567);
+ASSERT_REG_POSITION(stencil_back_op_zpass, 0x568);
+ASSERT_REG_POSITION(stencil_back_func_func, 0x569);
 ASSERT_REG_POSITION(point_coord_replace, 0x581);
 ASSERT_REG_POSITION(code_address, 0x582);
 ASSERT_REG_POSITION(draw, 0x585);
