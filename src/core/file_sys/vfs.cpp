@@ -462,4 +462,11 @@ bool VfsRawCopy(VirtualFile src, VirtualFile dest) {
     std::vector<u8> data = src->ReadAllBytes();
     return dest->WriteBytes(data, 0) == data.size();
 }
+
+VirtualDir GetOrCreateDirectoryRelative(const VirtualDir& rel, std::string_view path) {
+    const auto res = rel->GetDirectoryRelative(path);
+    if (res == nullptr)
+        return rel->CreateDirectoryRelative(path);
+    return res;
+}
 } // namespace FileSys
