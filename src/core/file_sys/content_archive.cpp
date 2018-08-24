@@ -178,7 +178,7 @@ VirtualFile NCA::Decrypt(NCASectionHeader s_header, VirtualFile in, u64 starting
             return std::static_pointer_cast<VfsFile>(out);
         }
     case NCASectionCryptoType::XTS:
-        // TODO(DarkLordZach): Implement XTSEncryptionLayer.
+        // TODO(DarkLordZach): Find a test case for XTS-encrypted NCAs
     default:
         LOG_ERROR(Crypto, "called with unhandled crypto type={:02X}",
                   static_cast<u8>(s_header.raw.header.crypto_type));
@@ -257,6 +257,10 @@ NCA::NCA(VirtualFile file_) : file(std::move(file_)) {
     } else {
         file->ReadBytes(sections.data(), length_sections, SECTION_HEADER_OFFSET);
     }
+
+    is_update = std::find_if(sections.begin(), sections.end(), [](const NCASectionHeader& header) {
+                    return header.raw.header.crypto_type == NCASectionCryptoType::BKTR;
+                }) != sections.end();
 
     for (std::ptrdiff_t i = 0; i < number_sections; ++i) {
         auto section = sections[i];
@@ -356,6 +360,10 @@ VirtualDir NCA::GetExeFS() const {
 
 VirtualFile NCA::GetBaseFile() const {
     return file;
+}
+
+bool NCA::IsUpdate() const {
+    return is_update;
 }
 
 bool NCA::ReplaceFileWithSubdirectory(VirtualFile file, VirtualDir dir) {
