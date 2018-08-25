@@ -178,19 +178,6 @@ std::pair<u8*, GLintptr> RasterizerOpenGL::SetupVertexArrays(u8* array_ptr,
     return {array_ptr, buffer_offset};
 }
 
-static GLShader::ProgramCode GetShaderProgramCode(Maxwell::ShaderProgram program) {
-    auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
-
-    // Fetch program code from memory
-    GLShader::ProgramCode program_code(GLShader::MAX_PROGRAM_CODE_LENGTH);
-    auto& shader_config = gpu.regs.shader_config[static_cast<size_t>(program)];
-    const u64 gpu_address{gpu.regs.code_address.CodeAddress() + shader_config.offset};
-    const boost::optional<VAddr> cpu_address{gpu.memory_manager.GpuToCpuAddress(gpu_address)};
-    Memory::ReadBlock(*cpu_address, program_code.data(), program_code.size() * sizeof(u64));
-
-    return program_code;
-}
-
 std::pair<u8*, GLintptr> RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr buffer_offset) {
     auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
 
@@ -224,31 +211,17 @@ std::pair<u8*, GLintptr> RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr
         buffer_ptr += sizeof(ubo);
         buffer_offset += sizeof(ubo);
 
-        GLShader::ShaderSetup setup{GetShaderProgramCode(program)};
-        GLShader::ShaderEntries shader_resources;
+        const Tegra::GPUVAddr addr{gpu.regs.code_address.CodeAddress() + shader_config.offset};
+        Shader shader{shader_cache.GetStageProgram(program)};
 
         switch (program) {
-        case Maxwell::ShaderProgram::VertexA: {
-            // VertexB is always enabled, so when VertexA is enabled, we have two vertex shaders.
-            // Conventional HW does not support this, so we combine VertexA and VertexB into one
-            // stage here.
-            setup.SetProgramB(GetShaderProgramCode(Maxwell::ShaderProgram::VertexB));
-            GLShader::MaxwellVSConfig vs_config{setup};
-            shader_resources =
-                shader_program_manager->UseProgrammableVertexShader(vs_config, setup);
-            break;
-        }
-
+        case Maxwell::ShaderProgram::VertexA:
         case Maxwell::ShaderProgram::VertexB: {
-            GLShader::MaxwellVSConfig vs_config{setup};
-            shader_resources =
-                shader_program_manager->UseProgrammableVertexShader(vs_config, setup);
+            shader_program_manager->UseProgrammableVertexShader(shader->GetProgramHandle());
             break;
         }
         case Maxwell::ShaderProgram::Fragment: {
-            GLShader::MaxwellFSConfig fs_config{setup};
-            shader_resources =
-                shader_program_manager->UseProgrammableFragmentShader(fs_config, setup);
+            shader_program_manager->UseProgrammableFragmentShader(shader->GetProgramHandle());
             break;
         }
         default:
@@ -257,18 +230,14 @@ std::pair<u8*, GLintptr> RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr
             UNREACHABLE();
         }
 
-        GLuint gl_stage_program = shader_program_manager->GetCurrentProgramStage(
-            static_cast<Maxwell::ShaderStage>(stage));
-
         // Configure the const buffers for this shader stage.
-        std::tie(buffer_ptr, buffer_offset, current_constbuffer_bindpoint) = SetupConstBuffers(
-            buffer_ptr, buffer_offset, static_cast<Maxwell::ShaderStage>(stage), gl_stage_program,
-            current_constbuffer_bindpoint, shader_resources.const_buffer_entries);
+        std::tie(buffer_ptr, buffer_offset, current_constbuffer_bindpoint) =
+            SetupConstBuffers(buffer_ptr, buffer_offset, static_cast<Maxwell::ShaderStage>(stage),
+                              shader, current_constbuffer_bindpoint);
 
         // Configure the textures for this shader stage.
-        current_texture_bindpoint =
-            SetupTextures(static_cast<Maxwell::ShaderStage>(stage), gl_stage_program,
-                          current_texture_bindpoint, shader_resources.texture_samplers);
+        current_texture_bindpoint = SetupTextures(static_cast<Maxwell::ShaderStage>(stage), shader,
+                                                  current_texture_bindpoint);
 
         // When VertexA is enabled, we have dual vertex shaders
         if (program == Maxwell::ShaderProgram::VertexA) {
@@ -571,23 +540,21 @@ void RasterizerOpenGL::NotifyMaxwellRegisterChanged(u32 method) {}
 
 void RasterizerOpenGL::FlushAll() {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
-    res_cache.FlushRegion(0, Kernel::VMManager::MAX_ADDRESS);
 }
 
 void RasterizerOpenGL::FlushRegion(Tegra::GPUVAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
-    res_cache.FlushRegion(addr, size);
 }
 
 void RasterizerOpenGL::InvalidateRegion(Tegra::GPUVAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.InvalidateRegion(addr, size);
+    shader_cache.InvalidateRegion(addr, size);
 }
 
 void RasterizerOpenGL::FlushAndInvalidateRegion(Tegra::GPUVAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
-    res_cache.FlushRegion(addr, size);
-    res_cache.InvalidateRegion(addr, size);
+    InvalidateRegion(addr, size);
 }
 
 bool RasterizerOpenGL::AccelerateDisplayTransfer(const void* config) {
@@ -672,15 +639,17 @@ void RasterizerOpenGL::SamplerInfo::SyncWithConfig(const Tegra::Texture::TSCEntr
     }
 }
 
-std::tuple<u8*, GLintptr, u32> RasterizerOpenGL::SetupConstBuffers(
-    u8* buffer_ptr, GLintptr buffer_offset, Maxwell::ShaderStage stage, GLuint program,
-    u32 current_bindpoint, const std::vector<GLShader::ConstBufferEntry>& entries) {
+std::tuple<u8*, GLintptr, u32> RasterizerOpenGL::SetupConstBuffers(u8* buffer_ptr,
+                                                                   GLintptr buffer_offset,
+                                                                   Maxwell::ShaderStage stage,
+                                                                   Shader& shader,
+                                                                   u32 current_bindpoint) {
     const auto& gpu = Core::System::GetInstance().GPU();
     const auto& maxwell3d = gpu.Maxwell3D();
+    const auto& shader_stage = maxwell3d.state.shader_stages[static_cast<size_t>(stage)];
+    const auto& entries = shader->GetShaderEntries().const_buffer_entries;
 
     // Upload only the enabled buffers from the 16 constbuffers of each shader stage
-    const auto& shader_stage = maxwell3d.state.shader_stages[static_cast<size_t>(stage)];
-
     for (u32 bindpoint = 0; bindpoint < entries.size(); ++bindpoint) {
         const auto& used_buffer = entries[bindpoint];
         const auto& buffer = shader_stage.const_buffers[used_buffer.GetIndex()];
@@ -719,12 +688,9 @@ std::tuple<u8*, GLintptr, u32> RasterizerOpenGL::SetupConstBuffers(
                           stream_buffer.GetHandle(), const_buffer_offset, size);
 
         // Now configure the bindpoint of the buffer inside the shader
-        const std::string buffer_name = used_buffer.GetName();
-        const GLuint index =
-            glGetProgramResourceIndex(program, GL_UNIFORM_BLOCK, buffer_name.c_str());
-        if (index != GL_INVALID_INDEX) {
-            glUniformBlockBinding(program, index, current_bindpoint + bindpoint);
-        }
+        glUniformBlockBinding(shader->GetProgramHandle(),
+                              shader->GetProgramResourceIndex(used_buffer.GetName()),
+                              current_bindpoint + bindpoint);
     }
 
     state.Apply();
@@ -732,10 +698,10 @@ std::tuple<u8*, GLintptr, u32> RasterizerOpenGL::SetupConstBuffers(
     return {buffer_ptr, buffer_offset, current_bindpoint + static_cast<u32>(entries.size())};
 }
 
-u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, GLuint program, u32 current_unit,
-                                    const std::vector<GLShader::SamplerEntry>& entries) {
+u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, Shader& shader, u32 current_unit) {
     const auto& gpu = Core::System::GetInstance().GPU();
     const auto& maxwell3d = gpu.Maxwell3D();
+    const auto& entries = shader->GetShaderEntries().texture_samplers;
 
     ASSERT_MSG(current_unit + entries.size() <= std::size(state.texture_units),
                "Exceeded the number of active textures.");
@@ -745,12 +711,9 @@ u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, GLuint program, 
         u32 current_bindpoint = current_unit + bindpoint;
 
         // Bind the uniform to the sampler.
-        GLint uniform = glGetUniformLocation(program, entry.GetName().c_str());
-        if (uniform == -1) {
-            continue;
-        }
 
-        glProgramUniform1i(program, uniform, current_bindpoint);
+        glProgramUniform1i(shader->GetProgramHandle(), shader->GetUniformLocation(entry.GetName()),
+                           current_bindpoint);
 
         const auto texture = maxwell3d.GetStageTexture(entry.GetStage(), entry.GetOffset());
 
