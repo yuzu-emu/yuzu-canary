@@ -35,6 +35,14 @@ static constexpr std::array<std::pair<FontArchives, const char*>, 7> SHARED_FONT
     std::make_pair(FontArchives::Extension, "nintendo_ext_003.bfttf"),
     std::make_pair(FontArchives::Extension, "nintendo_ext2_003.bfttf")};
 
+static constexpr std::array<const char*, 7> SHARED_FONTS_TTF{"FontStandard.ttf",
+                                                             "FontChineseSimplified.ttf",
+                                                             "FontExtendedChineseSimplified.ttf",
+                                                             "FontChineseTraditional.ttf",
+                                                             "FontKorean.ttf",
+                                                             "FontNintendoExtended.ttf",
+                                                             "FontNintendoExtended2.ttf"};
+
 // The below data is specific to shared font data dumped from Switch on f/w 2.2
 // Virtual address and offsets/sizes likely will vary by dump
 static constexpr VAddr SHARED_FONT_MEM_VADDR{0x00000009d3016000ULL};
@@ -76,6 +84,17 @@ void DecryptSharedFont(const std::vector<u32>& input, std::vector<u8>& output, s
     offset += transformed_font.size() * sizeof(u32);
 }
 
+static void EncryptSharedFont(const std::vector<u8>& input, std::vector<u8>& output,
+                              size_t& offset) {
+    ASSERT_MSG(offset + input.size() + 8 < SHARED_FONT_MEM_SIZE, "Shared fonts exceeds 17mb!");
+    const u32 KEY = EXPECTED_MAGIC ^ EXPECTED_RESULT;
+    std::memcpy(output.data() + offset, &EXPECTED_RESULT, sizeof(u32)); // Magic header
+    const u32 ENC_SIZE = static_cast<u32>(input.size()) ^ KEY;
+    std::memcpy(output.data() + offset + sizeof(u32), &ENC_SIZE, sizeof(u32));
+    std::memcpy(output.data() + offset + (sizeof(u32) * 2), input.data(), input.size());
+    offset += input.size() + (sizeof(u32) * 2);
+}
+
 static u32 GetU32Swapped(const u8* data) {
     u32 value;
     std::memcpy(&value, data, sizeof(value));
@@ -109,10 +128,10 @@ PL_U::PL_U() : ServiceFramework("pl:u") {
     RegisterHandlers(functions);
     // Attempt to load shared font data from disk
     const auto nand = FileSystem::GetSystemNANDContents();
+    size_t offset = 0;
     // Rebuild shared fonts from data ncas
     if (nand->HasEntry(static_cast<u64>(FontArchives::Standard),
                        FileSys::ContentRecordType::Data)) {
-        size_t offset = 0;
         shared_font = std::make_shared<std::vector<u8>>(SHARED_FONT_MEM_SIZE);
         for (auto font : SHARED_FONTS) {
             const auto nca =
@@ -152,18 +171,45 @@ PL_U::PL_U() : ServiceFramework("pl:u") {
             DecryptSharedFont(font_data_u32, *shared_font, offset);
             SHARED_FONT_REGIONS.push_back(region);
         }
+
     } else {
-        const std::string filepath{FileUtil::GetUserPath(FileUtil::UserPath::SysDataDir) +
-                                   SHARED_FONT};
+        shared_font = std::make_shared<std::vector<u8>>(
+            SHARED_FONT_MEM_SIZE); // Shared memory needs to always be allocated and a fixed size
+
+        const std::string user_path = FileUtil::GetUserPath(FileUtil::UserPath::SysDataDir);
+        const std::string filepath{user_path + SHARED_FONT};
+
         // Create path if not already created
         if (!FileUtil::CreateFullPath(filepath)) {
             LOG_ERROR(Service_NS, "Failed to create sharedfonts path \"{}\"!", filepath);
             return;
         }
+
+        bool using_ttf = false;
+        for (const char* font_ttf : SHARED_FONTS_TTF) {
+            if (FileUtil::Exists(user_path + font_ttf)) {
+                using_ttf = true;
+                FileUtil::IOFile file(user_path + font_ttf, "rb");
+                if (file.IsOpen()) {
+                    std::vector<u8> ttf_bytes(file.GetSize());
+                    file.ReadBytes<u8>(ttf_bytes.data(), ttf_bytes.size());
+                    FontRegion region{
+                        static_cast<u32>(offset + 8),
+                        static_cast<u32>(ttf_bytes.size())}; // Font offset and size do not account
+                                                             // for the header
+                    EncryptSharedFont(ttf_bytes, *shared_font, offset);
+                    SHARED_FONT_REGIONS.push_back(region);
+                } else {
+                    LOG_WARNING(Service_NS, "Unable to load font: {}", font_ttf);
+                }
+            } else if (using_ttf) {
+                LOG_WARNING(Service_NS, "Unable to find font: {}", font_ttf);
+            }
+        }
+        if (using_ttf)
+            return;
         FileUtil::IOFile file(filepath, "rb");
 
-        shared_font = std::make_shared<std::vector<u8>>(
-            SHARED_FONT_MEM_SIZE); // Shared memory needs to always be allocated and a fixed size
         if (file.IsOpen()) {
             // Read shared font data
             ASSERT(file.GetSize() == SHARED_FONT_MEM_SIZE);
