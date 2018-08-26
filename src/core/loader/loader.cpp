@@ -87,7 +87,7 @@ std::string GetFileTypeString(FileType type) {
     return "unknown";
 }
 
-constexpr std::array<const char*, 49> RESULT_MESSAGES{
+constexpr std::array<const char*, 57> RESULT_MESSAGES{
     "The operation completed successfully.",
     "The loader requested to load is already loaded.",
     "The operation is not implemented.",
@@ -137,6 +137,14 @@ constexpr std::array<const char*, 49> RESULT_MESSAGES{
     "The AES Key Generation Source could not be found.",
     "The SD Save Key Source could not be found.",
     "The SD NCA Key Source could not be found.",
+    "The BKTR-type NCA has a bad BKTR header.",
+    "The BKTR Subsection entry is not located immediately after the Relocation entry.",
+    "The BKTR Subsection entry is not at the end of the media block.",
+    "The BKTR-type NCA has a bad Relocation block.",
+    "The BKTR-type NCA has a bad Subsection block.",
+    "The BKTR-type NCA has a bad Relocation bucket.",
+    "The BKTR-type NCA has a bad Subsection bucket.",
+    "The BKTR-type NCA is missing the base RomFS.",
 };
 
 std::ostream& operator<<(std::ostream& os, ResultStatus status) {

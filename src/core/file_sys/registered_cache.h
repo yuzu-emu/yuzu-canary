@@ -39,6 +39,10 @@ struct RegisteredCacheEntry {
     std::string DebugInfo() const;
 };
 
+constexpr u64 GetUpdateTitleID(u64 base_title_id) {
+    return base_title_id | 0x800;
+}
+
 // boost flat_map requires operator< for O(log(n)) lookups.
 bool operator<(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs);
 
@@ -56,6 +60,8 @@ bool operator<(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs)
  * 4GB splitting can be ignored.)
  */
 class RegisteredCache {
+    friend class RegisteredCacheUnion;
+
 public:
     // Parsing function defines the conversion from raw file to NCA. If there are other steps
     // besides creating the NCA from the file (e.g. NAX0 on SD Card), that should go in a custom
@@ -69,6 +75,8 @@ public:
 
     bool HasEntry(u64 title_id, ContentRecordType type) const;
     bool HasEntry(RegisteredCacheEntry entry) const;
+
+    boost::optional<u32> GetEntryVersion(u64 title_id) const;
 
     VirtualFile GetEntryUnparsed(u64 title_id, ContentRecordType type) const;
     VirtualFile GetEntryUnparsed(RegisteredCacheEntry entry) const;
@@ -123,6 +131,38 @@ private:
     boost::container::flat_map<u64, CNMT> meta;
     // maps tid -> meta for CNMT in yuzu_meta
     boost::container::flat_map<u64, CNMT> yuzu_meta;
+};
+
+// Combines multiple RegisteredCaches (i.e. SysNAND, UserNAND, SDMC) into one interface.
+class RegisteredCacheUnion {
+public:
+    explicit RegisteredCacheUnion(std::vector<std::shared_ptr<RegisteredCache>> caches);
+
+    void Refresh();
+
+    bool HasEntry(u64 title_id, ContentRecordType type) const;
+    bool HasEntry(RegisteredCacheEntry entry) const;
+
+    boost::optional<u32> GetEntryVersion(u64 title_id) const;
+
+    VirtualFile GetEntryUnparsed(u64 title_id, ContentRecordType type) const;
+    VirtualFile GetEntryUnparsed(RegisteredCacheEntry entry) const;
+
+    VirtualFile GetEntryRaw(u64 title_id, ContentRecordType type) const;
+    VirtualFile GetEntryRaw(RegisteredCacheEntry entry) const;
+
+    std::shared_ptr<NCA> GetEntry(u64 title_id, ContentRecordType type) const;
+    std::shared_ptr<NCA> GetEntry(RegisteredCacheEntry entry) const;
+
+    std::vector<RegisteredCacheEntry> ListEntries() const;
+    // If a parameter is not boost::none, it will be filtered for from all entries.
+    std::vector<RegisteredCacheEntry> ListEntriesFilter(
+        boost::optional<TitleType> title_type = boost::none,
+        boost::optional<ContentRecordType> record_type = boost::none,
+        boost::optional<u64> title_id = boost::none) const;
+
+private:
+    std::vector<std::shared_ptr<RegisteredCache>> caches;
 };
 
 } // namespace FileSys

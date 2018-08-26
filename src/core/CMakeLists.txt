@@ -35,8 +35,12 @@ add_library(core STATIC
     file_sys/mode.h
     file_sys/nca_metadata.cpp
     file_sys/nca_metadata.h
+    file_sys/nca_patch.cpp
+    file_sys/nca_patch.h
     file_sys/partition_filesystem.cpp
     file_sys/partition_filesystem.h
+    file_sys/patch_manager.cpp
+    file_sys/patch_manager.h
     file_sys/program_metadata.cpp
     file_sys/program_metadata.h
     file_sys/registered_cache.cpp
