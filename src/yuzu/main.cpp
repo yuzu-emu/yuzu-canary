@@ -806,7 +806,11 @@ void GMainWindow::OnMenuInstallToNAND() {
     } else {
         const auto nca = std::make_shared<FileSys::NCA>(
             vfs->OpenFile(filename.toStdString(), FileSys::Mode::Read));
-        if (nca->GetStatus() != Loader::ResultStatus::Success) {
+        const auto id = nca->GetStatus();
+
+        // Game updates necessary are missing base RomFS
+        if (id != Loader::ResultStatus::Success &&
+            id != Loader::ResultStatus::ErrorMissingBKTRBaseRomFS) {
             failed();
             return;
         }

@@ -276,6 +276,18 @@ VirtualFile RegisteredCache::GetEntryUnparsed(RegisteredCacheEntry entry) const 
     return GetEntryUnparsed(entry.title_id, entry.type);
 }
 
+boost::optional<u32> RegisteredCache::GetEntryVersion(u64 title_id) const {
+    const auto meta_iter = meta.find(title_id);
+    if (meta_iter != meta.end())
+        return meta_iter->second.GetTitleVersion();
+
+    const auto yuzu_meta_iter = yuzu_meta.find(title_id);
+    if (yuzu_meta_iter != yuzu_meta.end())
+        return yuzu_meta_iter->second.GetTitleVersion();
+
+    return boost::none;
+}
+
 VirtualFile RegisteredCache::GetEntryRaw(u64 title_id, ContentRecordType type) const {
     const auto id = GetNcaIDFromMetadata(title_id, type);
     if (id == boost::none)
@@ -489,5 +501,108 @@ bool RegisteredCache::RawInstallYuzuMeta(const CNMT& cnmt) {
                             return kv.second.GetType() == cnmt.GetType() &&
                                    kv.second.GetTitleID() == cnmt.GetTitleID();
                         }) != yuzu_meta.end();
+}
+
+RegisteredCacheUnion::RegisteredCacheUnion(std::vector<std::shared_ptr<RegisteredCache>> caches)
+    : caches(std::move(caches)) {}
+
+void RegisteredCacheUnion::Refresh() {
+    for (const auto& c : caches)
+        c->Refresh();
+}
+
+bool RegisteredCacheUnion::HasEntry(u64 title_id, ContentRecordType type) const {
+    return std::any_of(caches.begin(), caches.end(), [title_id, type](const auto& cache) {
+        return cache->HasEntry(title_id, type);
+    });
+}
+
+bool RegisteredCacheUnion::HasEntry(RegisteredCacheEntry entry) const {
+    return HasEntry(entry.title_id, entry.type);
+}
+
+boost::optional<u32> RegisteredCacheUnion::GetEntryVersion(u64 title_id) const {
+    for (const auto& c : caches) {
+        const auto res = c->GetEntryVersion(title_id);
+        if (res != boost::none)
+            return res;
+    }
+
+    return boost::none;
+}
+
+VirtualFile RegisteredCacheUnion::GetEntryUnparsed(u64 title_id, ContentRecordType type) const {
+    for (const auto& c : caches) {
+        const auto res = c->GetEntryUnparsed(title_id, type);
+        if (res != nullptr)
+            return res;
+    }
+
+    return nullptr;
+}
+
+VirtualFile RegisteredCacheUnion::GetEntryUnparsed(RegisteredCacheEntry entry) const {
+    return GetEntryUnparsed(entry.title_id, entry.type);
+}
+
+VirtualFile RegisteredCacheUnion::GetEntryRaw(u64 title_id, ContentRecordType type) const {
+    for (const auto& c : caches) {
+        const auto res = c->GetEntryRaw(title_id, type);
+        if (res != nullptr)
+            return res;
+    }
+
+    return nullptr;
+}
+
+VirtualFile RegisteredCacheUnion::GetEntryRaw(RegisteredCacheEntry entry) const {
+    return GetEntryRaw(entry.title_id, entry.type);
+}
+
+std::shared_ptr<NCA> RegisteredCacheUnion::GetEntry(u64 title_id, ContentRecordType type) const {
+    const auto raw = GetEntryRaw(title_id, type);
+    if (raw == nullptr)
+        return nullptr;
+    return std::make_shared<NCA>(raw);
+}
+
+std::shared_ptr<NCA> RegisteredCacheUnion::GetEntry(RegisteredCacheEntry entry) const {
+    return GetEntry(entry.title_id, entry.type);
+}
+
+std::vector<RegisteredCacheEntry> RegisteredCacheUnion::ListEntries() const {
+    std::vector<RegisteredCacheEntry> out;
+    for (const auto& c : caches) {
+        c->IterateAllMetadata<RegisteredCacheEntry>(
+            out,
+            [](const CNMT& c, const ContentRecord& r) {
+                return RegisteredCacheEntry{c.GetTitleID(), r.type};
+            },
+            [](const CNMT& c, const ContentRecord& r) { return true; });
+    }
+    return out;
+}
+
+std::vector<RegisteredCacheEntry> RegisteredCacheUnion::ListEntriesFilter(
+    boost::optional<TitleType> title_type, boost::optional<ContentRecordType> record_type,
+    boost::optional<u64> title_id) const {
+    std::vector<RegisteredCacheEntry> out;
+    for (const auto& c : caches) {
+        c->IterateAllMetadata<RegisteredCacheEntry>(
+            out,
+            [](const CNMT& c, const ContentRecord& r) {
+                return RegisteredCacheEntry{c.GetTitleID(), r.type};
+            },
+            [&title_type, &record_type, &title_id](const CNMT& c, const ContentRecord& r) {
+                if (title_type != boost::none && title_type.get() != c.GetType())
+                    return false;
+                if (record_type != boost::none && record_type.get() != r.type)
+                    return false;
+                if (title_id != boost::none && title_id.get() != c.GetTitleID())
+                    return false;
+                return true;
+            });
+    }
+    return out;
 }
 } // namespace FileSys
