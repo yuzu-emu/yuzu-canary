@@ -18,6 +18,7 @@ add_library(video_core STATIC
     macro_interpreter.h
     memory_manager.cpp
     memory_manager.h
+    rasterizer_cache.h
     rasterizer_interface.h
     renderer_base.cpp
     renderer_base.h
@@ -26,6 +27,8 @@ add_library(video_core STATIC
     renderer_opengl/gl_rasterizer_cache.cpp
     renderer_opengl/gl_rasterizer_cache.h
     renderer_opengl/gl_resource_manager.h
+    renderer_opengl/gl_shader_cache.cpp
+    renderer_opengl/gl_shader_cache.h
     renderer_opengl/gl_shader_decompiler.cpp
     renderer_opengl/gl_shader_decompiler.h
     renderer_opengl/gl_shader_gen.cpp
