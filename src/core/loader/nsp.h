@@ -4,23 +4,25 @@
 
 #pragma once
 
-#include <string>
+#include <memory>
 #include "common/common_types.h"
-#include "core/hle/kernel/object.h"
-#include "core/loader/linker.h"
+#include "core/file_sys/vfs.h"
 #include "core/loader/loader.h"
 
 namespace FileSys {
 class NACP;
-}
+class NSP;
+} // namespace FileSys
 
 namespace Loader {
 
-/// Loads an NRO file
-class AppLoader_NRO final : public AppLoader, Linker {
+class AppLoader_NCA;
+
+/// Loads an XCI file
+class AppLoader_NSP final : public AppLoader {
 public:
-    explicit AppLoader_NRO(FileSys::VirtualFile file);
-    ~AppLoader_NRO() override;
+    explicit AppLoader_NSP(FileSys::VirtualFile file);
+    ~AppLoader_NSP() override;
 
     /**
      * Returns the type of the file
@@ -35,18 +37,18 @@ public:
 
     ResultStatus Load(Kernel::SharedPtr<Kernel::Process>& process) override;
 
-    ResultStatus ReadIcon(std::vector<u8>& buffer) override;
-    ResultStatus ReadProgramId(u64& out_program_id) override;
     ResultStatus ReadRomFS(FileSys::VirtualFile& dir) override;
+    ResultStatus ReadProgramId(u64& out_program_id) override;
+    ResultStatus ReadIcon(std::vector<u8>& buffer) override;
     ResultStatus ReadTitle(std::string& title) override;
-    bool IsRomFSUpdatable() const override;
 
 private:
-    bool LoadNro(FileSys::VirtualFile file, VAddr load_base);
+    std::unique_ptr<FileSys::NSP> nsp;
+    std::unique_ptr<AppLoader> secondary_loader;
 
-    std::vector<u8> icon_data;
-    std::unique_ptr<FileSys::NACP> nacp;
-    FileSys::VirtualFile romfs;
+    FileSys::VirtualFile icon_file;
+    std::shared_ptr<FileSys::NACP> nacp_file;
+    u64 title_id;
 };
 
 } // namespace Loader

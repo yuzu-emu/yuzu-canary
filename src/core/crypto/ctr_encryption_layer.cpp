@@ -21,7 +21,7 @@ size_t CTREncryptionLayer::Read(u8* data, size_t length, size_t offset) const {
         UpdateIV(base_offset + offset);
         std::vector<u8> raw = base->ReadBytes(length, offset);
         cipher.Transcode(raw.data(), raw.size(), data, Op::Decrypt);
-        return raw.size();
+        return length;
     }
 
     // offset does not fall on block boundary (0x10)
