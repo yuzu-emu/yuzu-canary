@@ -31,3 +31,6 @@
 [submodule "opus"]
     path = externals/opus
     url = https://github.com/ogniK5377/opus.git
+[submodule "soundtouch"]
+	path = externals/soundtouch
+	url = https://github.com/citra-emu/ext-soundtouch.git
