@@ -17,6 +17,7 @@
 #include "video_core/rasterizer_interface.h"
 #include "video_core/renderer_opengl/gl_rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
+#include "video_core/renderer_opengl/gl_shader_cache.h"
 #include "video_core/renderer_opengl/gl_shader_gen.h"
 #include "video_core/renderer_opengl/gl_shader_manager.h"
 #include "video_core/renderer_opengl/gl_state.h"
@@ -99,26 +100,23 @@ private:
     /*
      * Configures the current constbuffers to use for the draw command.
      * @param stage The shader stage to configure buffers for.
-     * @param program The OpenGL program object that contains the specified stage.
+     * @param shader The shader object that contains the specified stage.
      * @param current_bindpoint The offset at which to start counting new buffer bindpoints.
-     * @param entries Vector describing the buffers that are actually used in the guest shader.
      * @returns The next available bindpoint for use in the next shader stage.
      */
     std::tuple<u8*, GLintptr, u32> SetupConstBuffers(
         u8* buffer_ptr, GLintptr buffer_offset, Tegra::Engines::Maxwell3D::Regs::ShaderStage stage,
-        GLuint program, u32 current_bindpoint,
-        const std::vector<GLShader::ConstBufferEntry>& entries);
+        Shader& shader, u32 current_bindpoint);
 
     /*
      * Configures the current textures to use for the draw command.
      * @param stage The shader stage to configure textures for.
-     * @param program The OpenGL program object that contains the specified stage.
+     * @param shader The shader object that contains the specified stage.
      * @param current_unit The offset at which to start counting unused texture units.
-     * @param entries Vector describing the textures that are actually used in the guest shader.
      * @returns The next available bindpoint for use in the next shader stage.
      */
-    u32 SetupTextures(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage, GLuint program,
-                      u32 current_unit, const std::vector<GLShader::SamplerEntry>& entries);
+    u32 SetupTextures(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage, Shader& shader,
+                      u32 current_unit);
 
     /// Syncs the viewport to match the guest state
     void SyncViewport(const MathUtil::Rectangle<u32>& surfaces_rect);
@@ -157,6 +155,7 @@ private:
     OpenGLState state;
 
     RasterizerCacheOpenGL res_cache;
+    ShaderCacheOpenGL shader_cache;
 
     Core::Frontend::EmuWindow& emu_window;
 

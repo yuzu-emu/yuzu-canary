@@ -6,12 +6,9 @@
 
 #include <array>
 #include <string>
-#include <type_traits>
-#include <utility>
 #include <vector>
-#include <boost/functional/hash.hpp>
+
 #include "common/common_types.h"
-#include "common/hash.h"
 
 namespace OpenGL::GLShader {
 
@@ -124,18 +121,8 @@ struct ShaderSetup {
         ProgramCode code_b; // Used for dual vertex shaders
     } program;
 
-    bool program_code_hash_dirty = true;
-
-    u64 GetProgramCodeHash() {
-        if (program_code_hash_dirty) {
-            program_code_hash = GetNewHash();
-            program_code_hash_dirty = false;
-        }
-        return program_code_hash;
-    }
-
     /// Used in scenarios where we have a dual vertex shaders
-    void SetProgramB(ProgramCode program_b) {
+    void SetProgramB(ProgramCode&& program_b) {
         program.code_b = std::move(program_b);
         has_program_b = true;
     }
@@ -145,73 +132,19 @@ struct ShaderSetup {
     }
 
 private:
-    u64 GetNewHash() const {
-        size_t hash = 0;
-
-        const u64 hash_a = Common::ComputeHash64(program.code.data(), program.code.size());
-        boost::hash_combine(hash, hash_a);
-
-        if (has_program_b) {
-            // Compute hash over dual shader programs
-            const u64 hash_b = Common::ComputeHash64(program.code_b.data(), program.code_b.size());
-            boost::hash_combine(hash, hash_b);
-        }
-
-        return hash;
-    }
-
-    u64 program_code_hash{};
     bool has_program_b{};
-};
-
-struct MaxwellShaderConfigCommon {
-    void Init(ShaderSetup& setup) {
-        program_hash = setup.GetProgramCodeHash();
-    }
-
-    u64 program_hash;
-};
-
-struct MaxwellVSConfig : Common::HashableStruct<MaxwellShaderConfigCommon> {
-    explicit MaxwellVSConfig(ShaderSetup& setup) {
-        state.Init(setup);
-    }
-};
-
-struct MaxwellFSConfig : Common::HashableStruct<MaxwellShaderConfigCommon> {
-    explicit MaxwellFSConfig(ShaderSetup& setup) {
-        state.Init(setup);
-    }
 };
 
 /**
  * Generates the GLSL vertex shader program source code for the given VS program
  * @returns String of the shader source code
  */
-ProgramResult GenerateVertexShader(const ShaderSetup& setup, const MaxwellVSConfig& config);
+ProgramResult GenerateVertexShader(const ShaderSetup& setup);
 
 /**
  * Generates the GLSL fragment shader program source code for the given FS program
  * @returns String of the shader source code
  */
-ProgramResult GenerateFragmentShader(const ShaderSetup& setup, const MaxwellFSConfig& config);
+ProgramResult GenerateFragmentShader(const ShaderSetup& setup);
 
 } // namespace OpenGL::GLShader
-
-namespace std {
-
-template <>
-struct hash<OpenGL::GLShader::MaxwellVSConfig> {
-    size_t operator()(const OpenGL::GLShader::MaxwellVSConfig& k) const {
-        return k.Hash();
-    }
-};
-
-template <>
-struct hash<OpenGL::GLShader::MaxwellFSConfig> {
-    size_t operator()(const OpenGL::GLShader::MaxwellFSConfig& k) const {
-        return k.Hash();
-    }
-};
-
-} // namespace std
