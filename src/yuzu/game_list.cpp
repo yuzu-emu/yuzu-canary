@@ -16,6 +16,7 @@
 #include "common/string_util.h"
 #include "core/file_sys/content_archive.h"
 #include "core/file_sys/control_metadata.h"
+#include "core/file_sys/patch_manager.h"
 #include "core/file_sys/registered_cache.h"
 #include "core/file_sys/romfs.h"
 #include "core/file_sys/vfs_real.h"
@@ -224,6 +225,7 @@ GameList::GameList(FileSys::VirtualFilesystem vfs, GMainWindow* parent)
 
     item_model->insertColumns(0, COLUMN_COUNT);
     item_model->setHeaderData(COLUMN_NAME, Qt::Horizontal, "Name");
+    item_model->setHeaderData(COLUMN_ADD_ONS, Qt::Horizontal, "Add-ons");
     item_model->setHeaderData(COLUMN_FILE_TYPE, Qt::Horizontal, "File type");
     item_model->setHeaderData(COLUMN_SIZE, Qt::Horizontal, "Size");
 
@@ -374,7 +376,7 @@ void GameList::LoadInterfaceLayout() {
     item_model->sort(header->sortIndicatorSection(), header->sortIndicatorOrder());
 }
 
-const QStringList GameList::supported_file_extensions = {"nso", "nro", "nca", "xci"};
+const QStringList GameList::supported_file_extensions = {"nso", "nro", "nca", "xci", "nsp"};
 
 static bool HasSupportedFileExtension(const std::string& file_name) {
     const QFileInfo file = QFileInfo(QString::fromStdString(file_name));
@@ -394,6 +396,26 @@ static QString FormatGameName(const std::string& physical_name) {
     }
 
     return physical_name_as_qstring;
+}
+
+static QString FormatPatchNameVersions(u64 title_id, bool updatable = true) {
+    const FileSys::PatchManager patch_manager(title_id);
+    QString out;
+    for (const auto& kv : patch_manager.GetPatchVersionNames()) {
+        if (!updatable && kv.first == FileSys::PatchType::Update)
+            continue;
+
+        if (kv.second == 0) {
+            out.append(fmt::format("{}\n", FileSys::FormatPatchTypeName(kv.first)).c_str());
+        } else {
+            out.append(fmt::format("{} ({})\n", FileSys::FormatPatchTypeName(kv.first),
+                                   FileSys::FormatTitleVersion(kv.second))
+                           .c_str());
+        }
+    }
+
+    out.chop(1);
+    return out;
 }
 
 void GameList::RefreshGameDirectory() {
@@ -426,7 +448,8 @@ static void GetMetadataFromControlNCA(const std::shared_ptr<FileSys::NCA>& nca,
     }
 }
 
-void GameListWorker::AddInstalledTitlesToGameList(std::shared_ptr<FileSys::RegisteredCache> cache) {
+void GameListWorker::AddInstalledTitlesToGameList() {
+    const auto cache = Service::FileSystem::GetUnionContents();
     const auto installed_games = cache->ListEntriesFilter(FileSys::TitleType::Application,
                                                           FileSys::ContentRecordType::Program);
 
@@ -449,6 +472,7 @@ void GameListWorker::AddInstalledTitlesToGameList(std::shared_ptr<FileSys::Regis
                 FormatGameName(file->GetFullPath()), icon, QString::fromStdString(name),
                 QString::fromStdString(Loader::GetFileTypeString(loader->GetFileType())),
                 program_id),
+            new GameListItem(FormatPatchNameVersions(program_id)),
             new GameListItem(
                 QString::fromStdString(Loader::GetFileTypeString(loader->GetFileType()))),
             new GameListItemSize(file->GetSize()),
@@ -523,11 +547,14 @@ void GameListWorker::AddFstEntriesToGameList(const std::string& dir_path, unsign
                 }
             }
 
+            FileSys::PatchManager patch{program_id};
+
             emit EntryReady({
                 new GameListItemPath(
                     FormatGameName(physical_name), icon, QString::fromStdString(name),
                     QString::fromStdString(Loader::GetFileTypeString(loader->GetFileType())),
                     program_id),
+                new GameListItem(FormatPatchNameVersions(program_id, loader->IsRomFSUpdatable())),
                 new GameListItem(
                     QString::fromStdString(Loader::GetFileTypeString(loader->GetFileType()))),
                 new GameListItemSize(FileUtil::GetSize(physical_name)),
@@ -547,9 +574,7 @@ void GameListWorker::run() {
     stop_processing = false;
     watch_list.append(dir_path);
     FillControlMap(dir_path.toStdString());
-    AddInstalledTitlesToGameList(Service::FileSystem::GetUserNANDContents());
-    AddInstalledTitlesToGameList(Service::FileSystem::GetSystemNANDContents());
-    AddInstalledTitlesToGameList(Service::FileSystem::GetSDMCContents());
+    AddInstalledTitlesToGameList();
     AddFstEntriesToGameList(dir_path.toStdString(), deep_scan ? 256 : 0);
     nca_control_map.clear();
     emit Finished(watch_list);
