@@ -228,18 +228,28 @@ void KeyManager::WriteKeyToFile(bool title_key, std::string_view keyname,
 }
 
 void KeyManager::SetKey(S128KeyType id, Key128 key, u64 field1, u64 field2) {
-    const auto iter = std::find_if(
+    if (s128_keys.find({id, field1, field2}) != s128_keys.end())
+        return;
+    if (id == S128KeyType::Titlekey) {
+        Key128 rights_id;
+        std::memcpy(rights_id.data(), &field2, sizeof(u64));
+        std::memcpy(rights_id.data() + sizeof(u64), &field1, sizeof(u64));
+        WriteKeyToFile(true, Common::HexArrayToString(rights_id), key);
+    }
+    const auto iter2 = std::find_if(
         s128_file_id.begin(), s128_file_id.end(),
         [&id, &field1, &field2](const std::pair<std::string, KeyIndex<S128KeyType>> elem) {
             return std::tie(elem.second.type, elem.second.field1, elem.second.field2) ==
                    std::tie(id, field1, field2);
         });
-    if (iter != s128_file_id.end())
-        WriteKeyToFile(id == S128KeyType::Titlekey, iter->first, key);
+    if (iter2 != s128_file_id.end())
+        WriteKeyToFile(false, iter2->first, key);
     s128_keys[{id, field1, field2}] = key;
 }
 
 void KeyManager::SetKey(S256KeyType id, Key256 key, u64 field1, u64 field2) {
+    if (s256_keys.find({id, field1, field2}) != s256_keys.end())
+        return;
     const auto iter = std::find_if(
         s256_file_id.begin(), s256_file_id.end(),
         [&id, &field1, &field2](const std::pair<std::string, KeyIndex<S256KeyType>> elem) {
