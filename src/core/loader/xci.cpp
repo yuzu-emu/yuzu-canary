@@ -17,8 +17,7 @@ namespace Loader {
 
 AppLoader_XCI::AppLoader_XCI(FileSys::VirtualFile file)
     : AppLoader(file), xci(std::make_unique<FileSys::XCI>(file)),
-      nca_loader(std::make_unique<AppLoader_NCA>(
-          xci->GetNCAFileByType(FileSys::NCAContentType::Program))) {
+      nca_loader(std::make_unique<AppLoader_NCA>(xci->GetProgramNCAFile())) {
     if (xci->GetStatus() != ResultStatus::Success)
         return;
     const auto control_nca = xci->GetNCAByType(FileSys::NCAContentType::Control);
@@ -64,11 +63,11 @@ ResultStatus AppLoader_XCI::Load(Kernel::SharedPtr<Kernel::Process>& process) {
     if (xci->GetProgramNCAStatus() != ResultStatus::Success)
         return xci->GetProgramNCAStatus();
 
-    const auto nca = xci->GetNCAFileByType(FileSys::NCAContentType::Program);
+    const auto nca = xci->GetProgramNCA();
     if (nca == nullptr && !Core::Crypto::KeyManager::KeyFileExists(false))
         return ResultStatus::ErrorMissingProductionKeyFile;
 
-    auto result = nca_loader->Load(process);
+    const auto result = nca_loader->Load(process);
     if (result != ResultStatus::Success)
         return result;
 
