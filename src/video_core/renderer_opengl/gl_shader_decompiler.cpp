@@ -1287,6 +1287,65 @@ private:
                                           instr.alu.saturate_d);
                 break;
             }
+            case OpCode::Id::IADD3_C:
+            case OpCode::Id::IADD3_R:
+            case OpCode::Id::IADD3_IMM: {
+                std::string op_c = regs.GetRegisterAsInteger(instr.gpr39);
+
+                auto apply_height = [](auto height, auto& oprand) {
+                    switch (height) {
+                    case Tegra::Shader::IAdd3Height::None:
+                        break;
+                    case Tegra::Shader::IAdd3Height::h0:
+                        oprand = "((" + oprand + ") & 0xFFFF)";
+                        break;
+                    case Tegra::Shader::IAdd3Height::h1:
+                        oprand = "((" + oprand + ") >> 16)";
+                        break;
+                    default:
+                        LOG_CRITICAL(HW_GPU, "Unhandled IADD3 height: {}",
+                                     static_cast<u32>(height.Value()));
+                        UNREACHABLE();
+                    }
+                };
+
+                if (opcode->GetId() == OpCode::Id::IADD3_R) {
+                    apply_height(instr.iadd3.height_a, op_a);
+                    apply_height(instr.iadd3.height_b, op_b);
+                    apply_height(instr.iadd3.height_c, op_c);
+                }
+
+                if (instr.iadd3.neg_a)
+                    op_a = "-(" + op_a + ')';
+
+                if (instr.iadd3.neg_b)
+                    op_b = "-(" + op_b + ')';
+
+                if (instr.iadd3.neg_c)
+                    op_c = "-(" + op_c + ')';
+
+                std::string result;
+                if (opcode->GetId() == OpCode::Id::IADD3_R) {
+                    switch (instr.iadd3.mode) {
+                    case Tegra::Shader::IAdd3Mode::rs:
+                        // TODO(tech4me): According to
+                        // https://envytools.readthedocs.io/en/latest/hw/graph/maxwell/cuda/int.html?highlight=iadd3
+                        // The addition between op_a and op_b should be done in uint33, more
+                        // investigation required
+                        result = "(((" + op_a + " + " + op_b + ") >> 16) + " + op_c + ')';
+                        break;
+                    case Tegra::Shader::IAdd3Mode::ls:
+                        result = "(((" + op_a + " + " + op_b + ") << 16) + " + op_c + ')';
+                        break;
+                    default:
+                        result = '(' + op_a + " + " + op_b + " + " + op_c + ')';
+                        break;
+                    }
+                }
+
+                regs.SetRegisterToInteger(instr.gpr0, true, 0, result, 1, 1);
+                break;
+            }
             case OpCode::Id::ISCADD_C:
             case OpCode::Id::ISCADD_R:
             case OpCode::Id::ISCADD_IMM: {
