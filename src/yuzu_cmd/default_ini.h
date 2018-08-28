@@ -150,6 +150,12 @@ swap_screen =
 # auto (default): Auto-select, null: No audio output, cubeb: Cubeb audio engine (if available)
 output_engine =
 
+# Whether or not to enable the audio-stretching post-processing effect.
+# This effect adjusts audio speed to match emulation speed and helps prevent audio stutter,
+# at the cost of increasing audio latency.
+# 0: No, 1 (default): Yes
+enable_audio_stretching =
+
 # Which audio device to use.
 # auto (default): Auto-select
 output_device =
