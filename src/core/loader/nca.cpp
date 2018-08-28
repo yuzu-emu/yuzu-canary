@@ -48,7 +48,7 @@ ResultStatus AppLoader_NCA::Load(Kernel::SharedPtr<Kernel::Process>& process) {
     if (exefs == nullptr)
         return ResultStatus::ErrorNoExeFS;
 
-    directory_loader = std::make_unique<AppLoader_DeconstructedRomDirectory>(exefs);
+    directory_loader = std::make_unique<AppLoader_DeconstructedRomDirectory>(exefs, true);
 
     const auto load_result = directory_loader->Load(process);
     if (load_result != ResultStatus::Success)
