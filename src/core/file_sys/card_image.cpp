@@ -9,7 +9,9 @@
 
 #include "common/logging/log.h"
 #include "core/file_sys/card_image.h"
+#include "core/file_sys/nca_metadata.h"
 #include "core/file_sys/partition_filesystem.h"
+#include "core/file_sys/submission_package.h"
 #include "core/file_sys/vfs_offset.h"
 #include "core/loader/loader.h"
 
@@ -43,15 +45,19 @@ XCI::XCI(VirtualFile file_) : file(std::move(file_)), partitions(0x4) {
             partitions[static_cast<size_t>(partition)] = std::make_shared<PartitionFilesystem>(raw);
     }
 
+    secure_partition = std::make_shared<NSP>(
+        main_hfs.GetFile(partition_names[static_cast<size_t>(XCIPartition::Secure)]));
+
+    const auto secure_ncas = secure_partition->GetNCAsCollapsed();
+    std::copy(secure_ncas.begin(), secure_ncas.end(), std::back_inserter(ncas));
+
     program_nca_status = Loader::ResultStatus::ErrorXCIMissingProgramNCA;
+    program =
+        secure_partition->GetNCA(secure_partition->GetProgramTitleID(), ContentRecordType::Program);
+    if (program != nullptr)
+        program_nca_status = program->GetStatus();
 
-    auto result = AddNCAFromPartition(XCIPartition::Secure);
-    if (result != Loader::ResultStatus::Success) {
-        status = result;
-        return;
-    }
-
-    result = AddNCAFromPartition(XCIPartition::Update);
+    auto result = AddNCAFromPartition(XCIPartition::Update);
     if (result != Loader::ResultStatus::Success) {
         status = result;
         return;
@@ -74,6 +80,8 @@ XCI::XCI(VirtualFile file_) : file(std::move(file_)), partitions(0x4) {
     status = Loader::ResultStatus::Success;
 }
 
+XCI::~XCI() = default;
+
 Loader::ResultStatus XCI::GetStatus() const {
     return status;
 }
@@ -84,6 +92,10 @@ Loader::ResultStatus XCI::GetProgramNCAStatus() const {
 
 VirtualDir XCI::GetPartition(XCIPartition partition) const {
     return partitions[static_cast<size_t>(partition)];
+}
+
+std::shared_ptr<NSP> XCI::GetSecurePartitionNSP() const {
+    return secure_partition;
 }
 
 VirtualDir XCI::GetSecurePartition() const {
@@ -100,6 +112,16 @@ VirtualDir XCI::GetUpdatePartition() const {
 
 VirtualDir XCI::GetLogoPartition() const {
     return GetPartition(XCIPartition::Logo);
+}
+
+std::shared_ptr<NCA> XCI::GetProgramNCA() const {
+    return program;
+}
+
+VirtualFile XCI::GetProgramNCAFile() const {
+    if (GetProgramNCA() == nullptr)
+        return nullptr;
+    return GetProgramNCA()->GetBaseFile();
 }
 
 const std::vector<std::shared_ptr<NCA>>& XCI::GetNCAs() const {

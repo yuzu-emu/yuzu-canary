@@ -36,6 +36,7 @@ public:
 
 private:
     VirtualFile file;
+    bool updatable;
 };
 
 } // namespace FileSys
