@@ -10,7 +10,11 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+
+#include <boost/icl/interval_map.hpp>
+#include <boost/range/iterator_range.hpp>
 #include <glad/glad.h>
+
 #include "common/common_types.h"
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/memory_manager.h"
@@ -40,15 +44,16 @@ public:
     void Clear() override;
     void NotifyMaxwellRegisterChanged(u32 method) override;
     void FlushAll() override;
-    void FlushRegion(Tegra::GPUVAddr addr, u64 size) override;
-    void InvalidateRegion(Tegra::GPUVAddr addr, u64 size) override;
-    void FlushAndInvalidateRegion(Tegra::GPUVAddr addr, u64 size) override;
+    void FlushRegion(VAddr addr, u64 size) override;
+    void InvalidateRegion(VAddr addr, u64 size) override;
+    void FlushAndInvalidateRegion(VAddr addr, u64 size) override;
     bool AccelerateDisplayTransfer(const void* config) override;
     bool AccelerateTextureCopy(const void* config) override;
     bool AccelerateFill(const void* config) override;
     bool AccelerateDisplay(const Tegra::FramebufferConfig& config, VAddr framebuffer_addr,
                            u32 pixel_stride) override;
     bool AccelerateDrawBatch(bool is_indexed) override;
+    void UpdatePagesCachedCount(Tegra::GPUVAddr addr, u64 size, int delta) override;
 
     /// OpenGL shader generated for a given Maxwell register state
     struct MaxwellShader {
@@ -187,6 +192,9 @@ private:
 
     enum class AccelDraw { Disabled, Arrays, Indexed };
     AccelDraw accelerate_draw = AccelDraw::Disabled;
+
+    using CachedPageMap = boost::icl::interval_map<u64, int>;
+    CachedPageMap cached_pages;
 };
 
 } // namespace OpenGL
