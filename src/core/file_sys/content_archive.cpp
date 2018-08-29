@@ -9,7 +9,7 @@
 #include "core/crypto/aes_util.h"
 #include "core/crypto/ctr_encryption_layer.h"
 #include "core/file_sys/content_archive.h"
-#include "core/file_sys/romfs.h"
+#include "core/file_sys/nca_patch.h"
 #include "core/file_sys/vfs_offset.h"
 #include "core/loader/loader.h"
 
@@ -64,10 +64,31 @@ struct RomFSSuperblock {
 };
 static_assert(sizeof(RomFSSuperblock) == 0x200, "RomFSSuperblock has incorrect size.");
 
+struct BKTRHeader {
+    u64_le offset;
+    u64_le size;
+    u32_le magic;
+    INSERT_PADDING_BYTES(0x4);
+    u32_le number_entries;
+    INSERT_PADDING_BYTES(0x4);
+};
+static_assert(sizeof(BKTRHeader) == 0x20, "BKTRHeader has incorrect size.");
+
+struct BKTRSuperblock {
+    NCASectionHeaderBlock header_block;
+    IVFCHeader ivfc;
+    INSERT_PADDING_BYTES(0x18);
+    BKTRHeader relocation;
+    BKTRHeader subsection;
+    INSERT_PADDING_BYTES(0xC0);
+};
+static_assert(sizeof(BKTRSuperblock) == 0x200, "BKTRSuperblock has incorrect size.");
+
 union NCASectionHeader {
     NCASectionRaw raw;
     PFS0Superblock pfs0;
     RomFSSuperblock romfs;
+    BKTRSuperblock bktr;
 };
 static_assert(sizeof(NCASectionHeader) == 0x200, "NCASectionHeader has incorrect size.");
 
@@ -100,7 +121,7 @@ boost::optional<Core::Crypto::Key128> NCA::GetKeyAreaKey(NCASectionCryptoType ty
     Core::Crypto::Key128 out;
     if (type == NCASectionCryptoType::XTS)
         std::copy(key_area.begin(), key_area.begin() + 0x10, out.begin());
-    else if (type == NCASectionCryptoType::CTR)
+    else if (type == NCASectionCryptoType::CTR || type == NCASectionCryptoType::BKTR)
         std::copy(key_area.begin() + 0x20, key_area.begin() + 0x30, out.begin());
     else
         LOG_CRITICAL(Crypto, "Called GetKeyAreaKey on invalid NCASectionCryptoType type={:02X}",
@@ -150,6 +171,9 @@ VirtualFile NCA::Decrypt(NCASectionHeader s_header, VirtualFile in, u64 starting
         LOG_DEBUG(Crypto, "called with mode=NONE");
         return in;
     case NCASectionCryptoType::CTR:
+    // During normal BKTR decryption, this entire function is skipped. This is for the metadata,
+    // which uses the same CTR as usual.
+    case NCASectionCryptoType::BKTR:
         LOG_DEBUG(Crypto, "called with mode=CTR, starting_offset={:016X}", starting_offset);
         {
             boost::optional<Core::Crypto::Key128> key = boost::none;
@@ -186,7 +210,9 @@ VirtualFile NCA::Decrypt(NCASectionHeader s_header, VirtualFile in, u64 starting
     }
 }
 
-NCA::NCA(VirtualFile file_) : file(std::move(file_)) {
+NCA::NCA(VirtualFile file_, VirtualFile bktr_base_romfs_, u64 bktr_base_ivfc_offset)
+    : file(std::move(file_)),
+      bktr_base_romfs(bktr_base_romfs_ ? std::move(bktr_base_romfs_) : nullptr) {
     status = Loader::ResultStatus::Success;
 
     if (file == nullptr) {
@@ -261,22 +287,21 @@ NCA::NCA(VirtualFile file_) : file(std::move(file_)) {
     is_update = std::find_if(sections.begin(), sections.end(), [](const NCASectionHeader& header) {
                     return header.raw.header.crypto_type == NCASectionCryptoType::BKTR;
                 }) != sections.end();
+    ivfc_offset = 0;
 
     for (std::ptrdiff_t i = 0; i < number_sections; ++i) {
         auto section = sections[i];
 
         if (section.raw.header.filesystem_type == NCASectionFilesystemType::ROMFS) {
-            const size_t romfs_offset =
-                header.section_tables[i].media_offset * MEDIA_OFFSET_MULTIPLIER +
-                section.romfs.ivfc.levels[IVFC_MAX_LEVEL - 1].offset;
+            const size_t base_offset =
+                header.section_tables[i].media_offset * MEDIA_OFFSET_MULTIPLIER;
+            ivfc_offset = section.romfs.ivfc.levels[IVFC_MAX_LEVEL - 1].offset;
+            const size_t romfs_offset = base_offset + ivfc_offset;
             const size_t romfs_size = section.romfs.ivfc.levels[IVFC_MAX_LEVEL - 1].size;
-            auto dec =
-                Decrypt(section, std::make_shared<OffsetVfsFile>(file, romfs_size, romfs_offset),
-                        romfs_offset);
-            if (dec != nullptr) {
-                files.push_back(std::move(dec));
-                romfs = files.back();
-            } else {
+            auto raw = std::make_shared<OffsetVfsFile>(file, romfs_size, romfs_offset);
+            auto dec = Decrypt(section, raw, romfs_offset);
+
+            if (dec == nullptr) {
                 if (status != Loader::ResultStatus::Success)
                     return;
                 if (has_rights_id)
@@ -284,6 +309,120 @@ NCA::NCA(VirtualFile file_) : file(std::move(file_)) {
                 else
                     status = Loader::ResultStatus::ErrorIncorrectKeyAreaKey;
                 return;
+            }
+
+            if (section.raw.header.crypto_type == NCASectionCryptoType::BKTR) {
+                if (section.bktr.relocation.magic != Common::MakeMagic('B', 'K', 'T', 'R') ||
+                    section.bktr.subsection.magic != Common::MakeMagic('B', 'K', 'T', 'R')) {
+                    status = Loader::ResultStatus::ErrorBadBKTRHeader;
+                    return;
+                }
+
+                if (section.bktr.relocation.offset + section.bktr.relocation.size !=
+                    section.bktr.subsection.offset) {
+                    status = Loader::ResultStatus::ErrorBKTRSubsectionNotAfterRelocation;
+                    return;
+                }
+
+                const u64 size =
+                    MEDIA_OFFSET_MULTIPLIER * (header.section_tables[i].media_end_offset -
+                                               header.section_tables[i].media_offset);
+                if (section.bktr.subsection.offset + section.bktr.subsection.size != size) {
+                    status = Loader::ResultStatus::ErrorBKTRSubsectionNotAtEnd;
+                    return;
+                }
+
+                const u64 offset = section.romfs.ivfc.levels[IVFC_MAX_LEVEL - 1].offset;
+                RelocationBlock relocation_block{};
+                if (dec->ReadObject(&relocation_block, section.bktr.relocation.offset - offset) !=
+                    sizeof(RelocationBlock)) {
+                    status = Loader::ResultStatus::ErrorBadRelocationBlock;
+                    return;
+                }
+                SubsectionBlock subsection_block{};
+                if (dec->ReadObject(&subsection_block, section.bktr.subsection.offset - offset) !=
+                    sizeof(RelocationBlock)) {
+                    status = Loader::ResultStatus::ErrorBadSubsectionBlock;
+                    return;
+                }
+
+                std::vector<RelocationBucketRaw> relocation_buckets_raw(
+                    (section.bktr.relocation.size - sizeof(RelocationBlock)) /
+                    sizeof(RelocationBucketRaw));
+                if (dec->ReadBytes(relocation_buckets_raw.data(),
+                                   section.bktr.relocation.size - sizeof(RelocationBlock),
+                                   section.bktr.relocation.offset + sizeof(RelocationBlock) -
+                                       offset) !=
+                    section.bktr.relocation.size - sizeof(RelocationBlock)) {
+                    status = Loader::ResultStatus::ErrorBadRelocationBuckets;
+                    return;
+                }
+
+                std::vector<SubsectionBucketRaw> subsection_buckets_raw(
+                    (section.bktr.subsection.size - sizeof(SubsectionBlock)) /
+                    sizeof(SubsectionBucketRaw));
+                if (dec->ReadBytes(subsection_buckets_raw.data(),
+                                   section.bktr.subsection.size - sizeof(SubsectionBlock),
+                                   section.bktr.subsection.offset + sizeof(SubsectionBlock) -
+                                       offset) !=
+                    section.bktr.subsection.size - sizeof(SubsectionBlock)) {
+                    status = Loader::ResultStatus::ErrorBadSubsectionBuckets;
+                    return;
+                }
+
+                std::vector<RelocationBucket> relocation_buckets(relocation_buckets_raw.size());
+                std::transform(relocation_buckets_raw.begin(), relocation_buckets_raw.end(),
+                               relocation_buckets.begin(), &ConvertRelocationBucketRaw);
+                std::vector<SubsectionBucket> subsection_buckets(subsection_buckets_raw.size());
+                std::transform(subsection_buckets_raw.begin(), subsection_buckets_raw.end(),
+                               subsection_buckets.begin(), &ConvertSubsectionBucketRaw);
+
+                u32 ctr_low;
+                std::memcpy(&ctr_low, section.raw.section_ctr.data(), sizeof(ctr_low));
+                subsection_buckets.back().entries.push_back(
+                    {section.bktr.relocation.offset, {0}, ctr_low});
+                subsection_buckets.back().entries.push_back({size, {0}, 0});
+
+                boost::optional<Core::Crypto::Key128> key = boost::none;
+                if (encrypted) {
+                    if (has_rights_id) {
+                        status = Loader::ResultStatus::Success;
+                        key = GetTitlekey();
+                        if (key == boost::none) {
+                            status = Loader::ResultStatus::ErrorMissingTitlekey;
+                            return;
+                        }
+                    } else {
+                        key = GetKeyAreaKey(NCASectionCryptoType::BKTR);
+                        if (key == boost::none) {
+                            status = Loader::ResultStatus::ErrorMissingKeyAreaKey;
+                            return;
+                        }
+                    }
+                }
+
+                if (bktr_base_romfs == nullptr) {
+                    status = Loader::ResultStatus::ErrorMissingBKTRBaseRomFS;
+                    return;
+                }
+
+                auto bktr = std::make_shared<BKTR>(
+                    bktr_base_romfs, std::make_shared<OffsetVfsFile>(file, romfs_size, base_offset),
+                    relocation_block, relocation_buckets, subsection_block, subsection_buckets,
+                    encrypted, encrypted ? key.get() : Core::Crypto::Key128{}, base_offset,
+                    bktr_base_ivfc_offset, section.raw.section_ctr);
+
+                // BKTR applies to entire IVFC, so make an offset version to level 6
+
+                files.push_back(std::make_shared<OffsetVfsFile>(
+                    bktr, romfs_size, section.romfs.ivfc.levels[IVFC_MAX_LEVEL - 1].offset));
+                romfs = files.back();
+            } else {
+                files.push_back(std::move(dec));
+                romfs = files.back();
+                const u64 raw_size =
+                    MEDIA_OFFSET_MULTIPLIER * (header.section_tables[i].media_end_offset -
+                                               header.section_tables[i].media_offset);
             }
         } else if (section.raw.header.filesystem_type == NCASectionFilesystemType::PFS0) {
             u64 offset = (static_cast<u64>(header.section_tables[i].media_offset) *
@@ -345,9 +484,15 @@ NCAContentType NCA::GetType() const {
 }
 
 u64 NCA::GetTitleId() const {
+    if (is_update || status == Loader::ResultStatus::ErrorMissingBKTRBaseRomFS)
+        return header.title_id | 0x800;
     if (status != Loader::ResultStatus::Success)
         return {};
     return header.title_id;
+}
+
+bool NCA::IsUpdate() const {
+    return is_update;
 }
 
 VirtualFile NCA::GetRomFS() const {
@@ -362,8 +507,8 @@ VirtualFile NCA::GetBaseFile() const {
     return file;
 }
 
-bool NCA::IsUpdate() const {
-    return is_update;
+u64 NCA::GetBaseIVFCOffset() const {
+    return ivfc_offset;
 }
 
 bool NCA::ReplaceFileWithSubdirectory(VirtualFile file, VirtualDir dir) {
