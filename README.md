@@ -1,3 +1,25 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 4d7e1662c84ef65f7da5a27b0473125cc6759d5c
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1200](https://github.com/yuzu-emu/yuzu/pull/1200)|[b1ccd88](https://github.com/yuzu-emu/yuzu/pull/1200/files/)|gl_shader_decompiler: Improve IPA for Pass mode with Position attribute.|[bunnei](https://github.com/bunnei)|Yes|
+|[1199](https://github.com/yuzu-emu/yuzu/pull/1199)|[39e4ba7](https://github.com/yuzu-emu/yuzu/pull/1199/files/)|Various fixes and improvements to rasterizer cache|[bunnei](https://github.com/bunnei)|Yes|
+|[1182](https://github.com/yuzu-emu/yuzu/pull/1182)|[9892123](https://github.com/yuzu-emu/yuzu/pull/1182/files/)|[DO NOT MERGE] NSP and BKTR Conflict Fix for Canary|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1172](https://github.com/yuzu-emu/yuzu/pull/1172)|[27b2e2a](https://github.com/yuzu-emu/yuzu/pull/1172/files/)|Shaders: Implemented IADD3|[tech4me](https://github.com/tech4me)|Yes|
+|[1163](https://github.com/yuzu-emu/yuzu/pull/1163)|[8b451fd](https://github.com/yuzu-emu/yuzu/pull/1163/files/)|[WIP] audio_core: Add audio stretching support|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
