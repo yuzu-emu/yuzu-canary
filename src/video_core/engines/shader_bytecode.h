@@ -213,6 +213,18 @@ enum class XmadMode : u64 {
     CBcc = 4,
 };
 
+enum class IAdd3Mode : u64 {
+    None = 0,
+    RightShift = 1,
+    LeftShift  = 2,
+};
+
+enum class IAdd3Height : u64 {
+    None = 0,
+    LowerHalfWord = 1,
+    UpperHalfWord = 2,
+};
+
 enum class FlowCondition : u64 {
     Always = 0xF,
     Fcsm_Tr = 0x1C, // TODO(bunnei): What is this used for?
@@ -343,6 +355,16 @@ union Instruction {
         BitField<43, 2, IMinMaxExchange> exchange;
         BitField<48, 1, u64> is_signed;
     } imnmx;
+
+    union {
+        BitField<31, 2, IAdd3Height> height_c;
+        BitField<33, 2, IAdd3Height> height_b;
+        BitField<35, 2, IAdd3Height> height_a;
+        BitField<37, 2, IAdd3Mode> mode;
+        BitField<49, 1, u64> neg_c;
+        BitField<50, 1, u64> neg_b;
+        BitField<51, 1, u64> neg_a;
+    } iadd3;
 
     union {
         BitField<54, 1, u64> saturate;
@@ -642,7 +664,7 @@ public:
         IADD_C,
         IADD_R,
         IADD_IMM,
-        IADD3_C,
+        IADD3_C, // Add 3 Integers
         IADD3_R,
         IADD3_IMM,
         IADD32I,
