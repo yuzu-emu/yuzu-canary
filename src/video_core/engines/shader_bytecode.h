@@ -230,6 +230,8 @@ enum class TextureType : u64 {
     TextureCube = 3,
 };
 
+enum class IpaMode : u64 { Pass = 0, None = 1, Constant = 2, Sc = 3 };
+
 union Instruction {
     Instruction& operator=(const Instruction& instr) {
         value = instr.value;
@@ -311,6 +313,10 @@ union Instruction {
             return static_cast<s32>((immediate ^ mask) - mask);
         }
     } alu;
+
+    union {
+        BitField<54, 3, IpaMode> mode;
+    } ipa;
 
     union {
         BitField<48, 1, u64> negate_b;
