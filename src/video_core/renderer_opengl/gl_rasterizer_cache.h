@@ -628,9 +628,6 @@ struct SurfaceParams {
                GetFormatBpp(pixel_format) / CHAR_BIT;
     }
 
-    /// Returns the CPU virtual address for this surface
-    VAddr GetCpuAddr() const;
-
     /// Creates SurfaceParams from a texture configuration
     static SurfaceParams CreateForTexture(const Tegra::Texture::FullTextureInfo& config);
 
@@ -661,7 +658,7 @@ struct SurfaceParams {
                std::tie(other.pixel_format, other.type, other.cache_width, other.cache_height);
     }
 
-    Tegra::GPUVAddr addr;
+    VAddr addr;
     bool is_tiled;
     u32 block_height;
     PixelFormat pixel_format;
@@ -702,7 +699,7 @@ class CachedSurface final {
 public:
     CachedSurface(const SurfaceParams& params);
 
-    Tegra::GPUVAddr GetAddr() const {
+    VAddr GetAddr() const {
         return params.addr;
     }
 
@@ -753,8 +750,8 @@ public:
     /// Flushes the surface to Switch memory
     void FlushSurface(const Surface& surface);
 
-    /// Tries to find a framebuffer GPU address based on the provided CPU address
-    Surface TryFindFramebufferSurface(VAddr cpu_addr) const;
+    /// Tries to find a framebuffer using on the provided CPU address
+    Surface TryFindFramebufferSurface(VAddr addr) const;
 
 private:
     void LoadSurface(const Surface& surface);
