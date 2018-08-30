@@ -15,6 +15,7 @@
 #include "control_metadata.h"
 #include "core/crypto/key_manager.h"
 #include "core/file_sys/partition_filesystem.h"
+#include "core/file_sys/romfs.h"
 #include "core/loader/loader.h"
 
 namespace FileSys {
@@ -77,7 +78,8 @@ bool IsValidNCA(const NCAHeader& header);
 // After construction, use GetStatus to determine if the file is valid and ready to be used.
 class NCA : public ReadOnlyVfsDirectory {
 public:
-    explicit NCA(VirtualFile file);
+    explicit NCA(VirtualFile file, VirtualFile bktr_base_romfs = nullptr,
+                 u64 bktr_base_ivfc_offset = 0);
     Loader::ResultStatus GetStatus() const;
 
     std::vector<std::shared_ptr<VfsFile>> GetFiles() const override;
@@ -87,13 +89,15 @@ public:
 
     NCAContentType GetType() const;
     u64 GetTitleId() const;
+    bool IsUpdate() const;
 
     VirtualFile GetRomFS() const;
     VirtualDir GetExeFS() const;
 
     VirtualFile GetBaseFile() const;
 
-    bool IsUpdate() const;
+    // Returns the base ivfc offset used in BKTR patching.
+    u64 GetBaseIVFCOffset() const;
 
 protected:
     bool ReplaceFileWithSubdirectory(VirtualFile file, VirtualDir dir) override;
@@ -110,14 +114,16 @@ private:
     VirtualFile romfs = nullptr;
     VirtualDir exefs = nullptr;
     VirtualFile file;
+    VirtualFile bktr_base_romfs;
+    u64 ivfc_offset;
 
     NCAHeader header{};
     bool has_rights_id{};
-    bool is_update{};
 
     Loader::ResultStatus status{};
 
     bool encrypted;
+    bool is_update;
 
     Core::Crypto::KeyManager keys;
 };
