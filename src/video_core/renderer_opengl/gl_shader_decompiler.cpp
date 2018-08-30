@@ -2100,7 +2100,39 @@ private:
             }
             case OpCode::Id::IPA: {
                 const auto& attribute = instr.attribute.fmt28;
-                regs.SetRegisterToInputAttibute(instr.gpr0, attribute.element, attribute.index);
+                const auto& reg = instr.gpr0;
+                switch (instr.ipa.mode) {
+                case Tegra::Shader::IpaMode::Pass:
+                    if (stage == Maxwell3D::Regs::ShaderStage::Fragment &&
+                        attribute.index == Attribute::Index::Position) {
+                        switch (attribute.element) {
+                        case 0:
+                            shader.AddLine(regs.GetRegisterAsFloat(reg) + " = gl_FragCoord.x;");
+                            break;
+                        case 1:
+                            shader.AddLine(regs.GetRegisterAsFloat(reg) + " = gl_FragCoord.y;");
+                            break;
+                        case 2:
+                            shader.AddLine(regs.GetRegisterAsFloat(reg) + " = gl_FragCoord.z;");
+                            break;
+                        case 3:
+                            shader.AddLine(regs.GetRegisterAsFloat(reg) + " = 1.0;");
+                            break;
+                        }
+                    } else {
+                        regs.SetRegisterToInputAttibute(reg, attribute.element, attribute.index);
+                    }
+                    break;
+                case Tegra::Shader::IpaMode::None:
+                    regs.SetRegisterToInputAttibute(reg, attribute.element, attribute.index);
+                    break;
+                default:
+                    LOG_CRITICAL(HW_GPU, "Unhandled IPA mode: {}",
+                                 static_cast<u32>(instr.ipa.mode.Value()));
+                    UNREACHABLE();
+                    regs.SetRegisterToInputAttibute(reg, attribute.element, attribute.index);
+                }
+
                 break;
             }
             case OpCode::Id::SSY: {
