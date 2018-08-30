@@ -12,21 +12,17 @@
 namespace OpenGL {
 
 /// Gets the address for the specified shader stage program
-static Tegra::GPUVAddr GetShaderAddress(Maxwell::ShaderProgram program) {
+static VAddr GetShaderAddress(Maxwell::ShaderProgram program) {
     auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
     auto& shader_config = gpu.regs.shader_config[static_cast<size_t>(program)];
-
-    return gpu.regs.code_address.CodeAddress() + shader_config.offset;
+    return *gpu.memory_manager.GpuToCpuAddress(gpu.regs.code_address.CodeAddress() +
+                                               shader_config.offset);
 }
 
 /// Gets the shader program code from memory for the specified address
-static GLShader::ProgramCode GetShaderCode(Tegra::GPUVAddr addr) {
-    auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
-
+static GLShader::ProgramCode GetShaderCode(VAddr addr) {
     GLShader::ProgramCode program_code(GLShader::MAX_PROGRAM_CODE_LENGTH);
-    const boost::optional<VAddr> cpu_address{gpu.memory_manager.GpuToCpuAddress(addr)};
-    Memory::ReadBlock(*cpu_address, program_code.data(), program_code.size() * sizeof(u64));
-
+    Memory::ReadBlock(addr, program_code.data(), program_code.size() * sizeof(u64));
     return program_code;
 }
 
@@ -55,7 +51,7 @@ static void SetShaderUniformBlockBindings(GLuint shader) {
                                  sizeof(GLShader::MaxwellUniformData));
 }
 
-CachedShader::CachedShader(Tegra::GPUVAddr addr, Maxwell::ShaderProgram program_type)
+CachedShader::CachedShader(VAddr addr, Maxwell::ShaderProgram program_type)
     : addr{addr}, program_type{program_type}, setup{GetShaderCode(addr)} {
 
     GLShader::ProgramResult program_result;
@@ -113,7 +109,7 @@ GLint CachedShader::GetUniformLocation(const std::string& name) {
 }
 
 Shader ShaderCacheOpenGL::GetStageProgram(Maxwell::ShaderProgram program) {
-    const Tegra::GPUVAddr program_addr{GetShaderAddress(program)};
+    const VAddr program_addr{GetShaderAddress(program)};
 
     // Look up shader in the cache based on address
     Shader shader{TryGet(program_addr)};
