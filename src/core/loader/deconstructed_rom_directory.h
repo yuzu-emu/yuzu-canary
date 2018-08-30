@@ -20,10 +20,12 @@ namespace Loader {
  */
 class AppLoader_DeconstructedRomDirectory final : public AppLoader {
 public:
-    explicit AppLoader_DeconstructedRomDirectory(FileSys::VirtualFile main_file);
+    explicit AppLoader_DeconstructedRomDirectory(FileSys::VirtualFile main_file,
+                                                 bool override_update = false);
 
     // Overload to accept exefs directory. Must contain 'main' and 'main.npdm'
-    explicit AppLoader_DeconstructedRomDirectory(FileSys::VirtualDir directory);
+    explicit AppLoader_DeconstructedRomDirectory(FileSys::VirtualDir directory,
+                                                 bool override_update = false);
 
     /**
      * Returns the type of the file
@@ -42,6 +44,7 @@ public:
     ResultStatus ReadIcon(std::vector<u8>& buffer) override;
     ResultStatus ReadProgramId(u64& out_program_id) override;
     ResultStatus ReadTitle(std::string& title) override;
+    bool IsRomFSUpdatable() const override;
 
 private:
     FileSys::ProgramMetadata metadata;
@@ -51,6 +54,7 @@ private:
     std::vector<u8> icon_data;
     std::string name;
     u64 title_id{};
+    bool override_update;
 };
 
 } // namespace Loader
