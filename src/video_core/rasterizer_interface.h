@@ -27,14 +27,14 @@ public:
     virtual void FlushAll() = 0;
 
     /// Notify rasterizer that any caches of the specified region should be flushed to Switch memory
-    virtual void FlushRegion(Tegra::GPUVAddr addr, u64 size) = 0;
+    virtual void FlushRegion(VAddr addr, u64 size) = 0;
 
     /// Notify rasterizer that any caches of the specified region should be invalidated
-    virtual void InvalidateRegion(Tegra::GPUVAddr addr, u64 size) = 0;
+    virtual void InvalidateRegion(VAddr addr, u64 size) = 0;
 
     /// Notify rasterizer that any caches of the specified region should be flushed to Switch memory
     /// and invalidated
-    virtual void FlushAndInvalidateRegion(Tegra::GPUVAddr addr, u64 size) = 0;
+    virtual void FlushAndInvalidateRegion(VAddr addr, u64 size) = 0;
 
     /// Attempt to use a faster method to perform a display transfer with is_texture_copy = 0
     virtual bool AccelerateDisplayTransfer(const void* config) {
@@ -60,5 +60,8 @@ public:
     virtual bool AccelerateDrawBatch(bool is_indexed) {
         return false;
     }
+
+    /// Increase/decrease the number of object in pages touching the specified region
+    virtual void UpdatePagesCachedCount(Tegra::GPUVAddr addr, u64 size, int delta) {}
 };
 } // namespace VideoCore
