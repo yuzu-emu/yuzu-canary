@@ -37,6 +37,8 @@ Stream::Stream(u32 sample_rate, Format format, ReleaseCallback&& release_callbac
     : sample_rate{sample_rate}, format{format}, release_callback{std::move(release_callback)},
       sink_stream{sink_stream}, name{std::move(name_)} {
 
+    time_stretcher.SetNativeSampleRate(GetSampleRate());
+
     release_event = CoreTiming::RegisterEvent(
         name, [this](u64 userdata, int cycles_late) { ReleaseActiveBuffer(); });
 }
@@ -89,7 +91,15 @@ void Stream::PlayNextBuffer() {
     queued_buffers.pop();
 
     VolumeAdjustSamples(active_buffer->Samples());
-    sink_stream.EnqueueSamples(GetNumChannels(), active_buffer->GetSamples());
+
+    if (Settings::values.enable_audio_stretching) {
+        time_stretcher.AddSamples(&active_buffer->Samples().front(),
+                                  active_buffer->Samples().size() / 2);
+        std::vector<s16> stretched_samples = time_stretcher.Process(sink_stream.SamplesInQueue());
+        sink_stream.EnqueueSamples(GetNumChannels(), stretched_samples);
+    } else {
+        sink_stream.EnqueueSamples(GetNumChannels(), active_buffer->GetSamples());
+    }
 
     CoreTiming::ScheduleEventThreadsafe(GetBufferReleaseCycles(*active_buffer), release_event, {});
 }
