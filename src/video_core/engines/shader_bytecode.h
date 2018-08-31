@@ -345,6 +345,10 @@ union Instruction {
     } alu_integer;
 
     union {
+        BitField<40, 1, u64> invert;
+    } popc;
+
+    union {
         BitField<39, 3, u64> pred;
         BitField<42, 1, u64> neg_pred;
     } sel;
@@ -671,6 +675,9 @@ public:
         ISCADD_C, // Scale and Add
         ISCADD_R,
         ISCADD_IMM,
+        POPC_C,
+        POPC_R,
+        POPC_IMM,
         SEL_C,
         SEL_R,
         SEL_IMM,
@@ -892,6 +899,9 @@ private:
             INST("0100110000011---", Id::ISCADD_C, Type::ArithmeticInteger, "ISCADD_C"),
             INST("0101110000011---", Id::ISCADD_R, Type::ArithmeticInteger, "ISCADD_R"),
             INST("0011100-00011---", Id::ISCADD_IMM, Type::ArithmeticInteger, "ISCADD_IMM"),
+            INST("0100110000001---", Id::POPC_C, Type::ArithmeticInteger, "POPC_C"),
+            INST("0101110000001---", Id::POPC_R, Type::ArithmeticInteger, "POPC_R"),
+            INST("0011100-00001---", Id::POPC_IMM, Type::ArithmeticInteger, "POPC_IMM"),
             INST("0100110010100---", Id::SEL_C, Type::ArithmeticInteger, "SEL_C"),
             INST("0101110010100---", Id::SEL_R, Type::ArithmeticInteger, "SEL_R"),
             INST("0011100-10100---", Id::SEL_IMM, Type::ArithmeticInteger, "SEL_IMM"),

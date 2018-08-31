@@ -1363,6 +1363,15 @@ private:
                                           "((" + op_a + " << " + shift + ") + " + op_b + ')', 1, 1);
                 break;
             }
+            case OpCode::Id::POPC_C:
+            case OpCode::Id::POPC_R:
+            case OpCode::Id::POPC_IMM: {
+                if (instr.popc.invert) {
+                    op_b = "~(" + op_b + ')';
+                }
+                regs.SetRegisterToInteger(instr.gpr0, true, 0, "bitCount(" + op_b + ')', 1, 1);
+                break;
+            }
             case OpCode::Id::SEL_C:
             case OpCode::Id::SEL_R:
             case OpCode::Id::SEL_IMM: {
