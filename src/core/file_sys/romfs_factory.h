@@ -36,6 +36,8 @@ public:
 
 private:
     VirtualFile file;
+    bool updatable;
+    u64 ivfc_offset;
 };
 
 } // namespace FileSys
