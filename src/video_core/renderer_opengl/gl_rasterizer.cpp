@@ -274,6 +274,41 @@ bool RasterizerOpenGL::AccelerateDrawBatch(bool is_indexed) {
     return true;
 }
 
+template <typename Map, typename Interval>
+static constexpr auto RangeFromInterval(Map& map, const Interval& interval) {
+    return boost::make_iterator_range(map.equal_range(interval));
+}
+
+void RasterizerOpenGL::UpdatePagesCachedCount(VAddr addr, u64 size, int delta) {
+    const u64 page_start{addr >> Memory::PAGE_BITS};
+    const u64 page_end{(addr + size + Memory::PAGE_SIZE - 1) >> Memory::PAGE_BITS};
+
+    // Interval maps will erase segments if count reaches 0, so if delta is negative we have to
+    // subtract after iterating
+    const auto pages_interval = CachedPageMap::interval_type::right_open(page_start, page_end);
+    if (delta > 0)
+        cached_pages.add({pages_interval, delta});
+
+    for (const auto& pair : RangeFromInterval(cached_pages, pages_interval)) {
+        const auto interval = pair.first & pages_interval;
+        const int count = pair.second;
+
+        const VAddr interval_start_addr = boost::icl::first(interval) << Memory::PAGE_BITS;
+        const VAddr interval_end_addr = boost::icl::last_next(interval) << Memory::PAGE_BITS;
+        const u64 interval_size = interval_end_addr - interval_start_addr;
+
+        if (delta > 0 && count == delta)
+            Memory::RasterizerMarkRegionCached(interval_start_addr, interval_size, true);
+        else if (delta < 0 && count == -delta)
+            Memory::RasterizerMarkRegionCached(interval_start_addr, interval_size, false);
+        else
+            ASSERT(count >= 0);
+    }
+
+    if (delta < 0)
+        cached_pages.add({pages_interval, delta});
+}
+
 std::pair<Surface, Surface> RasterizerOpenGL::ConfigureFramebuffers(bool using_color_fb,
                                                                     bool using_depth_fb,
                                                                     bool preserve_contents) {
@@ -397,16 +432,6 @@ void RasterizerOpenGL::Clear() {
     glClearStencil(regs.clear_stencil);
 
     glClear(clear_mask);
-
-    // Mark framebuffer surfaces as dirty
-    if (Settings::values.use_accurate_framebuffers) {
-        if (dirty_color_surface != nullptr) {
-            res_cache.FlushSurface(dirty_color_surface);
-        }
-        if (dirty_depth_surface != nullptr) {
-            res_cache.FlushSurface(dirty_depth_surface);
-        }
-    }
 }
 
 std::pair<u8*, GLintptr> RasterizerOpenGL::AlignBuffer(u8* buffer_ptr, GLintptr buffer_offset,
@@ -522,16 +547,6 @@ void RasterizerOpenGL::DrawArrays() {
         texture_unit.Unbind();
     }
     state.Apply();
-
-    // Mark framebuffer surfaces as dirty
-    if (Settings::values.use_accurate_framebuffers) {
-        if (dirty_color_surface != nullptr) {
-            res_cache.FlushSurface(dirty_color_surface);
-        }
-        if (dirty_depth_surface != nullptr) {
-            res_cache.FlushSurface(dirty_depth_surface);
-        }
-    }
 }
 
 void RasterizerOpenGL::NotifyMaxwellRegisterChanged(u32 method) {}
@@ -540,17 +555,17 @@ void RasterizerOpenGL::FlushAll() {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
 }
 
-void RasterizerOpenGL::FlushRegion(Tegra::GPUVAddr addr, u64 size) {
+void RasterizerOpenGL::FlushRegion(VAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
 }
 
-void RasterizerOpenGL::InvalidateRegion(Tegra::GPUVAddr addr, u64 size) {
+void RasterizerOpenGL::InvalidateRegion(VAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.InvalidateRegion(addr, size);
     shader_cache.InvalidateRegion(addr, size);
 }
 
-void RasterizerOpenGL::FlushAndInvalidateRegion(Tegra::GPUVAddr addr, u64 size) {
+void RasterizerOpenGL::FlushAndInvalidateRegion(VAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     InvalidateRegion(addr, size);
 }
