@@ -478,6 +478,16 @@ bool GMainWindow::LoadROM(const QString& filename) {
 
     const Core::System::ResultStatus result{system.Load(*render_window, filename.toStdString())};
 
+    if (system.GetAppLoader().GetFileType() == Loader::FileType::DeconstructedRomDirectory) {
+        QMessageBox::warning(
+            this, tr("Warning Outdated Game Format"),
+            tr("You are using the deconstructed ROM directory format for this game, which is an "
+               "outdated format that has been superseded by others such as NCA, NAX, XCI, or "
+               "NSP.<br><br>For an explanation of the various Switch formats yuzu supports, <a "
+               "href='https://yuzu-emu.org/wiki/overview-of-switch-game-formats'>check out our "
+               "wiki</a>."));
+    }
+
     render_window->DoneCurrent();
 
     if (result != Core::System::ResultStatus::Success) {
@@ -736,7 +746,8 @@ void GMainWindow::OnMenuLoadFolder() {
 
 void GMainWindow::OnMenuInstallToNAND() {
     const QString file_filter =
-        tr("Installable Switch File (*.nca *.xci);;Nintendo Content Archive (*.nca);;NX Cartridge "
+        tr("Installable Switch File (*.nca *.nsp *.xci);;Nintendo Content Archive "
+           "(*.nca);;Nintendo Submissions Package (*.nsp);;NX Cartridge "
            "Image (*.xci)");
     QString filename = QFileDialog::getOpenFileName(this, tr("Install File"),
                                                     UISettings::values.roms_path, file_filter);
@@ -796,22 +807,34 @@ void GMainWindow::OnMenuInstallToNAND() {
                QMessageBox::Yes;
     };
 
-    if (filename.endsWith("xci", Qt::CaseInsensitive)) {
-        const auto xci = std::make_shared<FileSys::XCI>(
-            vfs->OpenFile(filename.toStdString(), FileSys::Mode::Read));
-        if (xci->GetStatus() != Loader::ResultStatus::Success) {
+    if (filename.endsWith("xci", Qt::CaseInsensitive) ||
+        filename.endsWith("nsp", Qt::CaseInsensitive)) {
+
+        std::shared_ptr<FileSys::NSP> nsp;
+        if (filename.endsWith("nsp", Qt::CaseInsensitive)) {
+            nsp = std::make_shared<FileSys::NSP>(
+                vfs->OpenFile(filename.toStdString(), FileSys::Mode::Read));
+            if (nsp->IsExtractedType())
+                failed();
+        } else {
+            const auto xci = std::make_shared<FileSys::XCI>(
+                vfs->OpenFile(filename.toStdString(), FileSys::Mode::Read));
+            nsp = xci->GetSecurePartitionNSP();
+        }
+
+        if (nsp->GetStatus() != Loader::ResultStatus::Success) {
             failed();
             return;
         }
         const auto res =
-            Service::FileSystem::GetUserNANDContents()->InstallEntry(xci, false, qt_raw_copy);
+            Service::FileSystem::GetUserNANDContents()->InstallEntry(nsp, false, qt_raw_copy);
         if (res == FileSys::InstallResult::Success) {
             success();
         } else {
             if (res == FileSys::InstallResult::ErrorAlreadyExists) {
                 if (overwrite()) {
                     const auto res2 = Service::FileSystem::GetUserNANDContents()->InstallEntry(
-                        xci, true, qt_raw_copy);
+                        nsp, true, qt_raw_copy);
                     if (res2 == FileSys::InstallResult::Success) {
                         success();
                     } else {
@@ -825,7 +848,11 @@ void GMainWindow::OnMenuInstallToNAND() {
     } else {
         const auto nca = std::make_shared<FileSys::NCA>(
             vfs->OpenFile(filename.toStdString(), FileSys::Mode::Read));
-        if (nca->GetStatus() != Loader::ResultStatus::Success) {
+        const auto id = nca->GetStatus();
+
+        // Game updates necessary are missing base RomFS
+        if (id != Loader::ResultStatus::Success &&
+            id != Loader::ResultStatus::ErrorMissingBKTRBaseRomFS) {
             failed();
             return;
         }

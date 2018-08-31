@@ -8,6 +8,7 @@
 #include "core/file_sys/card_image.h"
 #include "core/file_sys/content_archive.h"
 #include "core/file_sys/control_metadata.h"
+#include "core/file_sys/patch_manager.h"
 #include "core/file_sys/romfs.h"
 #include "core/hle/kernel/process.h"
 #include "core/loader/nca.h"
@@ -17,14 +18,21 @@ namespace Loader {
 
 AppLoader_XCI::AppLoader_XCI(FileSys::VirtualFile file)
     : AppLoader(file), xci(std::make_unique<FileSys::XCI>(file)),
-      nca_loader(std::make_unique<AppLoader_NCA>(
-          xci->GetNCAFileByType(FileSys::NCAContentType::Program))) {
+      nca_loader(std::make_unique<AppLoader_NCA>(xci->GetProgramNCAFile())) {
     if (xci->GetStatus() != ResultStatus::Success)
         return;
+
     const auto control_nca = xci->GetNCAByType(FileSys::NCAContentType::Control);
+
     if (control_nca == nullptr || control_nca->GetStatus() != ResultStatus::Success)
         return;
-    const auto romfs = FileSys::ExtractRomFS(control_nca->GetRomFS());
+
+    auto romfs_raw = control_nca->GetRomFS();
+    FileSys::PatchManager patch{xci->GetNCAByType(FileSys::NCAContentType::Program)->GetTitleId()};
+    romfs_raw = patch.PatchRomFS(romfs_raw, control_nca->GetBaseIVFCOffset(),
+                                 FileSys::ContentRecordType::Control);
+
+    const auto romfs = FileSys::ExtractRomFS(romfs_raw);
     if (romfs == nullptr)
         return;
     for (const auto& language : FileSys::LANGUAGE_NAMES) {
@@ -64,11 +72,11 @@ ResultStatus AppLoader_XCI::Load(Kernel::SharedPtr<Kernel::Process>& process) {
     if (xci->GetProgramNCAStatus() != ResultStatus::Success)
         return xci->GetProgramNCAStatus();
 
-    const auto nca = xci->GetNCAFileByType(FileSys::NCAContentType::Program);
+    const auto nca = xci->GetProgramNCA();
     if (nca == nullptr && !Core::Crypto::KeyManager::KeyFileExists(false))
         return ResultStatus::ErrorMissingProductionKeyFile;
 
-    auto result = nca_loader->Load(process);
+    const auto result = nca_loader->Load(process);
     if (result != ResultStatus::Success)
         return result;
 

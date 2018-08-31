@@ -39,6 +39,7 @@ public:
     ResultStatus ReadProgramId(u64& out_program_id) override;
     ResultStatus ReadRomFS(FileSys::VirtualFile& dir) override;
     ResultStatus ReadTitle(std::string& title) override;
+    bool IsRomFSUpdatable() const override;
 
 private:
     bool LoadNro(FileSys::VirtualFile file, VAddr load_base);
