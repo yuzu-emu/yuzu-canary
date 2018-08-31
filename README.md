@@ -1,3 +1,23 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 26aaa86ece9cf96b477e0755f5ee7ebe471ef85a
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1205](https://github.com/yuzu-emu/yuzu/pull/1205)|[d839351](https://github.com/yuzu-emu/yuzu/pull/1205/files/)|Various fixes and improvements to rasterizer cache 2: Electric Boogaloo|[bunnei](https://github.com/bunnei)|Yes|
+|[1182](https://github.com/yuzu-emu/yuzu/pull/1182)|[faf30fe](https://github.com/yuzu-emu/yuzu/pull/1182/files/)|[DO NOT MERGE] NSP and BKTR Conflict Fix for Canary|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1163](https://github.com/yuzu-emu/yuzu/pull/1163)|[8b451fd](https://github.com/yuzu-emu/yuzu/pull/1163/files/)|[WIP] audio_core: Add audio stretching support|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
