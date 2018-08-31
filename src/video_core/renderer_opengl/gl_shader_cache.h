@@ -8,7 +8,6 @@
 #include <unordered_map>
 
 #include "common/common_types.h"
-#include "video_core/memory_manager.h"
 #include "video_core/rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_shader_gen.h"
@@ -21,10 +20,10 @@ using Maxwell = Tegra::Engines::Maxwell3D::Regs;
 
 class CachedShader final {
 public:
-    CachedShader(Tegra::GPUVAddr addr, Maxwell::ShaderProgram program_type);
+    CachedShader(VAddr addr, Maxwell::ShaderProgram program_type);
 
     /// Gets the address of the shader in guest memory, required for cache management
-    Tegra::GPUVAddr GetAddr() const {
+    VAddr GetAddr() const {
         return addr;
     }
 
@@ -50,7 +49,7 @@ public:
     GLint GetUniformLocation(const std::string& name);
 
 private:
-    Tegra::GPUVAddr addr;
+    VAddr addr;
     Maxwell::ShaderProgram program_type;
     GLShader::ShaderSetup setup;
     GLShader::ShaderEntries entries;
