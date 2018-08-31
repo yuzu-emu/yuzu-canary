@@ -638,9 +638,6 @@ struct SurfaceParams {
                GetFormatBpp(pixel_format) / CHAR_BIT;
     }
 
-    /// Returns the CPU virtual address for this surface
-    VAddr GetCpuAddr() const;
-
     /// Creates SurfaceParams from a texture configuration
     static SurfaceParams CreateForTexture(const Tegra::Texture::FullTextureInfo& config);
 
@@ -653,25 +650,13 @@ struct SurfaceParams {
                                               Tegra::GPUVAddr zeta_address,
                                               Tegra::DepthFormat format);
 
-    bool operator==(const SurfaceParams& other) const {
-        return std::tie(addr, is_tiled, block_height, pixel_format, component_type, type, width,
-                        height, unaligned_height, size_in_bytes) ==
-               std::tie(other.addr, other.is_tiled, other.block_height, other.pixel_format,
-                        other.component_type, other.type, other.width, other.height,
-                        other.unaligned_height, other.size_in_bytes);
-    }
-
-    bool operator!=(const SurfaceParams& other) const {
-        return !operator==(other);
-    }
-
     /// Checks if surfaces are compatible for caching
     bool IsCompatibleSurface(const SurfaceParams& other) const {
         return std::tie(pixel_format, type, cache_width, cache_height) ==
                std::tie(other.pixel_format, other.type, other.cache_width, other.cache_height);
     }
 
-    Tegra::GPUVAddr addr;
+    VAddr addr;
     bool is_tiled;
     u32 block_height;
     PixelFormat pixel_format;
@@ -712,7 +697,7 @@ class CachedSurface final {
 public:
     CachedSurface(const SurfaceParams& params);
 
-    Tegra::GPUVAddr GetAddr() const {
+    VAddr GetAddr() const {
         return params.addr;
     }
 
@@ -763,12 +748,15 @@ public:
     /// Flushes the surface to Switch memory
     void FlushSurface(const Surface& surface);
 
-    /// Tries to find a framebuffer GPU address based on the provided CPU address
-    Surface TryFindFramebufferSurface(VAddr cpu_addr) const;
+    /// Tries to find a framebuffer using on the provided CPU address
+    Surface TryFindFramebufferSurface(VAddr addr) const;
 
 private:
     void LoadSurface(const Surface& surface);
     Surface GetSurface(const SurfaceParams& params, bool preserve_contents = true);
+
+    /// Gets an uncached surface, creating it if need be
+    Surface GetUncachedSurface(const SurfaceParams& params);
 
     /// Recreates a surface with new parameters
     Surface RecreateSurface(const Surface& surface, const SurfaceParams& new_params);
