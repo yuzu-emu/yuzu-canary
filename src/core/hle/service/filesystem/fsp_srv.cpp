@@ -26,6 +26,17 @@
 
 namespace Service::FileSystem {
 
+enum class FileSystemType : u8 {
+    Invalid0 = 0,
+    Invalid1 = 1,
+    Logo = 2,
+    ContentControl = 3,
+    ContentManual = 4,
+    ContentMeta = 5,
+    ContentData = 6,
+    ApplicationPackage = 7,
+};
+
 class IStorage final : public ServiceFramework<IStorage> {
 public:
     explicit IStorage(FileSys::VirtualFile backend_)
@@ -420,7 +431,7 @@ FSP_SRV::FSP_SRV() : ServiceFramework("fsp-srv") {
         {0, nullptr, "MountContent"},
         {1, &FSP_SRV::Initialize, "Initialize"},
         {2, nullptr, "OpenDataFileSystemByCurrentProcess"},
-        {7, nullptr, "OpenFileSystemWithPatch"},
+        {7, &FSP_SRV::OpenFileSystemWithPatch, "OpenFileSystemWithPatch"},
         {8, nullptr, "OpenFileSystemWithId"},
         {9, nullptr, "OpenDataFileSystemByApplicationId"},
         {11, nullptr, "OpenBisFileSystem"},
@@ -444,7 +455,7 @@ FSP_SRV::FSP_SRV() : ServiceFramework("fsp-srv") {
         {34, nullptr, "GetCacheStorageSize"},
         {51, &FSP_SRV::MountSaveData, "MountSaveData"},
         {52, nullptr, "OpenSaveDataFileSystemBySystemSaveDataId"},
-        {53, nullptr, "OpenReadOnlySaveDataFileSystem"},
+        {53, &FSP_SRV::OpenReadOnlySaveDataFileSystem, "OpenReadOnlySaveDataFileSystem"},
         {57, nullptr, "ReadSaveDataFileSystemExtraDataBySaveDataSpaceId"},
         {58, nullptr, "ReadSaveDataFileSystemExtraData"},
         {59, nullptr, "WriteSaveDataFileSystemExtraData"},
@@ -516,6 +527,16 @@ void FSP_SRV::Initialize(Kernel::HLERequestContext& ctx) {
     rb.Push(RESULT_SUCCESS);
 }
 
+void FSP_SRV::OpenFileSystemWithPatch(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp{ctx};
+
+    const auto type = rp.PopRaw<FileSystemType>();
+    const auto title_id = rp.PopRaw<u64>();
+
+    IPC::ResponseBuilder rb{ctx, 2, 0, 0};
+    rb.Push(ResultCode(-1));
+}
+
 void FSP_SRV::MountSdCard(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service_FS, "called");
 
@@ -561,6 +582,11 @@ void FSP_SRV::MountSaveData(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(RESULT_SUCCESS);
     rb.PushIpcInterface<IFileSystem>(std::move(filesystem));
+}
+
+void FSP_SRV::OpenReadOnlySaveDataFileSystem(Kernel::HLERequestContext& ctx) {
+    LOG_WARNING(Service_FS, "(STUBBED) called, delegating to 51 OpenSaveDataFilesystem");
+    MountSaveData(ctx);
 }
 
 void FSP_SRV::GetGlobalAccessLogMode(Kernel::HLERequestContext& ctx) {
