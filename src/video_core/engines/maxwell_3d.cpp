@@ -5,6 +5,7 @@
 #include <cinttypes>
 #include "common/assert.h"
 #include "core/core.h"
+#include "core/core_timing.h"
 #include "core/memory.h"
 #include "video_core/debug_utils/debug_utils.h"
 #include "video_core/engines/maxwell_3d.h"
@@ -194,8 +195,8 @@ void Maxwell3D::ProcessQueryGet() {
             // wait queues.
             LongQueryResult query_result{};
             query_result.value = result;
-            // TODO(Subv): Generate a real GPU timestamp and write it here instead of 0
-            query_result.timestamp = 0;
+            // TODO(Subv): Generate a real GPU timestamp and write it here instead of CoreTiming
+            query_result.timestamp = CoreTiming::GetTicks();
             Memory::WriteBlock(*address, &query_result, sizeof(query_result));
         }
         break;
