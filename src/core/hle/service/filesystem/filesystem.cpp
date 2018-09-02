@@ -19,6 +19,7 @@
 #include "core/hle/service/filesystem/fsp_ldr.h"
 #include "core/hle/service/filesystem/fsp_pr.h"
 #include "core/hle/service/filesystem/fsp_srv.h"
+#include "filesystem.h"
 
 namespace Service::FileSystem {
 
@@ -305,6 +306,12 @@ ResultVal<FileSys::VirtualDir> OpenSDMC() {
     }
 
     return sdmc_factory->Open();
+}
+
+std::shared_ptr<FileSys::RegisteredCacheUnion> GetUnionContents() {
+    return std::make_shared<FileSys::RegisteredCacheUnion>(
+        std::vector<std::shared_ptr<FileSys::RegisteredCache>>{
+            GetSystemNANDContents(), GetUserNANDContents(), GetSDMCContents()});
 }
 
 std::shared_ptr<FileSys::RegisteredCache> GetSystemNANDContents() {
