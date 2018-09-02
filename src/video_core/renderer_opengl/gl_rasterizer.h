@@ -18,7 +18,9 @@
 #include "common/common_types.h"
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/memory_manager.h"
+#include "video_core/rasterizer_cache.h"
 #include "video_core/rasterizer_interface.h"
+#include "video_core/renderer_opengl/gl_buffer_cache.h"
 #include "video_core/renderer_opengl/gl_rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_shader_cache.h"
@@ -109,9 +111,8 @@ private:
      * @param current_bindpoint The offset at which to start counting new buffer bindpoints.
      * @returns The next available bindpoint for use in the next shader stage.
      */
-    std::tuple<u8*, GLintptr, u32> SetupConstBuffers(
-        u8* buffer_ptr, GLintptr buffer_offset, Tegra::Engines::Maxwell3D::Regs::ShaderStage stage,
-        Shader& shader, u32 current_bindpoint);
+    u32 SetupConstBuffers(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage, Shader& shader,
+                          u32 current_bindpoint);
 
     /*
      * Configures the current textures to use for the draw command.
@@ -173,22 +174,16 @@ private:
     std::array<SamplerInfo, GLShader::NumTextureSamplers> texture_samplers;
 
     static constexpr size_t STREAM_BUFFER_SIZE = 128 * 1024 * 1024;
-    OGLStreamBuffer stream_buffer;
+    OGLBufferCache buffer_cache;
     OGLBuffer uniform_buffer;
     OGLFramebuffer framebuffer;
     GLint uniform_buffer_alignment;
 
     size_t CalculateVertexArraysSize() const;
 
-    std::pair<u8*, GLintptr> SetupVertexArrays(u8* array_ptr, GLintptr buffer_offset);
+    void SetupVertexArrays();
 
-    std::pair<u8*, GLintptr> SetupShaders(u8* buffer_ptr, GLintptr buffer_offset);
-
-    std::pair<u8*, GLintptr> AlignBuffer(u8* buffer_ptr, GLintptr buffer_offset, size_t alignment);
-
-    std::tuple<u8*, GLintptr, GLintptr> UploadMemory(u8* buffer_ptr, GLintptr buffer_offset,
-                                                     Tegra::GPUVAddr gpu_addr, size_t size,
-                                                     size_t alignment = 4);
+    void SetupShaders();
 
     enum class AccelDraw { Disabled, Arrays, Indexed };
     AccelDraw accelerate_draw = AccelDraw::Disabled;
