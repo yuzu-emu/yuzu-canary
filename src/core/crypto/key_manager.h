@@ -16,6 +16,8 @@
 
 namespace Core::Crypto {
 
+constexpr u64 TICKET_FILE_TITLEKEY_OFFSET = 0x180;
+
 using Key128 = std::array<u8, 0x10>;
 using Key256 = std::array<u8, 0x20>;
 using SHA256Hash = std::array<u8, 0x20>;
