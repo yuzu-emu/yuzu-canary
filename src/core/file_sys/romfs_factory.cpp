@@ -6,7 +6,9 @@
 #include <memory>
 #include "common/common_types.h"
 #include "common/logging/log.h"
+#include "core/core.h"
 #include "core/file_sys/nca_metadata.h"
+#include "core/file_sys/patch_manager.h"
 #include "core/file_sys/registered_cache.h"
 #include "core/file_sys/romfs_factory.h"
 #include "core/hle/kernel/process.h"
@@ -20,10 +22,17 @@ RomFSFactory::RomFSFactory(Loader::AppLoader& app_loader) {
     if (app_loader.ReadRomFS(file) != Loader::ResultStatus::Success) {
         LOG_ERROR(Service_FS, "Unable to read RomFS!");
     }
+
+    updatable = app_loader.IsRomFSUpdatable();
+    ivfc_offset = app_loader.ReadRomFSIVFCOffset();
 }
 
 ResultVal<VirtualFile> RomFSFactory::OpenCurrentProcess() {
-    return MakeResult<VirtualFile>(file);
+    if (!updatable)
+        return MakeResult<VirtualFile>(file);
+
+    const PatchManager patch_manager(Core::CurrentProcess()->program_id);
+    return MakeResult<VirtualFile>(patch_manager.PatchRomFS(file, ivfc_offset));
 }
 
 ResultVal<VirtualFile> RomFSFactory::Open(u64 title_id, StorageId storage, ContentRecordType type) {
