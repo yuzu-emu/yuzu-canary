@@ -82,11 +82,25 @@ void AESCipher<Key, KeySize>::Transcode(const u8* src, size_t size, u8* dest, Op
         }
     } else {
         const auto block_size = mbedtls_cipher_get_block_size(context);
+        if (size < block_size) {
+            std::vector<u8> block(block_size);
+            std::memcpy(block.data(), src, size);
+            Transcode(block.data(), block.size(), block.data(), op);
+            std::memcpy(dest, block.data(), size);
+            return;
+        }
 
         for (size_t offset = 0; offset < size; offset += block_size) {
             auto length = std::min<size_t>(block_size, size - offset);
             mbedtls_cipher_update(context, src + offset, length, dest + offset, &written);
             if (written != length) {
+                if (length < block_size) {
+                    std::vector<u8> block(block_size);
+                    std::memcpy(block.data(), src + offset, length);
+                    Transcode(block.data(), block.size(), block.data(), op);
+                    std::memcpy(dest + offset, block.data(), length);
+                    return;
+                }
                 LOG_WARNING(Crypto, "Not all data was decrypted requested={:016X}, actual={:016X}.",
                             length, written);
             }

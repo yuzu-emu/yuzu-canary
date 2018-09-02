@@ -15,6 +15,7 @@
 #include "core/loader/nca.h"
 #include "core/loader/nro.h"
 #include "core/loader/nso.h"
+#include "core/loader/nsp.h"
 #include "core/loader/xci.h"
 
 namespace Loader {
@@ -34,6 +35,7 @@ FileType IdentifyFile(FileSys::VirtualFile file) {
     CHECK_TYPE(NCA)
     CHECK_TYPE(XCI)
     CHECK_TYPE(NAX)
+    CHECK_TYPE(NSP)
 
 #undef CHECK_TYPE
 
@@ -59,6 +61,8 @@ FileType GuessFromFilename(const std::string& name) {
         return FileType::NCA;
     if (extension == "xci")
         return FileType::XCI;
+    if (extension == "nsp")
+        return FileType::NSP;
 
     return FileType::Unknown;
 }
@@ -77,6 +81,8 @@ std::string GetFileTypeString(FileType type) {
         return "XCI";
     case FileType::NAX:
         return "NAX";
+    case FileType::NSP:
+        return "NSP";
     case FileType::DeconstructedRomDirectory:
         return "Directory";
     case FileType::Error:
@@ -87,7 +93,7 @@ std::string GetFileTypeString(FileType type) {
     return "unknown";
 }
 
-constexpr std::array<const char*, 49> RESULT_MESSAGES{
+constexpr std::array<const char*, 58> RESULT_MESSAGES{
     "The operation completed successfully.",
     "The loader requested to load is already loaded.",
     "The operation is not implemented.",
@@ -137,6 +143,15 @@ constexpr std::array<const char*, 49> RESULT_MESSAGES{
     "The AES Key Generation Source could not be found.",
     "The SD Save Key Source could not be found.",
     "The SD NCA Key Source could not be found.",
+    "The NSP file is missing a Program-type NCA.",
+    "The BKTR-type NCA has a bad BKTR header.",
+    "The BKTR Subsection entry is not located immediately after the Relocation entry.",
+    "The BKTR Subsection entry is not at the end of the media block.",
+    "The BKTR-type NCA has a bad Relocation block.",
+    "The BKTR-type NCA has a bad Subsection block.",
+    "The BKTR-type NCA has a bad Relocation bucket.",
+    "The BKTR-type NCA has a bad Subsection bucket.",
+    "The BKTR-type NCA is missing the base RomFS.",
 };
 
 std::ostream& operator<<(std::ostream& os, ResultStatus status) {
@@ -178,6 +193,10 @@ static std::unique_ptr<AppLoader> GetFileLoader(FileSys::VirtualFile file, FileT
     // NX NAX (NintendoAesXts) file format.
     case FileType::NAX:
         return std::make_unique<AppLoader_NAX>(std::move(file));
+
+    // NX NSP (Nintendo Submission Package) file format
+    case FileType::NSP:
+        return std::make_unique<AppLoader_NSP>(std::move(file));
 
     // NX deconstructed ROM directory.
     case FileType::DeconstructedRomDirectory:
