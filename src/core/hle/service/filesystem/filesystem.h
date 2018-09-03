@@ -13,6 +13,7 @@
 namespace FileSys {
 class BISFactory;
 class RegisteredCache;
+class RegisteredCacheUnion;
 class RomFSFactory;
 class SaveDataFactory;
 class SDMCFactory;
@@ -44,6 +45,8 @@ ResultVal<FileSys::VirtualFile> OpenRomFS(u64 title_id, FileSys::StorageId stora
 ResultVal<FileSys::VirtualDir> OpenSaveData(FileSys::SaveDataSpaceId space,
                                             FileSys::SaveDataDescriptor save_struct);
 ResultVal<FileSys::VirtualDir> OpenSDMC();
+
+std::shared_ptr<FileSys::RegisteredCacheUnion> GetUnionContents();
 
 std::shared_ptr<FileSys::RegisteredCache> GetSystemNANDContents();
 std::shared_ptr<FileSys::RegisteredCache> GetUserNANDContents();
