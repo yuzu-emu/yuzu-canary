@@ -239,7 +239,7 @@ private:
     const std::unordered_map<std::string, std::pair<QString, QString>>& compatibility_list;
     std::atomic_bool stop_processing;
 
-    void AddInstalledTitlesToGameList(std::shared_ptr<FileSys::RegisteredCache> cache);
+    void AddInstalledTitlesToGameList();
     void FillControlMap(const std::string& dir_path);
     void AddFstEntriesToGameList(const std::string& dir_path, unsigned int recursion = 0);
 };

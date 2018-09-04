@@ -4,24 +4,25 @@
 
 #pragma once
 
+#include <memory>
 #include "common/common_types.h"
 #include "core/file_sys/vfs.h"
-#include "core/hle/kernel/object.h"
 #include "core/loader/loader.h"
 
 namespace FileSys {
-class NCA;
-}
+class NACP;
+class NSP;
+} // namespace FileSys
 
 namespace Loader {
 
-class AppLoader_DeconstructedRomDirectory;
+class AppLoader_NCA;
 
-/// Loads an NCA file
-class AppLoader_NCA final : public AppLoader {
+/// Loads an XCI file
+class AppLoader_NSP final : public AppLoader {
 public:
-    explicit AppLoader_NCA(FileSys::VirtualFile file);
-    ~AppLoader_NCA() override;
+    explicit AppLoader_NSP(FileSys::VirtualFile file);
+    ~AppLoader_NSP() override;
 
     /**
      * Returns the type of the file
@@ -37,12 +38,17 @@ public:
     ResultStatus Load(Kernel::SharedPtr<Kernel::Process>& process) override;
 
     ResultStatus ReadRomFS(FileSys::VirtualFile& dir) override;
-    u64 ReadRomFSIVFCOffset() const override;
     ResultStatus ReadProgramId(u64& out_program_id) override;
+    ResultStatus ReadIcon(std::vector<u8>& buffer) override;
+    ResultStatus ReadTitle(std::string& title) override;
 
 private:
-    std::unique_ptr<FileSys::NCA> nca;
-    std::unique_ptr<AppLoader_DeconstructedRomDirectory> directory_loader;
+    std::unique_ptr<FileSys::NSP> nsp;
+    std::unique_ptr<AppLoader> secondary_loader;
+
+    FileSys::VirtualFile icon_file;
+    std::shared_ptr<FileSys::NACP> nacp_file;
+    u64 title_id;
 };
 
 } // namespace Loader
