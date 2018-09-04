@@ -25,6 +25,8 @@ public:
      * @param samples Samples in interleaved stereo PCM16 format.
      */
     virtual void EnqueueSamples(u32 num_channels, const std::vector<s16>& samples) = 0;
+
+    virtual std::size_t SamplesInQueue(u32 num_channels) const = 0;
 };
 
 using SinkStreamPtr = std::unique_ptr<SinkStream>;
