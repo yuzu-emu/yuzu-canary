@@ -43,7 +43,7 @@ MICROPROFILE_DEFINE(OpenGL_Blits, "OpenGL", "Blits", MP_RGB(128, 128, 192));
 MICROPROFILE_DEFINE(OpenGL_CacheManagement, "OpenGL", "Cache Mgmt", MP_RGB(100, 255, 100));
 
 RasterizerOpenGL::RasterizerOpenGL(Core::Frontend::EmuWindow& window, ScreenInfo& info)
-    : emu_window{window}, screen_info{info}, stream_buffer(GL_ARRAY_BUFFER, STREAM_BUFFER_SIZE) {
+    : emu_window{window}, screen_info{info}, buffer_cache(STREAM_BUFFER_SIZE) {
     // Create sampler objects
     for (size_t i = 0; i < texture_samplers.size(); ++i) {
         texture_samplers[i].Create();
@@ -83,14 +83,14 @@ RasterizerOpenGL::RasterizerOpenGL(Core::Frontend::EmuWindow& window, ScreenInfo
 
     hw_vao.Create();
 
-    state.draw.vertex_buffer = stream_buffer.GetHandle();
+    state.draw.vertex_buffer = buffer_cache.GetHandle();
 
     shader_program_manager = std::make_unique<GLShader::ProgramManager>();
     state.draw.shader_program = 0;
     state.draw.vertex_array = hw_vao.handle;
     state.Apply();
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, stream_buffer.GetHandle());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer_cache.GetHandle());
 
     glEnable(GL_BLEND);
 
@@ -101,14 +101,13 @@ RasterizerOpenGL::RasterizerOpenGL(Core::Frontend::EmuWindow& window, ScreenInfo
 
 RasterizerOpenGL::~RasterizerOpenGL() {}
 
-std::pair<u8*, GLintptr> RasterizerOpenGL::SetupVertexArrays(u8* array_ptr,
-                                                             GLintptr buffer_offset) {
+void RasterizerOpenGL::SetupVertexArrays() {
     MICROPROFILE_SCOPE(OpenGL_VAO);
     const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
     const auto& regs = gpu.regs;
 
     state.draw.vertex_array = hw_vao.handle;
-    state.draw.vertex_buffer = stream_buffer.GetHandle();
+    state.draw.vertex_buffer = buffer_cache.GetHandle();
     state.Apply();
 
     // Upload all guest vertex arrays sequentially to our buffer
@@ -127,12 +126,10 @@ std::pair<u8*, GLintptr> RasterizerOpenGL::SetupVertexArrays(u8* array_ptr,
         ASSERT(end > start);
         u64 size = end - start + 1;
 
-        GLintptr vertex_buffer_offset;
-        std::tie(array_ptr, buffer_offset, vertex_buffer_offset) =
-            UploadMemory(array_ptr, buffer_offset, start, size);
+        GLintptr vertex_buffer_offset = buffer_cache.UploadMemory(start, size);
 
         // Bind the vertex array to the buffer at the current offset.
-        glBindVertexBuffer(index, stream_buffer.GetHandle(), vertex_buffer_offset,
+        glBindVertexBuffer(index, buffer_cache.GetHandle(), vertex_buffer_offset,
                            vertex_array.stride);
 
         if (regs.instanced_arrays.IsInstancingEnabled(index) && vertex_array.divisor != 0) {
@@ -177,11 +174,9 @@ std::pair<u8*, GLintptr> RasterizerOpenGL::SetupVertexArrays(u8* array_ptr,
         }
         glVertexAttribBinding(index, attrib.buffer);
     }
-
-    return {array_ptr, buffer_offset};
 }
 
-std::pair<u8*, GLintptr> RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr buffer_offset) {
+void RasterizerOpenGL::SetupShaders() {
     MICROPROFILE_SCOPE(OpenGL_Shader);
     auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
 
@@ -199,21 +194,15 @@ std::pair<u8*, GLintptr> RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr
             continue;
         }
 
-        std::tie(buffer_ptr, buffer_offset) =
-            AlignBuffer(buffer_ptr, buffer_offset, static_cast<size_t>(uniform_buffer_alignment));
-
         const size_t stage{index == 0 ? 0 : index - 1}; // Stage indices are 0 - 5
 
         GLShader::MaxwellUniformData ubo{};
         ubo.SetFromRegs(gpu.state.shader_stages[stage]);
-        std::memcpy(buffer_ptr, &ubo, sizeof(ubo));
+        GLintptr offset = buffer_cache.UploadHostMemory(
+            &ubo, sizeof(ubo), static_cast<size_t>(uniform_buffer_alignment));
 
         // Bind the buffer
-        glBindBufferRange(GL_UNIFORM_BUFFER, stage, stream_buffer.GetHandle(), buffer_offset,
-                          sizeof(ubo));
-
-        buffer_ptr += sizeof(ubo);
-        buffer_offset += sizeof(ubo);
+        glBindBufferRange(GL_UNIFORM_BUFFER, stage, buffer_cache.GetHandle(), offset, sizeof(ubo));
 
         Shader shader{shader_cache.GetStageProgram(program)};
 
@@ -234,9 +223,8 @@ std::pair<u8*, GLintptr> RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr
         }
 
         // Configure the const buffers for this shader stage.
-        std::tie(buffer_ptr, buffer_offset, current_constbuffer_bindpoint) =
-            SetupConstBuffers(buffer_ptr, buffer_offset, static_cast<Maxwell::ShaderStage>(stage),
-                              shader, current_constbuffer_bindpoint);
+        current_constbuffer_bindpoint = SetupConstBuffers(static_cast<Maxwell::ShaderStage>(stage),
+                                                          shader, current_constbuffer_bindpoint);
 
         // Configure the textures for this shader stage.
         current_texture_bindpoint = SetupTextures(static_cast<Maxwell::ShaderStage>(stage), shader,
@@ -250,8 +238,6 @@ std::pair<u8*, GLintptr> RasterizerOpenGL::SetupShaders(u8* buffer_ptr, GLintptr
     }
 
     shader_program_manager->UseTrivialGeometryShader();
-
-    return {buffer_ptr, buffer_offset};
 }
 
 size_t RasterizerOpenGL::CalculateVertexArraysSize() const {
@@ -439,31 +425,6 @@ void RasterizerOpenGL::Clear() {
     glClear(clear_mask);
 }
 
-std::pair<u8*, GLintptr> RasterizerOpenGL::AlignBuffer(u8* buffer_ptr, GLintptr buffer_offset,
-                                                       size_t alignment) {
-    // Align the offset, not the mapped pointer
-    GLintptr offset_aligned =
-        static_cast<GLintptr>(Common::AlignUp(static_cast<size_t>(buffer_offset), alignment));
-    return {buffer_ptr + (offset_aligned - buffer_offset), offset_aligned};
-}
-
-std::tuple<u8*, GLintptr, GLintptr> RasterizerOpenGL::UploadMemory(u8* buffer_ptr,
-                                                                   GLintptr buffer_offset,
-                                                                   Tegra::GPUVAddr gpu_addr,
-                                                                   size_t size, size_t alignment) {
-    std::tie(buffer_ptr, buffer_offset) = AlignBuffer(buffer_ptr, buffer_offset, alignment);
-    GLintptr uploaded_offset = buffer_offset;
-
-    auto& memory_manager = Core::System::GetInstance().GPU().MemoryManager();
-    const boost::optional<VAddr> cpu_addr{memory_manager.GpuToCpuAddress(gpu_addr)};
-    Memory::ReadBlock(*cpu_addr, buffer_ptr, size);
-
-    buffer_ptr += size;
-    buffer_offset += size;
-
-    return {buffer_ptr, buffer_offset, uploaded_offset};
-}
-
 void RasterizerOpenGL::DrawArrays() {
     if (accelerate_draw == AccelDraw::Disabled)
         return;
@@ -489,7 +450,7 @@ void RasterizerOpenGL::DrawArrays() {
     const bool is_indexed = accelerate_draw == AccelDraw::Indexed;
     const u64 index_buffer_size{regs.index_array.count * regs.index_array.FormatSizeInBytes()};
 
-    state.draw.vertex_buffer = stream_buffer.GetHandle();
+    state.draw.vertex_buffer = buffer_cache.GetHandle();
     state.Apply();
 
     size_t buffer_size = CalculateVertexArraysSize();
@@ -506,25 +467,21 @@ void RasterizerOpenGL::DrawArrays() {
     // Add space for at least 18 constant buffers
     buffer_size += Maxwell::MaxConstBuffers * (MaxConstbufferSize + uniform_buffer_alignment);
 
-    u8* buffer_ptr;
-    GLintptr buffer_offset;
-    std::tie(buffer_ptr, buffer_offset, std::ignore) =
-        stream_buffer.Map(static_cast<GLsizeiptr>(buffer_size), 4);
-    u8* buffer_ptr_base = buffer_ptr;
+    buffer_cache.Map(buffer_size);
 
-    std::tie(buffer_ptr, buffer_offset) = SetupVertexArrays(buffer_ptr, buffer_offset);
+    SetupVertexArrays();
 
     // If indexed mode, copy the index buffer
     GLintptr index_buffer_offset = 0;
     if (is_indexed) {
         MICROPROFILE_SCOPE(OpenGL_Index);
-        std::tie(buffer_ptr, buffer_offset, index_buffer_offset) = UploadMemory(
-            buffer_ptr, buffer_offset, regs.index_array.StartAddress(), index_buffer_size);
+        index_buffer_offset =
+            buffer_cache.UploadMemory(regs.index_array.StartAddress(), index_buffer_size);
     }
 
-    std::tie(buffer_ptr, buffer_offset) = SetupShaders(buffer_ptr, buffer_offset);
+    SetupShaders();
 
-    stream_buffer.Unmap(buffer_ptr - buffer_ptr_base);
+    buffer_cache.Unmap();
 
     shader_program_manager->ApplyTo(state);
     state.Apply();
@@ -569,6 +526,7 @@ void RasterizerOpenGL::InvalidateRegion(VAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.InvalidateRegion(addr, size);
     shader_cache.InvalidateRegion(addr, size);
+    buffer_cache.InvalidateRegion(addr, size);
 }
 
 void RasterizerOpenGL::FlushAndInvalidateRegion(VAddr addr, u64 size) {
@@ -658,11 +616,8 @@ void RasterizerOpenGL::SamplerInfo::SyncWithConfig(const Tegra::Texture::TSCEntr
     }
 }
 
-std::tuple<u8*, GLintptr, u32> RasterizerOpenGL::SetupConstBuffers(u8* buffer_ptr,
-                                                                   GLintptr buffer_offset,
-                                                                   Maxwell::ShaderStage stage,
-                                                                   Shader& shader,
-                                                                   u32 current_bindpoint) {
+u32 RasterizerOpenGL::SetupConstBuffers(Maxwell::ShaderStage stage, Shader& shader,
+                                        u32 current_bindpoint) {
     MICROPROFILE_SCOPE(OpenGL_UBO);
     const auto& gpu = Core::System::GetInstance().GPU();
     const auto& maxwell3d = gpu.Maxwell3D();
@@ -699,13 +654,11 @@ std::tuple<u8*, GLintptr, u32> RasterizerOpenGL::SetupConstBuffers(u8* buffer_pt
         size = Common::AlignUp(size, sizeof(GLvec4));
         ASSERT_MSG(size <= MaxConstbufferSize, "Constbuffer too big");
 
-        GLintptr const_buffer_offset;
-        std::tie(buffer_ptr, buffer_offset, const_buffer_offset) =
-            UploadMemory(buffer_ptr, buffer_offset, buffer.address, size,
-                         static_cast<size_t>(uniform_buffer_alignment));
+        GLintptr const_buffer_offset = buffer_cache.UploadMemory(
+            buffer.address, size, static_cast<size_t>(uniform_buffer_alignment));
 
         glBindBufferRange(GL_UNIFORM_BUFFER, current_bindpoint + bindpoint,
-                          stream_buffer.GetHandle(), const_buffer_offset, size);
+                          buffer_cache.GetHandle(), const_buffer_offset, size);
 
         // Now configure the bindpoint of the buffer inside the shader
         glUniformBlockBinding(shader->GetProgramHandle(),
@@ -715,7 +668,7 @@ std::tuple<u8*, GLintptr, u32> RasterizerOpenGL::SetupConstBuffers(u8* buffer_pt
 
     state.Apply();
 
-    return {buffer_ptr, buffer_offset, current_bindpoint + static_cast<u32>(entries.size())};
+    return current_bindpoint + static_cast<u32>(entries.size());
 }
 
 u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, Shader& shader, u32 current_unit) {
