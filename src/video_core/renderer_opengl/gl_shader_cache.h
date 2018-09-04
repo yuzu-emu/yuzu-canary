@@ -4,8 +4,8 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
-#include <unordered_map>
 
 #include "common/common_types.h"
 #include "video_core/rasterizer_cache.h"
@@ -43,10 +43,10 @@ public:
     }
 
     /// Gets the GL program resource location for the specified resource, caching as needed
-    GLuint GetProgramResourceIndex(const std::string& name);
+    GLuint GetProgramResourceIndex(const GLShader::ConstBufferEntry& buffer);
 
     /// Gets the GL uniform location for the specified resource, caching as needed
-    GLint GetUniformLocation(const std::string& name);
+    GLint GetUniformLocation(const GLShader::SamplerEntry& sampler);
 
 private:
     VAddr addr;
@@ -55,8 +55,8 @@ private:
     GLShader::ShaderEntries entries;
     OGLProgram program;
 
-    std::unordered_map<std::string, GLuint> resource_cache;
-    std::unordered_map<std::string, GLint> uniform_cache;
+    std::map<u32, GLuint> resource_cache;
+    std::map<u32, GLint> uniform_cache;
 };
 
 class ShaderCacheOpenGL final : public RasterizerCache<Shader> {
