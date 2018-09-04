@@ -209,7 +209,7 @@ public:
 
     void SetGPUDebugContext(std::shared_ptr<Tegra::DebugContext> context);
 
-    std::shared_ptr<Tegra::DebugContext> GetGPUDebugContext() const;
+    Tegra::DebugContext* GetGPUDebugContext() const;
 
     void SetFilesystem(std::shared_ptr<FileSys::VfsFilesystem> vfs);
 
