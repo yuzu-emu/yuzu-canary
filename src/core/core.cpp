@@ -441,8 +441,8 @@ void System::SetGPUDebugContext(std::shared_ptr<Tegra::DebugContext> context) {
     impl->debug_context = std::move(context);
 }
 
-std::shared_ptr<Tegra::DebugContext> System::GetGPUDebugContext() const {
-    return impl->debug_context;
+Tegra::DebugContext* System::GetGPUDebugContext() const {
+    return impl->debug_context.get();
 }
 
 void System::SetFilesystem(std::shared_ptr<FileSys::VfsFilesystem> vfs) {
