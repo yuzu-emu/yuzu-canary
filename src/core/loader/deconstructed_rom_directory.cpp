@@ -9,6 +9,7 @@
 #include "core/core.h"
 #include "core/file_sys/content_archive.h"
 #include "core/file_sys/control_metadata.h"
+#include "core/file_sys/patch_manager.h"
 #include "core/file_sys/romfs_factory.h"
 #include "core/gdbstub/gdbstub.h"
 #include "core/hle/kernel/kernel.h"
@@ -21,8 +22,9 @@
 
 namespace Loader {
 
-AppLoader_DeconstructedRomDirectory::AppLoader_DeconstructedRomDirectory(FileSys::VirtualFile file_)
-    : AppLoader(std::move(file_)) {
+AppLoader_DeconstructedRomDirectory::AppLoader_DeconstructedRomDirectory(FileSys::VirtualFile file_,
+                                                                         bool override_update)
+    : AppLoader(std::move(file_)), override_update(override_update) {
     const auto dir = file->GetContainingDirectory();
 
     // Icon
@@ -61,14 +63,14 @@ AppLoader_DeconstructedRomDirectory::AppLoader_DeconstructedRomDirectory(FileSys
 
     if (nacp_file != nullptr) {
         FileSys::NACP nacp(nacp_file);
-        title_id = nacp.GetTitleId();
         name = nacp.GetApplicationName();
     }
 }
 
 AppLoader_DeconstructedRomDirectory::AppLoader_DeconstructedRomDirectory(
-    FileSys::VirtualDir directory)
-    : AppLoader(directory->GetFile("main")), dir(std::move(directory)) {}
+    FileSys::VirtualDir directory, bool override_update)
+    : AppLoader(directory->GetFile("main")), dir(std::move(directory)),
+      override_update(override_update) {}
 
 FileType AppLoader_DeconstructedRomDirectory::IdentifyType(const FileSys::VirtualFile& file) {
     if (FileSys::IsDirectoryExeFS(file->GetContainingDirectory())) {
@@ -90,13 +92,29 @@ ResultStatus AppLoader_DeconstructedRomDirectory::Load(
         dir = file->GetContainingDirectory();
     }
 
-    const FileSys::VirtualFile npdm = dir->GetFile("main.npdm");
+    // Read meta to determine title ID
+    FileSys::VirtualFile npdm = dir->GetFile("main.npdm");
     if (npdm == nullptr)
         return ResultStatus::ErrorMissingNPDM;
 
     ResultStatus result = metadata.Load(npdm);
     if (result != ResultStatus::Success) {
         return result;
+    }
+
+    if (override_update) {
+        const FileSys::PatchManager patch_manager(metadata.GetTitleID());
+        dir = patch_manager.PatchExeFS(dir);
+    }
+
+    // Reread in case PatchExeFS affected the main.npdm
+    npdm = dir->GetFile("main.npdm");
+    if (npdm == nullptr)
+        return ResultStatus::ErrorMissingNPDM;
+
+    ResultStatus result2 = metadata.Load(npdm);
+    if (result2 != ResultStatus::Success) {
+        return result2;
     }
     metadata.Print();
 
@@ -120,6 +138,7 @@ ResultStatus AppLoader_DeconstructedRomDirectory::Load(
     }
 
     auto& kernel = Core::System::GetInstance().Kernel();
+    title_id = metadata.GetTitleID();
     process->program_id = metadata.GetTitleID();
     process->svc_access_mask.set();
     process->resource_limit =
@@ -159,8 +178,6 @@ ResultStatus AppLoader_DeconstructedRomDirectory::ReadIcon(std::vector<u8>& buff
 }
 
 ResultStatus AppLoader_DeconstructedRomDirectory::ReadProgramId(u64& out_program_id) {
-    if (name.empty())
-        return ResultStatus::ErrorNoControl;
     out_program_id = title_id;
     return ResultStatus::Success;
 }
@@ -170,6 +187,10 @@ ResultStatus AppLoader_DeconstructedRomDirectory::ReadTitle(std::string& title) 
         return ResultStatus::ErrorNoControl;
     title = name;
     return ResultStatus::Success;
+}
+
+bool AppLoader_DeconstructedRomDirectory::IsRomFSUpdatable() const {
+    return false;
 }
 
 } // namespace Loader
