@@ -34,6 +34,8 @@ void GPU::WriteReg(u32 method, u32 subchannel, u32 value, u32 remaining_params) 
               "{:08X} remaining params {}",
               method, subchannel, value, remaining_params);
 
+    ASSERT(subchannel < bound_engines.size());
+
     if (method == static_cast<u32>(BufferMethods::BindObject)) {
         // Bind the current subchannel to the desired engine id.
         LOG_DEBUG(HW_GPU, "Binding subchannel {} to engine {}", subchannel, value);
@@ -46,8 +48,6 @@ void GPU::WriteReg(u32 method, u32 subchannel, u32 value, u32 remaining_params) 
         LOG_ERROR(HW_GPU, "Special buffer methods other than Bind are not implemented");
         return;
     }
-
-    ASSERT(bound_engines.find(subchannel) != bound_engines.end());
 
     const EngineID engine = bound_engines[subchannel];
 

@@ -4,8 +4,8 @@
 
 #pragma once
 
+#include <array>
 #include <memory>
-#include <unordered_map>
 #include "common/common_types.h"
 #include "core/hle/service/nvflinger/buffer_queue.h"
 #include "video_core/memory_manager.h"
@@ -136,7 +136,7 @@ private:
     std::unique_ptr<Tegra::MemoryManager> memory_manager;
 
     /// Mapping of command subchannels to their bound engine ids.
-    std::unordered_map<u32, EngineID> bound_engines;
+    std::array<EngineID, 8> bound_engines = {};
 
     /// 3D engine
     std::unique_ptr<Engines::Maxwell3D> maxwell_3d;
