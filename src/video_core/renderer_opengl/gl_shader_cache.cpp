@@ -85,23 +85,23 @@ CachedShader::CachedShader(VAddr addr, Maxwell::ShaderProgram program_type)
     SetShaderUniformBlockBindings(program.handle);
 }
 
-GLuint CachedShader::GetProgramResourceIndex(const std::string& name) {
-    auto search{resource_cache.find(name)};
+GLuint CachedShader::GetProgramResourceIndex(const GLShader::ConstBufferEntry& buffer) {
+    auto search{resource_cache.find(buffer.GetHash())};
     if (search == resource_cache.end()) {
         const GLuint index{
-            glGetProgramResourceIndex(program.handle, GL_UNIFORM_BLOCK, name.c_str())};
-        resource_cache[name] = index;
+            glGetProgramResourceIndex(program.handle, GL_UNIFORM_BLOCK, buffer.GetName().c_str())};
+        resource_cache[buffer.GetHash()] = index;
         return index;
     }
 
     return search->second;
 }
 
-GLint CachedShader::GetUniformLocation(const std::string& name) {
-    auto search{uniform_cache.find(name)};
+GLint CachedShader::GetUniformLocation(const GLShader::SamplerEntry& sampler) {
+    auto search{uniform_cache.find(sampler.GetHash())};
     if (search == uniform_cache.end()) {
-        const GLint index{glGetUniformLocation(program.handle, name.c_str())};
-        uniform_cache[name] = index;
+        const GLint index{glGetUniformLocation(program.handle, sampler.GetName().c_str())};
+        uniform_cache[sampler.GetHash()] = index;
         return index;
     }
 

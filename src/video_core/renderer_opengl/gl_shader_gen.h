@@ -53,6 +53,10 @@ public:
         return BufferBaseNames[static_cast<size_t>(stage)] + std::to_string(index);
     }
 
+    u32 GetHash() const {
+        return (static_cast<u32>(stage) << 16) | index;
+    }
+
 private:
     static constexpr std::array<const char*, Maxwell::MaxShaderStage> BufferBaseNames = {
         "buffer_vs_c", "buffer_tessc_c", "buffer_tesse_c", "buffer_gs_c", "buffer_fs_c",
@@ -87,6 +91,10 @@ public:
     std::string GetName() const {
         return std::string(TextureSamplerNames[static_cast<size_t>(stage)]) + '[' +
                std::to_string(sampler_index) + ']';
+    }
+
+    u32 GetHash() const {
+        return (static_cast<u32>(stage) << 16) | static_cast<u32>(sampler_index);
     }
 
     static std::string GetArrayName(Maxwell::ShaderStage stage) {

@@ -709,7 +709,7 @@ std::tuple<u8*, GLintptr, u32> RasterizerOpenGL::SetupConstBuffers(u8* buffer_pt
 
         // Now configure the bindpoint of the buffer inside the shader
         glUniformBlockBinding(shader->GetProgramHandle(),
-                              shader->GetProgramResourceIndex(used_buffer.GetName()),
+                              shader->GetProgramResourceIndex(used_buffer),
                               current_bindpoint + bindpoint);
     }
 
@@ -733,7 +733,7 @@ u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, Shader& shader, 
 
         // Bind the uniform to the sampler.
 
-        glProgramUniform1i(shader->GetProgramHandle(), shader->GetUniformLocation(entry.GetName()),
+        glProgramUniform1i(shader->GetProgramHandle(), shader->GetUniformLocation(entry),
                            current_bindpoint);
 
         const auto texture = maxwell3d.GetStageTexture(entry.GetStage(), entry.GetOffset());
