@@ -76,6 +76,7 @@ union Attribute {
         Position = 7,
         Attribute_0 = 8,
         Attribute_31 = 39,
+        PointCoord = 46,
         // This attribute contains a tuple of (~, ~, InstanceId, VertexId) when inside a vertex
         // shader, and a tuple of (TessCoord.x, TessCoord.y, TessCoord.z, ~) when inside a Tess Eval
         // shader.
@@ -245,6 +246,17 @@ enum class TextureType : u64 {
 
 enum class IpaInterpMode : u64 { Linear = 0, Perspective = 1, Flat = 2, Sc = 3 };
 enum class IpaSampleMode : u64 { Default = 0, Centroid = 1, Offset = 2 };
+
+struct IpaMode {
+    IpaInterpMode interpolation_mode;
+    IpaSampleMode sampling_mode;
+    inline bool operator==(const IpaMode& a) {
+        return (a.interpolation_mode == interpolation_mode) && (a.sampling_mode == sampling_mode);
+    }
+    inline bool operator!=(const IpaMode& a) {
+        return !((*this) == a);
+    }
+};
 
 union Instruction {
     Instruction& operator=(const Instruction& instr) {
