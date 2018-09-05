@@ -76,6 +76,7 @@ union Attribute {
         Position = 7,
         Attribute_0 = 8,
         Attribute_31 = 39,
+        PointCoord = 46,
         // This attribute contains a tuple of (~, ~, InstanceId, VertexId) when inside a vertex
         // shader, and a tuple of (TessCoord.x, TessCoord.y, TessCoord.z, ~) when inside a Tess Eval
         // shader.
