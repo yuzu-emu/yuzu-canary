@@ -127,6 +127,7 @@ public:
                 BitField<21, 6, Size> size;
                 BitField<27, 3, Type> type;
                 BitField<31, 1, u32> bgra;
+                u32 hex;
             };
 
             u32 ComponentCount() const {
@@ -261,6 +262,10 @@ public:
 
             bool IsValid() const {
                 return size != Size::Invalid;
+            }
+
+            bool operator<(const VertexAttribute& other) const {
+                return hex < other.hex;
             }
         };
 
@@ -545,7 +550,7 @@ public:
 
                 INSERT_PADDING_WORDS(0x5B);
 
-                VertexAttribute vertex_attrib_format[NumVertexAttributes];
+                std::array<VertexAttribute, NumVertexAttributes> vertex_attrib_format;
 
                 INSERT_PADDING_WORDS(0xF);
 
@@ -964,7 +969,7 @@ ASSERT_REG_POSITION(stencil_back_func_ref, 0x3D5);
 ASSERT_REG_POSITION(stencil_back_mask, 0x3D6);
 ASSERT_REG_POSITION(stencil_back_func_mask, 0x3D7);
 ASSERT_REG_POSITION(zeta, 0x3F8);
-ASSERT_REG_POSITION(vertex_attrib_format[0], 0x458);
+ASSERT_REG_POSITION(vertex_attrib_format, 0x458);
 ASSERT_REG_POSITION(rt_control, 0x487);
 ASSERT_REG_POSITION(zeta_width, 0x48a);
 ASSERT_REG_POSITION(zeta_height, 0x48b);

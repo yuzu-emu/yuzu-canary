@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstddef>
+#include <map>
 #include <memory>
 #include <tuple>
 #include <utility>
@@ -168,14 +169,15 @@ private:
     ScreenInfo& screen_info;
 
     std::unique_ptr<GLShader::ProgramManager> shader_program_manager;
-    OGLVertexArray sw_vao;
-    OGLVertexArray hw_vao;
+    std::map<std::array<Tegra::Engines::Maxwell3D::Regs::VertexAttribute,
+                        Tegra::Engines::Maxwell3D::Regs::NumVertexAttributes>,
+             OGLVertexArray>
+        vertex_array_cache;
 
     std::array<SamplerInfo, GLShader::NumTextureSamplers> texture_samplers;
 
     static constexpr size_t STREAM_BUFFER_SIZE = 128 * 1024 * 1024;
     OGLBufferCache buffer_cache;
-    OGLBuffer uniform_buffer;
     OGLFramebuffer framebuffer;
     GLint uniform_buffer_alignment;
 
