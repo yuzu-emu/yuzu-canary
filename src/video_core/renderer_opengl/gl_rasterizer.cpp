@@ -70,27 +70,12 @@ RasterizerOpenGL::RasterizerOpenGL(Core::Frontend::EmuWindow& window, ScreenInfo
     // Clipping plane 0 is always enabled for PICA fixed clip plane z <= 0
     state.clip_distance[0] = true;
 
-    // Generate VAO and UBO
-    sw_vao.Create();
-    uniform_buffer.Create();
-
-    state.draw.vertex_array = sw_vao.handle;
-    state.draw.uniform_buffer = uniform_buffer.handle;
-    state.Apply();
-
     // Create render framebuffer
     framebuffer.Create();
 
-    hw_vao.Create();
-
-    state.draw.vertex_buffer = buffer_cache.GetHandle();
-
     shader_program_manager = std::make_unique<GLShader::ProgramManager>();
     state.draw.shader_program = 0;
-    state.draw.vertex_array = hw_vao.handle;
     state.Apply();
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer_cache.GetHandle());
 
     glEnable(GL_BLEND);
 
@@ -106,7 +91,54 @@ void RasterizerOpenGL::SetupVertexArrays() {
     const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
     const auto& regs = gpu.regs;
 
-    state.draw.vertex_array = hw_vao.handle;
+    auto [iter, is_cache_miss] = vertex_array_cache.try_emplace(regs.vertex_attrib_format);
+    auto& VAO = iter->second;
+
+    if (is_cache_miss) {
+        VAO.Create();
+        state.draw.vertex_array = VAO.handle;
+        state.Apply();
+
+        // The index buffer binding is stored within the VAO. Stupid OpenGL, but easy to work
+        // around.
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer_cache.GetHandle());
+
+        // Use the vertex array as-is, assumes that the data is formatted correctly for OpenGL.
+        // Enables the first 16 vertex attributes always, as we don't know which ones are actually
+        // used until shader time. Note, Tegra technically supports 32, but we're capping this to 16
+        // for now to avoid OpenGL errors.
+        // TODO(Subv): Analyze the shader to identify which attributes are actually used and don't
+        // assume every shader uses them all.
+        for (unsigned index = 0; index < 16; ++index) {
+            const auto& attrib = regs.vertex_attrib_format[index];
+
+            // Ignore invalid attributes.
+            if (!attrib.IsValid())
+                continue;
+
+            const auto& buffer = regs.vertex_array[attrib.buffer];
+            LOG_TRACE(HW_GPU,
+                      "vertex attrib {}, count={}, size={}, type={}, offset={}, normalize={}",
+                      index, attrib.ComponentCount(), attrib.SizeString(), attrib.TypeString(),
+                      attrib.offset.Value(), attrib.IsNormalized());
+
+            ASSERT(buffer.IsEnabled());
+
+            glEnableVertexAttribArray(index);
+            if (attrib.type == Tegra::Engines::Maxwell3D::Regs::VertexAttribute::Type::SignedInt ||
+                attrib.type ==
+                    Tegra::Engines::Maxwell3D::Regs::VertexAttribute::Type::UnsignedInt) {
+                glVertexAttribIFormat(index, attrib.ComponentCount(),
+                                      MaxwellToGL::VertexType(attrib), attrib.offset);
+            } else {
+                glVertexAttribFormat(index, attrib.ComponentCount(),
+                                     MaxwellToGL::VertexType(attrib),
+                                     attrib.IsNormalized() ? GL_TRUE : GL_FALSE, attrib.offset);
+            }
+            glVertexAttribBinding(index, attrib.buffer);
+        }
+    }
+    state.draw.vertex_array = VAO.handle;
     state.draw.vertex_buffer = buffer_cache.GetHandle();
     state.Apply();
 
@@ -141,38 +173,6 @@ void RasterizerOpenGL::SetupVertexArrays() {
             // Disable the vertex buffer instancing.
             glVertexBindingDivisor(index, 0);
         }
-    }
-
-    // Use the vertex array as-is, assumes that the data is formatted correctly for OpenGL.
-    // Enables the first 16 vertex attributes always, as we don't know which ones are actually used
-    // until shader time. Note, Tegra technically supports 32, but we're capping this to 16 for now
-    // to avoid OpenGL errors.
-    // TODO(Subv): Analyze the shader to identify which attributes are actually used and don't
-    // assume every shader uses them all.
-    for (unsigned index = 0; index < 16; ++index) {
-        auto& attrib = regs.vertex_attrib_format[index];
-
-        // Ignore invalid attributes.
-        if (!attrib.IsValid())
-            continue;
-
-        auto& buffer = regs.vertex_array[attrib.buffer];
-        LOG_TRACE(HW_GPU, "vertex attrib {}, count={}, size={}, type={}, offset={}, normalize={}",
-                  index, attrib.ComponentCount(), attrib.SizeString(), attrib.TypeString(),
-                  attrib.offset.Value(), attrib.IsNormalized());
-
-        ASSERT(buffer.IsEnabled());
-
-        glEnableVertexAttribArray(index);
-        if (attrib.type == Tegra::Engines::Maxwell3D::Regs::VertexAttribute::Type::SignedInt ||
-            attrib.type == Tegra::Engines::Maxwell3D::Regs::VertexAttribute::Type::UnsignedInt) {
-            glVertexAttribIFormat(index, attrib.ComponentCount(), MaxwellToGL::VertexType(attrib),
-                                  attrib.offset);
-        } else {
-            glVertexAttribFormat(index, attrib.ComponentCount(), MaxwellToGL::VertexType(attrib),
-                                 attrib.IsNormalized() ? GL_TRUE : GL_FALSE, attrib.offset);
-        }
-        glVertexAttribBinding(index, attrib.buffer);
     }
 }
 
