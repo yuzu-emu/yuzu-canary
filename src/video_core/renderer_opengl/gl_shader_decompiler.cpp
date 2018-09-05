@@ -247,6 +247,7 @@ public:
                         const Maxwell3D::Regs::ShaderStage& stage, const std::string& suffix)
         : shader{shader}, declarations{declarations}, stage{stage}, suffix{suffix} {
         BuildRegisterList();
+        BuildInputList();
     }
 
     /**
@@ -343,9 +344,10 @@ public:
      * @param elem The element to use for the operation.
      * @param attribute The input attribute to use as the source value.
      */
-    void SetRegisterToInputAttibute(const Register& reg, u64 elem, Attribute::Index attribute) {
+    void SetRegisterToInputAttibute(const Register& reg, u64 elem, Attribute::Index attribute,
+                                    const u32 flags) {
         std::string dest = GetRegisterAsFloat(reg);
-        std::string src = GetInputAttribute(attribute) + GetSwizzle(elem);
+        std::string src = GetInputAttribute(attribute, flags) + GetSwizzle(elem);
         shader.AddLine(dest + " = " + src + ';');
     }
 
@@ -414,10 +416,10 @@ public:
 
         for (const auto& index : declr_input_attribute) {
             // TODO(bunnei): Use proper number of elements for these
-            declarations.AddLine("layout(location = " +
-                                 std::to_string(static_cast<u32>(index) -
-                                                static_cast<u32>(Attribute::Index::Attribute_0)) +
-                                 ") in vec4 " + GetInputAttribute(index) + ';');
+            u32 idx = static_cast<u32>(index) - static_cast<u32>(Attribute::Index::Attribute_0);
+            declarations.AddLine("layout(location = " + std::to_string(idx) + ")" +
+                                 GetInputFlags(index) + "in vec4 " +
+                                 GetInputAttribute(index, input_flags[idx]) + ';');
         }
         declarations.AddNewLine();
 
@@ -532,11 +534,26 @@ private:
         }
     }
 
+    void BuildInputList() {
+        const u32 size = static_cast<u32>(Attribute::Index::Attribute_31) -
+                         static_cast<u32>(Attribute::Index::Attribute_0) + 1;
+        regs.reserve(size);
+        for (size_t index = 0; index < size; ++index) {
+            input_flags.emplace_back(~0);
+        }
+    }
+
     /// Generates code representing an input attribute register.
-    std::string GetInputAttribute(Attribute::Index attribute) {
+    std::string GetInputAttribute(Attribute::Index attribute, const u32 flags) {
         switch (attribute) {
         case Attribute::Index::Position:
-            return "position";
+            if (stage != Maxwell3D::Regs::ShaderStage::Fragment) {
+                return "position";
+            } else {
+                return "vec4(gl_FragCoord.x, gl_FragCoord.y, gl_FragCoord.z, 1.0)";
+            }
+        case Attribute::Index::PointCoord:
+            return "vec4(gl_PointCoord.x, gl_PointCoord.y, 0, 0)";
         case Attribute::Index::TessCoordInstanceIDVertexID:
             // TODO(Subv): Find out what the values are for the first two elements when inside a
             // vertex shader, and what's the value of the fourth element when inside a Tess Eval
@@ -553,6 +570,14 @@ private:
             if (attribute >= Attribute::Index::Attribute_0 &&
                 attribute <= Attribute::Index::Attribute_31) {
                 declr_input_attribute.insert(attribute);
+                if (~input_flags[index] == 0) {
+                    input_flags[index] = flags;
+                } else {
+                    if (input_flags[index] != flags) {
+                        LOG_CRITICAL(HW_GPU, "Same Input multiple input modes");
+                        UNREACHABLE();
+                    }
+                }
                 return "input_attribute_" + std::to_string(index);
             }
 
@@ -561,6 +586,49 @@ private:
         }
 
         return "vec4(0, 0, 0, 0)";
+    }
+
+    std::string GetInputFlags(Attribute::Index attribute) const {
+        const u32 index =
+            static_cast<u32>(attribute) - static_cast<u32>(Attribute::Index::Attribute_0);
+        const Tegra::Shader::IpaSampleMode sample =
+            static_cast<Tegra::Shader::IpaSampleMode>(input_flags[index] >> 2);
+        const Tegra::Shader::IpaInterpMode input_mode =
+            static_cast<Tegra::Shader::IpaInterpMode>(input_flags[index] & 0x3);
+        std::string out;
+        switch (input_mode) {
+        case Tegra::Shader::IpaInterpMode::Flat: {
+            out += "flat ";
+            break;
+        }
+        case Tegra::Shader::IpaInterpMode::Linear: {
+            out += "noperspective ";
+            break;
+        }
+        case Tegra::Shader::IpaInterpMode::Perspective: {
+            // Default, Smooth
+            break;
+        }
+        default: {
+            LOG_CRITICAL(HW_GPU, "Unhandled Ipa InterpMode: {}", static_cast<u32>(input_mode));
+            UNREACHABLE();
+        }
+        }
+        switch (sample) {
+        case Tegra::Shader::IpaSampleMode::Centroid: {
+            out += "centroid ";
+            break;
+        }
+        case Tegra::Shader::IpaSampleMode::Default: {
+            // Default, n/a
+            break;
+        }
+        default: {
+            LOG_CRITICAL(HW_GPU, "Unhandled Ipa SampleMode: {}", static_cast<u32>(sample));
+            UNREACHABLE();
+        }
+        }
+        return out;
     }
 
     /// Generates code representing an output attribute register.
@@ -594,6 +662,7 @@ private:
     ShaderWriter& declarations;
     std::vector<GLSLRegister> regs;
     std::set<Attribute::Index> declr_input_attribute;
+    std::vector<u32> input_flags;
     std::set<Attribute::Index> declr_output_attribute;
     std::array<ConstBufferEntry, Maxwell3D::Regs::MaxConstBuffers> declr_const_buffers;
     std::vector<SamplerEntry> used_samplers;
@@ -1634,8 +1703,12 @@ private:
             switch (opcode->GetId()) {
             case OpCode::Id::LD_A: {
                 ASSERT_MSG(instr.attribute.fmt20.size == 0, "untested");
+                // Note: Shouldn't this be interp mode flat? As in no interpolation made.
+                const u32 flags =
+                    static_cast<u32>(Tegra::Shader::IpaSampleMode::Default) << 2 |
+                    (static_cast<u32>(Tegra::Shader::IpaInterpMode::Perspective) & 0x3);
                 regs.SetRegisterToInputAttibute(instr.gpr0, instr.attribute.fmt20.element,
-                                                instr.attribute.fmt20.index);
+                                                instr.attribute.fmt20.index, flags);
                 break;
             }
             case OpCode::Id::LD_C: {
@@ -2131,38 +2204,11 @@ private:
                            "Unhandled IPA sample mode: {}",
                            static_cast<u32>(instr.ipa.sample_mode.Value()));
                 ASSERT_MSG(instr.ipa.saturate == 0, "IPA saturate not implemented");
-                switch (instr.ipa.interp_mode) {
-                case Tegra::Shader::IpaInterpMode::Linear:
-                    if (stage == Maxwell3D::Regs::ShaderStage::Fragment &&
-                        attribute.index == Attribute::Index::Position) {
-                        switch (attribute.element) {
-                        case 0:
-                            shader.AddLine(regs.GetRegisterAsFloat(reg) + " = gl_FragCoord.x;");
-                            break;
-                        case 1:
-                            shader.AddLine(regs.GetRegisterAsFloat(reg) + " = gl_FragCoord.y;");
-                            break;
-                        case 2:
-                            shader.AddLine(regs.GetRegisterAsFloat(reg) + " = gl_FragCoord.z;");
-                            break;
-                        case 3:
-                            shader.AddLine(regs.GetRegisterAsFloat(reg) + " = 1.0;");
-                            break;
-                        }
-                    } else {
-                        regs.SetRegisterToInputAttibute(reg, attribute.element, attribute.index);
-                    }
-                    break;
-                case Tegra::Shader::IpaInterpMode::Perspective:
-                    regs.SetRegisterToInputAttibute(reg, attribute.element, attribute.index);
-                    break;
-                default:
-                    LOG_CRITICAL(HW_GPU, "Unhandled IPA mode: {}",
-                                 static_cast<u32>(instr.ipa.interp_mode.Value()));
-                    UNREACHABLE();
-                    regs.SetRegisterToInputAttibute(reg, attribute.element, attribute.index);
-                }
-
+                const u32 sampleMode = static_cast<u32>(instr.ipa.sample_mode.Value());
+                const u32 interpMode = static_cast<u32>(instr.ipa.interp_mode.Value());
+                const u32 encodedFlags = (sampleMode << 2) | (interpMode & 0x3);
+                regs.SetRegisterToInputAttibute(reg, attribute.element, attribute.index,
+                                                encodedFlags);
                 break;
             }
             case OpCode::Id::SSY: {
