@@ -128,7 +128,7 @@ EmuWindow_SDL2::EmuWindow_SDL2(bool fullscreen) {
     SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 0);
 
-    std::string window_title = fmt::format("yuzu {} | {}-{}", Common::g_build_name,
+    std::string window_title = fmt::format("yuzu {} | {}-{}", Common::g_build_fullname,
                                            Common::g_scm_branch, Common::g_scm_desc);
     render_window =
         SDL_CreateWindow(window_title.c_str(),
@@ -166,7 +166,7 @@ EmuWindow_SDL2::EmuWindow_SDL2(bool fullscreen) {
     OnResize();
     OnMinimalClientAreaChangeRequest(GetActiveConfig().min_client_area_size);
     SDL_PumpEvents();
-    LOG_INFO(Frontend, "yuzu Version: {} | {}-{}", Common::g_build_name, Common::g_scm_branch,
+    LOG_INFO(Frontend, "yuzu Version: {} | {}-{}", Common::g_build_fullname, Common::g_scm_branch,
              Common::g_scm_desc);
 
     DoneCurrent();
