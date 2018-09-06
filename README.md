@@ -1,3 +1,22 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 009a2cc9ccb214f537876475acfc92bf918d4575
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1201](https://github.com/yuzu-emu/yuzu/pull/1201)|[064fe30](https://github.com/yuzu-emu/yuzu/pull/1201/files/)|Port #3804 from Citra - Better Title Bar Display|[CaptV0rt3x](https://github.com/CaptV0rt3x)|Yes|
+|[1163](https://github.com/yuzu-emu/yuzu/pull/1163)|[db1743c](https://github.com/yuzu-emu/yuzu/pull/1163/files/)|[WIP] audio_core: Add audio stretching support|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
