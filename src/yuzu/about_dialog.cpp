@@ -11,7 +11,7 @@ AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent), ui(new Ui::AboutDia
     ui->setupUi(this);
     ui->labelLogo->setPixmap(QIcon::fromTheme("yuzu").pixmap(200));
     ui->labelBuildInfo->setText(
-        ui->labelBuildInfo->text().arg(Common::g_build_name, Common::g_scm_branch,
+        ui->labelBuildInfo->text().arg(Common::g_build_fullname, Common::g_scm_branch,
                                        Common::g_scm_desc, QString(Common::g_build_date).left(10)));
 }
 
