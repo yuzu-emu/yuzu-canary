@@ -85,6 +85,13 @@ public:
         }
     }
 
+    size_t SamplesInQueue(u32 num_channels) const {
+        if (!ctx)
+            return 0;
+
+        return queue.size() / num_channels;
+    }
+
     u32 GetNumChannels() const {
         return num_channels;
     }
