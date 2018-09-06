@@ -136,11 +136,11 @@ GMainWindow::GMainWindow()
 
     ConnectMenuEvents();
     ConnectWidgetEvents();
-    LOG_INFO(Frontend, "yuzu Version: {} | {}-{}", Common::g_build_name, Common::g_scm_branch,
+    LOG_INFO(Frontend, "yuzu Version: {} | {}-{}", Common::g_build_fullname, Common::g_scm_branch,
              Common::g_scm_desc);
 
     setWindowTitle(QString("yuzu %1| %2-%3")
-                       .arg(Common::g_build_name, Common::g_scm_branch, Common::g_scm_desc));
+                       .arg(Common::g_build_fullname, Common::g_scm_branch, Common::g_scm_desc));
     show();
 
     // Necessary to load titles from nand in gamelist.
@@ -606,7 +606,7 @@ void GMainWindow::BootGame(const QString& filename) {
     }
 
     setWindowTitle(QString("yuzu %1| %4 | %2-%3")
-                       .arg(Common::g_build_name, Common::g_scm_branch, Common::g_scm_desc,
+                       .arg(Common::g_build_fullname, Common::g_scm_branch, Common::g_scm_desc,
                             QString::fromStdString(title_name)));
 
     render_window->show();
@@ -641,7 +641,7 @@ void GMainWindow::ShutdownGame() {
     game_list->show();
     game_list->setFilterFocus();
     setWindowTitle(QString("yuzu %1| %2-%3")
-                       .arg(Common::g_build_name, Common::g_scm_branch, Common::g_scm_desc));
+                       .arg(Common::g_build_fullname, Common::g_scm_branch, Common::g_scm_desc));
 
     // Disable status bar updates
     status_bar_update_timer.stop();
