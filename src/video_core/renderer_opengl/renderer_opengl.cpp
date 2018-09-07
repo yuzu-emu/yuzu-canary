@@ -177,7 +177,7 @@ void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuf
                                        Memory::GetPointer(framebuffer_addr),
                                        gl_framebuffer_data.data(), true);
 
-        state.texture_units[0].texture_2d = screen_info.texture.resource.handle;
+        state.texture_units[0].texture = screen_info.texture.resource.handle;
         state.Apply();
 
         glActiveTexture(GL_TEXTURE0);
@@ -194,7 +194,7 @@ void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuf
 
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
-        state.texture_units[0].texture_2d = 0;
+        state.texture_units[0].texture = 0;
         state.Apply();
     }
 }
@@ -205,7 +205,7 @@ void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuf
  */
 void RendererOpenGL::LoadColorToActiveGLTexture(u8 color_r, u8 color_g, u8 color_b, u8 color_a,
                                                 const TextureInfo& texture) {
-    state.texture_units[0].texture_2d = texture.resource.handle;
+    state.texture_units[0].texture = texture.resource.handle;
     state.Apply();
 
     glActiveTexture(GL_TEXTURE0);
@@ -214,7 +214,7 @@ void RendererOpenGL::LoadColorToActiveGLTexture(u8 color_r, u8 color_g, u8 color
     // Update existing texture
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, framebuffer_data);
 
-    state.texture_units[0].texture_2d = 0;
+    state.texture_units[0].texture = 0;
     state.Apply();
 }
 
@@ -260,7 +260,7 @@ void RendererOpenGL::InitOpenGLObjects() {
     // Allocation of storage is deferred until the first frame, when we
     // know the framebuffer size.
 
-    state.texture_units[0].texture_2d = screen_info.texture.resource.handle;
+    state.texture_units[0].texture = screen_info.texture.resource.handle;
     state.Apply();
 
     glActiveTexture(GL_TEXTURE0);
@@ -272,7 +272,7 @@ void RendererOpenGL::InitOpenGLObjects() {
 
     screen_info.display_texture = screen_info.texture.resource.handle;
 
-    state.texture_units[0].texture_2d = 0;
+    state.texture_units[0].texture = 0;
     state.Apply();
 
     // Clear screen to black
@@ -305,14 +305,14 @@ void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
         UNREACHABLE();
     }
 
-    state.texture_units[0].texture_2d = texture.resource.handle;
+    state.texture_units[0].texture = texture.resource.handle;
     state.Apply();
 
     glActiveTexture(GL_TEXTURE0);
     glTexImage2D(GL_TEXTURE_2D, 0, internal_format, texture.width, texture.height, 0,
                  texture.gl_format, texture.gl_type, nullptr);
 
-    state.texture_units[0].texture_2d = 0;
+    state.texture_units[0].texture = 0;
     state.Apply();
 }
 
@@ -354,14 +354,14 @@ void RendererOpenGL::DrawScreenTriangles(const ScreenInfo& screen_info, float x,
         ScreenRectVertex(x + w, y + h, texcoords.bottom * scale_u, right * scale_v),
     }};
 
-    state.texture_units[0].texture_2d = screen_info.display_texture;
+    state.texture_units[0].texture = screen_info.display_texture;
     state.texture_units[0].swizzle = {GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA};
     state.Apply();
 
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices.data());
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-    state.texture_units[0].texture_2d = 0;
+    state.texture_units[0].texture = 0;
     state.Apply();
 }
 
