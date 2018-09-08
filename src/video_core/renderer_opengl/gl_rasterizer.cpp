@@ -151,11 +151,6 @@ void RasterizerOpenGL::SetupVertexArrays() {
         Tegra::GPUVAddr start = vertex_array.StartAddress();
         const Tegra::GPUVAddr end = regs.vertex_array_limit[index].LimitAddress();
 
-        if (regs.instanced_arrays.IsInstancingEnabled(index) && vertex_array.divisor != 0) {
-            start += static_cast<Tegra::GPUVAddr>(vertex_array.stride) *
-                     (gpu.state.current_instance / vertex_array.divisor);
-        }
-
         ASSERT(end > start);
         const u64 size = end - start + 1;
         const GLintptr vertex_buffer_offset = buffer_cache.UploadMemory(start, size);
@@ -165,10 +160,8 @@ void RasterizerOpenGL::SetupVertexArrays() {
                            vertex_array.stride);
 
         if (regs.instanced_arrays.IsInstancingEnabled(index) && vertex_array.divisor != 0) {
-            // Tell OpenGL that this is an instanced vertex buffer to prevent accessing different
-            // indexes on each vertex. We do the instance indexing manually by incrementing the
-            // start address of the vertex buffer.
-            glVertexBindingDivisor(index, 1);
+            // Enable vertex buffer instancing with the specified divisor.
+            glVertexBindingDivisor(index, vertex_array.divisor);
         } else {
             // Disable the vertex buffer instancing.
             glVertexBindingDivisor(index, 0);
@@ -432,7 +425,8 @@ void RasterizerOpenGL::DrawArrays() {
         return;
 
     MICROPROFILE_SCOPE(OpenGL_Drawing);
-    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
+    const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
+    const auto& regs = gpu.regs;
 
     ScopeAcquireGLContext acquire_context{emu_window};
 
@@ -497,11 +491,26 @@ void RasterizerOpenGL::DrawArrays() {
         index_buffer_offset += static_cast<GLintptr>(regs.index_array.first) *
                                static_cast<GLintptr>(regs.index_array.FormatSizeInBytes());
 
-        glDrawElementsBaseVertex(primitive_mode, regs.index_array.count,
-                                 MaxwellToGL::IndexFormat(regs.index_array.format),
-                                 reinterpret_cast<const void*>(index_buffer_offset), base_vertex);
+        if (gpu.state.current_instance > 0) {
+            glDrawElementsInstancedBaseVertexBaseInstance(
+                primitive_mode, regs.index_array.count,
+                MaxwellToGL::IndexFormat(regs.index_array.format),
+                reinterpret_cast<const void*>(index_buffer_offset), 1, base_vertex,
+                gpu.state.current_instance);
+        } else {
+            glDrawElementsBaseVertex(primitive_mode, regs.index_array.count,
+                                     MaxwellToGL::IndexFormat(regs.index_array.format),
+                                     reinterpret_cast<const void*>(index_buffer_offset),
+                                     base_vertex);
+        }
     } else {
-        glDrawArrays(primitive_mode, regs.vertex_buffer.first, regs.vertex_buffer.count);
+        if (gpu.state.current_instance > 0) {
+            glDrawArraysInstancedBaseInstance(primitive_mode, regs.vertex_buffer.first,
+                                              regs.vertex_buffer.count, 1,
+                                              gpu.state.current_instance);
+        } else {
+            glDrawArrays(primitive_mode, regs.vertex_buffer.first, regs.vertex_buffer.count);
+        }
     }
 
     // Disable scissor test
@@ -518,13 +527,9 @@ void RasterizerOpenGL::DrawArrays() {
 
 void RasterizerOpenGL::NotifyMaxwellRegisterChanged(u32 method) {}
 
-void RasterizerOpenGL::FlushAll() {
-    MICROPROFILE_SCOPE(OpenGL_CacheManagement);
-}
+void RasterizerOpenGL::FlushAll() {}
 
-void RasterizerOpenGL::FlushRegion(VAddr addr, u64 size) {
-    MICROPROFILE_SCOPE(OpenGL_CacheManagement);
-}
+void RasterizerOpenGL::FlushRegion(VAddr addr, u64 size) {}
 
 void RasterizerOpenGL::InvalidateRegion(VAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
@@ -534,7 +539,6 @@ void RasterizerOpenGL::InvalidateRegion(VAddr addr, u64 size) {
 }
 
 void RasterizerOpenGL::FlushAndInvalidateRegion(VAddr addr, u64 size) {
-    MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     InvalidateRegion(addr, size);
 }
 
