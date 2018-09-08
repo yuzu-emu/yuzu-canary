@@ -170,8 +170,12 @@ struct TICEntry {
         BitField<0, 16, u32> width_minus_1;
         BitField<23, 4, TextureType> texture_type;
     };
-    u16 height_minus_1;
-    INSERT_PADDING_BYTES(10);
+    union {
+        BitField<0, 16, u32> height_minus_1;
+        BitField<16, 15, u32> depth_minus_1;
+    };
+
+    INSERT_PADDING_BYTES(8);
 
     GPUVAddr Address() const {
         return static_cast<GPUVAddr>((static_cast<GPUVAddr>(address_high) << 32) | address_low);
@@ -190,6 +194,10 @@ struct TICEntry {
 
     u32 Height() const {
         return height_minus_1 + 1;
+    }
+
+    u32 Depth() const {
+        return depth_minus_1 + 1;
     }
 
     u32 BlockHeight() const {
