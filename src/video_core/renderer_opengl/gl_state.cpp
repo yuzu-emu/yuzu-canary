@@ -200,9 +200,9 @@ void OpenGLState::Apply() const {
         const auto& texture_unit = texture_units[i];
         const auto& cur_state_texture_unit = cur_state.texture_units[i];
 
-        if (texture_unit.texture_2d != cur_state_texture_unit.texture_2d) {
+        if (texture_unit.texture != cur_state_texture_unit.texture) {
             glActiveTexture(TextureUnits::MaxwellTexture(static_cast<int>(i)).Enum());
-            glBindTexture(GL_TEXTURE_2D, texture_unit.texture_2d);
+            glBindTexture(texture_unit.target, texture_unit.texture);
         }
         if (texture_unit.sampler != cur_state_texture_unit.sampler) {
             glBindSampler(static_cast<GLuint>(i), texture_unit.sampler);
@@ -214,7 +214,7 @@ void OpenGLState::Apply() const {
             texture_unit.swizzle.a != cur_state_texture_unit.swizzle.a) {
             std::array<GLint, 4> mask = {texture_unit.swizzle.r, texture_unit.swizzle.g,
                                          texture_unit.swizzle.b, texture_unit.swizzle.a};
-            glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, mask.data());
+            glTexParameteriv(texture_unit.target, GL_TEXTURE_SWIZZLE_RGBA, mask.data());
         }
     }
 
@@ -287,7 +287,7 @@ void OpenGLState::Apply() const {
 
 OpenGLState& OpenGLState::UnbindTexture(GLuint handle) {
     for (auto& unit : texture_units) {
-        if (unit.texture_2d == handle) {
+        if (unit.texture == handle) {
             unit.Unbind();
         }
     }
