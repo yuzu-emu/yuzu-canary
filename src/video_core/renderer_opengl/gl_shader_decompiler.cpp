@@ -1847,6 +1847,22 @@ private:
                 WriteTexsInstruction(instr, coord, texture);
                 break;
             }
+            case OpCode::Id::TXQ: {
+                const std::string sampler = GetSampler(instr.sampler);
+                switch (instr.txq.query_type) {
+                case Tegra::Shader::TextureQueryType::Dimension: {
+                    const std::string texture = "textureQueryLevels(" + sampler + ')';
+                    regs.SetRegisterToInteger(instr.gpr0, true, 0, texture, 1, 1);
+                    break;
+                }
+                default: {
+                    LOG_CRITICAL(HW_GPU, "Unhandled texture query type: {}",
+                                 static_cast<u32>(instr.txq.query_type.Value()));
+                    UNREACHABLE();
+                }
+                }
+                break;
+            }
             default: {
                 LOG_CRITICAL(HW_GPU, "Unhandled memory instruction: {}", opcode->GetName());
                 UNREACHABLE();
