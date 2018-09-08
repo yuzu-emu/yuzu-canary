@@ -94,8 +94,9 @@ public:
 
     // 3 texture units - one for each that is used in PICA fragment shader emulation
     struct TextureUnit {
-        GLuint texture_2d; // GL_TEXTURE_BINDING_2D
-        GLuint sampler;    // GL_SAMPLER_BINDING
+        GLuint texture; // GL_TEXTURE_BINDING_2D
+        GLuint sampler; // GL_SAMPLER_BINDING
+        GLenum target;
         struct {
             GLint r; // GL_TEXTURE_SWIZZLE_R
             GLint g; // GL_TEXTURE_SWIZZLE_G
@@ -104,7 +105,7 @@ public:
         } swizzle;
 
         void Unbind() {
-            texture_2d = 0;
+            texture = 0;
             swizzle.r = GL_RED;
             swizzle.g = GL_GREEN;
             swizzle.b = GL_BLUE;
@@ -114,6 +115,7 @@ public:
         void Reset() {
             Unbind();
             sampler = 0;
+            target = GL_TEXTURE_2D;
         }
     };
     std::array<TextureUnit, 32> texture_units;
