@@ -93,6 +93,7 @@ private:
         Tegra::Texture::TextureFilter min_filter;
         Tegra::Texture::WrapMode wrap_u;
         Tegra::Texture::WrapMode wrap_v;
+        Tegra::Texture::WrapMode wrap_p;
         GLvec4 border_color;
     };
 
