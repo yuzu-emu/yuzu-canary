@@ -47,6 +47,9 @@ target_include_directories(microprofile INTERFACE ./microprofile)
 add_library(unicorn-headers INTERFACE)
 target_include_directories(unicorn-headers INTERFACE ./unicorn/include)
 
+# SoundTouch
+add_subdirectory(soundtouch)
+
 # Xbyak
 if (ARCHITECTURE_x86_64)
     # Defined before "dynarmic" above
