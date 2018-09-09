@@ -1920,6 +1920,26 @@ private:
                 WriteTexsInstruction(instr, coord, texture);
                 break;
             }
+            case OpCode::Id::TXQ: {
+                // TODO: the new commits on the texture refactor, change the way samplers work.
+                // Sadly, not all texture instructions specify the type of texture their sampler
+                // uses. This must be fixed at a later instance.
+                const std::string sampler =
+                    GetSampler(instr.sampler, Tegra::Shader::TextureType::Texture2D, false);
+                switch (instr.txq.query_type) {
+                case Tegra::Shader::TextureQueryType::Dimension: {
+                    const std::string texture = "textureQueryLevels(" + sampler + ')';
+                    regs.SetRegisterToInteger(instr.gpr0, true, 0, texture, 1, 1);
+                    break;
+                }
+                default: {
+                    LOG_CRITICAL(HW_GPU, "Unhandled texture query type: {}",
+                                 static_cast<u32>(instr.txq.query_type.Value()));
+                    UNREACHABLE();
+                }
+                }
+                break;
+            }
             default: {
                 LOG_CRITICAL(HW_GPU, "Unhandled memory instruction: {}", opcode->GetName());
                 UNREACHABLE();
