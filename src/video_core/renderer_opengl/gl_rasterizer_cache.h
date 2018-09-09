@@ -669,8 +669,7 @@ struct SurfaceParams {
     static SurfaceParams CreateForTexture(const Tegra::Texture::FullTextureInfo& config);
 
     /// Creates SurfaceParams from a framebuffer configuration
-    static SurfaceParams CreateForFramebuffer(
-        const Tegra::Engines::Maxwell3D::Regs::RenderTargetConfig& config);
+    static SurfaceParams CreateForFramebuffer(size_t index);
 
     /// Creates SurfaceParams for a depth buffer configuration
     static SurfaceParams CreateForDepthBuffer(u32 zeta_width, u32 zeta_height,
@@ -774,9 +773,11 @@ public:
     /// Get a surface based on the texture configuration
     Surface GetTextureSurface(const Tegra::Texture::FullTextureInfo& config);
 
-    /// Get the color and depth surfaces based on the framebuffer configuration
-    SurfaceSurfaceRect_Tuple GetFramebufferSurfaces(bool using_color_fb, bool using_depth_fb,
-                                                    bool preserve_contents);
+    /// Get the depth surface based on the framebuffer configuration
+    Surface GetDepthBufferSurface(bool preserve_contents);
+
+    /// Get the color surface based on the framebuffer configuration and the specified render target
+    Surface GetColorBufferSurface(size_t index, bool preserve_contents);
 
     /// Flushes the surface to Switch memory
     void FlushSurface(const Surface& surface);
