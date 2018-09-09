@@ -525,8 +525,6 @@ void RasterizerOpenGL::DrawArrays() {
     state.Apply();
 }
 
-void RasterizerOpenGL::NotifyMaxwellRegisterChanged(u32 method) {}
-
 void RasterizerOpenGL::FlushAll() {}
 
 void RasterizerOpenGL::FlushRegion(VAddr addr, u64 size) {}
