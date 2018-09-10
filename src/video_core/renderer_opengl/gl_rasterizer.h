@@ -45,7 +45,6 @@ public:
 
     void DrawArrays() override;
     void Clear() override;
-    void NotifyMaxwellRegisterChanged(u32 method) override;
     void FlushAll() override;
     void FlushRegion(VAddr addr, u64 size) override;
     void InvalidateRegion(VAddr addr, u64 size) override;
