@@ -97,14 +97,8 @@ private:
         GLvec4 border_color;
     };
 
-    /// Configures the color and depth framebuffer states and returns the dirty <Color, Depth>
-    /// surfaces if writing was enabled.
-    std::pair<Surface, Surface> ConfigureFramebuffers(bool using_color_fb, bool using_depth_fb,
-                                                      bool preserve_contents);
-
-    /// Binds the framebuffer color and depth surface
-    void BindFramebufferSurfaces(const Surface& color_surface, const Surface& depth_surface,
-                                 bool has_stencil);
+    /// Configures the color and depth framebuffer states
+    void ConfigureFramebuffers(bool using_depth_fb, bool preserve_contents);
 
     /*
      * Configures the current constbuffers to use for the draw command.
@@ -127,7 +121,7 @@ private:
                       u32 current_unit);
 
     /// Syncs the viewport to match the guest state
-    void SyncViewport(const MathUtil::Rectangle<u32>& surfaces_rect);
+    void SyncViewport();
 
     /// Syncs the clip enabled status to match the guest state
     void SyncClipEnabled();
