@@ -294,18 +294,11 @@ void RasterizerOpenGL::UpdatePagesCachedCount(VAddr addr, u64 size, int delta) {
         cached_pages.add({pages_interval, delta});
 }
 
-void RasterizerOpenGL::ConfigureFramebuffers(bool using_depth_fb, bool preserve_contents) {
+void RasterizerOpenGL::ConfigureFramebuffers(bool using_color_fb, bool using_depth_fb,
+                                             bool preserve_contents,
+                                             boost::optional<size_t> single_color_target) {
     MICROPROFILE_SCOPE(OpenGL_Framebuffer);
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
-
-    const bool has_stencil = regs.stencil_enable;
-    const bool write_color_fb =
-        state.color_mask.red_enabled == GL_TRUE || state.color_mask.green_enabled == GL_TRUE ||
-        state.color_mask.blue_enabled == GL_TRUE || state.color_mask.alpha_enabled == GL_TRUE;
-
-    const bool write_depth_fb =
-        (state.depth.test_enabled && state.depth.write_mask == GL_TRUE) ||
-        (has_stencil && (state.stencil.front.write_mask || state.stencil.back.write_mask));
 
     Surface depth_surface;
     if (using_depth_fb) {
@@ -321,19 +314,41 @@ void RasterizerOpenGL::ConfigureFramebuffers(bool using_depth_fb, bool preserve_
     state.draw.draw_framebuffer = framebuffer.handle;
     state.Apply();
 
-    std::array<GLenum, Maxwell::NumRenderTargets> buffers;
-    for (size_t index = 0; index < Maxwell::NumRenderTargets; ++index) {
-        Surface color_surface = res_cache.GetColorBufferSurface(index, preserve_contents);
-        buffers[index] = GL_COLOR_ATTACHMENT0 + regs.rt_control.GetMap(index);
-        glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,
-                               GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(index), GL_TEXTURE_2D,
-                               color_surface != nullptr ? color_surface->Texture().handle : 0, 0);
+    if (using_color_fb) {
+        if (single_color_target) {
+            // Used when just a single color attachment is enabled, e.g. for clearing a color buffer
+            Surface color_surface =
+                res_cache.GetColorBufferSurface(*single_color_target, preserve_contents);
+            glFramebufferTexture2D(
+                GL_DRAW_FRAMEBUFFER,
+                GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(*single_color_target), GL_TEXTURE_2D,
+                color_surface != nullptr ? color_surface->Texture().handle : 0, 0);
+            glDrawBuffer(GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(*single_color_target));
+        } else {
+            // Multiple color attachments are enabled
+            std::array<GLenum, Maxwell::NumRenderTargets> buffers;
+            for (size_t index = 0; index < Maxwell::NumRenderTargets; ++index) {
+                Surface color_surface = res_cache.GetColorBufferSurface(index, preserve_contents);
+                buffers[index] = GL_COLOR_ATTACHMENT0 + regs.rt_control.GetMap(index);
+                glFramebufferTexture2D(
+                    GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(index),
+                    GL_TEXTURE_2D, color_surface != nullptr ? color_surface->Texture().handle : 0,
+                    0);
+            }
+            glDrawBuffers(regs.rt_control.count, buffers.data());
+        }
+    } else {
+        // No color attachments are enabled - zero out all of them
+        for (size_t index = 0; index < Maxwell::NumRenderTargets; ++index) {
+            glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,
+                                   GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(index), GL_TEXTURE_2D,
+                                   0, 0);
+        }
+        glDrawBuffer(GL_NONE);
     }
 
-    glDrawBuffers(regs.rt_control.count, buffers.data());
-
     if (depth_surface) {
-        if (has_stencil) {
+        if (regs.stencil_enable) {
             // Attach both depth and stencil
             glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
                                    depth_surface->Texture().handle, 0);
@@ -360,8 +375,9 @@ void RasterizerOpenGL::Clear() {
     SCOPE_EXIT({ prev_state.Apply(); });
 
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
-    bool use_color_fb = false;
-    bool use_depth_fb = false;
+    bool use_color{};
+    bool use_depth{};
+    bool use_stencil{};
 
     OpenGLState clear_state;
     clear_state.draw.draw_framebuffer = state.draw.draw_framebuffer;
@@ -370,22 +386,13 @@ void RasterizerOpenGL::Clear() {
     clear_state.color_mask.blue_enabled = regs.clear_buffers.B ? GL_TRUE : GL_FALSE;
     clear_state.color_mask.alpha_enabled = regs.clear_buffers.A ? GL_TRUE : GL_FALSE;
 
-    GLbitfield clear_mask{};
     if (regs.clear_buffers.R || regs.clear_buffers.G || regs.clear_buffers.B ||
         regs.clear_buffers.A) {
-        if (regs.clear_buffers.RT == 0) {
-            // We only support clearing the first color attachment for now
-            clear_mask |= GL_COLOR_BUFFER_BIT;
-            use_color_fb = true;
-        } else {
-            // TODO(subv): Add support for the other color attachments
-            LOG_CRITICAL(HW_GPU, "Clear unimplemented for RT {}", regs.clear_buffers.RT);
-        }
+        use_color = true;
     }
     if (regs.clear_buffers.Z) {
         ASSERT_MSG(regs.zeta_enable != 0, "Tried to clear Z but buffer is not enabled!");
-        use_depth_fb = true;
-        clear_mask |= GL_DEPTH_BUFFER_BIT;
+        use_depth = true;
 
         // Always enable the depth write when clearing the depth buffer. The depth write mask is
         // ignored when clearing the buffer in the Switch, but OpenGL obeys it so we set it to true.
@@ -394,33 +401,33 @@ void RasterizerOpenGL::Clear() {
     }
     if (regs.clear_buffers.S) {
         ASSERT_MSG(regs.zeta_enable != 0, "Tried to clear stencil but buffer is not enabled!");
-        use_depth_fb = true;
-        clear_mask |= GL_STENCIL_BUFFER_BIT;
+        use_stencil = true;
         clear_state.stencil.test_enabled = true;
     }
 
-    if (!use_color_fb && !use_depth_fb) {
+    if (!use_color && !use_depth && !use_stencil) {
         // No color surface nor depth/stencil surface are enabled
-        return;
-    }
-
-    if (clear_mask == 0) {
-        // No clear mask is enabled
         return;
     }
 
     ScopeAcquireGLContext acquire_context{emu_window};
 
-    ConfigureFramebuffers(use_depth_fb, false);
+    ConfigureFramebuffers(use_color, use_depth || use_stencil, false,
+                          regs.clear_buffers.RT.Value());
 
     clear_state.Apply();
 
-    glClearColor(regs.clear_color[0], regs.clear_color[1], regs.clear_color[2],
-                 regs.clear_color[3]);
-    glClearDepth(regs.clear_depth);
-    glClearStencil(regs.clear_stencil);
+    if (use_color) {
+        glClearBufferfv(GL_COLOR, regs.clear_buffers.RT, regs.clear_color);
+    }
 
-    glClear(clear_mask);
+    if (use_depth && use_stencil) {
+        glClearBufferfi(GL_DEPTH_STENCIL, 0, regs.clear_depth, regs.clear_stencil);
+    } else if (use_depth) {
+        glClearBufferfv(GL_DEPTH, 0, &regs.clear_depth);
+    } else if (use_stencil) {
+        glClearBufferiv(GL_STENCIL, 0, &regs.clear_stencil);
+    }
 }
 
 void RasterizerOpenGL::DrawArrays() {
@@ -433,7 +440,7 @@ void RasterizerOpenGL::DrawArrays() {
 
     ScopeAcquireGLContext acquire_context{emu_window};
 
-    ConfigureFramebuffers(true, true);
+    ConfigureFramebuffers();
 
     SyncDepthTestState();
     SyncStencilTestState();
