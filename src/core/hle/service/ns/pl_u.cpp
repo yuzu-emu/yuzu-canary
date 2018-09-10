@@ -2,6 +2,13 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <FontChineseSimplified.ttf.h>
+#include <FontChineseTraditional.ttf.h>
+#include <FontExtendedChineseSimplified.ttf.h>
+#include <FontKorean.ttf.h>
+#include <FontNintendoExtended.ttf.h>
+#include <FontStandard.ttf.h>
+
 #include "common/common_paths.h"
 #include "common/file_util.h"
 #include "core/core.h"
@@ -218,7 +225,24 @@ PL_U::PL_U() : ServiceFramework("pl:u") {
             file.ReadBytes(shared_font->data(), shared_font->size());
             BuildSharedFontsRawRegions(*shared_font);
         } else {
-            LOG_WARNING(Service_NS, "Unable to load shared font: {}", filepath);
+            LOG_WARNING(Service_NS,
+                        "Shared Font file missing. Loading open source replacement from memory");
+
+            const std::vector<std::vector<u8>> open_source_shared_fonts_ttf = {
+                {std::begin(FontChineseSimplified), std::end(FontChineseSimplified)},
+                {std::begin(FontChineseTraditional), std::end(FontChineseTraditional)},
+                {std::begin(FontExtendedChineseSimplified),
+                 std::end(FontExtendedChineseSimplified)},
+                {std::begin(FontNintendoExtended), std::end(FontNintendoExtended)},
+                {std::begin(FontStandard), std::end(FontStandard)},
+            };
+
+            for (const std::vector<u8>& font_ttf : open_source_shared_fonts_ttf) {
+                const FontRegion region{static_cast<u32>(offset + 8),
+                                        static_cast<u32>(font_ttf.size())};
+                EncryptSharedFont(font_ttf, *shared_font, offset);
+                SHARED_FONT_REGIONS.push_back(region);
+            }
         }
     }
 }
