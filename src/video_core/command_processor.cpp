@@ -28,98 +28,106 @@ enum class BufferMethods {
     CountBufferMethods = 0x40,
 };
 
-void GPU::WriteReg(u32 method, u32 subchannel, u32 value, u32 remaining_params) {
-    LOG_TRACE(HW_GPU,
-              "Processing method {:08X} on subchannel {} value "
-              "{:08X} remaining params {}",
-              method, subchannel, value, remaining_params);
+MICROPROFILE_DEFINE(ProcessCommandLists, "GPU", "Execute command buffer", MP_RGB(128, 128, 192));
 
-    ASSERT(subchannel < bound_engines.size());
+void GPU::ProcessCommandLists(const std::vector<CommandListHeader>& commands) {
+    MICROPROFILE_SCOPE(ProcessCommandLists);
 
-    if (method == static_cast<u32>(BufferMethods::BindObject)) {
-        // Bind the current subchannel to the desired engine id.
-        LOG_DEBUG(HW_GPU, "Binding subchannel {} to engine {}", subchannel, value);
-        bound_engines[subchannel] = static_cast<EngineID>(value);
-        return;
-    }
+    auto WriteReg = [this](u32 method, u32 subchannel, u32 value, u32 remaining_params) {
+        LOG_TRACE(HW_GPU,
+                  "Processing method {:08X} on subchannel {} value "
+                  "{:08X} remaining params {}",
+                  method, subchannel, value, remaining_params);
 
-    if (method < static_cast<u32>(BufferMethods::CountBufferMethods)) {
-        // TODO(Subv): Research and implement these methods.
-        LOG_ERROR(HW_GPU, "Special buffer methods other than Bind are not implemented");
-        return;
-    }
+        ASSERT(subchannel < bound_engines.size());
 
-    const EngineID engine = bound_engines[subchannel];
-
-    switch (engine) {
-    case EngineID::FERMI_TWOD_A:
-        fermi_2d->WriteReg(method, value);
-        break;
-    case EngineID::MAXWELL_B:
-        maxwell_3d->WriteReg(method, value, remaining_params);
-        break;
-    case EngineID::MAXWELL_COMPUTE_B:
-        maxwell_compute->WriteReg(method, value);
-        break;
-    case EngineID::MAXWELL_DMA_COPY_A:
-        maxwell_dma->WriteReg(method, value);
-        break;
-    default:
-        UNIMPLEMENTED_MSG("Unimplemented engine");
-    }
-}
-
-void GPU::ProcessCommandList(GPUVAddr address, u32 size) {
-    const boost::optional<VAddr> head_address = memory_manager->GpuToCpuAddress(address);
-    VAddr current_addr = *head_address;
-    while (current_addr < *head_address + size * sizeof(CommandHeader)) {
-        const CommandHeader header = {Memory::Read32(current_addr)};
-        current_addr += sizeof(u32);
-
-        switch (header.mode.Value()) {
-        case SubmissionMode::IncreasingOld:
-        case SubmissionMode::Increasing: {
-            // Increase the method value with each argument.
-            for (unsigned i = 0; i < header.arg_count; ++i) {
-                WriteReg(header.method + i, header.subchannel, Memory::Read32(current_addr),
-                         header.arg_count - i - 1);
-                current_addr += sizeof(u32);
-            }
-            break;
+        if (method == static_cast<u32>(BufferMethods::BindObject)) {
+            // Bind the current subchannel to the desired engine id.
+            LOG_DEBUG(HW_GPU, "Binding subchannel {} to engine {}", subchannel, value);
+            bound_engines[subchannel] = static_cast<EngineID>(value);
+            return;
         }
-        case SubmissionMode::NonIncreasingOld:
-        case SubmissionMode::NonIncreasing: {
-            // Use the same method value for all arguments.
-            for (unsigned i = 0; i < header.arg_count; ++i) {
-                WriteReg(header.method, header.subchannel, Memory::Read32(current_addr),
-                         header.arg_count - i - 1);
-                current_addr += sizeof(u32);
-            }
-            break;
-        }
-        case SubmissionMode::IncreaseOnce: {
-            ASSERT(header.arg_count.Value() >= 1);
 
-            // Use the original method for the first argument and then the next method for all other
-            // arguments.
-            WriteReg(header.method, header.subchannel, Memory::Read32(current_addr),
-                     header.arg_count - 1);
+        if (method < static_cast<u32>(BufferMethods::CountBufferMethods)) {
+            // TODO(Subv): Research and implement these methods.
+            LOG_ERROR(HW_GPU, "Special buffer methods other than Bind are not implemented");
+            return;
+        }
+
+        const EngineID engine = bound_engines[subchannel];
+
+        switch (engine) {
+        case EngineID::FERMI_TWOD_A:
+            fermi_2d->WriteReg(method, value);
+            break;
+        case EngineID::MAXWELL_B:
+            maxwell_3d->WriteReg(method, value, remaining_params);
+            break;
+        case EngineID::MAXWELL_COMPUTE_B:
+            maxwell_compute->WriteReg(method, value);
+            break;
+        case EngineID::MAXWELL_DMA_COPY_A:
+            maxwell_dma->WriteReg(method, value);
+            break;
+        default:
+            UNIMPLEMENTED_MSG("Unimplemented engine");
+        }
+    };
+
+    for (auto entry : commands) {
+        Tegra::GPUVAddr address = entry.Address();
+        u32 size = entry.sz;
+        const boost::optional<VAddr> head_address = memory_manager->GpuToCpuAddress(address);
+        VAddr current_addr = *head_address;
+        while (current_addr < *head_address + size * sizeof(CommandHeader)) {
+            const CommandHeader header = {Memory::Read32(current_addr)};
             current_addr += sizeof(u32);
 
-            for (unsigned i = 1; i < header.arg_count; ++i) {
-                WriteReg(header.method + 1, header.subchannel, Memory::Read32(current_addr),
-                         header.arg_count - i - 1);
-                current_addr += sizeof(u32);
+            switch (header.mode.Value()) {
+            case SubmissionMode::IncreasingOld:
+            case SubmissionMode::Increasing: {
+                // Increase the method value with each argument.
+                for (unsigned i = 0; i < header.arg_count; ++i) {
+                    WriteReg(header.method + i, header.subchannel, Memory::Read32(current_addr),
+                             header.arg_count - i - 1);
+                    current_addr += sizeof(u32);
+                }
+                break;
             }
-            break;
-        }
-        case SubmissionMode::Inline: {
-            // The register value is stored in the bits 16-28 as an immediate
-            WriteReg(header.method, header.subchannel, header.inline_data, 0);
-            break;
-        }
-        default:
-            UNIMPLEMENTED();
+            case SubmissionMode::NonIncreasingOld:
+            case SubmissionMode::NonIncreasing: {
+                // Use the same method value for all arguments.
+                for (unsigned i = 0; i < header.arg_count; ++i) {
+                    WriteReg(header.method, header.subchannel, Memory::Read32(current_addr),
+                             header.arg_count - i - 1);
+                    current_addr += sizeof(u32);
+                }
+                break;
+            }
+            case SubmissionMode::IncreaseOnce: {
+                ASSERT(header.arg_count.Value() >= 1);
+
+                // Use the original method for the first argument and then the next method for all
+                // other arguments.
+                WriteReg(header.method, header.subchannel, Memory::Read32(current_addr),
+                         header.arg_count - 1);
+                current_addr += sizeof(u32);
+
+                for (unsigned i = 1; i < header.arg_count; ++i) {
+                    WriteReg(header.method + 1, header.subchannel, Memory::Read32(current_addr),
+                             header.arg_count - i - 1);
+                    current_addr += sizeof(u32);
+                }
+                break;
+            }
+            case SubmissionMode::Inline: {
+                // The register value is stored in the bits 16-28 as an immediate
+                WriteReg(header.method, header.subchannel, header.inline_data, 0);
+                break;
+            }
+            default:
+                UNIMPLEMENTED();
+            }
         }
     }
 }

@@ -7,6 +7,7 @@
 #include <type_traits>
 #include "common/bit_field.h"
 #include "common/common_types.h"
+#include "video_core/memory_manager.h"
 
 namespace Tegra {
 
@@ -18,6 +19,22 @@ enum class SubmissionMode : u32 {
     Inline = 4,
     IncreaseOnce = 5
 };
+
+struct CommandListHeader {
+    u32 entry0; // gpu_va_lo
+    union {
+        u32 entry1; // gpu_va_hi | (unk_0x02 << 0x08) | (size << 0x0A) | (unk_0x01 << 0x1F)
+        BitField<0, 8, u32> gpu_va_hi;
+        BitField<8, 2, u32> unk1;
+        BitField<10, 21, u32> sz;
+        BitField<31, 1, u32> unk2;
+    };
+
+    GPUVAddr Address() const {
+        return (static_cast<GPUVAddr>(gpu_va_hi) << 32) | entry0;
+    }
+};
+static_assert(sizeof(CommandListHeader) == 8, "CommandListHeader is incorrect size");
 
 union CommandHeader {
     u32 hex;

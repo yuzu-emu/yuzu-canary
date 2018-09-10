@@ -8,6 +8,7 @@
 #include "core/core.h"
 #include "core/hle/service/nvdrv/devices/nvhost_gpu.h"
 #include "core/memory.h"
+#include "video_core/command_processor.h"
 #include "video_core/gpu.h"
 #include "video_core/memory_manager.h"
 
@@ -134,17 +135,16 @@ u32 nvhost_gpu::SubmitGPFIFO(const std::vector<u8>& input, std::vector<u8>& outp
     LOG_WARNING(Service_NVDRV, "(STUBBED) called, gpfifo={:X}, num_entries={:X}, flags={:X}",
                 params.address, params.num_entries, params.flags);
 
-    ASSERT_MSG(input.size() ==
-                   sizeof(IoctlSubmitGpfifo) + params.num_entries * sizeof(IoctlGpfifoEntry),
+    ASSERT_MSG(input.size() == sizeof(IoctlSubmitGpfifo) +
+                                   params.num_entries * sizeof(Tegra::CommandListHeader),
                "Incorrect input size");
 
-    std::vector<IoctlGpfifoEntry> entries(params.num_entries);
+    std::vector<Tegra::CommandListHeader> entries(params.num_entries);
     std::memcpy(entries.data(), &input[sizeof(IoctlSubmitGpfifo)],
-                params.num_entries * sizeof(IoctlGpfifoEntry));
-    for (auto entry : entries) {
-        Tegra::GPUVAddr va_addr = entry.Address();
-        Core::System::GetInstance().GPU().ProcessCommandList(va_addr, entry.sz);
-    }
+                params.num_entries * sizeof(Tegra::CommandListHeader));
+
+    Core::System::GetInstance().GPU().ProcessCommandLists(entries);
+
     params.fence_out.id = 0;
     params.fence_out.value = 0;
     std::memcpy(output.data(), &params, sizeof(IoctlSubmitGpfifo));
@@ -160,14 +160,12 @@ u32 nvhost_gpu::KickoffPB(const std::vector<u8>& input, std::vector<u8>& output)
     LOG_WARNING(Service_NVDRV, "(STUBBED) called, gpfifo={:X}, num_entries={:X}, flags={:X}",
                 params.address, params.num_entries, params.flags);
 
-    std::vector<IoctlGpfifoEntry> entries(params.num_entries);
+    std::vector<Tegra::CommandListHeader> entries(params.num_entries);
     Memory::ReadBlock(params.address, entries.data(),
-                      params.num_entries * sizeof(IoctlGpfifoEntry));
+                      params.num_entries * sizeof(Tegra::CommandListHeader));
 
-    for (auto entry : entries) {
-        Tegra::GPUVAddr va_addr = entry.Address();
-        Core::System::GetInstance().GPU().ProcessCommandList(va_addr, entry.sz);
-    }
+    Core::System::GetInstance().GPU().ProcessCommandLists(entries);
+
     params.fence_out.id = 0;
     params.fence_out.value = 0;
     std::memcpy(output.data(), &params, output.size());
