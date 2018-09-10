@@ -43,6 +43,9 @@ target_include_directories(mbedtls PUBLIC ./mbedtls/include)
 add_library(microprofile INTERFACE)
 target_include_directories(microprofile INTERFACE ./microprofile)
 
+# Open Source Archives
+add_subdirectory(open_source_archives EXCLUDE_FROM_ALL)
+
 # Unicorn
 add_library(unicorn-headers INTERFACE)
 target_include_directories(unicorn-headers INTERFACE ./unicorn/include)
