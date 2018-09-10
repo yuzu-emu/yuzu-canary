@@ -135,8 +135,6 @@ void Maxwell3D::WriteReg(u32 method, u32 value, u32 remaining_params) {
         break;
     }
 
-    rasterizer.NotifyMaxwellRegisterChanged(method);
-
     if (debug_context) {
         debug_context->OnEvent(Tegra::DebugContext::Event::MaxwellCommandProcessed, nullptr);
     }
