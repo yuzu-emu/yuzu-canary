@@ -6,6 +6,7 @@
 
 #include <array>
 #include <memory>
+#include <vector>
 #include "common/common_types.h"
 #include "core/hle/service/nvflinger/buffer_queue.h"
 #include "video_core/memory_manager.h"
@@ -67,6 +68,7 @@ u32 RenderTargetBytesPerPixel(RenderTargetFormat format);
 /// Returns the number of bytes per pixel of each depth format.
 u32 DepthFormatBytesPerPixel(DepthFormat format);
 
+struct CommandHeaderList;
 class DebugContext;
 
 /**
@@ -115,7 +117,7 @@ public:
     ~GPU();
 
     /// Processes a command list stored at the specified address in GPU memory.
-    void ProcessCommandList(GPUVAddr address, u32 size);
+    void ProcessCommandLists(const std::vector<CommandHeaderList>& commands);
 
     /// Returns a reference to the Maxwell3D GPU engine.
     Engines::Maxwell3D& Maxwell3D();
@@ -130,9 +132,6 @@ public:
     const Tegra::MemoryManager& MemoryManager() const;
 
 private:
-    /// Writes a single register in the engine bound to the specified subchannel
-    void WriteReg(u32 method, u32 subchannel, u32 value, u32 remaining_params);
-
     std::unique_ptr<Tegra::MemoryManager> memory_manager;
 
     /// Mapping of command subchannels to their bound engine ids.
