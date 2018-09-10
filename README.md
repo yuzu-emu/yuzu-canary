@@ -1,3 +1,28 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: ae0c95efccfb85c0456194d142f561cbd5f95df8
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1287](https://github.com/yuzu-emu/yuzu/pull/1287)|[b6413ae](https://github.com/yuzu-emu/yuzu/pull/1287/files/)|Use ARB_multi_bind for uniform buffers|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[1286](https://github.com/yuzu-emu/yuzu/pull/1286)|[035e6bd](https://github.com/yuzu-emu/yuzu/pull/1286/files/)|gl_rasterizer: Implement clear for non-zero render targets.|[bunnei](https://github.com/bunnei)|Yes|
+|[1285](https://github.com/yuzu-emu/yuzu/pull/1285)|[4c0b1cc](https://github.com/yuzu-emu/yuzu/pull/1285/files/)|gl_rasterizer_cache: Only use depth for applicable texture formats.|[bunnei](https://github.com/bunnei)|Yes|
+|[1284](https://github.com/yuzu-emu/yuzu/pull/1284)|[1c34498](https://github.com/yuzu-emu/yuzu/pull/1284/files/)|gl_rasterizer_cache: Implement RenderTargetFormat::BGRA8_SRGB.|[bunnei](https://github.com/bunnei)|Yes|
+|[1279](https://github.com/yuzu-emu/yuzu/pull/1279)|[7e960d7](https://github.com/yuzu-emu/yuzu/pull/1279/files/)|shader_decompiler: Implemented (Partialy) Control Codes and CSETP|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1275](https://github.com/yuzu-emu/yuzu/pull/1275)|[595175a](https://github.com/yuzu-emu/yuzu/pull/1275/files/)|Port #4141 from citra: Joystick hotplug support|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[1269](https://github.com/yuzu-emu/yuzu/pull/1269)|[e225a64](https://github.com/yuzu-emu/yuzu/pull/1269/files/)|Use open-source shared fonts if no dumped file is available|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[1163](https://github.com/yuzu-emu/yuzu/pull/1163)|[55af5bd](https://github.com/yuzu-emu/yuzu/pull/1163/files/)|[WIP] audio_core: Add audio stretching support|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
