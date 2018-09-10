@@ -10,7 +10,6 @@
 #include "common/common_types.h"
 #include "common/swap.h"
 #include "core/hle/service/nvdrv/devices/nvdevice.h"
-#include "video_core/memory_manager.h"
 
 namespace Service::Nvidia::Devices {
 
@@ -150,22 +149,6 @@ private:
         u64_le obj_id; // (ignored) used for FREE_OBJ_CTX ioctl, which is not supported
     };
     static_assert(sizeof(IoctlAllocObjCtx) == 16, "IoctlAllocObjCtx is incorrect size");
-
-    struct IoctlGpfifoEntry {
-        u32_le entry0; // gpu_va_lo
-        union {
-            u32_le entry1; // gpu_va_hi | (unk_0x02 << 0x08) | (size << 0x0A) | (unk_0x01 << 0x1F)
-            BitField<0, 8, u32_le> gpu_va_hi;
-            BitField<8, 2, u32_le> unk1;
-            BitField<10, 21, u32_le> sz;
-            BitField<31, 1, u32_le> unk2;
-        };
-
-        Tegra::GPUVAddr Address() const {
-            return (static_cast<Tegra::GPUVAddr>(gpu_va_hi) << 32) | entry0;
-        }
-    };
-    static_assert(sizeof(IoctlGpfifoEntry) == 8, "IoctlGpfifoEntry is incorrect size");
 
     struct IoctlSubmitGpfifo {
         u64_le address;     // pointer to gpfifo entry structs
