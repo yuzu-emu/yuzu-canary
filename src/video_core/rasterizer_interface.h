@@ -20,9 +20,6 @@ public:
     /// Clear the current framebuffer
     virtual void Clear() = 0;
 
-    /// Notify rasterizer that the specified Maxwell register has been changed
-    virtual void NotifyMaxwellRegisterChanged(u32 method) = 0;
-
     /// Notify rasterizer that all caches should be flushed to Switch memory
     virtual void FlushAll() = 0;
 
