@@ -52,12 +52,28 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     params.type = GetFormatType(params.pixel_format);
     params.width = Common::AlignUp(config.tic.Width(), GetCompressionFactor(params.pixel_format));
     params.height = Common::AlignUp(config.tic.Height(), GetCompressionFactor(params.pixel_format));
-    params.depth = config.tic.Depth();
     params.unaligned_height = config.tic.Height();
-    params.size_in_bytes = params.SizeInBytes();
     params.cache_width = Common::AlignUp(params.width, 8);
     params.cache_height = Common::AlignUp(params.height, 8);
     params.target = SurfaceTargetFromTextureType(config.tic.texture_type);
+
+    switch (params.target) {
+    case SurfaceTarget::Texture1D:
+    case SurfaceTarget::Texture2D:
+        params.depth = 1;
+        break;
+    case SurfaceTarget::Texture3D:
+    case SurfaceTarget::Texture2DArray:
+        params.depth = config.tic.Depth();
+        break;
+    default:
+        LOG_CRITICAL(HW_GPU, "Unknown depth for target={}", static_cast<u32>(params.target));
+        UNREACHABLE();
+        params.depth = 1;
+        break;
+    }
+
+    params.size_in_bytes = params.SizeInBytes();
     return params;
 }
 
@@ -72,12 +88,12 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     params.type = GetFormatType(params.pixel_format);
     params.width = config.width;
     params.height = config.height;
-    params.depth = 1;
     params.unaligned_height = config.height;
-    params.size_in_bytes = params.SizeInBytes();
     params.cache_width = Common::AlignUp(params.width, 8);
     params.cache_height = Common::AlignUp(params.height, 8);
     params.target = SurfaceTarget::Texture2D;
+    params.depth = 1;
+    params.size_in_bytes = params.SizeInBytes();
     return params;
 }
 
@@ -93,12 +109,12 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     params.type = GetFormatType(params.pixel_format);
     params.width = zeta_width;
     params.height = zeta_height;
-    params.depth = 1;
     params.unaligned_height = zeta_height;
-    params.size_in_bytes = params.SizeInBytes();
     params.cache_width = Common::AlignUp(params.width, 8);
     params.cache_height = Common::AlignUp(params.height, 8);
     params.target = SurfaceTarget::Texture2D;
+    params.depth = 1;
+    params.size_in_bytes = params.SizeInBytes();
     return params;
 }
 
