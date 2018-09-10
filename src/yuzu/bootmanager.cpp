@@ -112,6 +112,7 @@ GRenderWindow::GRenderWindow(QWidget* parent, EmuThread* emu_thread)
     setWindowTitle(QString::fromStdString(window_title));
 
     InputCommon::Init();
+    InputCommon::StartJoystickEventHandler();
 }
 
 GRenderWindow::~GRenderWindow() {
