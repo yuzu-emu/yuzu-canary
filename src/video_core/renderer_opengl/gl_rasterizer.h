@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <boost/icl/interval_map.hpp>
+#include <boost/optional.hpp>
 #include <boost/range/iterator_range.hpp>
 #include <glad/glad.h>
 
@@ -97,8 +98,16 @@ private:
         GLvec4 border_color;
     };
 
-    /// Configures the color and depth framebuffer states
-    void ConfigureFramebuffers(bool using_depth_fb, bool preserve_contents);
+    /**
+     * Configures the color and depth framebuffer states.
+     * @param use_color_fb If true, configure color framebuffers.
+     * @param using_depth_fb If true, configure the depth/stencil framebuffer.
+     * @param preserve_contents If true, tries to preserve data from a previously used framebuffer.
+     * @param single_color_target Specifies if a single color buffer target should be used.
+     */
+    void ConfigureFramebuffers(bool use_color_fb = true, bool using_depth_fb = true,
+                               bool preserve_contents = true,
+                               boost::optional<size_t> single_color_target = {});
 
     /*
      * Configures the current constbuffers to use for the draw command.
