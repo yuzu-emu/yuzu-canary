@@ -1965,6 +1965,54 @@ private:
                 }
                 break;
             }
+            case OpCode::Id::TMML: {
+                const std::string op_a = regs.GetRegisterAsFloat(instr.gpr8);
+                const std::string op_b = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                const bool is_array = instr.tmml.array != 0;
+                auto texture_type = instr.tmml.texture_type.Value();
+                const std::string sampler = GetSampler(instr.sampler, texture_type, is_array);
+
+                // TODO: add coordinates for different samplers once other texture types are
+                // implemented.
+                std::string coord;
+                switch (texture_type) {
+                case Tegra::Shader::TextureType::Texture1D: {
+                    std::string x = regs.GetRegisterAsFloat(instr.gpr8);
+                    coord = "float coords = " + x + ';';
+                    break;
+                }
+                case Tegra::Shader::TextureType::Texture2D: {
+                    std::string x = regs.GetRegisterAsFloat(instr.gpr8);
+                    std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                    coord = "vec2 coords = vec2(" + x + ", " + y + ");";
+                    break;
+                }
+                default:
+                    LOG_CRITICAL(HW_GPU, "Unhandled texture type {}",
+                                 static_cast<u32>(texture_type));
+                    UNREACHABLE();
+
+                    // Fallback to interpreting as a 2D texture for now
+                    std::string x = regs.GetRegisterAsFloat(instr.gpr8);
+                    std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                    coord = "vec2 coords = vec2(" + x + ", " + y + ");";
+                    texture_type = Tegra::Shader::TextureType::Texture2D;
+                }
+                // Add an extra scope and declare the texture coords inside to prevent
+                // overwriting them in case they are used as outputs of the texs instruction.
+                shader.AddLine("{");
+                ++shader.scope;
+                shader.AddLine(coord);
+                const std::string texture = "textureQueryLod(" + sampler + ", coords)";
+                const std::string tmp = "vec2 tmp = " + texture + "*vec2(256.0, 256.0);";
+                shader.AddLine(tmp);
+
+                regs.SetRegisterToInteger(instr.gpr0, true, 0, "int(tmp.y)", 1, 1);
+                regs.SetRegisterToInteger(instr.gpr0.Value() + 1, false, 0, "uint(tmp.x)", 1, 1);
+                --shader.scope;
+                shader.AddLine("}");
+                break;
+            }
             default: {
                 LOG_CRITICAL(HW_GPU, "Unhandled memory instruction: {}", opcode->GetName());
                 UNREACHABLE();
