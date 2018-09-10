@@ -351,6 +351,15 @@ public:
         shader.AddLine(dest + " = " + src + ';');
     }
 
+    std::string GetControlCode(const Tegra::Shader::ControlCode cc) const {
+        const u32 code = static_cast<u32>(cc);
+        return "controlCode_" + std::to_string(code);
+    }
+
+    void SetControlCode(const Tegra::Shader::ControlCode cc, const std::string& value) const {
+        shader.AddLine(GetControlCode(cc) + " = " + value + ';');
+    }
+
     /**
      * Writes code that does a output attribute assignment to register operation. Output attributes
      * are stored as floats, so this may require conversion.
@@ -411,6 +420,12 @@ public:
         for (const auto& reg : regs) {
             declarations.AddLine(GLSLRegister::GetTypeString() + ' ' + reg.GetPrefixString() +
                                  std::to_string(reg.GetIndex()) + '_' + suffix + " = 0;");
+        }
+        declarations.AddNewLine();
+
+        for (u32 cc = 0; cc < 32; cc++) {
+            const Tegra::Shader::ControlCode code = static_cast<Tegra::Shader::ControlCode>(cc);
+            declarations.AddLine("bool " + GetControlCode(code) + " = false;");
         }
         declarations.AddNewLine();
 
@@ -1576,6 +1591,11 @@ private:
 
                 regs.SetRegisterToInteger(instr.gpr0, instr.conversion.is_output_signed, 0, op_a, 1,
                                           1, instr.alu.saturate_d, 0, instr.conversion.dest_size);
+                if (instr.generates_cc.Value() != 0) {
+                    const std::string neucondition =
+                        "( " + op_a + " != 0 )";
+                    regs.SetControlCode(Tegra::Shader::ControlCode::NEU, neucondition);
+                }
                 break;
             }
             case OpCode::Id::I2F_R:
@@ -2088,13 +2108,15 @@ private:
             break;
         }
         case OpCode::Type::PredicateSetPredicate: {
-            const std::string op_a =
-                GetPredicateCondition(instr.psetp.pred12, instr.psetp.neg_pred12 != 0);
-            const std::string op_b =
-                GetPredicateCondition(instr.psetp.pred29, instr.psetp.neg_pred29 != 0);
+            switch (opcode->GetId()) {
+            case OpCode::Id::PSETP: {
+                const std::string op_a =
+                    GetPredicateCondition(instr.psetp.pred12, instr.psetp.neg_pred12 != 0);
+                const std::string op_b =
+                    GetPredicateCondition(instr.psetp.pred29, instr.psetp.neg_pred29 != 0);
 
-            // We can't use the constant predicate as destination.
-            ASSERT(instr.psetp.pred3 != static_cast<u64>(Pred::UnusedIndex));
+                // We can't use the constant predicate as destination.
+                ASSERT(instr.psetp.pred3 != static_cast<u64>(Pred::UnusedIndex));
 
             const std::string second_pred =
                 GetPredicateCondition(instr.psetp.pred39, instr.psetp.neg_pred39 != 0);
@@ -2104,15 +2126,37 @@ private:
             const std::string predicate =
                 '(' + op_a + ") " + GetPredicateCombiner(instr.psetp.cond) + " (" + op_b + ')';
 
-            // Set the primary predicate to the result of Predicate OP SecondPredicate
-            SetPredicate(instr.psetp.pred3,
-                         '(' + predicate + ") " + combiner + " (" + second_pred + ')');
+                // Set the primary predicate to the result of Predicate OP SecondPredicate
+                SetPredicate(instr.psetp.pred3,
+                             '(' + predicate + ") " + combiner + " (" + second_pred + ')');
 
-            if (instr.psetp.pred0 != static_cast<u64>(Pred::UnusedIndex)) {
-                // Set the secondary predicate to the result of !Predicate OP SecondPredicate,
-                // if enabled
-                SetPredicate(instr.psetp.pred0,
-                             "!(" + predicate + ") " + combiner + " (" + second_pred + ')');
+                if (instr.psetp.pred0 != static_cast<u64>(Pred::UnusedIndex)) {
+                    // Set the secondary predicate to the result of !Predicate OP SecondPredicate,
+                    // if enabled
+                    SetPredicate(instr.psetp.pred0,
+                                 "!(" + predicate + ") " + combiner + " (" + second_pred + ')');
+                }
+                break;
+            }
+            case OpCode::Id::CSETP: {
+                const std::string pred =
+                    GetPredicateCondition(instr.csetp.pred39, instr.csetp.neg_pred39 != 0);
+                const std::string combiner = GetPredicateCombiner(instr.csetp.op);
+                const std::string controlCode = regs.GetControlCode(instr.csetp.cc);
+                if (instr.csetp.pred3 != static_cast<u64>(Pred::UnusedIndex)) {
+                    SetPredicate(instr.csetp.pred3,
+                                 '(' + controlCode + ") " + combiner + " (" + pred + ')');
+                }
+                if (instr.csetp.pred0 != static_cast<u64>(Pred::UnusedIndex)) {
+                    SetPredicate(instr.csetp.pred0,
+                                 "!(" + controlCode + ") " + combiner + " (" + pred + ')');
+                }
+                break;
+            }
+            default: {
+                LOG_CRITICAL(HW_GPU, "Unhandled predicate instruction: {}", opcode->GetName());
+                UNREACHABLE();
+            }
             }
             break;
         }
