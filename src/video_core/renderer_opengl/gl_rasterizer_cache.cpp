@@ -61,8 +61,8 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     return params;
 }
 
-/*static*/ SurfaceParams SurfaceParams::CreateForFramebuffer(
-    const Tegra::Engines::Maxwell3D::Regs::RenderTargetConfig& config) {
+/*static*/ SurfaceParams SurfaceParams::CreateForFramebuffer(size_t index) {
+    const auto& config{Core::System::GetInstance().GPU().Maxwell3D().regs.rt[index]};
     SurfaceParams params{};
     params.addr = TryGetCpuAddr(config.Address());
     params.is_tiled = true;
@@ -708,62 +708,34 @@ Surface RasterizerCacheOpenGL::GetTextureSurface(const Tegra::Texture::FullTextu
     return GetSurface(SurfaceParams::CreateForTexture(config));
 }
 
-SurfaceSurfaceRect_Tuple RasterizerCacheOpenGL::GetFramebufferSurfaces(bool using_color_fb,
-                                                                       bool using_depth_fb,
-                                                                       bool preserve_contents) {
-    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
-
-    // TODO(bunnei): This is hard corded to use just the first render buffer
-    LOG_TRACE(Render_OpenGL, "hard-coded for render target 0!");
-
-    // get color and depth surfaces
-    SurfaceParams color_params{};
-    SurfaceParams depth_params{};
-
-    if (using_color_fb) {
-        color_params = SurfaceParams::CreateForFramebuffer(regs.rt[0]);
+Surface RasterizerCacheOpenGL::GetDepthBufferSurface(bool preserve_contents) {
+    const auto& regs{Core::System::GetInstance().GPU().Maxwell3D().regs};
+    if (!regs.zeta.Address() || !regs.zeta_enable) {
+        return {};
     }
 
-    if (using_depth_fb) {
-        depth_params = SurfaceParams::CreateForDepthBuffer(regs.zeta_width, regs.zeta_height,
-                                                           regs.zeta.Address(), regs.zeta.format);
+    SurfaceParams depth_params{SurfaceParams::CreateForDepthBuffer(
+        regs.zeta_width, regs.zeta_height, regs.zeta.Address(), regs.zeta.format)};
+
+    return GetSurface(depth_params, preserve_contents);
+}
+
+Surface RasterizerCacheOpenGL::GetColorBufferSurface(size_t index, bool preserve_contents) {
+    const auto& regs{Core::System::GetInstance().GPU().Maxwell3D().regs};
+
+    ASSERT(index < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets);
+
+    if (index >= regs.rt_control.count) {
+        return {};
     }
 
-    MathUtil::Rectangle<u32> color_rect{};
-    Surface color_surface;
-    if (using_color_fb) {
-        color_surface = GetSurface(color_params, preserve_contents);
-        if (color_surface) {
-            color_rect = color_surface->GetSurfaceParams().GetRect();
-        }
+    if (regs.rt[index].Address() == 0 || regs.rt[index].format == Tegra::RenderTargetFormat::NONE) {
+        return {};
     }
 
-    MathUtil::Rectangle<u32> depth_rect{};
-    Surface depth_surface;
-    if (using_depth_fb) {
-        depth_surface = GetSurface(depth_params, preserve_contents);
-        if (depth_surface) {
-            depth_rect = depth_surface->GetSurfaceParams().GetRect();
-        }
-    }
+    const SurfaceParams color_params{SurfaceParams::CreateForFramebuffer(index)};
 
-    MathUtil::Rectangle<u32> fb_rect{};
-    if (color_surface && depth_surface) {
-        fb_rect = color_rect;
-        // Color and Depth surfaces must have the same dimensions and offsets
-        if (color_rect.bottom != depth_rect.bottom || color_rect.top != depth_rect.top ||
-            color_rect.left != depth_rect.left || color_rect.right != depth_rect.right) {
-            color_surface = GetSurface(color_params);
-            depth_surface = GetSurface(depth_params);
-            fb_rect = color_surface->GetSurfaceParams().GetRect();
-        }
-    } else if (color_surface) {
-        fb_rect = color_rect;
-    } else if (depth_surface) {
-        fb_rect = depth_rect;
-    }
-
-    return std::make_tuple(color_surface, depth_surface, fb_rect);
+    return GetSurface(color_params, preserve_contents);
 }
 
 void RasterizerCacheOpenGL::LoadSurface(const Surface& surface) {

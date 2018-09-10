@@ -294,16 +294,9 @@ void RasterizerOpenGL::UpdatePagesCachedCount(VAddr addr, u64 size, int delta) {
         cached_pages.add({pages_interval, delta});
 }
 
-std::pair<Surface, Surface> RasterizerOpenGL::ConfigureFramebuffers(bool using_color_fb,
-                                                                    bool using_depth_fb,
-                                                                    bool preserve_contents) {
+void RasterizerOpenGL::ConfigureFramebuffers(bool using_depth_fb, bool preserve_contents) {
     MICROPROFILE_SCOPE(OpenGL_Framebuffer);
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
-
-    if (regs.rt[0].format == Tegra::RenderTargetFormat::NONE) {
-        LOG_ERROR(HW_GPU, "RenderTargetFormat is not configured");
-        using_color_fb = false;
-    }
 
     const bool has_stencil = regs.stencil_enable;
     const bool write_color_fb =
@@ -314,41 +307,48 @@ std::pair<Surface, Surface> RasterizerOpenGL::ConfigureFramebuffers(bool using_c
         (state.depth.test_enabled && state.depth.write_mask == GL_TRUE) ||
         (has_stencil && (state.stencil.front.write_mask || state.stencil.back.write_mask));
 
-    Surface color_surface;
     Surface depth_surface;
-    MathUtil::Rectangle<u32> surfaces_rect;
-    std::tie(color_surface, depth_surface, surfaces_rect) =
-        res_cache.GetFramebufferSurfaces(using_color_fb, using_depth_fb, preserve_contents);
-
-    const MathUtil::Rectangle<s32> viewport_rect{regs.viewport_transform[0].GetRect()};
-    const MathUtil::Rectangle<u32> draw_rect{
-        static_cast<u32>(std::clamp<s32>(static_cast<s32>(surfaces_rect.left) + viewport_rect.left,
-                                         surfaces_rect.left, surfaces_rect.right)), // Left
-        static_cast<u32>(std::clamp<s32>(static_cast<s32>(surfaces_rect.bottom) + viewport_rect.top,
-                                         surfaces_rect.bottom, surfaces_rect.top)), // Top
-        static_cast<u32>(std::clamp<s32>(static_cast<s32>(surfaces_rect.left) + viewport_rect.right,
-                                         surfaces_rect.left, surfaces_rect.right)), // Right
-        static_cast<u32>(
-            std::clamp<s32>(static_cast<s32>(surfaces_rect.bottom) + viewport_rect.bottom,
-                            surfaces_rect.bottom, surfaces_rect.top))}; // Bottom
+    if (using_depth_fb) {
+        depth_surface = res_cache.GetDepthBufferSurface(preserve_contents);
+    }
 
     // Bind the framebuffer surfaces
-    BindFramebufferSurfaces(color_surface, depth_surface, has_stencil);
-
-    SyncViewport(surfaces_rect);
-
-    // Viewport can have negative offsets or larger dimensions than our framebuffer sub-rect. Enable
-    // scissor test to prevent drawing outside of the framebuffer region
-    state.scissor.enabled = true;
-    state.scissor.x = draw_rect.left;
-    state.scissor.y = draw_rect.bottom;
-    state.scissor.width = draw_rect.GetWidth();
-    state.scissor.height = draw_rect.GetHeight();
+    state.draw.draw_framebuffer = framebuffer.handle;
     state.Apply();
 
-    // Only return the surface to be marked as dirty if writing to it is enabled.
-    return std::make_pair(write_color_fb ? color_surface : nullptr,
-                          write_depth_fb ? depth_surface : nullptr);
+    for (u32 index = 0; index < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets; ++index) {
+        Surface color_surface = res_cache.GetColorBufferSurface(index, preserve_contents);
+        glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D,
+                               color_surface != nullptr ? color_surface->Texture().handle : 0, 0);
+    }
+
+    // TODO(Subv): Support RT remapping via the RT_CONTROL register.
+    const GLenum buffers[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2,
+                              GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5,
+                              GL_COLOR_ATTACHMENT6, GL_COLOR_ATTACHMENT7, GL_COLOR_ATTACHMENT8};
+    glDrawBuffers(regs.rt_control.count, buffers);
+
+    if (depth_surface) {
+        if (has_stencil) {
+            // Attach both depth and stencil
+            glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
+                                   depth_surface->Texture().handle, 0);
+        } else {
+            // Attach depth
+            glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
+                                   depth_surface->Texture().handle, 0);
+            // Clear stencil attachment
+            glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
+        }
+    } else {
+        // Clear both depth and stencil attachment
+        glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0,
+                               0);
+    }
+
+    SyncViewport();
+
+    state.Apply();
 }
 
 void RasterizerOpenGL::Clear() {
@@ -407,8 +407,7 @@ void RasterizerOpenGL::Clear() {
 
     ScopeAcquireGLContext acquire_context{emu_window};
 
-    auto [dirty_color_surface, dirty_depth_surface] =
-        ConfigureFramebuffers(use_color_fb, use_depth_fb, false);
+    ConfigureFramebuffers(use_depth_fb, false);
 
     clear_state.Apply();
 
@@ -430,8 +429,7 @@ void RasterizerOpenGL::DrawArrays() {
 
     ScopeAcquireGLContext acquire_context{emu_window};
 
-    const auto [dirty_color_surface, dirty_depth_surface] =
-        ConfigureFramebuffers(true, regs.zeta.Address() != 0 && regs.zeta_enable != 0, true);
+    ConfigureFramebuffers(true, true);
 
     SyncDepthTestState();
     SyncStencilTestState();
@@ -729,38 +727,12 @@ u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, Shader& shader, 
     return current_unit + static_cast<u32>(entries.size());
 }
 
-void RasterizerOpenGL::BindFramebufferSurfaces(const Surface& color_surface,
-                                               const Surface& depth_surface, bool has_stencil) {
-    state.draw.draw_framebuffer = framebuffer.handle;
-    state.Apply();
-
-    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                           color_surface != nullptr ? color_surface->Texture().handle : 0, 0);
-    if (depth_surface != nullptr) {
-        if (has_stencil) {
-            // attach both depth and stencil
-            glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
-                                   depth_surface->Texture().handle, 0);
-        } else {
-            // attach depth
-            glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
-                                   depth_surface->Texture().handle, 0);
-            // clear stencil attachment
-            glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
-        }
-    } else {
-        // clear both depth and stencil attachment
-        glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0,
-                               0);
-    }
-}
-
-void RasterizerOpenGL::SyncViewport(const MathUtil::Rectangle<u32>& surfaces_rect) {
+void RasterizerOpenGL::SyncViewport() {
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
     const MathUtil::Rectangle<s32> viewport_rect{regs.viewport_transform[0].GetRect()};
 
-    state.viewport.x = static_cast<GLint>(surfaces_rect.left) + viewport_rect.left;
-    state.viewport.y = static_cast<GLint>(surfaces_rect.bottom) + viewport_rect.bottom;
+    state.viewport.x = viewport_rect.left;
+    state.viewport.y = viewport_rect.bottom;
     state.viewport.width = static_cast<GLsizei>(viewport_rect.GetWidth());
     state.viewport.height = static_cast<GLsizei>(viewport_rect.GetHeight());
 }
