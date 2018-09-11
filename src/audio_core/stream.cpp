@@ -90,6 +90,7 @@ void Stream::PlayNextBuffer() {
     queued_buffers.pop();
 
     VolumeAdjustSamples(active_buffer->Samples());
+
     sink_stream.EnqueueSamples(GetNumChannels(), active_buffer->GetSamples());
 
     CoreTiming::ScheduleEventThreadsafe(GetBufferReleaseCycles(*active_buffer), release_event, {});
