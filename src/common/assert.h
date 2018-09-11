@@ -28,18 +28,12 @@ __declspec(noinline, noreturn)
 }
 
 #define ASSERT(_a_)                                                                                \
-    do                                                                                             \
-        if (!(_a_)) {                                                                              \
-            assert_noinline_call([] { LOG_CRITICAL(Debug, "Assertion Failed!"); });                \
-        }                                                                                          \
-    while (0)
+    if (!(_a_)) {                                                                                  \
+    }
 
 #define ASSERT_MSG(_a_, ...)                                                                       \
-    do                                                                                             \
-        if (!(_a_)) {                                                                              \
-            assert_noinline_call([&] { LOG_CRITICAL(Debug, "Assertion Failed!\n" __VA_ARGS__); }); \
-        }                                                                                          \
-    while (0)
+    if (!(_a_)) {                                                                                  \
+    }
 
 #define UNREACHABLE() ASSERT_MSG(false, "Unreachable code!")
 #define UNREACHABLE_MSG(...) ASSERT_MSG(false, __VA_ARGS__)
