@@ -1,3 +1,24 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 3bac3051fc03846f5461628ba6a1b1f19851657c
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1287](https://github.com/yuzu-emu/yuzu/pull/1287)|[0ebbe12](https://github.com/yuzu-emu/yuzu/pull/1287/files/)|Use ARB_multi_bind for uniform buffers|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[1279](https://github.com/yuzu-emu/yuzu/pull/1279)|[7e960d7](https://github.com/yuzu-emu/yuzu/pull/1279/files/)|shader_decompiler: Implemented (Partialy) Control Codes and CSETP|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1263](https://github.com/yuzu-emu/yuzu/pull/1263)|[b87a862](https://github.com/yuzu-emu/yuzu/pull/1263/files/)|shader_decompiler:  Implemented (Partially) Texture Processing Modes|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1163](https://github.com/yuzu-emu/yuzu/pull/1163)|[55af5bd](https://github.com/yuzu-emu/yuzu/pull/1163/files/)|[WIP] audio_core: Add audio stretching support|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
