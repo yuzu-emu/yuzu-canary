@@ -120,6 +120,9 @@ TelemetrySession::TelemetrySession() {
     Telemetry::AppendOSInfo(field_collection);
 
     // Log user configuration information
+    AddField(Telemetry::FieldType::UserConfig, "Audio_SinkId", Settings::values.sink_id);
+    AddField(Telemetry::FieldType::UserConfig, "Audio_EnableAudioStretching",
+             Settings::values.enable_audio_stretching);
     AddField(Telemetry::FieldType::UserConfig, "Core_UseCpuJit", Settings::values.use_cpu_jit);
     AddField(Telemetry::FieldType::UserConfig, "Core_UseMultiCore",
              Settings::values.use_multi_core);

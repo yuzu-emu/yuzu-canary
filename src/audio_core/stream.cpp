@@ -73,6 +73,7 @@ static void VolumeAdjustSamples(std::vector<s16>& samples) {
 void Stream::PlayNextBuffer() {
     if (!IsPlaying()) {
         // Ensure we are in playing state before playing the next buffer
+        sink_stream.Flush();
         return;
     }
 
@@ -83,6 +84,7 @@ void Stream::PlayNextBuffer() {
 
     if (queued_buffers.empty()) {
         // No queued buffers - we are effectively paused
+        sink_stream.Flush();
         return;
     }
 
@@ -90,6 +92,7 @@ void Stream::PlayNextBuffer() {
     queued_buffers.pop();
 
     VolumeAdjustSamples(active_buffer->Samples());
+
     sink_stream.EnqueueSamples(GetNumChannels(), active_buffer->GetSamples());
 
     CoreTiming::ScheduleEventThreadsafe(GetBufferReleaseCycles(*active_buffer), release_event, {});

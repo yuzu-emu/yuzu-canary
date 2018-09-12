@@ -3,27 +3,23 @@
 // Refer to the license.txt file included.
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
-#include <mutex>
-
 #include "audio_core/cubeb_sink.h"
 #include "audio_core/stream.h"
+#include "audio_core/time_stretch.h"
 #include "common/logging/log.h"
+#include "common/ring_buffer.h"
+#include "core/settings.h"
 
 namespace AudioCore {
 
-class SinkStreamImpl final : public SinkStream {
+class CubebSinkStream final : public SinkStream {
 public:
-    SinkStreamImpl(cubeb* ctx, u32 sample_rate, u32 num_channels_, cubeb_devid output_device,
-                   const std::string& name)
-        : ctx{ctx}, num_channels{num_channels_} {
-
-        if (num_channels == 6) {
-            // 6-channel audio does not seem to work with cubeb + SDL, so we downsample this to 2
-            // channel for now
-            is_6_channel = true;
-            num_channels = 2;
-        }
+    CubebSinkStream(cubeb* ctx, u32 sample_rate, u32 num_channels_, cubeb_devid output_device,
+                    const std::string& name)
+        : ctx{ctx}, num_channels{std::min(num_channels_, 2u)}, time_stretch{sample_rate,
+                                                                            num_channels} {
 
         cubeb_stream_params params{};
         params.rate = sample_rate;
@@ -38,7 +34,7 @@ public:
 
         if (cubeb_stream_init(ctx, &stream_backend, name.c_str(), nullptr, nullptr, output_device,
                               &params, std::max(512u, minimum_latency),
-                              &SinkStreamImpl::DataCallback, &SinkStreamImpl::StateCallback,
+                              &CubebSinkStream::DataCallback, &CubebSinkStream::StateCallback,
                               this) != CUBEB_OK) {
             LOG_CRITICAL(Audio_Sink, "Error initializing cubeb stream");
             return;
@@ -50,7 +46,7 @@ public:
         }
     }
 
-    ~SinkStreamImpl() {
+    ~CubebSinkStream() {
         if (!ctx) {
             return;
         }
@@ -62,27 +58,32 @@ public:
         cubeb_stream_destroy(stream_backend);
     }
 
-    void EnqueueSamples(u32 num_channels, const std::vector<s16>& samples) override {
-        if (!ctx) {
+    void EnqueueSamples(u32 source_num_channels, const std::vector<s16>& samples) override {
+        if (source_num_channels > num_channels) {
+            // Downsample 6 channels to 2
+            std::vector<s16> buf;
+            buf.reserve(samples.size() * num_channels / source_num_channels);
+            for (size_t i = 0; i < samples.size(); i += source_num_channels) {
+                for (size_t ch = 0; ch < num_channels; ch++) {
+                    buf.push_back(samples[i + ch]);
+                }
+            }
+            queue.Push(buf);
             return;
         }
 
-        std::lock_guard lock{queue_mutex};
+        queue.Push(samples);
+    }
 
-        queue.reserve(queue.size() + samples.size() * GetNumChannels());
+    size_t SamplesInQueue(u32 num_channels) const override {
+        if (!ctx)
+            return 0;
 
-        if (is_6_channel) {
-            // Downsample 6 channels to 2
-            const size_t sample_count_copy_size = samples.size() * 2;
-            queue.reserve(sample_count_copy_size);
-            for (size_t i = 0; i < samples.size(); i += num_channels) {
-                queue.push_back(samples[i]);
-                queue.push_back(samples[i + 1]);
-            }
-        } else {
-            // Copy as-is
-            std::copy(samples.begin(), samples.end(), std::back_inserter(queue));
-        }
+        return queue.Size() / num_channels;
+    }
+
+    void Flush() override {
+        should_flush = true;
     }
 
     u32 GetNumChannels() const {
@@ -95,10 +96,11 @@ private:
     cubeb* ctx{};
     cubeb_stream* stream_backend{};
     u32 num_channels{};
-    bool is_6_channel{};
 
-    std::mutex queue_mutex;
-    std::vector<s16> queue;
+    Common::RingBuffer<s16, 0x10000> queue;
+    std::array<s16, 2> last_frame;
+    std::atomic<bool> should_flush{};
+    TimeStretcher time_stretch;
 
     static long DataCallback(cubeb_stream* stream, void* user_data, const void* input_buffer,
                              void* output_buffer, long num_frames);
@@ -144,38 +146,52 @@ CubebSink::~CubebSink() {
 SinkStream& CubebSink::AcquireSinkStream(u32 sample_rate, u32 num_channels,
                                          const std::string& name) {
     sink_streams.push_back(
-        std::make_unique<SinkStreamImpl>(ctx, sample_rate, num_channels, output_device, name));
+        std::make_unique<CubebSinkStream>(ctx, sample_rate, num_channels, output_device, name));
     return *sink_streams.back();
 }
 
-long SinkStreamImpl::DataCallback(cubeb_stream* stream, void* user_data, const void* input_buffer,
-                                  void* output_buffer, long num_frames) {
-    SinkStreamImpl* impl = static_cast<SinkStreamImpl*>(user_data);
+long CubebSinkStream::DataCallback(cubeb_stream* stream, void* user_data, const void* input_buffer,
+                                   void* output_buffer, long num_frames) {
+    CubebSinkStream* impl = static_cast<CubebSinkStream*>(user_data);
     u8* buffer = reinterpret_cast<u8*>(output_buffer);
 
     if (!impl) {
         return {};
     }
 
-    std::lock_guard lock{impl->queue_mutex};
+    const size_t num_channels = impl->GetNumChannels();
+    const size_t samples_to_write = num_channels * num_frames;
+    size_t samples_written;
 
-    const size_t frames_to_write{
-        std::min(impl->queue.size() / impl->GetNumChannels(), static_cast<size_t>(num_frames))};
+    if (Settings::values.enable_audio_stretching) {
+        const std::vector<s16> in{impl->queue.Pop()};
+        const size_t num_in{in.size() / num_channels};
+        s16* const out{reinterpret_cast<s16*>(buffer)};
+        const size_t out_frames = impl->time_stretch.Process(in.data(), num_in, out, num_frames);
+        samples_written = out_frames * num_channels;
 
-    memcpy(buffer, impl->queue.data(), frames_to_write * sizeof(s16) * impl->GetNumChannels());
-    impl->queue.erase(impl->queue.begin(),
-                      impl->queue.begin() + frames_to_write * impl->GetNumChannels());
+        if (impl->should_flush) {
+            impl->time_stretch.Flush();
+            impl->should_flush = false;
+        }
+    } else {
+        samples_written = impl->queue.Pop(buffer, samples_to_write);
+    }
 
-    if (frames_to_write < num_frames) {
-        // Fill the rest of the frames with silence
-        memset(buffer + frames_to_write * sizeof(s16) * impl->GetNumChannels(), 0,
-               (num_frames - frames_to_write) * sizeof(s16) * impl->GetNumChannels());
+    if (samples_written >= num_channels) {
+        std::memcpy(&impl->last_frame[0], buffer + (samples_written - num_channels) * sizeof(s16),
+                    num_channels * sizeof(s16));
+    }
+
+    // Fill the rest of the frames with last_frame
+    for (size_t i = samples_written; i < samples_to_write; i += num_channels) {
+        std::memcpy(buffer + i * sizeof(s16), &impl->last_frame[0], num_channels * sizeof(s16));
     }
 
     return num_frames;
 }
 
-void SinkStreamImpl::StateCallback(cubeb_stream* stream, void* user_data, cubeb_state state) {}
+void CubebSinkStream::StateCallback(cubeb_stream* stream, void* user_data, cubeb_state state) {}
 
 std::vector<std::string> ListCubebSinkDevices() {
     std::vector<std::string> device_list;
