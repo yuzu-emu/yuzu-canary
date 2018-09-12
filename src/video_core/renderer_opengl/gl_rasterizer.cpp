@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -58,6 +59,8 @@ RasterizerOpenGL::RasterizerOpenGL(Core::Frontend::EmuWindow& window, ScreenInfo
 
         if (extension == "GL_ARB_direct_state_access") {
             has_ARB_direct_state_access = true;
+        } else if (extension == "GL_ARB_multi_bind") {
+            has_ARB_multi_bind = true;
         } else if (extension == "GL_ARB_separate_shader_objects") {
             has_ARB_separate_shader_objects = true;
         } else if (extension == "GL_ARB_vertex_attrib_binding") {
@@ -644,12 +647,23 @@ u32 RasterizerOpenGL::SetupConstBuffers(Maxwell::ShaderStage stage, Shader& shad
     const auto& shader_stage = maxwell3d.state.shader_stages[static_cast<size_t>(stage)];
     const auto& entries = shader->GetShaderEntries().const_buffer_entries;
 
+    constexpr u64 max_binds = Tegra::Engines::Maxwell3D::Regs::MaxConstBuffers;
+    std::array<GLuint, max_binds> bind_buffers;
+    std::array<GLintptr, max_binds> bind_offsets;
+    std::array<GLsizeiptr, max_binds> bind_sizes;
+
+    ASSERT_MSG(entries.size() <= max_binds, "Exceeded expected number of binding points.");
+
     // Upload only the enabled buffers from the 16 constbuffers of each shader stage
     for (u32 bindpoint = 0; bindpoint < entries.size(); ++bindpoint) {
         const auto& used_buffer = entries[bindpoint];
         const auto& buffer = shader_stage.const_buffers[used_buffer.GetIndex()];
 
         if (!buffer.enabled) {
+            // With disabled buffers set values as zero to unbind them
+            bind_buffers[bindpoint] = 0;
+            bind_offsets[bindpoint] = 0;
+            bind_sizes[bindpoint] = 0;
             continue;
         }
 
@@ -677,14 +691,19 @@ u32 RasterizerOpenGL::SetupConstBuffers(Maxwell::ShaderStage stage, Shader& shad
         GLintptr const_buffer_offset = buffer_cache.UploadMemory(
             buffer.address, size, static_cast<size_t>(uniform_buffer_alignment));
 
-        glBindBufferRange(GL_UNIFORM_BUFFER, current_bindpoint + bindpoint,
-                          buffer_cache.GetHandle(), const_buffer_offset, size);
-
         // Now configure the bindpoint of the buffer inside the shader
         glUniformBlockBinding(shader->GetProgramHandle(),
                               shader->GetProgramResourceIndex(used_buffer),
                               current_bindpoint + bindpoint);
+
+        // Prepare values for multibind
+        bind_buffers[bindpoint] = buffer_cache.GetHandle();
+        bind_offsets[bindpoint] = const_buffer_offset;
+        bind_sizes[bindpoint] = size;
     }
+
+    glBindBuffersRange(GL_UNIFORM_BUFFER, current_bindpoint, static_cast<GLsizei>(entries.size()),
+                       bind_buffers.data(), bind_offsets.data(), bind_sizes.data());
 
     return current_bindpoint + static_cast<u32>(entries.size());
 }
