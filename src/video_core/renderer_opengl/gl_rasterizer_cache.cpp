@@ -53,8 +53,6 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     params.width = Common::AlignUp(config.tic.Width(), GetCompressionFactor(params.pixel_format));
     params.height = Common::AlignUp(config.tic.Height(), GetCompressionFactor(params.pixel_format));
     params.unaligned_height = config.tic.Height();
-    params.cache_width = Common::AlignUp(params.width, 8);
-    params.cache_height = Common::AlignUp(params.height, 8);
     params.target = SurfaceTargetFromTextureType(config.tic.texture_type);
 
     switch (params.target) {
@@ -89,8 +87,6 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     params.width = config.width;
     params.height = config.height;
     params.unaligned_height = config.height;
-    params.cache_width = Common::AlignUp(params.width, 8);
-    params.cache_height = Common::AlignUp(params.height, 8);
     params.target = SurfaceTarget::Texture2D;
     params.depth = 1;
     params.size_in_bytes = params.SizeInBytes();
@@ -110,8 +106,6 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     params.width = zeta_width;
     params.height = zeta_height;
     params.unaligned_height = zeta_height;
-    params.cache_width = Common::AlignUp(params.width, 8);
-    params.cache_height = Common::AlignUp(params.height, 8);
     params.target = SurfaceTarget::Texture2D;
     params.depth = 1;
     params.size_in_bytes = params.SizeInBytes();
@@ -817,16 +811,11 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& surface,
     // Get a new surface with the new parameters, and blit the previous surface to it
     Surface new_surface{GetUncachedSurface(new_params)};
 
-    // If format is unchanged, we can do a faster blit without reinterpreting pixel data
-    if (params.pixel_format == new_params.pixel_format) {
-        BlitTextures(surface->Texture().handle, params.GetRect(), new_surface->Texture().handle,
-                     params.GetRect(), params.type, read_framebuffer.handle,
-                     draw_framebuffer.handle);
-        return new_surface;
-    }
-
-    // When using accurate framebuffers, always copy old data to new surface, regardless of format
     if (Settings::values.use_accurate_framebuffers) {
+        // When use_accurate_framebuffers setting is enabled, perform a more accurate surface copy,
+        // where pixels are reinterpreted as a new format (without conversion). This code path uses
+        // OpenGL PBOs and is quite slow.
+
         auto source_format = GetFormatTuple(params.pixel_format, params.component_type);
         auto dest_format = GetFormatTuple(new_params.pixel_format, new_params.component_type);
 
@@ -897,6 +886,14 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& surface,
             }
         }
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    } else {
+        // Otherwise, just do a framebuffer blit. This is significantly faster than using PBOs, but
+        // likely less accurate - formats of different types are converted rather than
+        // reinterpreted.
+
+        BlitTextures(surface->Texture().handle, params.GetRect(), new_surface->Texture().handle,
+                     params.GetRect(), params.type, read_framebuffer.handle,
+                     draw_framebuffer.handle);
     }
 
     return new_surface;

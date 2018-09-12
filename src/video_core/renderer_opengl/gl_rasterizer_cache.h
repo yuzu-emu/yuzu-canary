@@ -680,8 +680,8 @@ struct SurfaceParams {
 
     /// Checks if surfaces are compatible for caching
     bool IsCompatibleSurface(const SurfaceParams& other) const {
-        return std::tie(pixel_format, type, cache_width, cache_height) ==
-               std::tie(other.pixel_format, other.type, other.cache_width, other.cache_height);
+        return std::tie(pixel_format, type, width, height) ==
+               std::tie(other.pixel_format, other.type, other.width, other.height);
     }
 
     VAddr addr;
@@ -696,10 +696,6 @@ struct SurfaceParams {
     u32 unaligned_height;
     size_t size_in_bytes;
     SurfaceTarget target;
-
-    // Parameters used for caching only
-    u32 cache_width;
-    u32 cache_height;
 };
 
 }; // namespace OpenGL
