@@ -1872,15 +1872,45 @@ private:
                     coord = "vec2 coords = vec2(" + x + ", " + y + ");";
                     texture_type = Tegra::Shader::TextureType::Texture2D;
                 }
+                const std::string op_c = regs.GetRegisterAsFloat(instr.gpr20);
 
                 const std::string sampler = GetSampler(instr.sampler, texture_type, false);
                 // Add an extra scope and declare the texture coords inside to prevent
                 // overwriting them in case they are used as outputs of the texs instruction.
+
                 shader.AddLine("{");
                 ++shader.scope;
                 shader.AddLine(coord);
-                const std::string texture = "texture(" + sampler + ", coords)";
+                std::string texture;
 
+                switch (instr.tex.process_mode) {
+                case Tegra::Shader::TextureProcessMode::None: {
+                    texture = "texture(" + sampler + ", coords)";
+                    break;
+                }
+                case Tegra::Shader::TextureProcessMode::LZ: {
+                    texture = "textureLod(" + sampler + ", coords, 0.0)";
+                    break;
+                }
+                case Tegra::Shader::TextureProcessMode::LB:
+                case Tegra::Shader::TextureProcessMode::LBA: {
+                    // TODO: Figure if A suffix changes the equation at all.
+                    texture = "texture(" + sampler + ", coords, " + op_c + ')';
+                    break;
+                }
+                case Tegra::Shader::TextureProcessMode::LL:
+                case Tegra::Shader::TextureProcessMode::LLA: {
+                    // TODO: Figure if A suffix changes the equation at all.
+                    texture = "textureLod(" + sampler + ", coords, " + op_c + ')';
+                    break;
+                }
+                default: {
+                    texture = "texture(" + sampler + ", coords)";
+                    LOG_CRITICAL(HW_GPU, "Unhandled texture process mode {}",
+                                 static_cast<u32>(instr.tex.process_mode.Value()));
+                    UNREACHABLE();
+                }
+                }
                 size_t dest_elem{};
                 for (size_t elem = 0; elem < 4; ++elem) {
                     if (!instr.tex.IsComponentEnabled(elem)) {
