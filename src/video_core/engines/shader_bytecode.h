@@ -232,6 +232,41 @@ enum class FlowCondition : u64 {
     Fcsm_Tr = 0x1C, // TODO(bunnei): What is this used for?
 };
 
+enum class ControlCode : u64 {
+    F = 0,
+    LT = 1,
+    EQ = 2,
+    LE = 3,
+    GT = 4,
+    NE = 5,
+    GE = 6,
+    Num = 7,
+    Nan = 8,
+    LTU = 9,
+    EQU = 10,
+    LEU = 11,
+    GTU = 12,
+    NEU = 13,
+    GEU = 14,
+    //
+    OFF = 16,
+    LO = 17,
+    SFF = 18,
+    LS = 19,
+    HI = 20,
+    SFT = 21,
+    HS = 22,
+    OFT = 23,
+    CSM_TA = 24,
+    CSM_TR = 25,
+    CSM_MX = 26,
+    FCSM_TA = 27,
+    FCSM_TR = 28,
+    FCSM_MX = 29,
+    RLE = 30,
+    RGT = 31,
+};
+
 enum class PredicateResultMode : u64 {
     None = 0x0,
     NotZero = 0x3,
@@ -529,6 +564,15 @@ union Instruction {
     } pset;
 
     union {
+        BitField<0, 3, u64> pred0;
+        BitField<3, 3, u64> pred3;
+        BitField<8, 5, ControlCode> cc; // flag in cc
+        BitField<39, 3, u64> pred39;
+        BitField<42, 1, u64> neg_pred39;
+        BitField<45, 4, PredOperation> op; // op with pred39
+    } csetp;
+
+    union {
         BitField<39, 3, u64> pred39;
         BitField<42, 1, u64> neg_pred;
         BitField<43, 1, u64> neg_a;
@@ -717,6 +761,7 @@ union Instruction {
         BitField<36, 5, u64> index;
     } cbuf36;
 
+    BitField<47, 1, u64> generates_cc;
     BitField<61, 1, u64> is_b_imm;
     BitField<60, 1, u64> is_b_gpr;
     BitField<59, 1, u64> is_c_gpr;
@@ -841,6 +886,7 @@ public:
         ISET_IMM,
         PSETP,
         PSET,
+        CSETP,
         XMAD_IMM,
         XMAD_CR,
         XMAD_RC,
@@ -1077,6 +1123,7 @@ private:
             INST("0011011-0101----", Id::ISET_IMM, Type::IntegerSet, "ISET_IMM"),
             INST("0101000010001---", Id::PSET, Type::PredicateSetRegister, "PSET"),
             INST("0101000010010---", Id::PSETP, Type::PredicateSetPredicate, "PSETP"),
+            INST("010100001010----", Id::CSETP, Type::PredicateSetPredicate, "CSETP"),
             INST("0011011-00------", Id::XMAD_IMM, Type::Xmad, "XMAD_IMM"),
             INST("0100111---------", Id::XMAD_CR, Type::Xmad, "XMAD_CR"),
             INST("010100010-------", Id::XMAD_RC, Type::Xmad, "XMAD_RC"),
