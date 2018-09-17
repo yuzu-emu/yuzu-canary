@@ -1,3 +1,22 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 3476ba2aee9a992d8ba58b6bb0230db00dac5f98
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1311](https://github.com/yuzu-emu/yuzu/pull/1311)|[f8e9943](https://github.com/yuzu-emu/yuzu/pull/1311/files/)|Optimized Texture Swizzling|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1279](https://github.com/yuzu-emu/yuzu/pull/1279)|[17d24e6](https://github.com/yuzu-emu/yuzu/pull/1279/files/)|shader_decompiler: Implemented (Partialy) Control Codes and CSETP|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
