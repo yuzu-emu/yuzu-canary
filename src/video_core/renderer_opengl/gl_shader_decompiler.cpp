@@ -236,6 +236,14 @@ private:
     const std::string& suffix;
 };
 
+enum class InternalFlag : u64 {
+    ZeroFlag = 0,
+    CarryFlag = 1,
+    OverflowFlag = 2,
+    NaNFlag = 3,
+    Amount
+};
+
 /**
  * Used to manage shader registers that are emulated with GLSL. This class keeps track of the state
  * of all registers (e.g. whether they are currently being used as Floats or Integers), and
@@ -329,13 +337,19 @@ public:
     void SetRegisterToInteger(const Register& reg, bool is_signed, u64 elem,
                               const std::string& value, u64 dest_num_components,
                               u64 value_num_components, bool is_saturated = false,
-                              u64 dest_elem = 0, Register::Size size = Register::Size::Word) {
+                              u64 dest_elem = 0, Register::Size size = Register::Size::Word,
+                              bool sets_cc = false) {
         ASSERT_MSG(!is_saturated, "Unimplemented");
 
         const std::string func{is_signed ? "intBitsToFloat" : "uintBitsToFloat"};
 
         SetRegister(reg, elem, func + '(' + ConvertIntegerSize(value, size) + ')',
                     dest_num_components, value_num_components, dest_elem);
+
+        if (sets_cc) {
+            const std::string zero_condition = "( " + ConvertIntegerSize(value, size) + " == 0 )";
+            SetInternalFlag(InternalFlag::ZeroFlag, zero_condition);
+        }
     }
 
     /**
@@ -350,6 +364,26 @@ public:
         const std::string dest = GetRegisterAsFloat(reg);
         const std::string src = GetInputAttribute(attribute, input_mode) + GetSwizzle(elem);
         shader.AddLine(dest + " = " + src + ';');
+    }
+
+    std::string GetControlCode(const Tegra::Shader::ControlCode cc) const {
+        switch (cc) {
+        case Tegra::Shader::ControlCode::NEU:
+            return "!(" + GetInternalFlag(InternalFlag::ZeroFlag) + ')';
+        default:
+            LOG_CRITICAL(HW_GPU, "Unimplemented Control Code {}", static_cast<u32>(cc));
+            UNREACHABLE();
+            return "false";
+        }
+    }
+
+    std::string GetInternalFlag(const InternalFlag ii) const {
+        const u32 code = static_cast<u32>(ii);
+        return "internalFlag_" + std::to_string(code) + suffix;
+    }
+
+    void SetInternalFlag(const InternalFlag ii, const std::string& value) const {
+        shader.AddLine(GetInternalFlag(ii) + " = " + value + ';');
     }
 
     /**
@@ -412,6 +446,12 @@ public:
         for (const auto& reg : regs) {
             declarations.AddLine(GLSLRegister::GetTypeString() + ' ' + reg.GetPrefixString() +
                                  std::to_string(reg.GetIndex()) + '_' + suffix + " = 0;");
+        }
+        declarations.AddNewLine();
+
+        for (u32 ii = 0; ii < static_cast<u64>(InternalFlag::Amount); ii++) {
+            const InternalFlag code = static_cast<InternalFlag>(ii);
+            declarations.AddLine("bool " + GetInternalFlag(code) + " = false;");
         }
         declarations.AddNewLine();
 
@@ -1622,7 +1662,8 @@ private:
                 }
 
                 regs.SetRegisterToInteger(instr.gpr0, instr.conversion.is_output_signed, 0, op_a, 1,
-                                          1, instr.alu.saturate_d, 0, instr.conversion.dest_size);
+                                          1, instr.alu.saturate_d, 0, instr.conversion.dest_size,
+                                          instr.generates_cc.Value() != 0);
                 break;
             }
             case OpCode::Id::I2F_R:
@@ -2239,31 +2280,55 @@ private:
             break;
         }
         case OpCode::Type::PredicateSetPredicate: {
-            const std::string op_a =
-                GetPredicateCondition(instr.psetp.pred12, instr.psetp.neg_pred12 != 0);
-            const std::string op_b =
-                GetPredicateCondition(instr.psetp.pred29, instr.psetp.neg_pred29 != 0);
+            switch (opcode->GetId()) {
+            case OpCode::Id::PSETP: {
+                const std::string op_a =
+                    GetPredicateCondition(instr.psetp.pred12, instr.psetp.neg_pred12 != 0);
+                const std::string op_b =
+                    GetPredicateCondition(instr.psetp.pred29, instr.psetp.neg_pred29 != 0);
 
-            // We can't use the constant predicate as destination.
-            ASSERT(instr.psetp.pred3 != static_cast<u64>(Pred::UnusedIndex));
+                // We can't use the constant predicate as destination.
+                ASSERT(instr.psetp.pred3 != static_cast<u64>(Pred::UnusedIndex));
 
-            const std::string second_pred =
-                GetPredicateCondition(instr.psetp.pred39, instr.psetp.neg_pred39 != 0);
+                const std::string second_pred =
+                    GetPredicateCondition(instr.psetp.pred39, instr.psetp.neg_pred39 != 0);
 
-            const std::string combiner = GetPredicateCombiner(instr.psetp.op);
+                const std::string combiner = GetPredicateCombiner(instr.psetp.op);
 
-            const std::string predicate =
-                '(' + op_a + ") " + GetPredicateCombiner(instr.psetp.cond) + " (" + op_b + ')';
+                const std::string predicate =
+                    '(' + op_a + ") " + GetPredicateCombiner(instr.psetp.cond) + " (" + op_b + ')';
 
-            // Set the primary predicate to the result of Predicate OP SecondPredicate
-            SetPredicate(instr.psetp.pred3,
-                         '(' + predicate + ") " + combiner + " (" + second_pred + ')');
+                // Set the primary predicate to the result of Predicate OP SecondPredicate
+                SetPredicate(instr.psetp.pred3,
+                             '(' + predicate + ") " + combiner + " (" + second_pred + ')');
 
-            if (instr.psetp.pred0 != static_cast<u64>(Pred::UnusedIndex)) {
-                // Set the secondary predicate to the result of !Predicate OP SecondPredicate,
-                // if enabled
-                SetPredicate(instr.psetp.pred0,
-                             "!(" + predicate + ") " + combiner + " (" + second_pred + ')');
+                if (instr.psetp.pred0 != static_cast<u64>(Pred::UnusedIndex)) {
+                    // Set the secondary predicate to the result of !Predicate OP SecondPredicate,
+                    // if enabled
+                    SetPredicate(instr.psetp.pred0,
+                                 "!(" + predicate + ") " + combiner + " (" + second_pred + ')');
+                }
+                break;
+            }
+            case OpCode::Id::CSETP: {
+                const std::string pred =
+                    GetPredicateCondition(instr.csetp.pred39, instr.csetp.neg_pred39 != 0);
+                const std::string combiner = GetPredicateCombiner(instr.csetp.op);
+                const std::string controlCode = regs.GetControlCode(instr.csetp.cc);
+                if (instr.csetp.pred3 != static_cast<u64>(Pred::UnusedIndex)) {
+                    SetPredicate(instr.csetp.pred3,
+                                 '(' + controlCode + ") " + combiner + " (" + pred + ')');
+                }
+                if (instr.csetp.pred0 != static_cast<u64>(Pred::UnusedIndex)) {
+                    SetPredicate(instr.csetp.pred0,
+                                 "!(" + controlCode + ") " + combiner + " (" + pred + ')');
+                }
+                break;
+            }
+            default: {
+                LOG_CRITICAL(HW_GPU, "Unhandled predicate instruction: {}", opcode->GetName());
+                UNREACHABLE();
+            }
             }
             break;
         }
