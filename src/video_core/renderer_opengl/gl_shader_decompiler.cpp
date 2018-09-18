@@ -1967,13 +1967,18 @@ private:
                 break;
             }
             case OpCode::Id::TLDS: {
-                ASSERT(instr.tlds.GetTextureType() == Tegra::Shader::TextureType::Texture2D);
-                ASSERT(instr.tlds.IsArrayTexture() == false);
                 std::string coord;
+                const Tegra::Shader::TextureType texture_type{instr.tlds.GetTextureType()};
+                const bool is_array{instr.tlds.IsArrayTexture()};
 
-                switch (instr.tlds.GetTextureType()) {
+                switch (texture_type) {
+                case Tegra::Shader::TextureType::Texture1D: {
+                    const std::string x = regs.GetRegisterAsInteger(instr.gpr8);
+                    coord = "int coords = " + x + ';';
+                    break;
+                }
                 case Tegra::Shader::TextureType::Texture2D: {
-                    if (instr.tlds.IsArrayTexture()) {
+                    if (is_array) {
                         LOG_CRITICAL(HW_GPU, "Unhandled 2d array texture");
                         UNREACHABLE();
                     } else {
@@ -1985,11 +1990,11 @@ private:
                 }
                 default:
                     LOG_CRITICAL(HW_GPU, "Unhandled texture type {}",
-                                 static_cast<u32>(instr.tlds.GetTextureType()));
+                                 static_cast<u32>(texture_type));
                     UNREACHABLE();
                 }
-                const std::string sampler = GetSampler(instr.sampler, instr.tlds.GetTextureType(),
-                                                       instr.tlds.IsArrayTexture());
+
+                const std::string sampler = GetSampler(instr.sampler, texture_type, is_array);
                 const std::string texture = "texelFetch(" + sampler + ", coords, 0)";
                 WriteTexsInstruction(instr, coord, texture);
                 break;
