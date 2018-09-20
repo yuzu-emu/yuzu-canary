@@ -79,6 +79,16 @@ public:
         case Dynarmic::A64::Exception::SendEventLocal:
         case Dynarmic::A64::Exception::Yield:
             return;
+        case Dynarmic::A64::Exception::Breakpoint:
+            if (GDBStub::IsServerEnabled()) {
+                parent.SetPC(pc);
+                Kernel::Thread* thread = Kernel::GetCurrentThread();
+                parent.SaveContext(thread->context);
+                GDBStub::Break();
+                GDBStub::SendTrap(thread, 5);
+                return;
+            }
+            [[fallthrough]];
         default:
             ASSERT_MSG(false, "ExceptionRaised(exception = {}, pc = {:X})",
                        static_cast<std::size_t>(exception), pc);
