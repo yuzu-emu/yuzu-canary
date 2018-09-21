@@ -26,6 +26,11 @@ std::vector<u8> UnswizzleDepthTexture(VAddr address, DepthFormat format, u32 wid
 void CopySwizzledData(u32 width, u32 height, u32 bytes_per_pixel, u32 out_bytes_per_pixel,
                       u8* swizzled_data, u8* unswizzled_data, bool unswizzle, u32 block_height);
 
+/// Copies an untiled subrectangle into a tiled surface.
+void SwizzleSubrect(u32 subrect_width, u32 subrect_height, u32 source_pitch, u32 swizzled_width,
+                    u32 bytes_per_pixel, VAddr swizzled_data, VAddr unswizzled_data,
+                    u32 block_height);
+
 /**
  * Decodes an unswizzled texture into a A8R8G8B8 texture.
  */

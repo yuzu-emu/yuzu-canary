@@ -17,6 +17,22 @@
 template <class T>
 class RasterizerCache : NonCopyable {
 public:
+    /// Write any cached resources overlapping the region back to memory (if dirty)
+    void FlushRegion(Tegra::GPUVAddr addr, size_t size) {
+        if (size == 0)
+            return;
+
+        const ObjectInterval interval{addr, addr + size};
+        for (auto& pair : boost::make_iterator_range(object_cache.equal_range(interval))) {
+            for (auto& cached_object : pair.second) {
+                if (!cached_object)
+                    continue;
+
+                cached_object->Flush();
+            }
+        }
+    }
+
     /// Mark the specified region as being invalidated
     void InvalidateRegion(VAddr addr, u64 size) {
         if (size == 0)
@@ -71,6 +87,7 @@ protected:
     void Unregister(const T& object) {
         auto& rasterizer = Core::System::GetInstance().Renderer().Rasterizer();
         rasterizer.UpdatePagesCachedCount(object->GetAddr(), object->GetSizeInBytes(), -1);
+        object->Flush();
         object_cache.subtract({GetInterval(object), ObjectSet{object}});
     }
 
