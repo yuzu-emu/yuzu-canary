@@ -23,6 +23,9 @@ struct CachedBufferEntry final {
         return size;
     }
 
+    // We do not have to flush this cache as things in it are never modified by us.
+    void Flush() {}
+
     VAddr addr;
     std::size_t size;
     GLintptr offset;
