@@ -2000,6 +2000,14 @@ private:
                     }
                     break;
                 }
+                case Tegra::Shader::TextureType::TextureCube: {
+                    ASSERT_MSG(!is_array, "Unimplemented");
+                    std::string x = regs.GetRegisterAsFloat(instr.gpr8);
+                    std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                    std::string z = regs.GetRegisterAsFloat(instr.gpr20);
+                    coord = "vec3 coords = vec3(" + x + ", " + y + ", " + z + ");";
+                    break;
+                }
                 default:
                     LOG_CRITICAL(HW_GPU, "Unhandled texture type {}",
                                  static_cast<u32>(texture_type));
