@@ -88,6 +88,22 @@ void FastSwizzleData(u32 width, u32 height, u32 bytes_per_pixel, u8* swizzled_da
     }
 }
 
+void SwizzleSubrect(u32 subrect_width, u32 subrect_height, u32 source_pitch, u32 swizzled_width,
+                    u32 bytes_per_pixel, VAddr swizzled_data, VAddr unswizzled_data,
+                    u32 block_height) {
+    for (u32 line = 0; line < subrect_height; ++line) {
+        for (u32 x = 0; x < subrect_width; ++x) {
+            u32 swizzled_offset =
+                GetSwizzleOffset(x, line, swizzled_width, bytes_per_pixel, block_height);
+
+            const VAddr source_line = unswizzled_data + line * source_pitch + x * bytes_per_pixel;
+            const VAddr dest_addr = swizzled_data + swizzled_offset;
+
+            Memory::CopyBlock(dest_addr, source_line, bytes_per_pixel);
+        }
+    }
+}
+
 u32 BytesPerPixel(TextureFormat format) {
     switch (format) {
     case TextureFormat::DXT1:
