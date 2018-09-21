@@ -12,6 +12,10 @@
 #include "video_core/gpu.h"
 #include "video_core/memory_manager.h"
 
+namespace VideoCore {
+class RasterizerInterface;
+}
+
 namespace Tegra::Engines {
 
 #define FERMI2D_REG_INDEX(field_name)                                                              \
@@ -19,7 +23,7 @@ namespace Tegra::Engines {
 
 class Fermi2D final {
 public:
-    explicit Fermi2D(MemoryManager& memory_manager);
+    explicit Fermi2D(VideoCore::RasterizerInterface& rasterizer, MemoryManager& memory_manager);
     ~Fermi2D() = default;
 
     /// Write the value to the register identified by method.
@@ -94,6 +98,8 @@ public:
     MemoryManager& memory_manager;
 
 private:
+    VideoCore::RasterizerInterface& rasterizer;
+
     /// Performs the copy from the source surface to the destination surface as configured in the
     /// registers.
     void HandleSurfaceCopy();
