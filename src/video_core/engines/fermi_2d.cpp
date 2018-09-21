@@ -4,11 +4,13 @@
 
 #include "core/memory.h"
 #include "video_core/engines/fermi_2d.h"
+#include "video_core/rasterizer_interface.h"
 #include "video_core/textures/decoders.h"
 
 namespace Tegra::Engines {
 
-Fermi2D::Fermi2D(MemoryManager& memory_manager) : memory_manager(memory_manager) {}
+Fermi2D::Fermi2D(VideoCore::RasterizerInterface& rasterizer, MemoryManager& memory_manager)
+    : memory_manager(memory_manager), rasterizer{rasterizer} {}
 
 void Fermi2D::WriteReg(u32 method, u32 value) {
     ASSERT_MSG(method < Regs::NUM_REGS,
@@ -51,6 +53,12 @@ void Fermi2D::HandleSurfaceCopy() {
                           src_bytes_per_pixel * regs.dst.width * regs.dst.height);
         return;
     }
+
+    rasterizer.FlushRegion(source_cpu, src_bytes_per_pixel * regs.src.width * regs.src.height);
+    // We have to invalidate the destination region to evict any outdated surfaces from the cache.
+    // We do this before actually writing the new data because the destination address might contain
+    // a dirty surface that will have to be written back to memory.
+    rasterizer.InvalidateRegion(dest_cpu, dst_bytes_per_pixel * regs.dst.width * regs.dst.height);
 
     u8* src_buffer = Memory::GetPointer(source_cpu);
     u8* dst_buffer = Memory::GetPointer(dest_cpu);

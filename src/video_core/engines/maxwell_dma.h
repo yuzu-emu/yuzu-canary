@@ -12,11 +12,15 @@
 #include "video_core/gpu.h"
 #include "video_core/memory_manager.h"
 
+namespace VideoCore {
+class RasterizerInterface;
+}
+
 namespace Tegra::Engines {
 
 class MaxwellDMA final {
 public:
-    explicit MaxwellDMA(MemoryManager& memory_manager);
+    explicit MaxwellDMA(VideoCore::RasterizerInterface& rasterizer, MemoryManager& memory_manager);
     ~MaxwellDMA() = default;
 
     /// Write the value to the register identified by method.
@@ -129,6 +133,8 @@ public:
     MemoryManager& memory_manager;
 
 private:
+    VideoCore::RasterizerInterface& rasterizer;
+
     /// Performs the copy from the source buffer to the destination buffer as configured in the
     /// registers.
     void HandleCopy();
