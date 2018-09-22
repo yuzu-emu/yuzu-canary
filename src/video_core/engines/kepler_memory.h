@@ -11,6 +11,10 @@
 #include "common/common_types.h"
 #include "video_core/memory_manager.h"
 
+namespace VideoCore {
+class RasterizerInterface;
+}
+
 namespace Tegra::Engines {
 
 #define KEPLERMEMORY_REG_INDEX(field_name)                                                         \
@@ -18,7 +22,7 @@ namespace Tegra::Engines {
 
 class KeplerMemory final {
 public:
-    KeplerMemory(MemoryManager& memory_manager);
+    KeplerMemory(VideoCore::RasterizerInterface& rasterizer, MemoryManager& memory_manager);
     ~KeplerMemory();
 
     /// Write the value to the register identified by method.
@@ -72,6 +76,7 @@ public:
 
 private:
     MemoryManager& memory_manager;
+    VideoCore::RasterizerInterface& rasterizer;
 
     void ProcessData(u32 data);
 };
