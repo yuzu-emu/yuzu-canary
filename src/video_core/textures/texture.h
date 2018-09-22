@@ -165,6 +165,8 @@ struct TICEntry {
 
         // High 16 bits of the pitch value
         BitField<0, 16, u32> pitch_high;
+
+        BitField<28, 4, u32> max_mip_level;
     };
     union {
         BitField<0, 16, u32> width_minus_1;
