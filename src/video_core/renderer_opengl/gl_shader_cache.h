@@ -32,6 +32,9 @@ public:
         return GLShader::MAX_PROGRAM_CODE_LENGTH * sizeof(u64);
     }
 
+    // We do not have to flush this cache as things in it are never modified by us.
+    void Flush() {}
+
     /// Gets the shader entries for the shader
     const GLShader::ShaderEntries& GetShaderEntries() const {
         return entries;
