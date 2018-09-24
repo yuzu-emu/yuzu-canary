@@ -174,6 +174,8 @@ struct System::Impl {
         GetAndResetPerfStats();
         perf_stats.BeginSystemFrame();
 
+        nfc_activate = Kernel::Event::Create(kernel, Kernel::ResetType::OneShot, "Nfc:ActivateTag");
+
         return ResultStatus::Success;
     }
 
@@ -286,6 +288,10 @@ struct System::Impl {
     std::array<std::shared_ptr<Cpu>, NUM_CPU_CORES> cpu_cores;
     std::array<std::unique_ptr<std::thread>, NUM_CPU_CORES - 1> cpu_core_threads;
     std::size_t active_core{}; ///< Active core, only used in single thread mode
+
+    /// NFC Loading
+    Kernel::SharedPtr<Kernel::Event> nfc_activate;
+    std::string nfc_filename;
 
     /// Service manager
     std::shared_ptr<Service::SM::ServiceManager> service_manager;
@@ -453,6 +459,19 @@ void System::SetFilesystem(std::shared_ptr<FileSys::VfsFilesystem> vfs) {
 
 std::shared_ptr<FileSys::VfsFilesystem> System::GetFilesystem() const {
     return impl->virtual_filesystem;
+}
+
+void System::LoadAmiibo(const std::string& filename) {
+    impl->nfc_filename = filename;
+    impl->nfc_activate->Signal();
+}
+
+const Kernel::SharedPtr<Kernel::Event>& System::GetNFCEvent() const {
+    return impl->nfc_activate;
+}
+
+const std::string& System::GetNFCFilename() const {
+    return impl->nfc_filename;
 }
 
 System::ResultStatus System::Init(Frontend::EmuWindow& emu_window) {
