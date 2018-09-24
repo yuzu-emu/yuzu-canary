@@ -52,6 +52,8 @@ std::shared_ptr<FileSys::RegisteredCache> GetSystemNANDContents();
 std::shared_ptr<FileSys::RegisteredCache> GetUserNANDContents();
 std::shared_ptr<FileSys::RegisteredCache> GetSDMCContents();
 
+FileSys::VirtualDir GetModificationLoadRoot(u64 title_id);
+
 // Creates the SaveData, SDMC, and BIS Factories. Should be called once and before any function
 // above is called.
 void CreateFactories(const FileSys::VirtualFilesystem& vfs, bool overwrite = true);

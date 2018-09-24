@@ -3,10 +3,64 @@
 // Refer to the license.txt file included.
 
 #include <algorithm>
+#include <cstring>
 #include <utility>
 #include "core/file_sys/vfs_vector.h"
 
 namespace FileSys {
+VectorVfsFile::VectorVfsFile(std::vector<u8> initial_data, std::string name, VirtualDir parent)
+    : data(std::move(initial_data)), name(std::move(name)), parent(std::move(parent)) {}
+
+VectorVfsFile::~VectorVfsFile() = default;
+
+std::string VectorVfsFile::GetName() const {
+    return name;
+}
+
+size_t VectorVfsFile::GetSize() const {
+    return data.size();
+}
+
+bool VectorVfsFile::Resize(size_t new_size) {
+    data.resize(new_size);
+    return true;
+}
+
+std::shared_ptr<VfsDirectory> VectorVfsFile::GetContainingDirectory() const {
+    return parent;
+}
+
+bool VectorVfsFile::IsWritable() const {
+    return true;
+}
+
+bool VectorVfsFile::IsReadable() const {
+    return true;
+}
+
+size_t VectorVfsFile::Read(u8* data_, size_t length, size_t offset) const {
+    const auto read = std::min(length, data.size() - offset);
+    std::memcpy(data_, data.data() + offset, read);
+    return read;
+}
+
+size_t VectorVfsFile::Write(const u8* data_, size_t length, size_t offset) {
+    if (offset + length > data.size())
+        data.resize(offset + length);
+    const auto write = std::min(length, data.size() - offset);
+    std::memcpy(data.data(), data_, write);
+    return write;
+}
+
+bool VectorVfsFile::Rename(std::string_view name_) {
+    name = name_;
+    return true;
+}
+
+void VectorVfsFile::Assign(std::vector<u8> new_data) {
+    data = std::move(new_data);
+}
+
 VectorVfsDirectory::VectorVfsDirectory(std::vector<VirtualFile> files_,
                                        std::vector<VirtualDir> dirs_, std::string name_,
                                        VirtualDir parent_)

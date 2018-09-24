@@ -33,6 +33,8 @@
 #define NAND_DIR "nand"
 #define SYSDATA_DIR "sysdata"
 #define KEYS_DIR "keys"
+#define LOAD_DIR "load"
+#define DUMP_DIR "dump"
 #define LOG_DIR "log"
 
 // Filenames

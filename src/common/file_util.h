@@ -29,6 +29,8 @@ enum class UserPath {
     NANDDir,
     RootDir,
     SDMCDir,
+    LoadDir,
+    DumpDir,
     SysDataDir,
     UserDir,
 };

@@ -28,7 +28,10 @@ namespace FileSys {
 class VfsFilesystem;
 }
 
-enum class GameListOpenTarget { SaveData };
+enum class GameListOpenTarget {
+    SaveData,
+    ModData,
+};
 
 class GameList : public QWidget {
     Q_OBJECT
@@ -89,6 +92,8 @@ signals:
     void GameChosen(QString game_path);
     void ShouldCancelWorker();
     void OpenFolderRequested(u64 program_id, GameListOpenTarget target);
+    void DumpRomFSRequested(u64 program_id, const std::string& game_path);
+    void CopyTIDRequested(u64 program_id);
     void NavigateToGamedbEntryRequested(u64 program_id,
                                         const CompatibilityList& compatibility_list);
 

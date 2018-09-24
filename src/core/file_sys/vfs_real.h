@@ -98,6 +98,7 @@ public:
     bool DeleteFile(std::string_view name) override;
     bool Rename(std::string_view name) override;
     std::string GetFullPath() const override;
+    std::map<std::string, VfsEntryType, std::less<>> GetEntries() const override;
 
 protected:
     bool ReplaceFileWithSubdirectory(VirtualFile file, VirtualDir dir) override;

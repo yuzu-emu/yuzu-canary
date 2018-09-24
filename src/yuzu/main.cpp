@@ -7,6 +7,22 @@
 #include <memory>
 #include <thread>
 
+// VFS includes must be before glad as they will conflict with Windows file api, which uses defines.
+#include "core/file_sys/vfs.h"
+#include "core/file_sys/vfs_real.h"
+
+// These are wrappers to avoid the calls to CreateDirectory and CreateFile becuase of the Windows
+// defines.
+static FileSys::VirtualDir VfsFilesystemCreateDirectoryWrapper(
+    const FileSys::VirtualFilesystem& vfs, const std::string& path, FileSys::Mode mode) {
+    return vfs->CreateDirectory(path, mode);
+}
+
+static FileSys::VirtualFile VfsDirectoryCreateFileWrapper(const FileSys::VirtualDir& dir,
+                                                          const std::string& path) {
+    return dir->CreateFile(path);
+}
+
 #include <fmt/ostream.h>
 #include <glad/glad.h>
 
@@ -30,16 +46,18 @@
 #include "common/telemetry.h"
 #include "core/core.h"
 #include "core/crypto/key_manager.h"
+#include "core/file_sys/bis_factory.h"
 #include "core/file_sys/card_image.h"
 #include "core/file_sys/content_archive.h"
 #include "core/file_sys/control_metadata.h"
 #include "core/file_sys/patch_manager.h"
 #include "core/file_sys/registered_cache.h"
+#include "core/file_sys/romfs.h"
 #include "core/file_sys/savedata_factory.h"
 #include "core/file_sys/submission_package.h"
-#include "core/file_sys/vfs_real.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/service/filesystem/filesystem.h"
+#include "core/hle/service/filesystem/fsp_ldr.h"
 #include "core/loader/loader.h"
 #include "core/perf_stats.h"
 #include "core/settings.h"
@@ -362,6 +380,8 @@ void GMainWindow::RestoreUIState() {
 void GMainWindow::ConnectWidgetEvents() {
     connect(game_list, &GameList::GameChosen, this, &GMainWindow::OnGameListLoadFile);
     connect(game_list, &GameList::OpenFolderRequested, this, &GMainWindow::OnGameListOpenFolder);
+    connect(game_list, &GameList::DumpRomFSRequested, this, &GMainWindow::OnGameListDumpRomFS);
+    connect(game_list, &GameList::CopyTIDRequested, this, &GMainWindow::OnGameListCopyTID);
     connect(game_list, &GameList::NavigateToGamedbEntryRequested, this,
             &GMainWindow::OnGameListNavigateToGamedbEntry);
 
@@ -715,6 +735,12 @@ void GMainWindow::OnGameListOpenFolder(u64 program_id, GameListOpenTarget target
                                                                 program_id, user_id, 0);
         break;
     }
+    case GameListOpenTarget::ModData: {
+        open_target = "Mod Data";
+        const auto load_dir = FileUtil::GetUserPath(FileUtil::UserPath::LoadDir);
+        path = fmt::format("{}{:016X}", load_dir, program_id);
+        break;
+    }
     default:
         UNIMPLEMENTED();
     }
@@ -730,6 +756,120 @@ void GMainWindow::OnGameListOpenFolder(u64 program_id, GameListOpenTarget target
     }
     LOG_INFO(Frontend, "Opening {} path for program_id={:016x}", open_target, program_id);
     QDesktopServices::openUrl(QUrl::fromLocalFile(qpath));
+}
+
+void GMainWindow::OnGameListDumpRomFS(u64 program_id, const std::string& game_path) {
+    const auto path = fmt::format("{}{:016X}/romfs",
+                                  FileUtil::GetUserPath(FileUtil::UserPath::DumpDir), program_id);
+
+    auto failed = [this, &path]() {
+        QMessageBox::warning(this, tr("RomFS Extraction Failed!"),
+                             tr("There was an error copying the RomFS files or the user "
+                                "cancelled the operation."));
+        vfs->DeleteDirectory(path);
+    };
+
+    const auto loader = Loader::GetLoader(vfs->OpenFile(game_path, FileSys::Mode::Read));
+    if (loader == nullptr) {
+        failed();
+        return;
+    }
+
+    FileSys::VirtualFile file;
+    if (loader->ReadRomFS(file) != Loader::ResultStatus::Success) {
+        failed();
+        return;
+    }
+
+    const auto romfs =
+        loader->IsRomFSUpdatable()
+            ? FileSys::PatchManager(program_id).PatchRomFS(file, loader->ReadRomFSIVFCOffset())
+            : file;
+
+    const auto extracted = FileSys::ExtractRomFS(romfs, FileSys::RomFSExtractionType::Full);
+    if (extracted == nullptr) {
+        failed();
+        return;
+    }
+
+    const auto out = VfsFilesystemCreateDirectoryWrapper(vfs, path, FileSys::Mode::ReadWrite);
+
+    if (out == nullptr) {
+        failed();
+        return;
+    }
+
+    bool ok;
+    const auto res = QInputDialog::getItem(
+        this, tr("Select RomFS Dump Mode"),
+        tr("Please select the how you would like the RomFS dumped.<br>Full will copy all of the "
+           "files into the new directory while <br>skeleton will only create the directory "
+           "structure."),
+        {"Full", "Skeleton"}, 0, false, &ok);
+    if (!ok)
+        failed();
+
+    const auto full = res == "Full";
+
+    const static std::function<size_t(const FileSys::VirtualDir&, bool)> calculate_entry_size =
+        [](const FileSys::VirtualDir& dir, bool full) {
+            size_t out = 0;
+            for (const auto& subdir : dir->GetSubdirectories())
+                out += 1 + calculate_entry_size(subdir, full);
+            return out + full ? dir->GetFiles().size() : 0;
+        };
+    const auto entry_size = calculate_entry_size(extracted, full);
+
+    QProgressDialog progress(tr("Extracting RomFS..."), tr("Cancel"), 0, entry_size, this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(100);
+
+    const static std::function<bool(QProgressDialog&, const FileSys::VirtualDir&,
+                                    const FileSys::VirtualDir&, size_t, bool)>
+        qt_raw_copy = [](QProgressDialog& dialog, const FileSys::VirtualDir& src,
+                         const FileSys::VirtualDir& dest, size_t block_size, bool full) {
+            if (src == nullptr || dest == nullptr || !src->IsReadable() || !dest->IsWritable())
+                return false;
+            if (dialog.wasCanceled())
+                return false;
+
+            if (full) {
+                for (const auto& file : src->GetFiles()) {
+                    const auto out = VfsDirectoryCreateFileWrapper(dest, file->GetName());
+                    if (!FileSys::VfsRawCopy(file, out, block_size))
+                        return false;
+                    dialog.setValue(dialog.value() + 1);
+                    if (dialog.wasCanceled())
+                        return false;
+                }
+            }
+
+            for (const auto& dir : src->GetSubdirectories()) {
+                const auto out = dest->CreateSubdirectory(dir->GetName());
+                if (!qt_raw_copy(dialog, dir, out, block_size, full))
+                    return false;
+                dialog.setValue(dialog.value() + 1);
+                if (dialog.wasCanceled())
+                    return false;
+            }
+
+            return true;
+        };
+
+    if (qt_raw_copy(progress, extracted, out, 0x400000, full)) {
+        progress.close();
+        QMessageBox::information(this, tr("RomFS Extraction Succeeded!"),
+                                 tr("The operation completed successfully."));
+        QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(path)));
+    } else {
+        progress.close();
+        failed();
+    }
+}
+
+void GMainWindow::OnGameListCopyTID(u64 program_id) {
+    QClipboard* clipboard = QGuiApplication::clipboard();
+    clipboard->setText(QString::fromStdString(fmt::format("{:016X}", program_id)));
 }
 
 void GMainWindow::OnGameListNavigateToGamedbEntry(u64 program_id,
@@ -792,7 +932,8 @@ void GMainWindow::OnMenuInstallToNAND() {
         return;
     }
 
-    const auto qt_raw_copy = [this](FileSys::VirtualFile src, FileSys::VirtualFile dest) {
+    const auto qt_raw_copy = [this](const FileSys::VirtualFile& src,
+                                    const FileSys::VirtualFile& dest, size_t block_size) {
         if (src == nullptr || dest == nullptr)
             return false;
         if (!dest->Resize(src->GetSize()))

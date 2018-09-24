@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -265,6 +266,10 @@ public:
     // dest.
     virtual bool Copy(std::string_view src, std::string_view dest);
 
+    // Gets all of the entries directly in the directory (files and dirs), returning a map between
+    // item name -> type.
+    virtual std::map<std::string, VfsEntryType, std::less<>> GetEntries() const;
+
     // Interprets the file with name file instead as a directory of type directory.
     // The directory must have a constructor that takes a single argument of type
     // std::shared_ptr<VfsFile>. Allows to reinterpret container files (i.e NCA, zip, XCI, etc) as a
@@ -311,12 +316,17 @@ public:
 };
 
 // Compare the two files, byte-for-byte, in increments specificed by block_size
-bool DeepEquals(const VirtualFile& file1, const VirtualFile& file2, std::size_t block_size = 0x200);
+bool DeepEquals(const VirtualFile& file1, const VirtualFile& file2, size_t block_size = 0x1000);
 
 // A method that copies the raw data between two different implementations of VirtualFile. If you
 // are using the same implementation, it is probably better to use the Copy method in the parent
 // directory of src/dest.
-bool VfsRawCopy(VirtualFile src, VirtualFile dest);
+bool VfsRawCopy(const VirtualFile& src, const VirtualFile& dest, size_t block_size = 0x1000);
+
+// A method that performs a similar function to VfsRawCopy above, but instead copies entire
+// directories. It suffers the same performance penalties as above and an implementation-specific
+// Copy should always be preferred.
+bool VfsRawCopyD(const VirtualDir& src, const VirtualDir& dest, size_t block_size = 0x1000);
 
 // Checks if the directory at path relative to rel exists. If it does, returns that. If it does not
 // it attempts to create it and returns the new dir or nullptr on failure.

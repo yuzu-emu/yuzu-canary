@@ -32,6 +32,8 @@ add_library(core STATIC
     file_sys/control_metadata.h
     file_sys/directory.h
     file_sys/errors.h
+    file_sys/fsmitm_romfsbuild.cpp
+    file_sys/fsmitm_romfsbuild.h
     file_sys/mode.h
     file_sys/nca_metadata.cpp
     file_sys/nca_metadata.h
@@ -59,10 +61,13 @@ add_library(core STATIC
     file_sys/vfs.h
     file_sys/vfs_concat.cpp
     file_sys/vfs_concat.h
+    file_sys/vfs_layered.cpp
+    file_sys/vfs_layered.h
     file_sys/vfs_offset.cpp
     file_sys/vfs_offset.h
     file_sys/vfs_real.cpp
     file_sys/vfs_real.h
+    file_sys/vfs_static.h
     file_sys/vfs_vector.cpp
     file_sys/vfs_vector.h
     file_sys/xts_archive.cpp

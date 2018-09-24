@@ -26,6 +26,7 @@ std::string FormatTitleVersion(u32 version,
 
 enum class PatchType {
     Update,
+    LayeredFS,
 };
 
 std::string FormatPatchTypeName(PatchType type);
@@ -42,6 +43,7 @@ public:
 
     // Currently tracked RomFS patches:
     // - Game Updates
+    // - LayeredFS
     VirtualFile PatchRomFS(VirtualFile base, u64 ivfc_offset,
                            ContentRecordType type = ContentRecordType::Program) const;
 

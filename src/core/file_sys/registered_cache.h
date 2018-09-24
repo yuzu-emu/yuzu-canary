@@ -27,7 +27,7 @@ struct ContentRecord;
 
 using NcaID = std::array<u8, 0x10>;
 using RegisteredCacheParsingFunction = std::function<VirtualFile(const VirtualFile&, const NcaID&)>;
-using VfsCopyFunction = std::function<bool(VirtualFile, VirtualFile)>;
+using VfsCopyFunction = std::function<bool(const VirtualFile&, const VirtualFile&, size_t)>;
 
 enum class InstallResult {
     Success,

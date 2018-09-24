@@ -399,6 +399,15 @@ bool VfsDirectory::Copy(std::string_view src, std::string_view dest) {
     return f2->WriteBytes(f1->ReadAllBytes()) == f1->GetSize();
 }
 
+std::map<std::string, VfsEntryType, std::less<>> VfsDirectory::GetEntries() const {
+    std::map<std::string, VfsEntryType, std::less<>> out;
+    for (const auto& dir : GetSubdirectories())
+        out.emplace(dir->GetName(), VfsEntryType::Directory);
+    for (const auto& file : GetFiles())
+        out.emplace(file->GetName(), VfsEntryType::File);
+    return out;
+}
+
 std::string VfsDirectory::GetFullPath() const {
     if (IsRoot())
         return GetName();
@@ -454,13 +463,41 @@ bool DeepEquals(const VirtualFile& file1, const VirtualFile& file2, std::size_t 
     return true;
 }
 
-bool VfsRawCopy(VirtualFile src, VirtualFile dest) {
-    if (src == nullptr || dest == nullptr)
+bool VfsRawCopy(const VirtualFile& src, const VirtualFile& dest, size_t block_size) {
+    if (src == nullptr || dest == nullptr || !src->IsReadable() || !dest->IsWritable())
         return false;
     if (!dest->Resize(src->GetSize()))
         return false;
-    std::vector<u8> data = src->ReadAllBytes();
-    return dest->WriteBytes(data, 0) == data.size();
+
+    std::vector<u8> temp(std::min(block_size, src->GetSize()));
+    for (size_t i = 0; i < src->GetSize(); i += block_size) {
+        const auto read = std::min(block_size, src->GetSize() - i);
+        const auto block = src->Read(temp.data(), read, i);
+
+        if (dest->Write(temp.data(), read, i) != read)
+            return false;
+    }
+
+    return true;
+}
+
+bool VfsRawCopyD(const VirtualDir& src, const VirtualDir& dest, size_t block_size) {
+    if (src == nullptr || dest == nullptr || !src->IsReadable() || !dest->IsWritable())
+        return false;
+
+    for (const auto& file : src->GetFiles()) {
+        const auto out = dest->CreateFile(file->GetName());
+        if (!VfsRawCopy(file, out, block_size))
+            return false;
+    }
+
+    for (const auto& dir : src->GetSubdirectories()) {
+        const auto out = dest->CreateSubdirectory(dir->GetName());
+        if (!VfsRawCopyD(dir, out, block_size))
+            return false;
+    }
+
+    return true;
 }
 
 VirtualDir GetOrCreateDirectoryRelative(const VirtualDir& rel, std::string_view path) {
