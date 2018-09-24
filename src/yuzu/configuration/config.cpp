@@ -122,6 +122,7 @@ void Config::ReadValues() {
 
     qt_config->beginGroup("System");
     Settings::values.use_docked_mode = qt_config->value("use_docked_mode", false).toBool();
+    Settings::values.enable_nfc = qt_config->value("enable_nfc", true).toBool();
     Settings::values.username = qt_config->value("username", "yuzu").toString().toStdString();
     Settings::values.language_index = qt_config->value("language_index", 1).toInt();
     qt_config->endGroup();
@@ -247,6 +248,7 @@ void Config::SaveValues() {
 
     qt_config->beginGroup("System");
     qt_config->setValue("use_docked_mode", Settings::values.use_docked_mode);
+    qt_config->setValue("enable_nfc", Settings::values.enable_nfc);
     qt_config->setValue("username", QString::fromStdString(Settings::values.username));
     qt_config->setValue("language_index", Settings::values.language_index);
     qt_config->endGroup();
