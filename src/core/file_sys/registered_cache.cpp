@@ -18,6 +18,10 @@
 #include "core/loader/loader.h"
 
 namespace FileSys {
+
+// The size of blocks to use when vfs raw copying into nand.
+constexpr size_t VFS_RC_LARGE_COPY_BLOCK = 0x400000;
+
 std::string RegisteredCacheEntry::DebugInfo() const {
     return fmt::format("title_id={:016X}, content_type={:02X}", title_id, static_cast<u8>(type));
 }
@@ -121,7 +125,7 @@ VirtualFile RegisteredCache::OpenFileOrDirectoryConcat(const VirtualDir& dir,
             if (concat.empty())
                 return nullptr;
 
-            file = FileSys::ConcatenateFiles(concat);
+            file = FileSys::ConcatenateFiles(concat, concat.front()->GetName());
         }
 
         return file;
@@ -480,7 +484,8 @@ InstallResult RegisteredCache::RawInstallNCA(std::shared_ptr<NCA> nca, const Vfs
     auto out = dir->CreateFileRelative(path);
     if (out == nullptr)
         return InstallResult::ErrorCopyFailed;
-    return copy(in, out) ? InstallResult::Success : InstallResult::ErrorCopyFailed;
+    return copy(in, out, VFS_RC_LARGE_COPY_BLOCK) ? InstallResult::Success
+                                                  : InstallResult::ErrorCopyFailed;
 }
 
 bool RegisteredCache::RawInstallYuzuMeta(const CNMT& cnmt) {

@@ -705,6 +705,8 @@ const std::string& GetUserPath(UserPath path, const std::string& new_path) {
 #endif
         paths.emplace(UserPath::SDMCDir, user_path + SDMC_DIR DIR_SEP);
         paths.emplace(UserPath::NANDDir, user_path + NAND_DIR DIR_SEP);
+        paths.emplace(UserPath::LoadDir, user_path + LOAD_DIR DIR_SEP);
+        paths.emplace(UserPath::DumpDir, user_path + DUMP_DIR DIR_SEP);
         paths.emplace(UserPath::SysDataDir, user_path + SYSDATA_DIR DIR_SEP);
         paths.emplace(UserPath::KeysDir, user_path + KEYS_DIR DIR_SEP);
         // TODO: Put the logs in a better location for each OS

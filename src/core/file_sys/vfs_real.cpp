@@ -413,6 +413,23 @@ std::string RealVfsDirectory::GetFullPath() const {
     return out;
 }
 
+std::map<std::string, VfsEntryType, std::less<>> RealVfsDirectory::GetEntries() const {
+    if (perms == Mode::Append)
+        return {};
+
+    std::map<std::string, VfsEntryType, std::less<>> out;
+    FileUtil::ForeachDirectoryEntry(
+        nullptr, path,
+        [&out](u64* entries_out, const std::string& directory, const std::string& filename) {
+            const std::string full_path = directory + DIR_SEP + filename;
+            out.emplace(filename, FileUtil::IsDirectory(full_path) ? VfsEntryType::Directory
+                                                                   : VfsEntryType::File);
+            return true;
+        });
+
+    return out;
+}
+
 bool RealVfsDirectory::ReplaceFileWithSubdirectory(VirtualFile file, VirtualDir dir) {
     return false;
 }

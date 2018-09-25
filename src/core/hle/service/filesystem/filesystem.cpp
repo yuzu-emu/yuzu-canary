@@ -343,6 +343,15 @@ std::shared_ptr<FileSys::RegisteredCache> GetSDMCContents() {
     return sdmc_factory->GetSDMCContents();
 }
 
+FileSys::VirtualDir GetModificationLoadRoot(u64 title_id) {
+    LOG_TRACE(Service_FS, "Opening mod load root for tid={:016X}", title_id);
+
+    if (bis_factory == nullptr)
+        return nullptr;
+
+    return bis_factory->GetModificationLoadRoot(title_id);
+}
+
 void CreateFactories(const FileSys::VirtualFilesystem& vfs, bool overwrite) {
     if (overwrite) {
         bis_factory = nullptr;
@@ -354,9 +363,11 @@ void CreateFactories(const FileSys::VirtualFilesystem& vfs, bool overwrite) {
                                              FileSys::Mode::ReadWrite);
     auto sd_directory = vfs->OpenDirectory(FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir),
                                            FileSys::Mode::ReadWrite);
+    auto load_directory = vfs->OpenDirectory(FileUtil::GetUserPath(FileUtil::UserPath::LoadDir),
+                                             FileSys::Mode::ReadWrite);
 
     if (bis_factory == nullptr)
-        bis_factory = std::make_unique<FileSys::BISFactory>(nand_directory);
+        bis_factory = std::make_unique<FileSys::BISFactory>(nand_directory, load_directory);
     if (save_data_factory == nullptr)
         save_data_factory = std::make_unique<FileSys::SaveDataFactory>(std::move(nand_directory));
     if (sdmc_factory == nullptr)

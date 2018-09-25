@@ -318,9 +318,14 @@ void GameList::PopupContextMenu(const QPoint& menu_location) {
     int row = item_model->itemFromIndex(item)->row();
     QStandardItem* child_file = item_model->invisibleRootItem()->child(row, COLUMN_NAME);
     u64 program_id = child_file->data(GameListItemPath::ProgramIdRole).toULongLong();
+    std::string path = child_file->data(GameListItemPath::FullPathRole).toString().toStdString();
 
     QMenu context_menu;
     QAction* open_save_location = context_menu.addAction(tr("Open Save Data Location"));
+    QAction* open_lfs_location = context_menu.addAction(tr("Open Mod Data Location"));
+    context_menu.addSeparator();
+    QAction* dump_romfs = context_menu.addAction(tr("Dump RomFS"));
+    QAction* copy_tid = context_menu.addAction(tr("Copy Title ID to Clipboard"));
     QAction* navigate_to_gamedb_entry = context_menu.addAction(tr("Navigate to GameDB entry"));
 
     open_save_location->setEnabled(program_id != 0);
@@ -329,6 +334,10 @@ void GameList::PopupContextMenu(const QPoint& menu_location) {
 
     connect(open_save_location, &QAction::triggered,
             [&]() { emit OpenFolderRequested(program_id, GameListOpenTarget::SaveData); });
+    connect(open_lfs_location, &QAction::triggered,
+            [&]() { emit OpenFolderRequested(program_id, GameListOpenTarget::ModData); });
+    connect(dump_romfs, &QAction::triggered, [&]() { emit DumpRomFSRequested(program_id, path); });
+    connect(copy_tid, &QAction::triggered, [&]() { emit CopyTIDRequested(program_id); });
     connect(navigate_to_gamedb_entry, &QAction::triggered,
             [&]() { emit NavigateToGamedbEntryRequested(program_id, compatibility_list); });
 
