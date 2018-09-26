@@ -151,6 +151,7 @@ private slots:
     void OnMenuSelectEmulatedDirectory(EmulatedDirectoryTarget target);
     void OnMenuRecentFile();
     void OnConfigure();
+    void OnLoadAmiibo();
     void OnAbout();
     void OnToggleFilterBar();
     void OnDisplayTitleBars(bool);
