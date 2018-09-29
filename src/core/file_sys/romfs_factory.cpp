@@ -39,36 +39,35 @@ ResultVal<VirtualFile> RomFSFactory::OpenCurrentProcess() {
 }
 
 ResultVal<VirtualFile> RomFSFactory::Open(u64 title_id, StorageId storage, ContentRecordType type) {
+    std::shared_ptr<NCA> res;
+
     switch (storage) {
-    case StorageId::NandSystem: {
-        const auto res = Service::FileSystem::GetSystemNANDContents()->GetEntry(title_id, type);
-        if (res == nullptr) {
-            // TODO(DarkLordZach): Find the right error code to use here
-            return ResultCode(-1);
-        }
-        const auto romfs = res->GetRomFS();
-        if (romfs == nullptr) {
-            // TODO(DarkLordZach): Find the right error code to use here
-            return ResultCode(-1);
-        }
-        return MakeResult<VirtualFile>(romfs);
-    }
-    case StorageId::NandUser: {
-        const auto res = Service::FileSystem::GetUserNANDContents()->GetEntry(title_id, type);
-        if (res == nullptr) {
-            // TODO(DarkLordZach): Find the right error code to use here
-            return ResultCode(-1);
-        }
-        const auto romfs = res->GetRomFS();
-        if (romfs == nullptr) {
-            // TODO(DarkLordZach): Find the right error code to use here
-            return ResultCode(-1);
-        }
-        return MakeResult<VirtualFile>(romfs);
-    }
+    case StorageId::None:
+        res = Service::FileSystem::GetUnionContents()->GetEntry(title_id, type);
+        break;
+    case StorageId::NandSystem:
+        res = Service::FileSystem::GetSystemNANDContents()->GetEntry(title_id, type);
+        break;
+    case StorageId::NandUser:
+        res = Service::FileSystem::GetUserNANDContents()->GetEntry(title_id, type);
+        break;
+    case StorageId::SdCard:
+        res = Service::FileSystem::GetSDMCContents()->GetEntry(title_id, type);
+        break;
     default:
         UNIMPLEMENTED_MSG("Unimplemented storage_id={:02X}", static_cast<u8>(storage));
     }
+
+    if (res == nullptr) {
+        // TODO(DarkLordZach): Find the right error code to use here
+        return ResultCode(-1);
+    }
+    const auto romfs = res->GetRomFS();
+    if (romfs == nullptr) {
+        // TODO(DarkLordZach): Find the right error code to use here
+        return ResultCode(-1);
+    }
+    return MakeResult<VirtualFile>(romfs);
 }
 
 } // namespace FileSys
