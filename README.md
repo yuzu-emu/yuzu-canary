@@ -1,3 +1,22 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 8d8366b602954b328a618b110d03644da2f9798d
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1407](https://github.com/yuzu-emu/yuzu/pull/1407)|[f86047a](https://github.com/yuzu-emu/yuzu/pull/1407/files/)|aoc_u: Implement functions and add support for DLC loading|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1390](https://github.com/yuzu-emu/yuzu/pull/1390)|[acf82bb](https://github.com/yuzu-emu/yuzu/pull/1390/files/)|[WIP] Added Amiibo support|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
