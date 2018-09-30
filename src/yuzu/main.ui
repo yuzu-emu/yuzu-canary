@@ -45,7 +45,7 @@
      <x>0</x>
      <y>0</y>
      <width>1081</width>
-     <height>19</height>
+     <height>17</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -57,8 +57,8 @@
       <string>Recent Files</string>
      </property>
     </widget>
-     <addaction name="action_Install_File_NAND" />
-     <addaction name="separator"/>
+    <addaction name="action_Install_File_NAND"/>
+    <addaction name="separator"/>
     <addaction name="action_Load_File"/>
     <addaction name="action_Load_Folder"/>
     <addaction name="separator"/>
@@ -67,6 +67,8 @@
     <addaction name="separator"/>
     <addaction name="action_Select_NAND_Directory"/>
     <addaction name="action_Select_SDMC_Directory"/>
+    <addaction name="separator"/>
+    <addaction name="action_Load_Amiibo"/>
     <addaction name="separator"/>
     <addaction name="action_Exit"/>
    </widget>
@@ -108,11 +110,14 @@
    <addaction name="menu_View"/>
    <addaction name="menu_Help"/>
   </widget>
-   <action name="action_Install_File_NAND">
-     <property name="text">
-       <string>Install File to NAND...</string>
-     </property>
-   </action>
+  <action name="action_Install_File_NAND">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Install File to NAND...</string>
+   </property>
+  </action>
   <action name="action_Load_File">
    <property name="text">
     <string>Load File...</string>
@@ -231,14 +236,23 @@
     <string>Fullscreen</string>
    </property>
   </action>
-   <action name="action_Restart">
-     <property name="enabled">
-       <bool>false</bool>
-     </property>
-     <property name="text">
-       <string>Restart</string>
-     </property>
-   </action>
-  </widget>
+  <action name="action_Restart">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Restart</string>
+   </property>
+  </action>
+  <action name="action_Load_Amiibo">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Load Amiibo...</string>
+   </property>
+  </action>
+ </widget>
  <resources/>
+ <connections/>
 </ui>
