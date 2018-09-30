@@ -738,7 +738,7 @@ u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, Shader& shader, 
         }
 
         texture_samplers[current_bindpoint].SyncWithConfig(texture.tsc);
-        Surface surface = res_cache.GetTextureSurface(texture);
+        Surface surface = res_cache.GetTextureSurface(texture, entry);
         if (surface != nullptr) {
             state.texture_units[current_bindpoint].texture = surface->Texture().handle;
             state.texture_units[current_bindpoint].target = surface->Target();
