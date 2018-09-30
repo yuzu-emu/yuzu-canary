@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 
@@ -18,6 +19,7 @@
 namespace FileSys {
 
 constexpr u64 SINGLE_BYTE_MODULUS = 0x100;
+constexpr u64 DLC_BASE_TITLE_ID_MASK = 0xFFFFFFFFFFFFE000;
 
 std::string FormatTitleVersion(u32 version, TitleVersionFormat format) {
     std::array<u8, sizeof(u32)> bytes{};
@@ -32,9 +34,10 @@ std::string FormatTitleVersion(u32 version, TitleVersionFormat format) {
     return fmt::format("v{}.{}.{}", bytes[3], bytes[2], bytes[1]);
 }
 
-constexpr std::array<const char*, 2> PATCH_TYPE_NAMES{
+constexpr std::array<const char*, 3> PATCH_TYPE_NAMES{
     "Update",
     "LayeredFS",
+    "DLC",
 };
 
 std::string FormatPatchTypeName(PatchType type) {
@@ -139,6 +142,7 @@ std::map<PatchType, std::string> PatchManager::GetPatchVersionNames() const {
     std::map<PatchType, std::string> out;
     const auto installed = Service::FileSystem::GetUnionContents();
 
+    // Game Updates
     const auto update_tid = GetUpdateTitleID(title_id);
     PatchManager update{update_tid};
     auto [nacp, discard_icon_file] = update.GetControlMetadata();
@@ -157,9 +161,33 @@ std::map<PatchType, std::string> PatchManager::GetPatchVersionNames() const {
         }
     }
 
+    // LayeredFS
     const auto lfs_dir = Service::FileSystem::GetModificationLoadRoot(title_id);
     if (lfs_dir != nullptr && lfs_dir->GetSize() > 0)
         out.insert_or_assign(PatchType::LayeredFS, "");
+
+    // DLC
+    const auto dlc_entries = installed->ListEntriesFilter(TitleType::AOC, ContentRecordType::Data);
+    std::vector<RegisteredCacheEntry> dlc_match;
+    dlc_match.reserve(dlc_entries.size());
+    std::copy_if(dlc_entries.begin(), dlc_entries.end(), std::back_inserter(dlc_match),
+                 [this, &installed](const RegisteredCacheEntry& entry) {
+                     return (entry.title_id & DLC_BASE_TITLE_ID_MASK) == title_id &&
+                            installed->GetEntry(entry)->GetStatus() ==
+                                Loader::ResultStatus::Success;
+                 });
+    if (!dlc_match.empty()) {
+        // Ensure sorted so DLC IDs show in order.
+        std::sort(dlc_match.begin(), dlc_match.end());
+
+        std::string list;
+        for (size_t i = 0; i < dlc_match.size() - 1; ++i)
+            list += fmt::format("{}, ", dlc_match[i].title_id & 0x7FF);
+
+        list += fmt::format("{}", dlc_match.back().title_id & 0x7FF);
+
+        out.insert_or_assign(PatchType::DLC, std::move(list));
+    }
 
     return out;
 }
