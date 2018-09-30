@@ -9,12 +9,14 @@
 #include <memory>
 #include <vector>
 
+#include "common/alignment.h"
 #include "common/common_types.h"
 #include "common/hash.h"
 #include "common/math_util.h"
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
+#include "video_core/renderer_opengl/gl_shader_gen.h"
 #include "video_core/textures/texture.h"
 
 namespace OpenGL {
@@ -126,6 +128,8 @@ struct SurfaceParams {
         case Tegra::Texture::TextureType::Texture2D:
         case Tegra::Texture::TextureType::Texture2DNoMipmap:
             return SurfaceTarget::Texture2D;
+        case Tegra::Texture::TextureType::TextureCubemap:
+            return SurfaceTarget::TextureCubemap;
         case Tegra::Texture::TextureType::Texture1DArray:
             return SurfaceTarget::Texture1DArray;
         case Tegra::Texture::TextureType::Texture2DArray:
@@ -689,17 +693,23 @@ struct SurfaceParams {
     /// Returns the rectangle corresponding to this surface
     MathUtil::Rectangle<u32> GetRect() const;
 
-    /// Returns the size of this surface in bytes, adjusted for compression
-    std::size_t SizeInBytes() const {
+    /// Returns the size of this surface as a 2D texture in bytes, adjusted for compression
+    std::size_t SizeInBytes2D() const {
         const u32 compression_factor{GetCompressionFactor(pixel_format)};
         ASSERT(width % compression_factor == 0);
         ASSERT(height % compression_factor == 0);
         return (width / compression_factor) * (height / compression_factor) *
-               GetFormatBpp(pixel_format) * depth / CHAR_BIT;
+               GetFormatBpp(pixel_format) / CHAR_BIT;
+    }
+
+    /// Returns the total size of this surface in bytes, adjusted for compression
+    std::size_t SizeInBytesTotal() const {
+        return SizeInBytes2D() * depth;
     }
 
     /// Creates SurfaceParams from a texture configuration
-    static SurfaceParams CreateForTexture(const Tegra::Texture::FullTextureInfo& config);
+    static SurfaceParams CreateForTexture(const Tegra::Texture::FullTextureInfo& config,
+                                          const GLShader::SamplerEntry& entry);
 
     /// Creates SurfaceParams from a framebuffer configuration
     static SurfaceParams CreateForFramebuffer(std::size_t index);
@@ -711,8 +721,9 @@ struct SurfaceParams {
 
     /// Checks if surfaces are compatible for caching
     bool IsCompatibleSurface(const SurfaceParams& other) const {
-        return std::tie(pixel_format, type, width, height) ==
-               std::tie(other.pixel_format, other.type, other.width, other.height);
+        return std::tie(pixel_format, type, width, height, target, depth) ==
+               std::tie(other.pixel_format, other.type, other.width, other.height, other.target,
+                        other.depth);
     }
 
     VAddr addr;
@@ -725,8 +736,18 @@ struct SurfaceParams {
     u32 height;
     u32 depth;
     u32 unaligned_height;
-    std::size_t size_in_bytes;
+    std::size_t size_in_bytes_total;
+    std::size_t size_in_bytes_2d;
     SurfaceTarget target;
+    u32 max_mip_level;
+
+    // Render target specific parameters, not used in caching
+    struct {
+        u32 index;
+        u32 array_mode;
+        u32 layer_stride;
+        u32 base_layer;
+    } rt;
 };
 
 }; // namespace OpenGL
@@ -736,6 +757,7 @@ struct SurfaceReserveKey : Common::HashableStruct<OpenGL::SurfaceParams> {
     static SurfaceReserveKey Create(const OpenGL::SurfaceParams& params) {
         SurfaceReserveKey res;
         res.state = params;
+        res.state.rt = {}; // Ignore rt config in caching
         return res;
     }
 };
@@ -759,7 +781,7 @@ public:
     }
 
     std::size_t GetSizeInBytes() const {
-        return params.size_in_bytes;
+        return params.size_in_bytes_total;
     }
 
     const OGLTexture& Texture() const {
@@ -800,7 +822,8 @@ public:
     RasterizerCacheOpenGL();
 
     /// Get a surface based on the texture configuration
-    Surface GetTextureSurface(const Tegra::Texture::FullTextureInfo& config);
+    Surface GetTextureSurface(const Tegra::Texture::FullTextureInfo& config,
+                              const GLShader::SamplerEntry& entry);
 
     /// Get the depth surface based on the framebuffer configuration
     Surface GetDepthBufferSurface(bool preserve_contents);
@@ -822,7 +845,7 @@ private:
     Surface GetUncachedSurface(const SurfaceParams& params);
 
     /// Recreates a surface with new parameters
-    Surface RecreateSurface(const Surface& surface, const SurfaceParams& new_params);
+    Surface RecreateSurface(const Surface& old_surface, const SurfaceParams& new_params);
 
     /// Reserves a unique surface that can be reused later
     void ReserveSurface(const Surface& surface);
