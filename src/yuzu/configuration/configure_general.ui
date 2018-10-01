@@ -68,19 +68,26 @@
        <property name="title">
         <string>Emulation</string>
        </property>
-        <layout class="QHBoxLayout" name="EmulationHorizontalLayout">
+       <layout class="QHBoxLayout" name="EmulationHorizontalLayout">
+        <item>
+         <layout class="QVBoxLayout" name="EmulationVerticalLayout">
           <item>
-            <layout class="QVBoxLayout" name="EmulationVerticalLayout">
-              <item>
-                <widget class="QCheckBox" name="use_docked_mode">
-                  <property name="text">
-                    <string>Enable docked mode</string>
-                  </property>
-                </widget>
-              </item>
-            </layout>
+           <widget class="QCheckBox" name="use_docked_mode">
+            <property name="text">
+             <string>Enable docked mode</string>
+            </property>
+           </widget>
           </item>
-        </layout>
+          <item>
+           <widget class="QCheckBox" name="enable_nfc">
+            <property name="text">
+             <string>Enable NFC</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
       </widget>
      </item>
      <item>
