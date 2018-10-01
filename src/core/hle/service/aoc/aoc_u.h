@@ -16,6 +16,10 @@ public:
 private:
     void CountAddOnContent(Kernel::HLERequestContext& ctx);
     void ListAddOnContent(Kernel::HLERequestContext& ctx);
+    void GetAddOnContentBaseId(Kernel::HLERequestContext& ctx);
+    void PrepareAddOnContent(Kernel::HLERequestContext& ctx);
+
+    std::vector<u64> add_on_content;
 };
 
 /// Registers all AOC services with the specified service manager.
