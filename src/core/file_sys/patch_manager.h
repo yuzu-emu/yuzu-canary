@@ -27,6 +27,7 @@ std::string FormatTitleVersion(u32 version,
 enum class PatchType {
     Update,
     LayeredFS,
+    DLC,
 };
 
 std::string FormatPatchTypeName(PatchType type);
