@@ -60,14 +60,13 @@ QString FormatGameName(const std::string& physical_name) {
 QString FormatPatchNameVersions(const FileSys::PatchManager& patch_manager, bool updatable = true) {
     QString out;
     for (const auto& kv : patch_manager.GetPatchVersionNames()) {
-        if (!updatable && kv.first == FileSys::PatchType::Update)
+        if (!updatable && kv.first == "Update")
             continue;
 
         if (kv.second.empty()) {
-            out.append(fmt::format("{}\n", FileSys::FormatPatchTypeName(kv.first)).c_str());
+            out.append(fmt::format("{}\n", kv.first).c_str());
         } else {
-            out.append(fmt::format("{} ({})\n", FileSys::FormatPatchTypeName(kv.first), kv.second)
-                           .c_str());
+            out.append(fmt::format("{} ({})\n", kv.first, kv.second).c_str());
         }
     }
 

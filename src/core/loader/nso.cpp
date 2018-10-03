@@ -10,6 +10,7 @@
 #include "common/logging/log.h"
 #include "common/swap.h"
 #include "core/core.h"
+#include "core/file_sys/patch_manager.h"
 #include "core/gdbstub/gdbstub.h"
 #include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/process.h"
@@ -36,8 +37,7 @@ struct NsoHeader {
     INSERT_PADDING_WORDS(1);
     u8 flags;
     std::array<NsoSegmentHeader, 3> segments; // Text, RoData, Data (in that order)
-    u32_le bss_size;
-    INSERT_PADDING_BYTES(0x1c);
+    std::array<u8, 0x20> build_id;
     std::array<u32_le, 3> segments_compressed_size;
 
     bool IsSegmentCompressed(size_t segment_num) const {
@@ -93,7 +93,8 @@ static constexpr u32 PageAlignSize(u32 size) {
     return (size + Memory::PAGE_MASK) & ~Memory::PAGE_MASK;
 }
 
-VAddr AppLoader_NSO::LoadModule(FileSys::VirtualFile file, VAddr load_base) {
+VAddr AppLoader_NSO::LoadModule(FileSys::VirtualFile file, VAddr load_base,
+                                boost::optional<FileSys::PatchManager> pm) {
     if (file == nullptr)
         return {};
 
@@ -141,6 +142,17 @@ VAddr AppLoader_NSO::LoadModule(FileSys::VirtualFile file, VAddr load_base) {
     codeset->DataSegment().size += bss_size;
     const u32 image_size{PageAlignSize(static_cast<u32>(program_image.size()) + bss_size)};
     program_image.resize(image_size);
+
+    // Apply patches if necessary
+    if (pm != boost::none && pm->HasNSOPatch(nso_header.build_id)) {
+        std::vector<u8> pi_header(program_image.size() + 0x100);
+        std::memcpy(pi_header.data(), &nso_header, sizeof(NsoHeader));
+        std::memcpy(pi_header.data() + 0x100, program_image.data(), program_image.size());
+
+        pi_header = pm->PatchNSO(pi_header);
+
+        std::memcpy(program_image.data(), pi_header.data() + 0x100, program_image.size());
+    }
 
     // Load codeset for current process
     codeset->name = file->GetName();
