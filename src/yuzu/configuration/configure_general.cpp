@@ -31,6 +31,7 @@ void ConfigureGeneral::setConfiguration() {
     ui->theme_combobox->setCurrentIndex(ui->theme_combobox->findData(UISettings::values.theme));
     ui->use_cpu_jit->setChecked(Settings::values.use_cpu_jit);
     ui->use_docked_mode->setChecked(Settings::values.use_docked_mode);
+    ui->enable_nfc->setChecked(Settings::values.enable_nfc);
 }
 
 void ConfigureGeneral::PopulateHotkeyList(const HotkeyRegistry& registry) {
@@ -45,4 +46,5 @@ void ConfigureGeneral::applyConfiguration() {
 
     Settings::values.use_cpu_jit = ui->use_cpu_jit->isChecked();
     Settings::values.use_docked_mode = ui->use_docked_mode->isChecked();
+    Settings::values.enable_nfc = ui->enable_nfc->isChecked();
 }
