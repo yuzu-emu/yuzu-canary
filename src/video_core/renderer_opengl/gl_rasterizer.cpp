@@ -601,10 +601,13 @@ void RasterizerOpenGL::SamplerInfo::Create() {
     sampler.Create();
     mag_filter = min_filter = Tegra::Texture::TextureFilter::Linear;
     wrap_u = wrap_v = wrap_p = Tegra::Texture::WrapMode::Wrap;
+    uses_depth_compare = false;
+    depth_compare_func = Tegra::Texture::DepthCompareFunc::Never;
 
     // default is GL_LINEAR_MIPMAP_LINEAR
     glSamplerParameteri(sampler.handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     // Other attributes have correct defaults
+    glSamplerParameteri(sampler.handle, GL_TEXTURE_COMPARE_FUNC, GL_NEVER);
 }
 
 void RasterizerOpenGL::SamplerInfo::SyncWithConfig(const Tegra::Texture::TSCEntry& config) {
@@ -630,6 +633,21 @@ void RasterizerOpenGL::SamplerInfo::SyncWithConfig(const Tegra::Texture::TSCEntr
     if (wrap_p != config.wrap_p) {
         wrap_p = config.wrap_p;
         glSamplerParameteri(s, GL_TEXTURE_WRAP_R, MaxwellToGL::WrapMode(wrap_p));
+    }
+
+    if (uses_depth_compare != (config.depth_compare_enabled == 1)) {
+        uses_depth_compare = (config.depth_compare_enabled == 1);
+        if (uses_depth_compare) {
+            glSamplerParameteri(s, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+        } else {
+            glSamplerParameteri(s, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+        }
+    }
+
+    if (depth_compare_func != config.depth_compare_func) {
+        depth_compare_func = config.depth_compare_func;
+        glSamplerParameteri(s, GL_TEXTURE_COMPARE_FUNC,
+                            MaxwellToGL::DepthCompareFunc(depth_compare_func));
     }
 
     if (wrap_u == Tegra::Texture::WrapMode::Border || wrap_v == Tegra::Texture::WrapMode::Border ||
