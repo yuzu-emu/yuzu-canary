@@ -13,6 +13,7 @@
 #include "common/common_types.h"
 #include "common/hash.h"
 #include "common/math_util.h"
+#include "video_core/engines/fermi_2d.h"
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
@@ -719,6 +720,10 @@ struct SurfaceParams {
                                               Tegra::GPUVAddr zeta_address,
                                               Tegra::DepthFormat format);
 
+    /// Creates SurfaceParams for a Fermi2D surface copy
+    static SurfaceParams CreateForFermiCopySurface(
+        const Tegra::Engines::Fermi2D::Regs::Surface& config);
+
     /// Checks if surfaces are compatible for caching
     bool IsCompatibleSurface(const SurfaceParams& other) const {
         return std::tie(pixel_format, type, width, height, target, depth) ==
@@ -836,6 +841,10 @@ public:
 
     /// Tries to find a framebuffer using on the provided CPU address
     Surface TryFindFramebufferSurface(VAddr addr) const;
+
+    /// Copies the contents of one surface to another
+    void FermiCopySurface(const Tegra::Engines::Fermi2D::Regs::Surface& src_config,
+                          const Tegra::Engines::Fermi2D::Regs::Surface& dst_config);
 
 private:
     void LoadSurface(const Surface& surface);

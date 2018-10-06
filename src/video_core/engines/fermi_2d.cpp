@@ -4,11 +4,13 @@
 
 #include "core/memory.h"
 #include "video_core/engines/fermi_2d.h"
+#include "video_core/rasterizer_interface.h"
 #include "video_core/textures/decoders.h"
 
 namespace Tegra::Engines {
 
-Fermi2D::Fermi2D(MemoryManager& memory_manager) : memory_manager(memory_manager) {}
+Fermi2D::Fermi2D(VideoCore::RasterizerInterface& rasterizer, MemoryManager& memory_manager)
+    : memory_manager(memory_manager), rasterizer{rasterizer} {}
 
 void Fermi2D::WriteReg(u32 method, u32 value) {
     ASSERT_MSG(method < Regs::NUM_REGS,
@@ -44,28 +46,9 @@ void Fermi2D::HandleSurfaceCopy() {
     u32 src_bytes_per_pixel = RenderTargetBytesPerPixel(regs.src.format);
     u32 dst_bytes_per_pixel = RenderTargetBytesPerPixel(regs.dst.format);
 
-    if (regs.src.linear == regs.dst.linear) {
-        // If the input layout and the output layout are the same, just perform a raw copy.
-        ASSERT(regs.src.BlockHeight() == regs.dst.BlockHeight());
-        Memory::CopyBlock(dest_cpu, source_cpu,
-                          src_bytes_per_pixel * regs.dst.width * regs.dst.height);
-        return;
-    }
-
-    u8* src_buffer = Memory::GetPointer(source_cpu);
-    u8* dst_buffer = Memory::GetPointer(dest_cpu);
-
-    if (!regs.src.linear && regs.dst.linear) {
-        // If the input is tiled and the output is linear, deswizzle the input and copy it over.
-        Texture::CopySwizzledData(regs.src.width, regs.src.height, src_bytes_per_pixel,
-                                  dst_bytes_per_pixel, src_buffer, dst_buffer, true,
-                                  regs.src.BlockHeight());
-    } else {
-        // If the input is linear and the output is tiled, swizzle the input and copy it over.
-        Texture::CopySwizzledData(regs.src.width, regs.src.height, src_bytes_per_pixel,
-                                  dst_bytes_per_pixel, dst_buffer, src_buffer, false,
-                                  regs.dst.BlockHeight());
-    }
+    // TODO(bunnei): Accelerated copy is likely incomplete, but without flushing there is not much
+    // point in doing anything else here.
+    rasterizer.AccelerateSurfaceCopy(regs.src, regs.dst);
 }
 
 } // namespace Tegra::Engines
