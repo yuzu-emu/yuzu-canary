@@ -174,6 +174,10 @@ use_virtual_sd =
 # 1: Yes, 0 (default): No
 use_docked_mode =
 
+# Allow the use of NFC in games
+# 1 (default): Yes, 0 : No
+enable_nfc =
+
 # Sets the account username, max length is 32 characters
 # yuzu (default)
 username = yuzu
