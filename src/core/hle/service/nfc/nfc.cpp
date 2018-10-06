@@ -10,12 +10,13 @@
 #include "core/hle/service/nfc/nfc.h"
 #include "core/hle/service/service.h"
 #include "core/hle/service/sm/sm.h"
+#include "core/settings.h"
 
 namespace Service::NFC {
 
 class IAm final : public ServiceFramework<IAm> {
 public:
-    explicit IAm() : ServiceFramework{"IAm"} {
+    explicit IAm() : ServiceFramework{"NFC::IAm"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, nullptr, "Initialize"},
@@ -52,7 +53,7 @@ private:
 
 class MFIUser final : public ServiceFramework<MFIUser> {
 public:
-    explicit MFIUser() : ServiceFramework{"IUser"} {
+    explicit MFIUser() : ServiceFramework{"NFC::MFIUser"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, nullptr, "Initialize"},
@@ -100,13 +101,13 @@ private:
 
 class IUser final : public ServiceFramework<IUser> {
 public:
-    explicit IUser() : ServiceFramework{"IUser"} {
+    explicit IUser() : ServiceFramework{"NFC::IUser"} {
         // clang-format off
         static const FunctionInfo functions[] = {
-            {0, nullptr, "Initialize"},
-            {1, nullptr, "Finalize"},
-            {2, nullptr, "GetState"},
-            {3, nullptr, "IsNfcEnabled"},
+            {0, &IUser::InitializeOld, "InitializeOld"},
+            {1, &IUser::FinalizeOld, "FinalizeOld"},
+            {2, &IUser::GetStateOld, "GetStateOld"},
+            {3, &IUser::IsNfcEnabledOld, "IsNfcEnabledOld"},
             {400, nullptr, "Initialize"},
             {401, nullptr, "Finalize"},
             {402, nullptr, "GetState"},
@@ -130,11 +131,43 @@ public:
 
         RegisterHandlers(functions);
     }
+
+private:
+    void InitializeOld(Kernel::HLERequestContext& ctx) {
+        IPC::ResponseBuilder rb{ctx, 2, 0};
+        rb.Push(RESULT_SUCCESS);
+
+        // We don't deal with hardware initialization so we can just stub this.
+        LOG_DEBUG(Service_NFC, "called");
+    }
+
+    void IsNfcEnabledOld(Kernel::HLERequestContext& ctx) {
+        IPC::ResponseBuilder rb{ctx, 3};
+        rb.Push(RESULT_SUCCESS);
+        rb.PushRaw<u8>(Settings::values.enable_nfc);
+
+        LOG_DEBUG(Service_NFC, "IsNfcEnabledOld");
+    }
+
+    void GetStateOld(Kernel::HLERequestContext& ctx) {
+        LOG_WARNING(Service_NFC, "(STUBBED) called");
+
+        IPC::ResponseBuilder rb{ctx, 3};
+        rb.Push(RESULT_SUCCESS);
+        rb.PushRaw<u32>(6); // TODO(ogniK): Figure out if this matches nfp
+    }
+
+    void FinalizeOld(Kernel::HLERequestContext& ctx) {
+        LOG_WARNING(Service_NFC, "(STUBBED) called");
+
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+    }
 };
 
 class NFC_U final : public ServiceFramework<NFC_U> {
 public:
-    explicit NFC_U() : ServiceFramework{"nfc:u"} {
+    explicit NFC_U() : ServiceFramework{"nfc:user"} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &NFC_U::CreateUserInterface, "CreateUserInterface"},
