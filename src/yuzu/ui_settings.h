@@ -41,6 +41,7 @@ struct Values {
     QString roms_path;
     QString symbols_path;
     QString gamedir;
+    QString amiibo_path;
     bool gamedir_deepscan;
     QStringList recent_files;
 

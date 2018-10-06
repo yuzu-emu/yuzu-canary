@@ -113,6 +113,7 @@ static const std::array<const char*, NumAnalogs> mapping = {{
 struct Values {
     // System
     bool use_docked_mode;
+    bool enable_nfc;
     std::string username;
     int language_index;
 
