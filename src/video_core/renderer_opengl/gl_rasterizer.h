@@ -96,6 +96,8 @@ private:
         Tegra::Texture::WrapMode wrap_u;
         Tegra::Texture::WrapMode wrap_v;
         Tegra::Texture::WrapMode wrap_p;
+        bool uses_depth_compare;
+        Tegra::Texture::DepthCompareFunc depth_compare_func;
         GLvec4 border_color;
     };
 
