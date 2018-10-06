@@ -75,8 +75,9 @@ class SamplerEntry {
 
 public:
     SamplerEntry(Maxwell::ShaderStage stage, std::size_t offset, std::size_t index,
-                 Tegra::Shader::TextureType type, bool is_array)
-        : offset(offset), stage(stage), sampler_index(index), type(type), is_array(is_array) {}
+                 Tegra::Shader::TextureType type, bool is_array, bool is_shadow)
+        : offset(offset), stage(stage), sampler_index(index), type(type), is_array(is_array),
+          is_shadow(is_shadow) {}
 
     std::size_t GetOffset() const {
         return offset;
@@ -117,6 +118,8 @@ public:
         }
         if (is_array)
             glsl_type += "Array";
+        if (is_shadow)
+            glsl_type += "Shadow";
         return glsl_type;
     }
 
@@ -126,6 +129,10 @@ public:
 
     bool IsArray() const {
         return is_array;
+    }
+
+    bool IsShadow() const {
+        return is_shadow;
     }
 
     u32 GetHash() const {
@@ -147,7 +154,8 @@ private:
     Maxwell::ShaderStage stage;      ///< Shader stage where this sampler was used.
     std::size_t sampler_index;       ///< Value used to index into the generated GLSL sampler array.
     Tegra::Shader::TextureType type; ///< The type used to sample this texture (Texture2D, etc)
-    bool is_array; ///< Whether the texture is being sampled as an array texture or not.
+    bool is_array;  ///< Whether the texture is being sampled as an array texture or not.
+    bool is_shadow; ///< Whether the texture is being sampled as a depth texture or not.
 };
 
 struct ShaderEntries {
