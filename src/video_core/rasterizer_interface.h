@@ -5,6 +5,7 @@
 #pragma once
 
 #include "common/common_types.h"
+#include "video_core/engines/fermi_2d.h"
 #include "video_core/gpu.h"
 #include "video_core/memory_manager.h"
 
@@ -33,13 +34,9 @@ public:
     /// and invalidated
     virtual void FlushAndInvalidateRegion(VAddr addr, u64 size) = 0;
 
-    /// Attempt to use a faster method to perform a display transfer with is_texture_copy = 0
-    virtual bool AccelerateDisplayTransfer(const void* config) {
-        return false;
-    }
-
-    /// Attempt to use a faster method to perform a display transfer with is_texture_copy = 1
-    virtual bool AccelerateTextureCopy(const void* config) {
+    /// Attempt to use a faster method to perform a surface copy
+    virtual bool AccelerateSurfaceCopy(const Tegra::Engines::Fermi2D::Regs::Surface& src,
+                                       const Tegra::Engines::Fermi2D::Regs::Surface& dst) {
         return false;
     }
 
