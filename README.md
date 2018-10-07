@@ -1,3 +1,22 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 6e4d2e672d1083f29186ea0ddcb33cd634e360e3
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1455](https://github.com/yuzu-emu/yuzu/pull/1455)|[ceef334](https://github.com/yuzu-emu/yuzu/pull/1455/files/)|Fixed smo softlock due to incorrect effect state updating|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1425](https://github.com/yuzu-emu/yuzu/pull/1425)|[6e7906f](https://github.com/yuzu-emu/yuzu/pull/1425/files/)|gl_shader_decompiler: Implement geometry shaders|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
