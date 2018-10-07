@@ -159,6 +159,31 @@ inline GLenum WrapMode(Tegra::Texture::WrapMode wrap_mode) {
     return {};
 }
 
+inline GLenum DepthCompareFunc(Tegra::Texture::DepthCompareFunc func) {
+    switch (func) {
+    case Tegra::Texture::DepthCompareFunc::Never:
+        return GL_NEVER;
+    case Tegra::Texture::DepthCompareFunc::Less:
+        return GL_LESS;
+    case Tegra::Texture::DepthCompareFunc::LessEqual:
+        return GL_LEQUAL;
+    case Tegra::Texture::DepthCompareFunc::Equal:
+        return GL_EQUAL;
+    case Tegra::Texture::DepthCompareFunc::NotEqual:
+        return GL_NOTEQUAL;
+    case Tegra::Texture::DepthCompareFunc::Greater:
+        return GL_GREATER;
+    case Tegra::Texture::DepthCompareFunc::GreaterEqual:
+        return GL_GEQUAL;
+    case Tegra::Texture::DepthCompareFunc::Always:
+        return GL_ALWAYS;
+    }
+    LOG_CRITICAL(Render_OpenGL, "Unimplemented texture depth compare function ={}",
+                 static_cast<u32>(func));
+    UNREACHABLE();
+    return {};
+}
+
 inline GLenum BlendEquation(Maxwell::Blend::Equation equation) {
     switch (equation) {
     case Maxwell::Blend::Equation::Add:
