@@ -255,7 +255,7 @@ DrawParameters RasterizerOpenGL::SetupDraw() {
     return params;
 }
 
-void RasterizerOpenGL::SetupShaders() {
+void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
     MICROPROFILE_SCOPE(OpenGL_Shader);
     const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
 
@@ -270,6 +270,11 @@ void RasterizerOpenGL::SetupShaders() {
 
         // Skip stages that are not enabled
         if (!gpu.regs.IsShaderConfigEnabled(index)) {
+            switch (program) {
+            case Maxwell::ShaderProgram::Geometry:
+                shader_program_manager->UseTrivialGeometryShader();
+                break;
+            }
             continue;
         }
 
@@ -288,11 +293,18 @@ void RasterizerOpenGL::SetupShaders() {
         switch (program) {
         case Maxwell::ShaderProgram::VertexA:
         case Maxwell::ShaderProgram::VertexB: {
-            shader_program_manager->UseProgrammableVertexShader(shader->GetProgramHandle());
+            shader_program_manager->UseProgrammableVertexShader(
+                shader->GetProgramHandle(primitive_mode));
+            break;
+        }
+        case Maxwell::ShaderProgram::Geometry: {
+            shader_program_manager->UseProgrammableGeometryShader(
+                shader->GetProgramHandle(primitive_mode));
             break;
         }
         case Maxwell::ShaderProgram::Fragment: {
-            shader_program_manager->UseProgrammableFragmentShader(shader->GetProgramHandle());
+            shader_program_manager->UseProgrammableFragmentShader(
+                shader->GetProgramHandle(primitive_mode));
             break;
         }
         default:
@@ -302,12 +314,13 @@ void RasterizerOpenGL::SetupShaders() {
         }
 
         // Configure the const buffers for this shader stage.
-        current_constbuffer_bindpoint = SetupConstBuffers(static_cast<Maxwell::ShaderStage>(stage),
-                                                          shader, current_constbuffer_bindpoint);
+        current_constbuffer_bindpoint =
+            SetupConstBuffers(static_cast<Maxwell::ShaderStage>(stage), shader, primitive_mode,
+                              current_constbuffer_bindpoint);
 
         // Configure the textures for this shader stage.
         current_texture_bindpoint = SetupTextures(static_cast<Maxwell::ShaderStage>(stage), shader,
-                                                  current_texture_bindpoint);
+                                                  primitive_mode, current_texture_bindpoint);
 
         // When VertexA is enabled, we have dual vertex shaders
         if (program == Maxwell::ShaderProgram::VertexA) {
@@ -317,8 +330,6 @@ void RasterizerOpenGL::SetupShaders() {
     }
 
     state.Apply();
-
-    shader_program_manager->UseTrivialGeometryShader();
 }
 
 std::size_t RasterizerOpenGL::CalculateVertexArraysSize() const {
@@ -580,7 +591,7 @@ void RasterizerOpenGL::DrawArrays() {
 
     SetupVertexArrays();
     DrawParameters params = SetupDraw();
-    SetupShaders();
+    SetupShaders(params.primitive_mode);
 
     buffer_cache.Unmap();
 
@@ -719,7 +730,7 @@ void RasterizerOpenGL::SamplerInfo::SyncWithConfig(const Tegra::Texture::TSCEntr
 }
 
 u32 RasterizerOpenGL::SetupConstBuffers(Maxwell::ShaderStage stage, Shader& shader,
-                                        u32 current_bindpoint) {
+                                        GLenum primitive_mode, u32 current_bindpoint) {
     MICROPROFILE_SCOPE(OpenGL_UBO);
     const auto& gpu = Core::System::GetInstance().GPU();
     const auto& maxwell3d = gpu.Maxwell3D();
@@ -771,7 +782,7 @@ u32 RasterizerOpenGL::SetupConstBuffers(Maxwell::ShaderStage stage, Shader& shad
             buffer.address, size, static_cast<std::size_t>(uniform_buffer_alignment));
 
         // Now configure the bindpoint of the buffer inside the shader
-        glUniformBlockBinding(shader->GetProgramHandle(),
+        glUniformBlockBinding(shader->GetProgramHandle(primitive_mode),
                               shader->GetProgramResourceIndex(used_buffer),
                               current_bindpoint + bindpoint);
 
@@ -787,7 +798,8 @@ u32 RasterizerOpenGL::SetupConstBuffers(Maxwell::ShaderStage stage, Shader& shad
     return current_bindpoint + static_cast<u32>(entries.size());
 }
 
-u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, Shader& shader, u32 current_unit) {
+u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, Shader& shader,
+                                    GLenum primitive_mode, u32 current_unit) {
     MICROPROFILE_SCOPE(OpenGL_Texture);
     const auto& gpu = Core::System::GetInstance().GPU();
     const auto& maxwell3d = gpu.Maxwell3D();
@@ -802,8 +814,8 @@ u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, Shader& shader, 
 
         // Bind the uniform to the sampler.
 
-        glProgramUniform1i(shader->GetProgramHandle(), shader->GetUniformLocation(entry),
-                           current_bindpoint);
+        glProgramUniform1i(shader->GetProgramHandle(primitive_mode),
+                           shader->GetUniformLocation(entry), current_bindpoint);
 
         const auto texture = maxwell3d.GetStageTexture(entry.GetStage(), entry.GetOffset());
 
