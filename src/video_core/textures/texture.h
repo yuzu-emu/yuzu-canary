@@ -227,6 +227,17 @@ enum class WrapMode : u32 {
     MirrorOnceClampOGL = 7,
 };
 
+enum class DepthCompareFunc : u32 {
+    Never = 0,
+    Less = 1,
+    Equal = 2,
+    LessEqual = 3,
+    Greater = 4,
+    NotEqual = 5,
+    GreaterEqual = 6,
+    Always = 7,
+};
+
 enum class TextureFilter : u32 {
     Nearest = 1,
     Linear = 2,
@@ -244,7 +255,7 @@ struct TSCEntry {
         BitField<3, 3, WrapMode> wrap_v;
         BitField<6, 3, WrapMode> wrap_p;
         BitField<9, 1, u32> depth_compare_enabled;
-        BitField<10, 3, u32> depth_compare_func;
+        BitField<10, 3, DepthCompareFunc> depth_compare_func;
     };
     union {
         BitField<0, 2, TextureFilter> mag_filter;
