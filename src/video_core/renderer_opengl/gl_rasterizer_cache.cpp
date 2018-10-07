@@ -143,6 +143,28 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     return params;
 }
 
+/*static*/ SurfaceParams SurfaceParams::CreateForFermiCopySurface(
+    const Tegra::Engines::Fermi2D::Regs::Surface& config) {
+    SurfaceParams params{};
+    params.addr = TryGetCpuAddr(config.Address());
+    params.is_tiled = !config.linear;
+    params.block_height = params.is_tiled ? config.BlockHeight() : 0,
+    params.pixel_format = PixelFormatFromRenderTargetFormat(config.format);
+    params.component_type = ComponentTypeFromRenderTarget(config.format);
+    params.type = GetFormatType(params.pixel_format);
+    params.width = config.width;
+    params.height = config.height;
+    params.unaligned_height = config.height;
+    params.target = SurfaceTarget::Texture2D;
+    params.depth = 1;
+    params.size_in_bytes_total = params.SizeInBytesTotal();
+    params.size_in_bytes_2d = params.SizeInBytes2D();
+    params.max_mip_level = 0;
+    params.rt = {};
+
+    return params;
+}
+
 static constexpr std::array<FormatTuple, SurfaceParams::MaxPixelFormat> tex_format_tuples = {{
     {GL_RGBA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, ComponentType::UNorm, false}, // ABGR8U
     {GL_RGBA8, GL_RGBA, GL_BYTE, ComponentType::SNorm, false},                     // ABGR8S
@@ -557,6 +579,18 @@ static bool BlitSurface(const Surface& src_surface, const Surface& dst_surface,
                       buffers == GL_COLOR_BUFFER_BIT ? GL_LINEAR : GL_NEAREST);
 
     return true;
+}
+
+static void FastCopySurface(const Surface& src_surface, const Surface& dst_surface) {
+    const auto& src_params{src_surface->GetSurfaceParams()};
+    const auto& dst_params{dst_surface->GetSurfaceParams()};
+
+    const u32 width{std::min(src_params.width, dst_params.width)};
+    const u32 height{std::min(src_params.height, dst_params.height)};
+
+    glCopyImageSubData(src_surface->Texture().handle, SurfaceTargetToGL(src_params.target), 0, 0, 0,
+                       0, dst_surface->Texture().handle, SurfaceTargetToGL(dst_params.target), 0, 0,
+                       0, 0, width, height, 1);
 }
 
 static void CopySurface(const Surface& src_surface, const Surface& dst_surface,
@@ -1033,6 +1067,26 @@ Surface RasterizerCacheOpenGL::GetUncachedSurface(const SurfaceParams& params) {
     return surface;
 }
 
+void RasterizerCacheOpenGL::FermiCopySurface(
+    const Tegra::Engines::Fermi2D::Regs::Surface& src_config,
+    const Tegra::Engines::Fermi2D::Regs::Surface& dst_config) {
+
+    const auto& src_params = SurfaceParams::CreateForFermiCopySurface(src_config);
+    const auto& dst_params = SurfaceParams::CreateForFermiCopySurface(dst_config);
+
+    ASSERT(src_params.width == dst_params.width);
+    ASSERT(src_params.height == dst_params.height);
+    ASSERT(src_params.pixel_format == dst_params.pixel_format);
+    ASSERT(src_params.block_height == dst_params.block_height);
+    ASSERT(src_params.is_tiled == dst_params.is_tiled);
+    ASSERT(src_params.depth == dst_params.depth);
+    ASSERT(src_params.depth == 1); // Currently, FastCopySurface only works with 2D surfaces
+    ASSERT(src_params.target == dst_params.target);
+    ASSERT(src_params.rt.index == dst_params.rt.index);
+
+    FastCopySurface(GetSurface(src_params, true), GetSurface(dst_params, false));
+}
+
 Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& old_surface,
                                                const SurfaceParams& new_params) {
     // Verify surface is compatible for blitting
@@ -1040,6 +1094,15 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& old_surface,
 
     // Get a new surface with the new parameters, and blit the previous surface to it
     Surface new_surface{GetUncachedSurface(new_params)};
+
+    // For compatible surfaces, we can just do fast glCopyImageSubData based copy
+    if (old_params.target == new_params.target && old_params.type == new_params.type &&
+        old_params.depth == new_params.depth && old_params.depth == 1 &&
+        SurfaceParams::GetFormatBpp(old_params.pixel_format) ==
+            SurfaceParams::GetFormatBpp(new_params.pixel_format)) {
+        FastCopySurface(old_surface, new_surface);
+        return new_surface;
+    }
 
     // If the format is the same, just do a framebuffer blit. This is significantly faster than
     // using PBOs. The is also likely less accurate, as textures will be converted rather than
