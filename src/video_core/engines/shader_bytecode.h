@@ -314,6 +314,15 @@ enum class TextureMiscMode : u64 {
     PTP,
 };
 
+enum class IsberdMode : u64 {
+    None = 0,
+    Patch = 1,
+    Prim = 2,
+    Attr = 3,
+};
+
+enum class IsberdShift : u64 { None = 0, U16 = 1, B32 = 2 };
+
 enum class IpaInterpMode : u64 {
     Linear = 0,
     Perspective = 1,
@@ -338,6 +347,87 @@ struct IpaMode {
     bool operator!=(const IpaMode& a) const {
         return !operator==(a);
     }
+};
+
+enum class SystemVariable : u64 {
+    LaneId = 0x00,
+    VirtCfg = 0x02,
+    VirtId = 0x03,
+    Pm0 = 0x04,
+    Pm1 = 0x05,
+    Pm2 = 0x06,
+    Pm3 = 0x07,
+    Pm4 = 0x08,
+    Pm5 = 0x09,
+    Pm6 = 0x0a,
+    Pm7 = 0x0b,
+    OrderingTicket = 0x0f,
+    PrimType = 0x10,
+    InvocationId = 0x11,
+    Ydirection = 0x12,
+    ThreadKill = 0x13,
+    ShaderType = 0x14,
+    DirectBeWriteAddressLow = 0x15,
+    DirectBeWriteAddressHigh = 0x16,
+    DirectBeWriteEnabled = 0x17,
+    MachineId0 = 0x18,
+    MachineId1 = 0x19,
+    MachineId2 = 0x1a,
+    MachineId3 = 0x1b,
+    Affinity = 0x1c,
+    InvocationInfo = 0x1d,
+    WscaleFactorXY = 0x1e,
+    WscaleFactorZ = 0x1f,
+    Tid = 0x20,
+    TidX = 0x21,
+    TidY = 0x22,
+    TidZ = 0x23,
+    CtaParam = 0x24,
+    CtaIdX = 0x25,
+    CtaIdY = 0x26,
+    CtaIdZ = 0x27,
+    NtId = 0x28,
+    CirQueueIncrMinusOne = 0x29,
+    Nlatc = 0x2a,
+    SmSpaVersion = 0x2c,
+    MultiPassShaderInfo = 0x2d,
+    LwinHi = 0x2e,
+    SwinHi = 0x2f,
+    SwinLo = 0x30,
+    SwinSz = 0x31,
+    SmemSz = 0x32,
+    SmemBanks = 0x33,
+    LwinLo = 0x34,
+    LwinSz = 0x35,
+    LmemLosz = 0x36,
+    LmemHioff = 0x37,
+    EqMask = 0x38,
+    LtMask = 0x39,
+    LeMask = 0x3a,
+    GtMask = 0x3b,
+    GeMask = 0x3c,
+    RegAlloc = 0x3d,
+    CtxAddr = 0x3e,      // .fmask = F_SM50
+    BarrierAlloc = 0x3e, // .fmask = F_SM60
+    GlobalErrorStatus = 0x40,
+    WarpErrorStatus = 0x42,
+    WarpErrorStatusClear = 0x43,
+    PmHi0 = 0x48,
+    PmHi1 = 0x49,
+    PmHi2 = 0x4a,
+    PmHi3 = 0x4b,
+    PmHi4 = 0x4c,
+    PmHi5 = 0x4d,
+    PmHi6 = 0x4e,
+    PmHi7 = 0x4f,
+    ClockLo = 0x50,
+    ClockHi = 0x51,
+    GlobalTimerLo = 0x52,
+    GlobalTimerHi = 0x53,
+    HwTaskId = 0x60,
+    CircularQueueEntryIndex = 0x61,
+    CircularQueueEntryAddressLow = 0x62,
+    CircularQueueEntryAddressHigh = 0x63,
 };
 
 union Instruction {
@@ -915,6 +1005,18 @@ union Instruction {
     } bra;
 
     union {
+        BitField<39, 1, u64> emit; // EmitVertex
+        BitField<40, 1, u64> cut;  // EndPrimitive
+    } out;
+
+    union {
+        BitField<31, 1, u64> skew;
+        BitField<32, 1, u64> o;
+        BitField<33, 2, IsberdMode> mode;
+        BitField<47, 2, IsberdShift> shift;
+    } isberd;
+
+    union {
         BitField<20, 16, u64> imm20_16;
         BitField<36, 1, u64> product_shift_left;
         BitField<37, 1, u64> merge_37;
@@ -935,6 +1037,10 @@ union Instruction {
         BitField<20, 16, s64> offset;
         BitField<36, 5, u64> index;
     } cbuf36;
+
+    // Unsure about the size of this one.
+    // It's always used with a gpr0, so any size should be fine.
+    BitField<20, 8, SystemVariable> sys20;
 
     BitField<47, 1, u64> generates_cc;
     BitField<61, 1, u64> is_b_imm;
@@ -975,6 +1081,8 @@ public:
         TMML,   // Texture Mip Map Level
         EXIT,
         IPA,
+        OUT_R, // Emit vertex/primitive
+        ISBERD,
         FFMA_IMM, // Fused Multiply and Add
         FFMA_CR,
         FFMA_RC,
@@ -1034,6 +1142,7 @@ public:
         MOV_C,
         MOV_R,
         MOV_IMM,
+        MOV_SYS,
         MOV32_IMM,
         SHL_C,
         SHL_R,
@@ -1209,6 +1318,8 @@ private:
             INST("1101111101011---", Id::TMML, Type::Memory, "TMML"),
             INST("111000110000----", Id::EXIT, Type::Trivial, "EXIT"),
             INST("11100000--------", Id::IPA, Type::Trivial, "IPA"),
+            INST("1111101111100---", Id::OUT_R, Type::Trivial, "OUT_R"),
+            INST("1110111111010---", Id::ISBERD, Type::Trivial, "ISBERD"),
             INST("0011001-1-------", Id::FFMA_IMM, Type::Ffma, "FFMA_IMM"),
             INST("010010011-------", Id::FFMA_CR, Type::Ffma, "FFMA_CR"),
             INST("010100011-------", Id::FFMA_RC, Type::Ffma, "FFMA_RC"),
@@ -1255,6 +1366,7 @@ private:
             INST("0100110010011---", Id::MOV_C, Type::Arithmetic, "MOV_C"),
             INST("0101110010011---", Id::MOV_R, Type::Arithmetic, "MOV_R"),
             INST("0011100-10011---", Id::MOV_IMM, Type::Arithmetic, "MOV_IMM"),
+            INST("1111000011001---", Id::MOV_SYS, Type::Trivial, "MOV_SYS"),
             INST("000000010000----", Id::MOV32_IMM, Type::ArithmeticImmediate, "MOV32_IMM"),
             INST("0100110001100---", Id::FMNMX_C, Type::Arithmetic, "FMNMX_C"),
             INST("0101110001100---", Id::FMNMX_R, Type::Arithmetic, "FMNMX_R"),

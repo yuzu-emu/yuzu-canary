@@ -120,7 +120,7 @@ private:
      * @returns The next available bindpoint for use in the next shader stage.
      */
     u32 SetupConstBuffers(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage, Shader& shader,
-                          u32 current_bindpoint);
+                          GLenum primitive_mode, u32 current_bindpoint);
 
     /*
      * Configures the current textures to use for the draw command.
@@ -130,7 +130,7 @@ private:
      * @returns The next available bindpoint for use in the next shader stage.
      */
     u32 SetupTextures(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage, Shader& shader,
-                      u32 current_unit);
+                      GLenum primitive_mode, u32 current_unit);
 
     /// Syncs the viewport to match the guest state
     void SyncViewport();
@@ -207,7 +207,7 @@ private:
 
     DrawParameters SetupDraw();
 
-    void SetupShaders();
+    void SetupShaders(GLenum primitive_mode);
 
     enum class AccelDraw { Disabled, Arrays, Indexed };
     AccelDraw accelerate_draw = AccelDraw::Disabled;
