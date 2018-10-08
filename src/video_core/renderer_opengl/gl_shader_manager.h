@@ -21,8 +21,9 @@ struct MaxwellUniformData {
     void SetFromRegs(const Maxwell3D::State::ShaderStageInfo& shader_stage);
     alignas(16) GLvec4 viewport_flip;
     alignas(16) GLuvec4 instance_id;
+    alignas(16) GLuvec4 flip_stage;
 };
-static_assert(sizeof(MaxwellUniformData) == 32, "MaxwellUniformData structure size is incorrect");
+static_assert(sizeof(MaxwellUniformData) == 48, "MaxwellUniformData structure size is incorrect");
 static_assert(sizeof(MaxwellUniformData) < 16384,
               "MaxwellUniformData structure must be less than 16kb as per the OpenGL spec");
 
@@ -34,6 +35,10 @@ public:
 
     void UseProgrammableVertexShader(GLuint program) {
         vs = program;
+    }
+
+    void UseProgrammableGeometryShader(GLuint program) {
+        gs = program;
     }
 
     void UseProgrammableFragmentShader(GLuint program) {
