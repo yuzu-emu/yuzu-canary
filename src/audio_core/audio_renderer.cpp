@@ -30,7 +30,7 @@ public:
         return info;
     }
 
-    VoiceInfo& Info() {
+    VoiceInfo& GetInfo() {
         return info;
     }
 
@@ -51,9 +51,30 @@ private:
     VoiceInfo info{};
 };
 
+class AudioRenderer::EffectState {
+public:
+    const EffectOutStatus& GetOutStatus() const {
+        return out_status;
+    }
+
+    const EffectInStatus& GetInfo() const {
+        return info;
+    }
+
+    EffectInStatus& GetInfo() {
+        return info;
+    }
+
+    void UpdateState();
+
+private:
+    EffectOutStatus out_status{};
+    EffectInStatus info{};
+};
 AudioRenderer::AudioRenderer(AudioRendererParameter params,
                              Kernel::SharedPtr<Kernel::Event> buffer_event)
-    : worker_params{params}, buffer_event{buffer_event}, voices(params.voice_count) {
+    : worker_params{params}, buffer_event{buffer_event}, voices(params.voice_count),
+      effects(params.effect_count) {
 
     audio_out = std::make_unique<AudioCore::AudioOut>();
     stream = audio_out->OpenStream(STREAM_SAMPLE_RATE, STREAM_NUM_CHANNELS, "AudioRenderer",
@@ -96,11 +117,29 @@ std::vector<u8> AudioRenderer::UpdateAudioRenderer(const std::vector<u8>& input_
                 memory_pool_count * sizeof(MemoryPoolInfo));
 
     // Copy VoiceInfo structs
-    std::size_t offset{sizeof(UpdateDataHeader) + config.behavior_size + config.memory_pools_size +
-                       config.voice_resource_size};
+    std::size_t voice_offset{sizeof(UpdateDataHeader) + config.behavior_size +
+                             config.memory_pools_size + config.voice_resource_size};
     for (auto& voice : voices) {
-        std::memcpy(&voice.Info(), input_params.data() + offset, sizeof(VoiceInfo));
-        offset += sizeof(VoiceInfo);
+        std::memcpy(&voice.GetInfo(), input_params.data() + voice_offset, sizeof(VoiceInfo));
+        voice_offset += sizeof(VoiceInfo);
+    }
+
+    std::size_t effect_offset{sizeof(UpdateDataHeader) + config.behavior_size +
+                              config.memory_pools_size + config.voice_resource_size +
+                              config.voices_size};
+    for (auto& effect : effects) {
+        std::memcpy(&effect.GetInfo(), input_params.data() + effect_offset, sizeof(EffectInStatus));
+        effect_offset += sizeof(EffectInStatus);
+    }
+
+    // Update memory pool state
+    std::vector<MemoryPoolEntry> memory_pool(memory_pool_count);
+    for (std::size_t index = 0; index < memory_pool.size(); ++index) {
+        if (mem_pool_info[index].pool_state == MemoryPoolStates::RequestAttach) {
+            memory_pool[index].state = MemoryPoolStates::Attached;
+        } else if (mem_pool_info[index].pool_state == MemoryPoolStates::RequestDetach) {
+            memory_pool[index].state = MemoryPoolStates::Detached;
+        }
     }
 
     // Update voices
@@ -114,14 +153,8 @@ std::vector<u8> AudioRenderer::UpdateAudioRenderer(const std::vector<u8>& input_
         }
     }
 
-    // Update memory pool state
-    std::vector<MemoryPoolEntry> memory_pool(memory_pool_count);
-    for (std::size_t index = 0; index < memory_pool.size(); ++index) {
-        if (mem_pool_info[index].pool_state == MemoryPoolStates::RequestAttach) {
-            memory_pool[index].state = MemoryPoolStates::Attached;
-        } else if (mem_pool_info[index].pool_state == MemoryPoolStates::RequestDetach) {
-            memory_pool[index].state = MemoryPoolStates::Detached;
-        }
+    for (auto& effect : effects) {
+        effect.UpdateState();
     }
 
     // Release previous buffers and queue next ones for playback
@@ -144,6 +177,14 @@ std::vector<u8> AudioRenderer::UpdateAudioRenderer(const std::vector<u8>& input_
         voice_out_status_offset += sizeof(VoiceOutStatus);
     }
 
+    std::size_t effect_out_status_offset{
+        sizeof(UpdateDataHeader) + response_data.memory_pools_size + response_data.voices_size +
+        response_data.voice_resource_size};
+    for (const auto& effect : effects) {
+        std::memcpy(output_params.data() + effect_out_status_offset, &effect.GetOutStatus(),
+                    sizeof(EffectOutStatus));
+        effect_out_status_offset += sizeof(EffectOutStatus);
+    }
     return output_params;
 }
 
@@ -244,9 +285,27 @@ void AudioRenderer::VoiceState::RefreshBuffer() {
         break;
     }
 
-    samples = Interpolate(interp_state, std::move(samples), Info().sample_rate, STREAM_SAMPLE_RATE);
+    samples =
+        Interpolate(interp_state, std::move(samples), GetInfo().sample_rate, STREAM_SAMPLE_RATE);
 
     is_refresh_pending = false;
+}
+
+void AudioRenderer::EffectState::UpdateState() {
+    if (info.is_new) {
+        out_status.state = EffectStatus::New;
+    } else {
+        if (info.type == Effect::Aux) {
+            ASSERT_MSG(Memory::Read32(info.aux_info.return_buffer_info) == 0,
+                       "Aux buffers tried to update");
+            ASSERT_MSG(Memory::Read32(info.aux_info.send_buffer_info) == 0,
+                       "Aux buffers tried to update");
+            ASSERT_MSG(Memory::Read32(info.aux_info.return_buffer_base) == 0,
+                       "Aux buffers tried to update");
+            ASSERT_MSG(Memory::Read32(info.aux_info.send_buffer_base) == 0,
+                       "Aux buffers tried to update");
+        }
+    }
 }
 
 static constexpr s16 ClampToS16(s32 value) {
