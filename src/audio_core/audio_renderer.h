@@ -28,6 +28,16 @@ enum class PlayState : u8 {
     Paused = 2,
 };
 
+enum class Effect : u8 {
+    None = 0,
+    Aux = 2,
+};
+
+enum class EffectStatus : u8 {
+    None = 0,
+    New = 1,
+};
+
 struct AudioRendererParameter {
     u32_le sample_rate;
     u32_le sample_count;
@@ -128,6 +138,43 @@ struct VoiceOutStatus {
 };
 static_assert(sizeof(VoiceOutStatus) == 0x10, "VoiceOutStatus has wrong size");
 
+struct AuxInfo {
+    std::array<u8, 24> input_mix_buffers;
+    std::array<u8, 24> output_mix_buffers;
+    u32_le mix_buffer_count;
+    u32_le sample_rate; // Stored in the aux buffer currently
+    u32_le sampe_count;
+    u64_le send_buffer_info;
+    u64_le send_buffer_base;
+
+    u64_le return_buffer_info;
+    u64_le return_buffer_base;
+};
+static_assert(sizeof(AuxInfo) == 0x60, "AuxInfo is an invalid size");
+
+struct EffectInStatus {
+    Effect type;
+    u8 is_new;
+    u8 is_enabled;
+    INSERT_PADDING_BYTES(1);
+    u32_le mix_id;
+    u64_le buffer_base;
+    u64_le buffer_sz;
+    s32_le priority;
+    INSERT_PADDING_BYTES(4);
+    union {
+        std::array<u8, 0xa0> raw;
+        AuxInfo aux_info;
+    };
+};
+static_assert(sizeof(EffectInStatus) == 0xc0, "EffectInStatus is an invalid size");
+
+struct EffectOutStatus {
+    EffectStatus state;
+    INSERT_PADDING_BYTES(0xf);
+};
+static_assert(sizeof(EffectOutStatus) == 0x10, "EffectOutStatus is an invalid size");
+
 struct UpdateDataHeader {
     UpdateDataHeader() {}
 
@@ -173,11 +220,13 @@ public:
     Stream::State GetStreamState() const;
 
 private:
+    class EffectState;
     class VoiceState;
 
     AudioRendererParameter worker_params;
     Kernel::SharedPtr<Kernel::Event> buffer_event;
     std::vector<VoiceState> voices;
+    std::vector<EffectState> effects;
     std::unique_ptr<AudioOut> audio_out;
     AudioCore::StreamPtr stream;
 };
