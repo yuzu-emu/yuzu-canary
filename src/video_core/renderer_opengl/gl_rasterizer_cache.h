@@ -718,7 +718,8 @@ struct SurfaceParams {
     /// Creates SurfaceParams for a depth buffer configuration
     static SurfaceParams CreateForDepthBuffer(u32 zeta_width, u32 zeta_height,
                                               Tegra::GPUVAddr zeta_address,
-                                              Tegra::DepthFormat format);
+                                              Tegra::DepthFormat format, u32 block_width,
+                                              u32 block_height, u32 block_depth);
 
     /// Creates SurfaceParams for a Fermi2D surface copy
     static SurfaceParams CreateForFermiCopySurface(
@@ -733,7 +734,9 @@ struct SurfaceParams {
 
     VAddr addr;
     bool is_tiled;
+    u32 block_width;
     u32 block_height;
+    u32 block_depth;
     PixelFormat pixel_format;
     ComponentType component_type;
     SurfaceType type;
