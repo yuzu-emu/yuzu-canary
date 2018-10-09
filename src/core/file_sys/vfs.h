@@ -12,19 +12,11 @@
 #include <vector>
 #include <boost/optional.hpp>
 #include "common/common_types.h"
+#include "core/file_sys/vfs_types.h"
 
 namespace FileSys {
 
-class VfsDirectory;
-class VfsFile;
-class VfsFilesystem;
-
 enum class Mode : u32;
-
-// Convenience typedefs to use Vfs* interfaces
-using VirtualFilesystem = std::shared_ptr<VfsFilesystem>;
-using VirtualDir = std::shared_ptr<VfsDirectory>;
-using VirtualFile = std::shared_ptr<VfsFile>;
 
 // An enumeration representing what can be at the end of a path in a VfsFilesystem
 enum class VfsEntryType {

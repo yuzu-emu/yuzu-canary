@@ -103,6 +103,7 @@
     </property>
     <addaction name="action_Report_Compatibility"/>
     <addaction name="separator"/>
+     <addaction name="action_Rederive"/>
     <addaction name="action_About"/>
    </widget>
    <addaction name="menu_File"/>
@@ -159,6 +160,11 @@
     <string>&amp;Stop</string>
    </property>
   </action>
+   <action name="action_Rederive">
+     <property name="text">
+       <string>Reinitialize keys...</string>
+     </property>
+   </action>
   <action name="action_About">
    <property name="text">
     <string>About yuzu</string>
