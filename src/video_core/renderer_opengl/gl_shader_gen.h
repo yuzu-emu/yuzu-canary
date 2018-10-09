@@ -196,6 +196,12 @@ private:
 ProgramResult GenerateVertexShader(const ShaderSetup& setup);
 
 /**
+ * Generates the GLSL geometry shader program source code for the given GS program
+ * @returns String of the shader source code
+ */
+ProgramResult GenerateGeometryShader(const ShaderSetup& setup);
+
+/**
  * Generates the GLSL fragment shader program source code for the given FS program
  * @returns String of the shader source code
  */
