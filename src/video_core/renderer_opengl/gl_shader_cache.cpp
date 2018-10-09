@@ -68,6 +68,10 @@ CachedShader::CachedShader(VAddr addr, Maxwell::ShaderProgram program_type)
         program_result = GLShader::GenerateVertexShader(setup);
         gl_type = GL_VERTEX_SHADER;
         break;
+    case Maxwell::ShaderProgram::Geometry:
+        program_result = GLShader::GenerateGeometryShader(setup);
+        gl_type = GL_GEOMETRY_SHADER;
+        break;
     case Maxwell::ShaderProgram::Fragment:
         program_result = GLShader::GenerateFragmentShader(setup);
         gl_type = GL_FRAGMENT_SHADER;
@@ -80,11 +84,16 @@ CachedShader::CachedShader(VAddr addr, Maxwell::ShaderProgram program_type)
 
     entries = program_result.second;
 
-    OGLShader shader;
-    shader.Create(program_result.first.c_str(), gl_type);
-    program.Create(true, shader.handle);
-    SetShaderUniformBlockBindings(program.handle);
-    VideoCore::LabelGLObject(GL_PROGRAM, program.handle, addr);
+    if (program_type != Maxwell::ShaderProgram::Geometry) {
+        OGLShader shader;
+        shader.Create(program_result.first.c_str(), gl_type);
+        program.Create(true, shader.handle);
+        SetShaderUniformBlockBindings(program.handle);
+        VideoCore::LabelGLObject(GL_PROGRAM, program.handle, addr);
+    } else {
+        // Store shader's code to lazily build it on draw
+        geometry_programs.code = program_result.first;
+    }
 }
 
 GLuint CachedShader::GetProgramResourceIndex(const GLShader::ConstBufferEntry& buffer) {
@@ -109,6 +118,21 @@ GLint CachedShader::GetUniformLocation(const GLShader::SamplerEntry& sampler) {
 
     return search->second;
 }
+
+GLuint CachedShader::LazyGeometryProgram(OGLProgram& target_program,
+                                         const std::string& glsl_topology,
+                                         const std::string& debug_name) {
+    if (target_program.handle != 0) {
+        return target_program.handle;
+    }
+    const std::string source{geometry_programs.code + "layout (" + glsl_topology + ") in;\n"};
+    OGLShader shader;
+    shader.Create(source.c_str(), GL_GEOMETRY_SHADER);
+    target_program.Create(true, shader.handle);
+    SetShaderUniformBlockBindings(target_program.handle);
+    VideoCore::LabelGLObject(GL_PROGRAM, target_program.handle, addr, debug_name);
+    return target_program.handle;
+};
 
 Shader ShaderCacheOpenGL::GetStageProgram(Maxwell::ShaderProgram program) {
     const VAddr program_addr{GetShaderAddress(program)};
