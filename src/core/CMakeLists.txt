@@ -233,6 +233,24 @@ add_library(core STATIC
     hle/service/hid/irs.h
     hle/service/hid/xcd.cpp
     hle/service/hid/xcd.h
+    hle/service/hid/controllers/controller_base.cpp
+    hle/service/hid/controllers/controller_base.h
+    hle/service/hid/controllers/debug_pad.cpp
+    hle/service/hid/controllers/debug_pad.h
+    hle/service/hid/controllers/gesture.cpp
+    hle/service/hid/controllers/gesture.h
+    hle/service/hid/controllers/keyboard.cpp
+    hle/service/hid/controllers/keyboard.h
+    hle/service/hid/controllers/mouse.cpp
+    hle/service/hid/controllers/mouse.h
+    hle/service/hid/controllers/npad.cpp
+    hle/service/hid/controllers/npad.h
+    hle/service/hid/controllers/stubbed.cpp
+    hle/service/hid/controllers/stubbed.h
+    hle/service/hid/controllers/touchscreen.cpp
+    hle/service/hid/controllers/touchscreen.h
+    hle/service/hid/controllers/xpad.cpp
+    hle/service/hid/controllers/xpad.h
     hle/service/lbl/lbl.cpp
     hle/service/lbl/lbl.h
     hle/service/ldn/ldn.cpp
