@@ -1,3 +1,25 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 68b3d8b7a974780ff1eef3fe5764b2dd9cdb4d32
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1460](https://github.com/yuzu-emu/yuzu/pull/1460)|[be97fc8](https://github.com/yuzu-emu/yuzu/pull/1460/files/)|Implemented Scissor Testing|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1458](https://github.com/yuzu-emu/yuzu/pull/1458)|[5f4ee6f](https://github.com/yuzu-emu/yuzu/pull/1458/files/)|Fixed block height settings for RenderTargets and Depth Buffers|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1444](https://github.com/yuzu-emu/yuzu/pull/1444)|[9e924f2](https://github.com/yuzu-emu/yuzu/pull/1444/files/)|"Better Hid" Rework Part 1|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1425](https://github.com/yuzu-emu/yuzu/pull/1425)|[7c2d6ef](https://github.com/yuzu-emu/yuzu/pull/1425/files/)|gl_shader_decompiler: Implement geometry shaders|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[1409](https://github.com/yuzu-emu/yuzu/pull/1409)|[3ec0546](https://github.com/yuzu-emu/yuzu/pull/1409/files/)|crypto: Add support for full key derivation|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
