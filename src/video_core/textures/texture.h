@@ -161,7 +161,9 @@ struct TICEntry {
         BitField<21, 3, TICHeaderVersion> header_version;
     };
     union {
+        BitField<0, 3, u32> block_width;
         BitField<3, 3, u32> block_height;
+        BitField<6, 3, u32> block_depth;
 
         // High 16 bits of the pitch value
         BitField<0, 16, u32> pitch_high;
@@ -202,11 +204,22 @@ struct TICEntry {
         return depth_minus_1 + 1;
     }
 
+    u32 BlockWidth() const {
+        ASSERT(IsTiled());
+        // The block height is stored in log2 format.
+        return 1 << block_width;
+    }
+
     u32 BlockHeight() const {
-        ASSERT(header_version == TICHeaderVersion::BlockLinear ||
-               header_version == TICHeaderVersion::BlockLinearColorKey);
+        ASSERT(IsTiled());
         // The block height is stored in log2 format.
         return 1 << block_height;
+    }
+
+    u32 BlockDepth() const {
+        ASSERT(IsTiled());
+        // The block height is stored in log2 format.
+        return 1 << block_depth;
     }
 
     bool IsTiled() const {
