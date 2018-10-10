@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 
+#include "common/assert.h"
 #include "common/common_types.h"
 #include "video_core/rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
@@ -38,8 +39,31 @@ public:
     }
 
     /// Gets the GL program handle for the shader
-    GLuint GetProgramHandle() const {
-        return program.handle;
+    GLuint GetProgramHandle(GLenum primitive_mode) {
+        if (program_type != Maxwell::ShaderProgram::Geometry) {
+            return program.handle;
+        }
+        switch (primitive_mode) {
+        case GL_POINTS:
+            return LazyGeometryProgram(geometry_programs.points, "points", "ShaderPoints");
+        case GL_LINES:
+        case GL_LINE_STRIP:
+            return LazyGeometryProgram(geometry_programs.lines, "lines", "ShaderLines");
+        case GL_LINES_ADJACENCY:
+        case GL_LINE_STRIP_ADJACENCY:
+            return LazyGeometryProgram(geometry_programs.lines_adjacency, "lines_adjacency",
+                                       "ShaderLinesAdjacency");
+        case GL_TRIANGLES:
+        case GL_TRIANGLE_STRIP:
+        case GL_TRIANGLE_FAN:
+            return LazyGeometryProgram(geometry_programs.triangles, "triangles", "ShaderTriangles");
+        case GL_TRIANGLES_ADJACENCY:
+        case GL_TRIANGLE_STRIP_ADJACENCY:
+            return LazyGeometryProgram(geometry_programs.triangles_adjacency, "triangles_adjacency",
+                                       "ShaderLines");
+        default:
+            UNREACHABLE_MSG("Unknown primitive mode.");
+        }
     }
 
     /// Gets the GL program resource location for the specified resource, caching as needed
@@ -49,11 +73,29 @@ public:
     GLint GetUniformLocation(const GLShader::SamplerEntry& sampler);
 
 private:
+    /// Generates a geometry shader or returns one that already exists.
+    GLuint LazyGeometryProgram(OGLProgram& target_program, const std::string& glsl_topology,
+                               const std::string& debug_name);
+
     VAddr addr;
     Maxwell::ShaderProgram program_type;
     GLShader::ShaderSetup setup;
     GLShader::ShaderEntries entries;
+
+    // Non-geometry program.
     OGLProgram program;
+
+    // Geometry programs. These are needed because GLSL needs an input topology but it's not
+    // declared by the hardware. Workaround this issue by generating a different shader per input
+    // topology class.
+    struct {
+        std::string code;
+        OGLProgram points;
+        OGLProgram lines;
+        OGLProgram lines_adjacency;
+        OGLProgram triangles;
+        OGLProgram triangles_adjacency;
+    } geometry_programs;
 
     std::map<u32, GLuint> resource_cache;
     std::map<u32, GLint> uniform_cache;
