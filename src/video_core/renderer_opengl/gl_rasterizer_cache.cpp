@@ -45,7 +45,9 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     SurfaceParams params{};
     params.addr = TryGetCpuAddr(config.tic.Address());
     params.is_tiled = config.tic.IsTiled();
+    params.block_width = params.is_tiled ? config.tic.BlockWidth() : 0,
     params.block_height = params.is_tiled ? config.tic.BlockHeight() : 0,
+    params.block_depth = params.is_tiled ? config.tic.BlockDepth() : 0,
     params.pixel_format =
         PixelFormatFromTextureFormat(config.tic.format, config.tic.r_type.Value());
     params.component_type = ComponentTypeFromTexture(config.tic.r_type.Value());
@@ -97,8 +99,11 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     const auto& config{Core::System::GetInstance().GPU().Maxwell3D().regs.rt[index]};
     SurfaceParams params{};
     params.addr = TryGetCpuAddr(config.Address());
-    params.is_tiled = true;
-    params.block_height = Tegra::Texture::TICEntry::DefaultBlockHeight;
+    params.is_tiled =
+        config.memory_layout.type == Tegra::Engines::Maxwell3D::Regs::InvMemoryLayout::BlockLinear;
+    params.block_width = 1 << config.memory_layout.block_width;
+    params.block_height = 1 << config.memory_layout.block_height;
+    params.block_depth = 1 << config.memory_layout.block_depth;
     params.pixel_format = PixelFormatFromRenderTargetFormat(config.format);
     params.component_type = ComponentTypeFromRenderTarget(config.format);
     params.type = GetFormatType(params.pixel_format);
@@ -120,13 +125,16 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     return params;
 }
 
-/*static*/ SurfaceParams SurfaceParams::CreateForDepthBuffer(u32 zeta_width, u32 zeta_height,
-                                                             Tegra::GPUVAddr zeta_address,
-                                                             Tegra::DepthFormat format) {
+/*static*/ SurfaceParams SurfaceParams::CreateForDepthBuffer(
+    u32 zeta_width, u32 zeta_height, Tegra::GPUVAddr zeta_address, Tegra::DepthFormat format,
+    u32 block_width, u32 block_height, u32 block_depth,
+    Tegra::Engines::Maxwell3D::Regs::InvMemoryLayout type) {
     SurfaceParams params{};
     params.addr = TryGetCpuAddr(zeta_address);
-    params.is_tiled = true;
-    params.block_height = Tegra::Texture::TICEntry::DefaultBlockHeight;
+    params.is_tiled = type == Tegra::Engines::Maxwell3D::Regs::InvMemoryLayout::BlockLinear;
+    params.block_width = 1 << std::min(block_width, 5U);
+    params.block_height = 1 << std::min(block_height, 5U);
+    params.block_depth = 1 << std::min(block_depth, 5U);
     params.pixel_format = PixelFormatFromDepthFormat(format);
     params.component_type = ComponentTypeFromDepthFormat(format);
     params.type = GetFormatType(params.pixel_format);
@@ -148,7 +156,9 @@ static VAddr TryGetCpuAddr(Tegra::GPUVAddr gpu_addr) {
     SurfaceParams params{};
     params.addr = TryGetCpuAddr(config.Address());
     params.is_tiled = !config.linear;
-    params.block_height = params.is_tiled ? config.BlockHeight() : 0,
+    params.block_width = params.is_tiled ? std::min(config.BlockWidth(), 32U) : 0,
+    params.block_height = params.is_tiled ? std::min(config.BlockHeight(), 32U) : 0,
+    params.block_depth = params.is_tiled ? std::min(config.BlockDepth(), 32U) : 0,
     params.pixel_format = PixelFormatFromRenderTargetFormat(config.format);
     params.component_type = ComponentTypeFromRenderTarget(config.format);
     params.type = GetFormatType(params.pixel_format);
@@ -818,6 +828,11 @@ void CachedSurface::LoadGLBuffer() {
     if (params.is_tiled) {
         gl_buffer.resize(total_size);
 
+        ASSERT_MSG(params.block_width == 1, "Block width is defined as {} on texture type {}",
+                   params.block_width, static_cast<u32>(params.target));
+        ASSERT_MSG(params.block_depth == 1, "Block depth is defined as {} on texture type {}",
+                   params.block_depth, static_cast<u32>(params.target));
+
         // TODO(bunnei): This only unswizzles and copies a 2D texture - we do not yet know how to do
         // this for 3D textures, etc.
         switch (params.target) {
@@ -989,7 +1004,9 @@ Surface RasterizerCacheOpenGL::GetDepthBufferSurface(bool preserve_contents) {
     }
 
     SurfaceParams depth_params{SurfaceParams::CreateForDepthBuffer(
-        regs.zeta_width, regs.zeta_height, regs.zeta.Address(), regs.zeta.format)};
+        regs.zeta_width, regs.zeta_height, regs.zeta.Address(), regs.zeta.format,
+        regs.zeta.memory_layout.block_width, regs.zeta.memory_layout.block_height,
+        regs.zeta.memory_layout.block_depth, regs.zeta.memory_layout.type)};
 
     return GetSurface(depth_params, preserve_contents);
 }
