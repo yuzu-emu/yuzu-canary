@@ -165,6 +165,9 @@ private:
     /// Syncs the alpha test state to match the guest state
     void SyncAlphaTest();
 
+    /// Syncs the scissor test state to match the guest state
+    void SyncScissorTest();
+
     /// Syncs the transform feedback state to match the guest state
     void SyncTransformFeedback();
 
