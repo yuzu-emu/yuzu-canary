@@ -36,9 +36,9 @@ public:
             RenderTargetFormat format;
             BitField<0, 1, u32> linear;
             union {
-                BitField<0, 4, u32> block_depth;
+                BitField<0, 4, u32> block_width;
                 BitField<4, 4, u32> block_height;
-                BitField<8, 4, u32> block_width;
+                BitField<8, 4, u32> block_depth;
             };
             u32 depth;
             u32 layer;
@@ -53,9 +53,19 @@ public:
                                              address_low);
             }
 
+            u32 BlockWidth() const {
+                // The block width is stored in log2 format.
+                return 1 << block_width;
+            }
+
             u32 BlockHeight() const {
                 // The block height is stored in log2 format.
                 return 1 << block_height;
+            }
+
+            u32 BlockDepth() const {
+                // The block depth is stored in log2 format.
+                return 1 << block_depth;
             }
         };
         static_assert(sizeof(Surface) == 0x28, "Surface has incorrect size");

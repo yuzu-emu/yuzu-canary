@@ -347,6 +347,16 @@ public:
             DecrWrap = 8,
         };
 
+        enum class MemoryLayout : u32 {
+            Linear = 0,
+            BlockLinear = 1,
+        };
+
+        enum class InvMemoryLayout : u32 {
+            BlockLinear = 0,
+            Linear = 1,
+        };
+
         struct Cull {
             enum class FrontFace : u32 {
                 ClockWise = 0x0900,
@@ -432,7 +442,12 @@ public:
             u32 width;
             u32 height;
             Tegra::RenderTargetFormat format;
-            u32 block_dimensions;
+            union {
+                BitField<0, 3, u32> block_width;
+                BitField<4, 3, u32> block_height;
+                BitField<8, 3, u32> block_depth;
+                BitField<12, 1, InvMemoryLayout> type;
+            } memory_layout;
             u32 array_mode;
             u32 layer_stride;
             u32 base_layer;
@@ -562,7 +577,12 @@ public:
                     u32 address_high;
                     u32 address_low;
                     Tegra::DepthFormat format;
-                    u32 block_dimensions;
+                    union {
+                        BitField<0, 4, u32> block_width;
+                        BitField<4, 4, u32> block_height;
+                        BitField<8, 4, u32> block_depth;
+                        BitField<20, 1, InvMemoryLayout> type;
+                    } memory_layout;
                     u32 layer_stride;
 
                     GPUVAddr Address() const {
