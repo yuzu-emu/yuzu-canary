@@ -16,6 +16,17 @@ void MaxwellUniformData::SetFromRegs(const Maxwell3D::State::ShaderStageInfo& sh
     viewport_flip[0] = regs.viewport_transform[0].scale_x < 0.0 ? -1.0f : 1.0f;
     viewport_flip[1] = regs.viewport_transform[0].scale_y < 0.0 ? -1.0f : 1.0f;
 
+    u32 func = static_cast<u32>(regs.alpha_test_func);
+    // Normalize the gl variants of opCompare to be the same as the normal variants
+    u32 op_gl_variant_base = static_cast<u32>(Tegra::Engines::Maxwell3D::Regs::ComparisonOp::Never);
+    if (func >= op_gl_variant_base) {
+        func = func - op_gl_variant_base + 1U;
+    }
+
+    alpha_test.enabled = regs.alpha_test_enabled;
+    alpha_test.func = func;
+    alpha_test.ref = regs.alpha_test_ref;
+
     // We only assign the instance to the first component of the vector, the rest is just padding.
     instance_id[0] = state.current_instance;
 
