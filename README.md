@@ -1,3 +1,27 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 83ac3e63959382c6341febfe997813dbd332876d
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1476](https://github.com/yuzu-emu/yuzu/pull/1476)|[bf795ed](https://github.com/yuzu-emu/yuzu/pull/1476/files/)|nvhost_as_gpu: Flush/invalidate CPU VAddr on UnmapBuffer.|[bunnei](https://github.com/bunnei)|Yes|
+|[1475](https://github.com/yuzu-emu/yuzu/pull/1475)|[403fc46](https://github.com/yuzu-emu/yuzu/pull/1475/files/)|Implement VI ConvertScalingMode|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1474](https://github.com/yuzu-emu/yuzu/pull/1474)|[fa10905](https://github.com/yuzu-emu/yuzu/pull/1474/files/)|HwOpus, Implemented DecodeInterleavedWithPerformance|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1472](https://github.com/yuzu-emu/yuzu/pull/1472)|[72e9cb5](https://github.com/yuzu-emu/yuzu/pull/1472/files/)|svc: Add missing address range sanitizing checks to MapMemory/UnmapMemory|[lioncash](https://github.com/lioncash)|Yes|
+|[1470](https://github.com/yuzu-emu/yuzu/pull/1470)|[a3f6056](https://github.com/yuzu-emu/yuzu/pull/1470/files/)|Implemented Alpha Test using Shader Emulation|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1444](https://github.com/yuzu-emu/yuzu/pull/1444)|[85b0d9a](https://github.com/yuzu-emu/yuzu/pull/1444/files/)|"Better Hid" Rework Part 1|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1409](https://github.com/yuzu-emu/yuzu/pull/1409)|[3ec0546](https://github.com/yuzu-emu/yuzu/pull/1409/files/)|crypto: Add support for full key derivation|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
