@@ -27,6 +27,7 @@ layout(std140) uniform vs_config {
     vec4 viewport_flip;
     uvec4 instance_id;
     uvec4 flip_stage;
+    uvec4 alpha_test;
 };
 )";
 
@@ -100,6 +101,7 @@ layout (std140) uniform gs_config {
     vec4 viewport_flip;
     uvec4 instance_id;
     uvec4 flip_stage;
+    uvec4 alpha_test;
 };
 
 void main() {
@@ -135,7 +137,31 @@ layout (std140) uniform fs_config {
     vec4 viewport_flip;
     uvec4 instance_id;
     uvec4 flip_stage;
+    uvec4 alpha_test;
 };
+
+bool AlphaFunc(in float value, in float ref, in uint func) {
+    switch (func) {
+        case 1:
+            return false;
+        case 2:
+            return value < ref;
+        case 3:
+            return value == ref;
+        case 4:
+            return value <= ref;
+        case 5:
+            return value > ref;
+        case 6:
+            return value != ref;
+        case 7:
+            return value >= ref;
+        case 8:
+            return true;
+        default:
+            return false;
+    }
+}
 
 void main() {
     exec_fragment();
