@@ -968,6 +968,45 @@ private:
         rb.PushCopyObjects(vsync_event);
     }
 
+    enum class ConvertedScaleMode : u64 {
+        None = 0, // VI seems to name this as "Unknown" but lots of games pass it, assume it's no
+                  // scaling/default
+        Freeze = 1,
+        ScaleToWindow = 2,
+        Crop = 3,
+        NoCrop = 4,
+    };
+
+    void ConvertScalingMode(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        auto mode = rp.PopRaw<u32>();
+        LOG_DEBUG(Service_VI, "called mode={}", mode);
+
+        IPC::ResponseBuilder rb{ctx, 4};
+        rb.Push(RESULT_SUCCESS);
+        switch (mode) {
+        case 0:
+            rb.PushEnum<ConvertedScaleMode>(ConvertedScaleMode::None);
+            break;
+        case 1:
+            rb.PushEnum<ConvertedScaleMode>(ConvertedScaleMode::Freeze);
+            break;
+        case 2:
+            rb.PushEnum<ConvertedScaleMode>(ConvertedScaleMode::ScaleToWindow);
+            break;
+        case 3:
+            rb.PushEnum<ConvertedScaleMode>(ConvertedScaleMode::Crop);
+            break;
+        case 4:
+            rb.PushEnum<ConvertedScaleMode>(ConvertedScaleMode::NoCrop);
+            break;
+        default:
+            UNIMPLEMENTED_MSG("Unknown scaling mode {}", mode);
+            rb.PushEnum<ConvertedScaleMode>(ConvertedScaleMode::None);
+            break;
+        }
+    }
+
     std::shared_ptr<NVFlinger::NVFlinger> nv_flinger;
 };
 
@@ -991,7 +1030,7 @@ IApplicationDisplayService::IApplicationDisplayService(
         {2030, &IApplicationDisplayService::CreateStrayLayer, "CreateStrayLayer"},
         {2031, &IApplicationDisplayService::DestroyStrayLayer, "DestroyStrayLayer"},
         {2101, &IApplicationDisplayService::SetLayerScalingMode, "SetLayerScalingMode"},
-        {2102, nullptr, "ConvertScalingMode"},
+        {2102, &IApplicationDisplayService::ConvertScalingMode, "ConvertScalingMode"},
         {2450, nullptr, "GetIndirectLayerImageMap"},
         {2451, nullptr, "GetIndirectLayerImageCropMap"},
         {2460, nullptr, "GetIndirectLayerImageRequiredMemoryInfo"},
