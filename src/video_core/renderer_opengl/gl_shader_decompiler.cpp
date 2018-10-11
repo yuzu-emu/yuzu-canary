@@ -1185,9 +1185,30 @@ private:
 
         ASSERT_MSG(header.ps.omap.sample_mask == 0, "Samplemask write is unimplemented");
 
+        shader.AddLine("if (alpha_test[0] != 0) {");
+        ++shader.scope;
+        // We start on the register containing the alpha value in the first RT.
+        u32 current_reg = 3;
+        for (u32 render_target = 0; render_target < Maxwell3D::Regs::NumRenderTargets;
+             ++render_target) {
+            // TODO(Blinkhawk): verify the behavior of alpha testing on hardware when
+            // multiple render targets are used.
+            if (header.ps.IsColorComponentOutputEnabled(render_target, 0) ||
+                header.ps.IsColorComponentOutputEnabled(render_target, 1) ||
+                header.ps.IsColorComponentOutputEnabled(render_target, 2) ||
+                header.ps.IsColorComponentOutputEnabled(render_target, 3)) {
+                shader.AddLine(fmt::format(
+                    "if (AlphaFunc({}, uintBitsToFloat(alpha_test[2]), alpha_test[1])) discard;",
+                    regs.GetRegisterAsFloat(current_reg)));
+                current_reg += 4;
+            }
+        }
+        --shader.scope;
+        shader.AddLine('}');
+
         // Write the color outputs using the data in the shader registers, disabled
         // rendertargets/components are skipped in the register assignment.
-        u32 current_reg = 0;
+        current_reg = 0;
         for (u32 render_target = 0; render_target < Maxwell3D::Regs::NumRenderTargets;
              ++render_target) {
             // TODO(Subv): Figure out how dual-source blending is configured in the Switch.
@@ -3169,7 +3190,7 @@ private:
 
     // Declarations
     std::set<std::string> declr_predicates;
-}; // namespace Decompiler
+}; // namespace OpenGL::GLShader::Decompiler
 
 std::string GetCommonDeclarations() {
     return fmt::format("#define MAX_CONSTBUFFER_ELEMENTS {}\n",
