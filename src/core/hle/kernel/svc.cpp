@@ -39,6 +39,73 @@ namespace {
 constexpr bool Is4KBAligned(VAddr address) {
     return (address & 0xFFF) == 0;
 }
+
+// Checks if address + size is greater than the given address
+// This can return false if the size causes an overflow of a 64-bit type
+// or if the given size is zero.
+constexpr bool IsValidAddressRange(VAddr address, u64 size) {
+    return address + size > address;
+}
+
+// Checks if a given address range lies within a larger address range.
+constexpr bool IsInsideAddressRange(VAddr address, u64 size, VAddr address_range_begin,
+                                    VAddr address_range_end) {
+    const VAddr end_address = address + size - 1;
+    return address_range_begin <= address && end_address <= address_range_end - 1;
+}
+
+bool IsInsideAddressSpace(const VMManager& vm, VAddr address, u64 size) {
+    return IsInsideAddressRange(address, size, vm.GetAddressSpaceBaseAddress(),
+                                vm.GetAddressSpaceEndAddress());
+}
+
+bool IsInsideNewMapRegion(const VMManager& vm, VAddr address, u64 size) {
+    return IsInsideAddressRange(address, size, vm.GetNewMapRegionBaseAddress(),
+                                vm.GetNewMapRegionEndAddress());
+}
+
+// Helper function that performs the common sanity checks for svcMapMemory
+// and svcUnmapMemory. This is doable, as both functions perform their sanitizing
+// in the same order.
+ResultCode MapUnmapMemorySanityChecks(const VMManager& vm_manager, VAddr dst_addr, VAddr src_addr,
+                                      u64 size) {
+    if (!Is4KBAligned(dst_addr) || !Is4KBAligned(src_addr)) {
+        return ERR_INVALID_ADDRESS;
+    }
+
+    if (size == 0 || !Is4KBAligned(size)) {
+        return ERR_INVALID_SIZE;
+    }
+
+    if (!IsValidAddressRange(dst_addr, size)) {
+        return ERR_INVALID_ADDRESS_STATE;
+    }
+
+    if (!IsValidAddressRange(src_addr, size)) {
+        return ERR_INVALID_ADDRESS_STATE;
+    }
+
+    if (!IsInsideAddressSpace(vm_manager, src_addr, size)) {
+        return ERR_INVALID_ADDRESS_STATE;
+    }
+
+    if (!IsInsideNewMapRegion(vm_manager, dst_addr, size)) {
+        return ERR_INVALID_MEMORY_RANGE;
+    }
+
+    const VAddr dst_end_address = dst_addr + size;
+    if (dst_end_address > vm_manager.GetHeapRegionBaseAddress() &&
+        dst_addr < vm_manager.GetHeapRegionEndAddress()) {
+        return ERR_INVALID_MEMORY_RANGE;
+    }
+
+    if (dst_end_address > vm_manager.GetNewMapRegionBaseAddress() &&
+        dst_addr < vm_manager.GetMapRegionEndAddress()) {
+        return ERR_INVALID_MEMORY_RANGE;
+    }
+
+    return RESULT_SUCCESS;
+}
 } // Anonymous namespace
 
 /// Set the process heap to a given Size. It can both extend and shrink the heap.
@@ -69,15 +136,15 @@ static ResultCode MapMemory(VAddr dst_addr, VAddr src_addr, u64 size) {
     LOG_TRACE(Kernel_SVC, "called, dst_addr=0x{:X}, src_addr=0x{:X}, size=0x{:X}", dst_addr,
               src_addr, size);
 
-    if (!Is4KBAligned(dst_addr) || !Is4KBAligned(src_addr)) {
-        return ERR_INVALID_ADDRESS;
+    auto* const current_process = Core::CurrentProcess();
+    const auto& vm_manager = current_process->VMManager();
+
+    const auto result = MapUnmapMemorySanityChecks(vm_manager, dst_addr, src_addr, size);
+    if (result != RESULT_SUCCESS) {
+        return result;
     }
 
-    if (size == 0 || !Is4KBAligned(size)) {
-        return ERR_INVALID_SIZE;
-    }
-
-    return Core::CurrentProcess()->MirrorMemory(dst_addr, src_addr, size);
+    return current_process->MirrorMemory(dst_addr, src_addr, size);
 }
 
 /// Unmaps a region that was previously mapped with svcMapMemory
@@ -85,15 +152,15 @@ static ResultCode UnmapMemory(VAddr dst_addr, VAddr src_addr, u64 size) {
     LOG_TRACE(Kernel_SVC, "called, dst_addr=0x{:X}, src_addr=0x{:X}, size=0x{:X}", dst_addr,
               src_addr, size);
 
-    if (!Is4KBAligned(dst_addr) || !Is4KBAligned(src_addr)) {
-        return ERR_INVALID_ADDRESS;
+    auto* const current_process = Core::CurrentProcess();
+    const auto& vm_manager = current_process->VMManager();
+
+    const auto result = MapUnmapMemorySanityChecks(vm_manager, dst_addr, src_addr, size);
+    if (result != RESULT_SUCCESS) {
+        return result;
     }
 
-    if (size == 0 || !Is4KBAligned(size)) {
-        return ERR_INVALID_SIZE;
-    }
-
-    return Core::CurrentProcess()->UnmapMemory(dst_addr, src_addr, size);
+    return current_process->UnmapMemory(dst_addr, src_addr, size);
 }
 
 /// Connect to an OS service given the port name, returns the handle to the port to out
