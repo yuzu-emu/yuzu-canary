@@ -2,8 +2,10 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <chrono>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <opus.h>
@@ -33,7 +35,8 @@ public:
             {1, nullptr, "SetContext"},
             {2, nullptr, "DecodeInterleavedForMultiStream"},
             {3, nullptr, "SetContextForMultiStream"},
-            {4, nullptr, "Unknown4"},
+            {4, &IHardwareOpusDecoderManager::DecodeInterleavedWithPerformance,
+             "DecodeInterleavedWithPerformance"},
             {5, nullptr, "Unknown5"},
             {6, nullptr, "Unknown6"},
             {7, nullptr, "Unknown7"},
@@ -59,8 +62,31 @@ private:
         ctx.WriteBuffer(samples.data(), samples.size() * sizeof(s16));
     }
 
-    bool Decoder_DecodeInterleaved(u32& consumed, u32& sample_count, const std::vector<u8>& input,
-                                   std::vector<opus_int16>& output) {
+    void DecodeInterleavedWithPerformance(Kernel::HLERequestContext& ctx) {
+        u32 consumed = 0;
+        u32 sample_count = 0;
+        u64 performance = 0;
+        std::vector<opus_int16> samples(ctx.GetWriteBufferSize() / sizeof(opus_int16));
+        if (!Decoder_DecodeInterleaved(consumed, sample_count, ctx.ReadBuffer(), samples,
+                                       performance)) {
+            IPC::ResponseBuilder rb{ctx, 2};
+            // TODO(ogniK): Use correct error code
+            rb.Push(ResultCode(-1));
+            return;
+        }
+        IPC::ResponseBuilder rb{ctx, 6};
+        rb.Push(RESULT_SUCCESS);
+        rb.Push<u32>(consumed);
+        rb.Push<u64>(performance);
+        rb.Push<u32>(sample_count);
+        ctx.WriteBuffer(samples.data(), samples.size() * sizeof(s16));
+    }
+
+    bool Decoder_DecodeInterleaved(
+        u32& consumed, u32& sample_count, const std::vector<u8>& input,
+        std::vector<opus_int16>& output,
+        std::optional<std::reference_wrapper<u64>> performance_time = std::nullopt) {
+        const auto start_time = std::chrono::high_resolution_clock::now();
         std::size_t raw_output_sz = output.size() * sizeof(opus_int16);
         if (sizeof(OpusHeader) > input.size())
             return false;
@@ -80,8 +106,13 @@ private:
                         (static_cast<int>(raw_output_sz / sizeof(s16) / channel_count)), 0);
         if (out_sample_count < 0)
             return false;
+        const auto end_time = std::chrono::high_resolution_clock::now() - start_time;
         sample_count = out_sample_count;
         consumed = static_cast<u32>(sizeof(OpusHeader) + hdr.sz);
+        if (performance_time.has_value()) {
+            performance_time->get() =
+                std::chrono::duration_cast<std::chrono::milliseconds>(end_time).count();
+        }
         return true;
     }
 
