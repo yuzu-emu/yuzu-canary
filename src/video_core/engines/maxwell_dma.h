@@ -43,6 +43,10 @@ public:
             u32 BlockHeight() const {
                 return 1 << block_height;
             }
+
+            u32 BlockDepth() const {
+                return 1 << block_depth;
+            }
         };
 
         static_assert(sizeof(Parameters) == 24, "Parameters has wrong size");
