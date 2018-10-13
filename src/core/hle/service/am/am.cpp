@@ -4,11 +4,13 @@
 
 #include <array>
 #include <cinttypes>
+#include <cstring>
 #include <stack>
 #include "core/core.h"
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/kernel/event.h"
 #include "core/hle/kernel/process.h"
+#include "core/hle/service/acc/profile_manager.h"
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/am/applet_ae.h"
 #include "core/hle/service/am/applet_oe.h"
@@ -24,6 +26,8 @@
 #include "core/settings.h"
 
 namespace Service::AM {
+
+constexpr std::size_t POP_LAUNCH_PARAMETER_BUFFER_SIZE = 0x88;
 
 IWindowController::IWindowController() : ServiceFramework("IWindowController") {
     static const FunctionInfo functions[] = {
@@ -670,16 +674,18 @@ IApplicationFunctions::IApplicationFunctions() : ServiceFramework("IApplicationF
 IApplicationFunctions::~IApplicationFunctions() = default;
 
 void IApplicationFunctions::PopLaunchParameter(Kernel::HLERequestContext& ctx) {
-    constexpr std::array<u8, 0x88> data{{
+    constexpr std::array<u8, 0x8> header_data{
         0xca, 0x97, 0x94, 0xc7, // Magic
         1,    0,    0,    0,    // IsAccountSelected (bool)
-        1,    0,    0,    0,    // User Id (word 0)
-        0,    0,    0,    0,    // User Id (word 1)
-        0,    0,    0,    0,    // User Id (word 2)
-        0,    0,    0,    0     // User Id (word 3)
-    }};
+    };
 
-    std::vector<u8> buffer(data.begin(), data.end());
+    std::vector<u8> buffer(POP_LAUNCH_PARAMETER_BUFFER_SIZE);
+
+    std::memcpy(buffer.data(), header_data.data(), header_data.size());
+
+    Account::ProfileManager profile_manager{};
+    const auto uuid = profile_manager.GetAllUsers()[Settings::values.current_user].uuid;
+    std::memcpy(buffer.data() + header_data.size(), uuid.data(), sizeof(u128));
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
 

@@ -10,6 +10,7 @@
 // VFS includes must be before glad as they will conflict with Windows file api, which uses defines.
 #include "core/file_sys/vfs.h"
 #include "core/file_sys/vfs_real.h"
+#include "core/hle/service/acc/profile_manager.h"
 
 // These are wrappers to avoid the calls to CreateDirectory and CreateFile becuase of the Windows
 // defines.
@@ -751,12 +752,45 @@ void GMainWindow::OnGameListOpenFolder(u64 program_id, GameListOpenTarget target
         open_target = "Save Data";
         const std::string nand_dir = FileUtil::GetUserPath(FileUtil::UserPath::NANDDir);
         ASSERT(program_id != 0);
-        // TODO(tech4me): Update this to work with arbitrary user profile
-        // Refer to core/hle/service/acc/profile_manager.cpp ProfileManager constructor
-        constexpr u128 user_id = {1, 0};
+
+        Service::Account::ProfileManager manager{};
+        const auto user_ids = manager.GetAllUsers();
+        QStringList list;
+        std::transform(
+            user_ids.begin(), user_ids.end(), std::back_inserter(list),
+            [&manager](const auto& user_id) -> QString {
+                if (user_id == Service::Account::UUID{})
+                    return "";
+                Service::Account::ProfileBase base;
+                if (!manager.GetProfileBase(user_id, base))
+                    return "";
+
+                return QString::fromStdString(Common::StringFromFixedZeroTerminatedBuffer(
+                    reinterpret_cast<const char*>(base.username.data()), base.username.size()));
+            });
+        list.removeAll("");
+
+        bool ok = false;
+        const auto index_string =
+            QInputDialog::getItem(this, tr("Select User"),
+                                  tr("Please select the user's save data you would like to open."),
+                                  list, Settings::values.current_user, false, &ok);
+        if (!ok)
+            return;
+
+        const auto index = list.indexOf(index_string);
+        ASSERT(index != -1 && index < 8);
+
+        const auto user_id = manager.GetAllUsers()[index];
         path = nand_dir + FileSys::SaveDataFactory::GetFullPath(FileSys::SaveDataSpaceId::NandUser,
                                                                 FileSys::SaveDataType::SaveData,
-                                                                program_id, user_id, 0);
+                                                                program_id, user_id.uuid, 0);
+
+        if (!FileUtil::Exists(path)) {
+            FileUtil::CreateFullPath(path);
+            FileUtil::CreateDir(path);
+        }
+
         break;
     }
     case GameListOpenTarget::ModData: {
