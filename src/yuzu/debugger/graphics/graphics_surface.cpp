@@ -386,8 +386,9 @@ void GraphicsSurfaceWidget::OnUpdate() {
 
     // TODO(bunnei): Will not work with BCn formats that swizzle 4x4 tiles.
     // Needs to be fixed if we plan to use this feature more, otherwise we may remove it.
-    auto unswizzled_data = Tegra::Texture::UnswizzleTexture(
-        *address, 1, Tegra::Texture::BytesPerPixel(surface_format), surface_width, surface_height);
+    auto unswizzled_data =
+        Tegra::Texture::UnswizzleTexture(*address, 1, Tegra::Texture::BytesPerPixel(surface_format),
+                                         surface_width, surface_height, 1U);
 
     auto texture_data = Tegra::Texture::DecodeTexture(unswizzled_data, surface_format,
                                                       surface_width, surface_height);
