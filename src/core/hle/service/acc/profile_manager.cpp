@@ -4,10 +4,27 @@
 
 #include <random>
 #include <boost/optional.hpp>
+#include "common/file_util.h"
 #include "core/hle/service/acc/profile_manager.h"
 #include "core/settings.h"
 
 namespace Service::Account {
+
+struct UserRaw {
+    UUID uuid;
+    UUID uuid2;
+    u64 timestamp;
+    ProfileUsername username;
+    INSERT_PADDING_BYTES(0x80);
+};
+static_assert(sizeof(UserRaw) == 0xC8, "UserRaw has incorrect size.");
+
+struct ProfileDataRaw {
+    INSERT_PADDING_BYTES(0x10);
+    std::array<UserRaw, MAX_USERS> users;
+};
+static_assert(sizeof(ProfileDataRaw) == 0x650, "ProfileDataRaw has incorrect size.");
+
 // TODO(ogniK): Get actual error codes
 constexpr ResultCode ERROR_TOO_MANY_USERS(ErrorModule::Account, -1);
 constexpr ResultCode ERROR_USER_ALREADY_EXISTS(ErrorModule::Account, -2);
@@ -23,13 +40,21 @@ const UUID& UUID::Generate() {
 }
 
 ProfileManager::ProfileManager() {
-    // TODO(ogniK): Create the default user we have for now until loading/saving users is added
-    auto user_uuid = UUID{1, 0};
-    ASSERT(CreateNewUser(user_uuid, Settings::values.username).IsSuccess());
-    OpenUser(user_uuid);
+    ParseUserSaveFile();
+
+    if (user_count == 0)
+        CreateNewUser(UUID{}.Generate(), "yuzu");
+
+    auto current = Settings::values.current_user;
+    if (!GetAllUsers()[current])
+        current = 0;
+
+    OpenUser(GetAllUsers()[current]);
 }
 
-ProfileManager::~ProfileManager() = default;
+ProfileManager::~ProfileManager() {
+    WriteUserSaveFile();
+}
 
 /// After a users creation it needs to be "registered" to the system. AddToProfiles handles the
 /// internal management of the users profiles
@@ -237,6 +262,72 @@ bool ProfileManager::CanSystemRegisterUser() const {
     return false; // TODO(ogniK): Games shouldn't have
                   // access to user registration, when we
     // emulate qlaunch. Update this to dynamically change.
+}
+
+bool ProfileManager::RemoveUser(UUID uuid) {
+    auto index = GetUserIndex(uuid);
+    if (index == boost::none) {
+        return false;
+    }
+
+    profiles[*index] = ProfileInfo{};
+    std::stable_partition(profiles.begin(), profiles.end(),
+                          [](const ProfileInfo& profile) { return profile.user_uuid; });
+    return true;
+}
+
+bool ProfileManager::SetProfileBase(UUID uuid, const ProfileBase& profile_new) {
+    auto index = GetUserIndex(uuid);
+    if (profile_new.user_uuid == UUID(INVALID_UUID) || index == boost::none) {
+        return false;
+    }
+
+    auto& profile = profiles[*index];
+    profile.user_uuid = profile_new.user_uuid;
+    profile.username = profile_new.username;
+    profile.creation_time = profile_new.timestamp;
+
+    return true;
+}
+
+void ProfileManager::ParseUserSaveFile() {
+    FileUtil::IOFile save(FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) +
+                              "/system/save/8000000000000010/su/avators/profiles.dat",
+                          "rb");
+
+    ProfileDataRaw data;
+    save.Seek(0, SEEK_SET);
+    if (save.ReadBytes(&data, sizeof(ProfileDataRaw)) != sizeof(ProfileDataRaw))
+        return;
+
+    for (std::size_t i = 0; i < MAX_USERS; ++i) {
+        const auto& user = data.users[i];
+
+        if (user.uuid != UUID(INVALID_UUID))
+            AddUser({user.uuid, user.username, user.timestamp, {}, false});
+    }
+
+    std::stable_partition(profiles.begin(), profiles.end(),
+                          [](const ProfileInfo& profile) { return profile.user_uuid; });
+}
+
+void ProfileManager::WriteUserSaveFile() {
+    ProfileDataRaw raw{};
+
+    for (std::size_t i = 0; i < MAX_USERS; ++i) {
+        raw.users[i].username = profiles[i].username;
+        raw.users[i].uuid2 = profiles[i].user_uuid;
+        raw.users[i].uuid = profiles[i].user_uuid;
+        raw.users[i].timestamp = profiles[i].creation_time;
+    }
+
+    FileUtil::IOFile save(FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) +
+                              "/system/save/8000000000000010/su/avators/profiles.dat",
+                          "wb");
+
+    save.Resize(sizeof(ProfileDataRaw));
+    save.Seek(0, SEEK_SET);
+    save.WriteBytes(&raw, sizeof(ProfileDataRaw));
 }
 
 }; // namespace Service::Account
