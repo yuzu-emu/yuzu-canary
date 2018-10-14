@@ -323,8 +323,8 @@ static bool IsFormatBCn(PixelFormat format) {
 }
 
 template <bool morton_to_gl, PixelFormat format>
-void MortonCopy(u32 stride, u32 block_height, u32 height, u8* gl_buffer, std::size_t gl_buffer_size,
-                VAddr addr) {
+void MortonCopy(u32 stride, u32 block_height, u32 height, u32 block_depth, u32 depth, u8* gl_buffer,
+                std::size_t gl_buffer_size, VAddr addr) {
     constexpr u32 bytes_per_pixel = SurfaceParams::GetFormatBpp(format) / CHAR_BIT;
     constexpr u32 gl_bytes_per_pixel = CachedSurface::GetGLBytesPerPixel(format);
 
@@ -333,7 +333,7 @@ void MortonCopy(u32 stride, u32 block_height, u32 height, u8* gl_buffer, std::si
         // pixel values.
         const u32 tile_size{IsFormatBCn(format) ? 4U : 1U};
         const std::vector<u8> data = Tegra::Texture::UnswizzleTexture(
-            addr, tile_size, bytes_per_pixel, stride, height, block_height);
+            addr, tile_size, bytes_per_pixel, stride, height, depth, block_height, block_depth);
         const std::size_t size_to_copy{std::min(gl_buffer_size, data.size())};
         memcpy(gl_buffer, data.data(), size_to_copy);
     } else {
@@ -345,7 +345,7 @@ void MortonCopy(u32 stride, u32 block_height, u32 height, u8* gl_buffer, std::si
     }
 }
 
-static constexpr std::array<void (*)(u32, u32, u32, u8*, std::size_t, VAddr),
+static constexpr std::array<void (*)(u32, u32, u32, u32, u32, u8*, std::size_t, VAddr),
                             SurfaceParams::MaxPixelFormat>
     morton_to_gl_fns = {
         // clang-format off
@@ -403,7 +403,7 @@ static constexpr std::array<void (*)(u32, u32, u32, u8*, std::size_t, VAddr),
         // clang-format on
 };
 
-static constexpr std::array<void (*)(u32, u32, u32, u8*, std::size_t, VAddr),
+static constexpr std::array<void (*)(u32, u32, u32, u32, u32, u8*, std::size_t, VAddr),
                             SurfaceParams::MaxPixelFormat>
     gl_to_morton_fns = {
         // clang-format off
@@ -827,36 +827,23 @@ void CachedSurface::LoadGLBuffer() {
 
     if (params.is_tiled) {
         gl_buffer.resize(total_size);
+        u32 depth = params.depth;
+        u32 block_depth = params.block_depth;
 
         ASSERT_MSG(params.block_width == 1, "Block width is defined as {} on texture type {}",
                    params.block_width, static_cast<u32>(params.target));
-        ASSERT_MSG(params.block_depth == 1, "Block depth is defined as {} on texture type {}",
-                   params.block_depth, static_cast<u32>(params.target));
 
-        // TODO(bunnei): This only unswizzles and copies a 2D texture - we do not yet know how to do
-        // this for 3D textures, etc.
-        switch (params.target) {
-        case SurfaceParams::SurfaceTarget::Texture2D:
-            // Pass impl. to the fallback code below
-            break;
-        case SurfaceParams::SurfaceTarget::Texture2DArray:
-        case SurfaceParams::SurfaceTarget::TextureCubemap:
-            for (std::size_t index = 0; index < params.depth; ++index) {
-                const std::size_t offset{index * copy_size};
-                morton_to_gl_fns[static_cast<std::size_t>(params.pixel_format)](
-                    params.width, params.block_height, params.height, gl_buffer.data() + offset,
-                    copy_size, params.addr + offset);
-            }
-            break;
-        default:
-            LOG_CRITICAL(HW_GPU, "Unimplemented tiled load for target={}",
-                         static_cast<u32>(params.target));
-            UNREACHABLE();
+        if (params.target == SurfaceParams::SurfaceTarget::Texture2D) {
+            // TODO(Blinkhawk): Eliminate this condition once all texture types are implemented.
+            depth = 1U;
+            block_depth = 1U;
         }
 
+        const std::size_t size = copy_size * depth;
+
         morton_to_gl_fns[static_cast<std::size_t>(params.pixel_format)](
-            params.width, params.block_height, params.height, gl_buffer.data(), copy_size,
-            params.addr);
+            params.width, params.block_height, params.height, block_depth, depth, gl_buffer.data(),
+            size, params.addr);
     } else {
         const u8* const texture_src_data_end{texture_src_data + total_size};
         gl_buffer.assign(texture_src_data, texture_src_data_end);

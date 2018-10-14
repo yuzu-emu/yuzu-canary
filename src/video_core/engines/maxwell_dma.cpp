@@ -68,12 +68,14 @@ void MaxwellDMA::HandleCopy() {
 
     if (regs.exec.is_dst_linear && !regs.exec.is_src_linear) {
         // If the input is tiled and the output is linear, deswizzle the input and copy it over.
-        Texture::CopySwizzledData(regs.src_params.size_x, regs.src_params.size_y, 1, 1, src_buffer,
-                                  dst_buffer, true, regs.src_params.BlockHeight());
+        Texture::CopySwizzledData(regs.src_params.size_x, regs.src_params.size_y,
+                                  regs.src_params.size_z, 1, 1, src_buffer, dst_buffer, true,
+                                  regs.src_params.BlockHeight(), regs.src_params.BlockDepth());
     } else {
         // If the input is linear and the output is tiled, swizzle the input and copy it over.
-        Texture::CopySwizzledData(regs.dst_params.size_x, regs.dst_params.size_y, 1, 1, dst_buffer,
-                                  src_buffer, false, regs.dst_params.BlockHeight());
+        Texture::CopySwizzledData(regs.dst_params.size_x, regs.dst_params.size_y,
+                                  regs.dst_params.size_z, 1, 1, dst_buffer, src_buffer, false,
+                                  regs.dst_params.BlockHeight(), regs.dst_params.BlockDepth());
     }
 }
 
