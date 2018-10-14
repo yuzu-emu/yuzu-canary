@@ -113,7 +113,7 @@ static const std::array<const char*, NumAnalogs> mapping = {{
 struct Values {
     // System
     bool use_docked_mode;
-    std::string username;
+    int current_user;
     int language_index;
 
     // Controls
