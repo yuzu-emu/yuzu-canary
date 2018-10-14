@@ -8,6 +8,7 @@
 #include "common/file_util.h"
 #include "common/logging/log.h"
 #include "common/param_package.h"
+#include "core/hle/service/acc/profile_manager.h"
 #include "core/settings.h"
 #include "input_common/main.h"
 #include "yuzu_cmd/config.h"
@@ -125,10 +126,10 @@ void Config::ReadValues() {
 
     // System
     Settings::values.use_docked_mode = sdl2_config->GetBoolean("System", "use_docked_mode", false);
-    Settings::values.username = sdl2_config->Get("System", "username", "yuzu");
-    if (Settings::values.username.empty()) {
-        Settings::values.username = "yuzu";
-    }
+    const auto size = sdl2_config->GetInteger("System", "users_size", 0);
+
+    Settings::values.current_user = std::clamp<int>(
+        sdl2_config->GetInteger("System", "current_user", 0), 0, Service::Account::MAX_USERS - 1);
 
     // Miscellaneous
     Settings::values.log_filter = sdl2_config->Get("Miscellaneous", "log_filter", "*:Trace");
