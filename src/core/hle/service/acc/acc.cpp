@@ -2,9 +2,13 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <algorithm>
 #include <array>
+#include "common/common_paths.h"
 #include "common/common_types.h"
+#include "common/file_util.h"
 #include "common/logging/log.h"
+#include "common/string_util.h"
 #include "common/swap.h"
 #include "core/core_timing.h"
 #include "core/hle/ipc_helpers.h"
@@ -16,6 +20,9 @@
 #include "core/hle/service/acc/profile_manager.h"
 
 namespace Service::Account {
+
+constexpr u32 MAX_JPEG_IMAGE_SIZE = 0x20000;
+
 // TODO: RE this structure
 struct UserData {
     INSERT_PADDING_WORDS(1);
@@ -26,6 +33,11 @@ struct UserData {
     INSERT_PADDING_BYTES(0x60);
 };
 static_assert(sizeof(UserData) == 0x80, "UserData structure has incorrect size");
+
+static std::string GetImagePath(UUID uuid) {
+    return FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) +
+           "/system/save/8000000000000010/su/avators/" + uuid.FormatSwitch() + ".jpg";
+}
 
 class IProfile final : public ServiceFramework<IProfile> {
 public:
@@ -73,11 +85,11 @@ private:
     }
 
     void LoadImage(Kernel::HLERequestContext& ctx) {
-        LOG_WARNING(Service_ACC, "(STUBBED) called");
+        LOG_DEBUG(Service_ACC, "called");
         // smallest jpeg https://github.com/mathiasbynens/small/blob/master/jpeg.jpg
-        // TODO(mailwl): load actual profile image from disk, width 256px, max size 0x20000
-        constexpr u32 jpeg_size = 107;
-        static constexpr std::array<u8, jpeg_size> jpeg{
+        // used as a backup should the one on disk not exist
+        constexpr u32 backup_jpeg_size = 107;
+        static constexpr std::array<u8, backup_jpeg_size> backup_jpeg{
             0xff, 0xd8, 0xff, 0xdb, 0x00, 0x43, 0x00, 0x03, 0x02, 0x02, 0x02, 0x02, 0x02, 0x03,
             0x02, 0x02, 0x02, 0x03, 0x03, 0x03, 0x03, 0x04, 0x06, 0x04, 0x04, 0x04, 0x04, 0x04,
             0x08, 0x06, 0x06, 0x05, 0x06, 0x09, 0x08, 0x0a, 0x0a, 0x09, 0x08, 0x09, 0x09, 0x0a,
@@ -87,18 +99,42 @@ private:
             0xff, 0xcc, 0x00, 0x06, 0x00, 0x10, 0x10, 0x05, 0xff, 0xda, 0x00, 0x08, 0x01, 0x01,
             0x00, 0x00, 0x3f, 0x00, 0xd2, 0xcf, 0x20, 0xff, 0xd9,
         };
-        ctx.WriteBuffer(jpeg);
+
         IPC::ResponseBuilder rb{ctx, 3};
         rb.Push(RESULT_SUCCESS);
-        rb.Push<u32>(jpeg_size);
+
+        const FileUtil::IOFile image(GetImagePath(user_id), "rb");
+
+        if (!image.IsOpen()) {
+            LOG_WARNING(Service_ACC,
+                        "Failed to load user provided image! Falling back to built-in backup...");
+            ctx.WriteBuffer(backup_jpeg);
+            rb.Push<u32>(backup_jpeg_size);
+        } else {
+            const auto size = std::min<u32>(image.GetSize(), MAX_JPEG_IMAGE_SIZE);
+            std::vector<u8> buffer(size);
+            image.ReadBytes(buffer.data(), buffer.size());
+
+            ctx.WriteBuffer(buffer.data(), buffer.size());
+            rb.Push<u32>(buffer.size());
+        }
     }
 
     void GetImageSize(Kernel::HLERequestContext& ctx) {
-        LOG_WARNING(Service_ACC, "(STUBBED) called");
-        constexpr u32 jpeg_size = 107;
+        LOG_DEBUG(Service_ACC, "called");
+        constexpr u32 backup_jpeg_size = 107;
         IPC::ResponseBuilder rb{ctx, 3};
         rb.Push(RESULT_SUCCESS);
-        rb.Push<u32>(jpeg_size);
+
+        const FileUtil::IOFile image(GetImagePath(user_id), "rb");
+
+        if (!image.IsOpen()) {
+            LOG_WARNING(Service_ACC,
+                        "Failed to load user provided image! Falling back to built-in backup...");
+            rb.Push<u32>(backup_jpeg_size);
+        } else {
+            rb.Push<u32>(std::min<u32>(image.GetSize(), MAX_JPEG_IMAGE_SIZE));
+        }
     }
 
     const ProfileManager& profile_manager;
