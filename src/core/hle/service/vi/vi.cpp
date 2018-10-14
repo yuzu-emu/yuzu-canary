@@ -968,6 +968,54 @@ private:
         rb.PushCopyObjects(vsync_event);
     }
 
+    enum class ConvertedScaleMode : u64 {
+        None = 0, // VI seems to name this as "Unknown" but lots of games pass it, assume it's no
+                  // scaling/default
+        Freeze = 1,
+        ScaleToWindow = 2,
+        Crop = 3,
+        NoCrop = 4,
+    };
+
+    // This struct is different, currently it's 1:1 but this might change in the future.
+    enum class NintendoScaleMode : u32 {
+        None = 0,
+        Freeze = 1,
+        ScaleToWindow = 2,
+        Crop = 3,
+        NoCrop = 4,
+    };
+
+    void ConvertScalingMode(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        auto mode = rp.PopEnum<NintendoScaleMode>();
+        LOG_DEBUG(Service_VI, "called mode={}", static_cast<u32>(mode));
+
+        IPC::ResponseBuilder rb{ctx, 4};
+        rb.Push(RESULT_SUCCESS);
+        switch (mode) {
+        case NintendoScaleMode::None:
+            rb.PushEnum(ConvertedScaleMode::None);
+            break;
+        case NintendoScaleMode::Freeze:
+            rb.PushEnum(ConvertedScaleMode::Freeze);
+            break;
+        case NintendoScaleMode::ScaleToWindow:
+            rb.PushEnum(ConvertedScaleMode::ScaleToWindow);
+            break;
+        case NintendoScaleMode::Crop:
+            rb.PushEnum(ConvertedScaleMode::Crop);
+            break;
+        case NintendoScaleMode::NoCrop:
+            rb.PushEnum(ConvertedScaleMode::NoCrop);
+            break;
+        default:
+            UNIMPLEMENTED_MSG("Unknown scaling mode {}", static_cast<u32>(mode));
+            rb.PushEnum(ConvertedScaleMode::None);
+            break;
+        }
+    }
+
     std::shared_ptr<NVFlinger::NVFlinger> nv_flinger;
 };
 
@@ -991,7 +1039,7 @@ IApplicationDisplayService::IApplicationDisplayService(
         {2030, &IApplicationDisplayService::CreateStrayLayer, "CreateStrayLayer"},
         {2031, &IApplicationDisplayService::DestroyStrayLayer, "DestroyStrayLayer"},
         {2101, &IApplicationDisplayService::SetLayerScalingMode, "SetLayerScalingMode"},
-        {2102, nullptr, "ConvertScalingMode"},
+        {2102, &IApplicationDisplayService::ConvertScalingMode, "ConvertScalingMode"},
         {2450, nullptr, "GetIndirectLayerImageMap"},
         {2451, nullptr, "GetIndirectLayerImageCropMap"},
         {2460, nullptr, "GetIndirectLayerImageRequiredMemoryInfo"},
