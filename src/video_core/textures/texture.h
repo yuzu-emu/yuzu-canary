@@ -141,6 +141,7 @@ static_assert(sizeof(TextureHandle) == 4, "TextureHandle has wrong size");
 
 struct TICEntry {
     static constexpr u32 DefaultBlockHeight = 16;
+    static constexpr u32 DefaultBlockDepth = 1;
 
     union {
         u32 raw;
