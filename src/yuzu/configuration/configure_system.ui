@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>360</width>
-    <height>377</height>
+    <height>483</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,34 +22,28 @@
         <string>System Settings</string>
        </property>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_username">
-          <property name="text">
-           <string>Username</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QLineEdit" name="edit_username">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="maxLength">
-           <number>32</number>
-          </property>
-         </widget>
-        </item>
         <item row="1" column="0">
+         <widget class="QLabel" name="label_language">
+          <property name="text">
+           <string>Language</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
          <widget class="QLabel" name="label_birthday">
           <property name="text">
            <string>Birthday</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_console_id">
+          <property name="text">
+           <string>Console ID:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
          <layout class="QHBoxLayout" name="horizontalLayout_birthday2">
           <item>
            <widget class="QComboBox" name="combo_birthmonth">
@@ -120,14 +114,7 @@
           </item>
          </layout>
         </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="label_language">
-          <property name="text">
-           <string>Language</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="1">
+        <item row="1" column="1">
          <widget class="QComboBox" name="combo_language">
           <property name="toolTip">
            <string>Note: this can be overridden when region setting is auto-select</string>
@@ -187,31 +174,31 @@
             <string>Russian (Русский)</string>
            </property>
           </item>
-           <item>
-             <property name="text">
-               <string>Taiwanese</string>
-             </property>
-           </item>
-           <item>
-             <property name="text">
-               <string>British English</string>
-             </property>
-           </item>
-           <item>
-             <property name="text">
-               <string>Canadian French</string>
-             </property>
-           </item>
-           <item>
-             <property name="text">
-               <string>Latin American Spanish</string>
-             </property>
-           </item>
-           <item>
-             <property name="text">
-               <string>Simplified Chinese</string>
-             </property>
-           </item>
+          <item>
+           <property name="text">
+            <string>Taiwanese</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>British English</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Canadian French</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Latin American Spanish</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Simplified Chinese</string>
+           </property>
+          </item>
           <item>
            <property name="text">
             <string>Traditional Chinese (正體中文)</string>
@@ -219,14 +206,14 @@
           </item>
          </widget>
         </item>
-        <item row="3" column="0">
+        <item row="2" column="0">
          <widget class="QLabel" name="label_sound">
           <property name="text">
            <string>Sound output mode</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="1">
+        <item row="2" column="1">
          <widget class="QComboBox" name="combo_sound">
           <item>
            <property name="text">
@@ -245,14 +232,7 @@
           </item>
          </widget>
         </item>
-        <item row="4" column="0">
-         <widget class="QLabel" name="label_console_id">
-          <property name="text">
-           <string>Console ID:</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="1">
+        <item row="3" column="1">
          <widget class="QPushButton" name="button_regenerate_console_id">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -272,6 +252,143 @@
       </widget>
      </item>
      <item>
+      <widget class="QGroupBox" name="gridGroupBox">
+       <property name="title">
+        <string>Profile Manager</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <property name="sizeConstraint">
+         <enum>QLayout::SetNoConstraint</enum>
+        </property>
+        <item row="0" column="0">
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <widget class="QLabel" name="label">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>Current User</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGraphicsView" name="current_user_icon">
+            <property name="minimumSize">
+             <size>
+              <width>48</width>
+              <height>48</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>48</width>
+              <height>48</height>
+             </size>
+            </property>
+            <property name="verticalScrollBarPolicy">
+             <enum>Qt::ScrollBarAlwaysOff</enum>
+            </property>
+            <property name="horizontalScrollBarPolicy">
+             <enum>Qt::ScrollBarAlwaysOff</enum>
+            </property>
+            <property name="interactive">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="current_user_username">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>Username</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="1" column="0">
+         <widget class="QScrollArea" name="scrollArea">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <property name="widgetResizable">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QPushButton" name="pm_set_image">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Set Image</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pm_add">
+            <property name="text">
+             <string>Add</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pm_rename">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Rename</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pm_remove">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Remove</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
       <widget class="QLabel" name="label_disable_info">
        <property name="text">
         <string>System settings are available only when game is not running.</string>
@@ -280,19 +397,6 @@
         <bool>true</bool>
        </property>
       </widget>
-     </item>
-     <item>
-      <spacer name="verticalSpacer">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>40</height>
-        </size>
-       </property>
-      </spacer>
      </item>
     </layout>
    </item>

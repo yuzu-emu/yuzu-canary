@@ -5,7 +5,16 @@
 #pragma once
 
 #include <memory>
+
+#include <QList>
 #include <QWidget>
+#include "core/hle/service/acc/profile_manager.h"
+
+class QVBoxLayout;
+class QTreeView;
+class QStandardItemModel;
+class QGraphicsScene;
+class QStandardItem;
 
 namespace Ui {
 class ConfigureSystem;
@@ -21,18 +30,36 @@ public:
     void applyConfiguration();
     void setConfiguration();
 
+    void PopulateUserList();
+    void UpdateCurrentUser();
+
 public slots:
     void updateBirthdayComboBox(int birthmonth_index);
     void refreshConsoleID();
 
+    void SelectUser(const QModelIndex& index);
+    void AddUser();
+    void RenameUser();
+    void DeleteUser();
+    void SetUserImage();
+
 private:
     void ReadSystemSettings();
+    std::string GetAccountUsername(Service::Account::UUID uuid);
+
+    QVBoxLayout* layout;
+    QTreeView* tree_view;
+    QStandardItemModel* item_model;
+    QGraphicsScene* scene;
+
+    std::vector<QList<QStandardItem*>> list_items;
 
     std::unique_ptr<Ui::ConfigureSystem> ui;
     bool enabled;
 
-    std::u16string username;
     int birthmonth, birthday;
     int language_index;
     int sound_index;
+
+    std::unique_ptr<Service::Account::ProfileManager> profile_manager;
 };
