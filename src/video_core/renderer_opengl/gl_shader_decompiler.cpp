@@ -2036,9 +2036,9 @@ private:
                 break;
             }
             case OpCode::Id::TEX: {
-                ASSERT_MSG(instr.tex.array == 0, "TEX arrays unimplemented");
                 Tegra::Shader::TextureType texture_type{instr.tex.texture_type};
                 std::string coord;
+                const bool is_array = instr.tex.array != 0;
 
                 ASSERT_MSG(!instr.tex.UsesMiscMode(Tegra::Shader::TextureMiscMode::NODEP),
                            "NODEP is not implemented");
@@ -2053,21 +2053,59 @@ private:
 
                 switch (num_coordinates) {
                 case 1: {
-                    const std::string x = regs.GetRegisterAsFloat(instr.gpr8);
-                    coord = "float coords = " + x + ';';
+                    if (is_array) {
+                        const std::string index = regs.GetRegisterAsInteger(instr.gpr8);
+                        const std::string x = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                        coord = "vec2 coords = vec2(" + x + ", " + index + ");";
+                    } else {
+                        const std::string x = regs.GetRegisterAsFloat(instr.gpr8);
+                        coord = "float coords = " + x + ';';
+                    }
                     break;
                 }
                 case 2: {
-                    const std::string x = regs.GetRegisterAsFloat(instr.gpr8);
-                    const std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
-                    coord = "vec2 coords = vec2(" + x + ", " + y + ");";
+                    if (is_array) {
+                        const std::string index = regs.GetRegisterAsInteger(instr.gpr8);
+                        const std::string x = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                        const std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 2);
+                        coord = "vec3 coords = vec3(" + x + ", " + y + ", " + index + ");";
+                    } else {
+                        const std::string x = regs.GetRegisterAsFloat(instr.gpr8);
+                        const std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                        coord = "vec2 coords = vec2(" + x + ", " + y + ");";
+                    }
                     break;
                 }
                 case 3: {
-                    const std::string x = regs.GetRegisterAsFloat(instr.gpr8);
-                    const std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
-                    const std::string z = regs.GetRegisterAsFloat(instr.gpr20);
-                    coord = "vec3 coords = vec3(" + x + ", " + y + ", " + z + ");";
+                    if (depth_compare) {
+                        if (is_array) {
+                            const std::string index = regs.GetRegisterAsInteger(instr.gpr8);
+                            const std::string x = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                            const std::string y = regs.GetRegisterAsFloat(instr.gpr20);
+                            const std::string z = regs.GetRegisterAsFloat(instr.gpr20.Value() + 1);
+                            coord = "vec4 coords = vec4(" + x + ", " + y + ", " + z + ", " + index +
+                                    ");";
+                        } else {
+                            const std::string x = regs.GetRegisterAsFloat(instr.gpr8);
+                            const std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                            const std::string z = regs.GetRegisterAsFloat(instr.gpr20);
+                            coord = "vec3 coords = vec3(" + x + ", " + y + ", " + z + ");";
+                        }
+                    } else {
+                        if (is_array) {
+                            const std::string index = regs.GetRegisterAsInteger(instr.gpr8);
+                            const std::string x = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                            const std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 2);
+                            const std::string z = regs.GetRegisterAsFloat(instr.gpr8.Value() + 3);
+                            coord = "vec4 coords = vec4(" + x + ", " + y + ", " + z + ", " + index +
+                                    ");";
+                        } else {
+                            const std::string x = regs.GetRegisterAsFloat(instr.gpr8);
+                            const std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                            const std::string z = regs.GetRegisterAsFloat(instr.gpr8.Value() + 2);
+                            coord = "vec3 coords = vec3(" + x + ", " + y + ", " + z + ");";
+                        }
+                    }
                     break;
                 }
                 default:
@@ -2086,7 +2124,7 @@ private:
                 std::string op_c;
 
                 const std::string sampler =
-                    GetSampler(instr.sampler, texture_type, false, depth_compare);
+                    GetSampler(instr.sampler, texture_type, is_array, depth_compare);
                 // Add an extra scope and declare the texture coords inside to prevent
                 // overwriting them in case they are used as outputs of the texs instruction.
 
@@ -2106,10 +2144,13 @@ private:
                 }
                 case Tegra::Shader::TextureProcessMode::LB:
                 case Tegra::Shader::TextureProcessMode::LBA: {
-                    if (num_coordinates <= 2) {
-                        op_c = regs.GetRegisterAsFloat(instr.gpr20);
+                    if (depth_compare) {
+                        if (is_array)
+                            op_c = regs.GetRegisterAsFloat(instr.gpr20.Value() + 2);
+                        else
+                            op_c = regs.GetRegisterAsFloat(instr.gpr20.Value() + 1);
                     } else {
-                        op_c = regs.GetRegisterAsFloat(instr.gpr20.Value() + 1);
+                        op_c = regs.GetRegisterAsFloat(instr.gpr20);
                     }
                     // TODO: Figure if A suffix changes the equation at all.
                     texture = "texture(" + sampler + ", coords, " + op_c + ')';
