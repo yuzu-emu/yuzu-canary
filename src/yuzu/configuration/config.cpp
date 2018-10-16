@@ -4,6 +4,7 @@
 
 #include <QSettings>
 #include "common/file_util.h"
+#include "core/hle/service/acc/profile_manager.h"
 #include "input_common/main.h"
 #include "yuzu/configuration/config.h"
 #include "yuzu/ui_settings.h"
@@ -122,7 +123,10 @@ void Config::ReadValues() {
 
     qt_config->beginGroup("System");
     Settings::values.use_docked_mode = qt_config->value("use_docked_mode", false).toBool();
-    Settings::values.username = qt_config->value("username", "yuzu").toString().toStdString();
+
+    Settings::values.current_user = std::clamp<int>(qt_config->value("current_user", 0).toInt(), 0,
+                                                    Service::Account::MAX_USERS - 1);
+
     Settings::values.language_index = qt_config->value("language_index", 1).toInt();
     qt_config->endGroup();
 
@@ -258,7 +262,8 @@ void Config::SaveValues() {
 
     qt_config->beginGroup("System");
     qt_config->setValue("use_docked_mode", Settings::values.use_docked_mode);
-    qt_config->setValue("username", QString::fromStdString(Settings::values.username));
+    qt_config->setValue("current_user", Settings::values.current_user);
+
     qt_config->setValue("language_index", Settings::values.language_index);
     qt_config->endGroup();
 
