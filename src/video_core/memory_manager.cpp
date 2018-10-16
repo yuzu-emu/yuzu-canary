@@ -87,6 +87,16 @@ GPUVAddr MemoryManager::UnmapBuffer(GPUVAddr gpu_addr, u64 size) {
     return gpu_addr;
 }
 
+GPUVAddr MemoryManager::GetRegionEnd(GPUVAddr region_start) const {
+    for (const auto& region : mapped_regions) {
+        const GPUVAddr region_end{region.gpu_addr + region.size};
+        if (region_start >= region.gpu_addr && region_start < region_end) {
+            return region_end;
+        }
+    }
+    return {};
+}
+
 boost::optional<GPUVAddr> MemoryManager::FindFreeBlock(u64 size, u64 align) {
     GPUVAddr gpu_addr = 0;
     u64 free_space = 0;
