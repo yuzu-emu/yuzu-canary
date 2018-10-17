@@ -18,6 +18,7 @@
 #include "video_core/rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_shader_gen.h"
+#include "video_core/textures/decoders.h"
 #include "video_core/textures/texture.h"
 
 namespace OpenGL {
@@ -701,21 +702,42 @@ struct SurfaceParams {
         return SurfaceType::Invalid;
     }
 
+    /// Returns the sizer in bytes of the specified pixel format
+    static constexpr u32 GetBytesPerPixel(PixelFormat pixel_format) {
+        if (pixel_format == SurfaceParams::PixelFormat::Invalid) {
+            return 0;
+        }
+        return GetFormatBpp(pixel_format) / CHAR_BIT;
+    }
+
     /// Returns the rectangle corresponding to this surface
     MathUtil::Rectangle<u32> GetRect() const;
 
-    /// Returns the size of this surface as a 2D texture in bytes, adjusted for compression
-    std::size_t SizeInBytes2D() const {
+    /// Returns the total size of this surface in bytes, adjusted for compression
+    std::size_t SizeInBytesRaw(bool ignore_tiled = false) const {
         const u32 compression_factor{GetCompressionFactor(pixel_format)};
-        ASSERT(width % compression_factor == 0);
-        ASSERT(height % compression_factor == 0);
-        return (width / compression_factor) * (height / compression_factor) *
-               GetFormatBpp(pixel_format) / CHAR_BIT;
+        const u32 bytes_per_pixel{GetBytesPerPixel(pixel_format)};
+        const size_t uncompressed_size{
+            Tegra::Texture::CalculateSize((ignore_tiled ? false : is_tiled), bytes_per_pixel, width,
+                                          height, depth, block_height, block_depth)};
+
+        // Divide by compression_factor^2, as height and width are factored by this
+        return uncompressed_size / (compression_factor * compression_factor);
     }
 
-    /// Returns the total size of this surface in bytes, adjusted for compression
-    std::size_t SizeInBytesTotal() const {
-        return SizeInBytes2D() * depth;
+    /// Returns the size of this surface as an OpenGL texture in bytes
+    std::size_t SizeInBytesGL() const {
+        return SizeInBytesRaw(true);
+    }
+
+    /// Returns the size of this surface as a cube face in bytes
+    std::size_t SizeInBytesCubeFace() const {
+        return size_in_bytes / 6;
+    }
+
+    /// Returns the size of this surface as an OpenGL cube face in bytes
+    std::size_t SizeInBytesCubeFaceGL() const {
+        return size_in_bytes_gl / 6;
     }
 
     /// Creates SurfaceParams from a texture configuration
@@ -742,7 +764,9 @@ struct SurfaceParams {
                         other.depth);
     }
 
-    VAddr addr;
+    /// Initializes parameters for caching, should be called after everything has been initialized
+    void InitCacheParameters(Tegra::GPUVAddr gpu_addr);
+
     bool is_tiled;
     u32 block_width;
     u32 block_height;
@@ -754,10 +778,14 @@ struct SurfaceParams {
     u32 height;
     u32 depth;
     u32 unaligned_height;
-    std::size_t size_in_bytes_total;
-    std::size_t size_in_bytes_2d;
     SurfaceTarget target;
     u32 max_mip_level;
+
+    // Parameters used for caching
+    VAddr addr;
+    Tegra::GPUVAddr gpu_addr;
+    std::size_t size_in_bytes;
+    std::size_t size_in_bytes_gl;
 
     // Render target specific parameters, not used in caching
     struct {
@@ -775,7 +803,8 @@ struct SurfaceReserveKey : Common::HashableStruct<OpenGL::SurfaceParams> {
     static SurfaceReserveKey Create(const OpenGL::SurfaceParams& params) {
         SurfaceReserveKey res;
         res.state = params;
-        res.state.rt = {}; // Ignore rt config in caching
+        res.state.gpu_addr = {}; // Ignore GPU vaddr in caching
+        res.state.rt = {};       // Ignore rt config in caching
         return res;
     }
 };
@@ -790,16 +819,20 @@ struct hash<SurfaceReserveKey> {
 
 namespace OpenGL {
 
-class CachedSurface final {
+class CachedSurface final : public RasterizerCacheObject {
 public:
     CachedSurface(const SurfaceParams& params);
 
-    VAddr GetAddr() const {
+    VAddr GetAddr() const override {
         return params.addr;
     }
 
-    std::size_t GetSizeInBytes() const {
-        return params.size_in_bytes_total;
+    std::size_t GetSizeInBytes() const override {
+        return cached_size_in_bytes;
+    }
+
+    void Flush() override {
+        FlushGLBuffer();
     }
 
     const OGLTexture& Texture() const {
@@ -808,13 +841,6 @@ public:
 
     GLenum Target() const {
         return gl_target;
-    }
-
-    static constexpr unsigned int GetGLBytesPerPixel(SurfaceParams::PixelFormat format) {
-        if (format == SurfaceParams::PixelFormat::Invalid)
-            return 0;
-
-        return SurfaceParams::GetFormatBpp(format) / CHAR_BIT;
     }
 
     const SurfaceParams& GetSurfaceParams() const {
@@ -833,6 +859,7 @@ private:
     std::vector<u8> gl_buffer;
     SurfaceParams params;
     GLenum gl_target;
+    std::size_t cached_size_in_bytes;
 };
 
 class RasterizerCacheOpenGL final : public RasterizerCache<Surface> {
@@ -848,9 +875,6 @@ public:
 
     /// Get the color surface based on the framebuffer configuration and the specified render target
     Surface GetColorBufferSurface(std::size_t index, bool preserve_contents);
-
-    /// Flushes the surface to Switch memory
-    void FlushSurface(const Surface& surface);
 
     /// Tries to find a framebuffer using on the provided CPU address
     Surface TryFindFramebufferSurface(VAddr addr) const;
@@ -874,6 +898,9 @@ private:
 
     /// Tries to get a reserved surface for the specified parameters
     Surface TryGetReservedSurface(const SurfaceParams& params);
+
+    /// Performs a slow but accurate surface copy, flushing to RAM and reinterpreting the data
+    void AccurateCopySurface(const Surface& src_surface, const Surface& dst_surface);
 
     /// The surface reserve is a "backup" cache, this is where we put unique surfaces that have
     /// previously been used. This is to prevent surfaces from being constantly created and
