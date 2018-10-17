@@ -162,9 +162,6 @@ private:
     /// Syncs the LogicOp state to match the guest state
     void SyncLogicOpState();
 
-    /// Syncs the alpha test state to match the guest state
-    void SyncAlphaTest();
-
     /// Syncs the scissor test state to match the guest state
     void SyncScissorTest();
 
@@ -173,6 +170,9 @@ private:
 
     /// Syncs the point state to match the guest state
     void SyncPointState();
+
+    /// Check asserts for alpha testing.
+    void CheckAlphaTests();
 
     bool has_ARB_direct_state_access = false;
     bool has_ARB_multi_bind = false;
