@@ -1,3 +1,26 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: afe22d8405e229154fd34d3d2f868af7b2871250
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1501](https://github.com/yuzu-emu/yuzu/pull/1501)|[6312eec](https://github.com/yuzu-emu/yuzu/pull/1501/files/)|gl_shader_decompiler: Implement H* instructions|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[1497](https://github.com/yuzu-emu/yuzu/pull/1497)|[648b55c](https://github.com/yuzu-emu/yuzu/pull/1497/files/)|Implement flushing in the rasterizer cache|[bunnei](https://github.com/bunnei)|Yes|
+|[1496](https://github.com/yuzu-emu/yuzu/pull/1496)|[1d6559f](https://github.com/yuzu-emu/yuzu/pull/1496/files/)|Implement Arrays on Tex Instruction|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1470](https://github.com/yuzu-emu/yuzu/pull/1470)|[265fa48](https://github.com/yuzu-emu/yuzu/pull/1470/files/)|Implemented Alpha Test using Shader Emulation|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1468](https://github.com/yuzu-emu/yuzu/pull/1468)|[918e46b](https://github.com/yuzu-emu/yuzu/pull/1468/files/)|qt: Add UI to manage emulated user profiles|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1444](https://github.com/yuzu-emu/yuzu/pull/1444)|[8144fa4](https://github.com/yuzu-emu/yuzu/pull/1444/files/)|"Better Hid" Rework Part 1|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
