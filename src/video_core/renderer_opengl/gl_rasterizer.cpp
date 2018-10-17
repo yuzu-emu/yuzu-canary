@@ -424,6 +424,13 @@ void RasterizerOpenGL::ConfigureFramebuffers(bool using_color_fb, bool using_dep
             // Used when just a single color attachment is enabled, e.g. for clearing a color buffer
             Surface color_surface =
                 res_cache.GetColorBufferSurface(*single_color_target, preserve_contents);
+
+            if (color_surface) {
+                // Assume that a surface will be written to if it is used as a framebuffer, even if
+                // the shader doesn't actually write to it.
+                color_surface->MarkAsModified(true, res_cache);
+            }
+
             glFramebufferTexture2D(
                 GL_DRAW_FRAMEBUFFER,
                 GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(*single_color_target), GL_TEXTURE_2D,
@@ -434,6 +441,13 @@ void RasterizerOpenGL::ConfigureFramebuffers(bool using_color_fb, bool using_dep
             std::array<GLenum, Maxwell::NumRenderTargets> buffers;
             for (std::size_t index = 0; index < Maxwell::NumRenderTargets; ++index) {
                 Surface color_surface = res_cache.GetColorBufferSurface(index, preserve_contents);
+
+                if (color_surface) {
+                    // Assume that a surface will be written to if it is used as a framebuffer, even
+                    // if the shader doesn't actually write to it.
+                    color_surface->MarkAsModified(true, res_cache);
+                }
+
                 buffers[index] = GL_COLOR_ATTACHMENT0 + regs.rt_control.GetMap(index);
                 glFramebufferTexture2D(
                     GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(index),
@@ -453,6 +467,10 @@ void RasterizerOpenGL::ConfigureFramebuffers(bool using_color_fb, bool using_dep
     }
 
     if (depth_surface) {
+        // Assume that a surface will be written to if it is used as a framebuffer, even if
+        // the shader doesn't actually write to it.
+        depth_surface->MarkAsModified(true, res_cache);
+
         if (regs.stencil_enable) {
             // Attach both depth and stencil
             glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
@@ -617,7 +635,14 @@ void RasterizerOpenGL::DrawArrays() {
 
 void RasterizerOpenGL::FlushAll() {}
 
-void RasterizerOpenGL::FlushRegion(VAddr addr, u64 size) {}
+void RasterizerOpenGL::FlushRegion(VAddr addr, u64 size) {
+    MICROPROFILE_SCOPE(OpenGL_CacheManagement);
+
+    if (Settings::values.use_accurate_gpu_emulation) {
+        // Only flush if use_accurate_gpu_emulation is enabled, as it incurs a performance hit
+        res_cache.FlushRegion(addr, size);
+    }
+}
 
 void RasterizerOpenGL::InvalidateRegion(VAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
@@ -627,6 +652,7 @@ void RasterizerOpenGL::InvalidateRegion(VAddr addr, u64 size) {
 }
 
 void RasterizerOpenGL::FlushAndInvalidateRegion(VAddr addr, u64 size) {
+    FlushRegion(addr, size);
     InvalidateRegion(addr, size);
 }
 

@@ -26,6 +26,7 @@ public:
     GPUVAddr MapBufferEx(VAddr cpu_addr, u64 size);
     GPUVAddr MapBufferEx(VAddr cpu_addr, GPUVAddr gpu_addr, u64 size);
     GPUVAddr UnmapBuffer(GPUVAddr gpu_addr, u64 size);
+    GPUVAddr GetRegionEnd(GPUVAddr region_start) const;
     boost::optional<VAddr> GpuToCpuAddress(GPUVAddr gpu_addr);
     std::vector<GPUVAddr> CpuToGpuAddress(VAddr cpu_addr) const;
 
