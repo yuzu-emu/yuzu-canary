@@ -50,9 +50,9 @@
           </layout>
         </item>
         <item>
-         <widget class="QCheckBox" name="use_accurate_framebuffers">
+         <widget class="QCheckBox" name="use_accurate_gpu_emulation">
           <property name="text">
-           <string>Use accurate framebuffers (slow)</string>
+           <string>Use accurate GPU emulation (slow)</string>
           </property>
          </widget>
         </item>

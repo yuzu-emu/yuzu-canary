@@ -19,19 +19,20 @@ class CachedShader;
 using Shader = std::shared_ptr<CachedShader>;
 using Maxwell = Tegra::Engines::Maxwell3D::Regs;
 
-class CachedShader final {
+class CachedShader final : public RasterizerCacheObject {
 public:
     CachedShader(VAddr addr, Maxwell::ShaderProgram program_type);
 
-    /// Gets the address of the shader in guest memory, required for cache management
-    VAddr GetAddr() const {
+    VAddr GetAddr() const override {
         return addr;
     }
 
-    /// Gets the size of the shader in guest memory, required for cache management
-    std::size_t GetSizeInBytes() const {
+    std::size_t GetSizeInBytes() const override {
         return GLShader::MAX_PROGRAM_CODE_LENGTH * sizeof(u64);
     }
+
+    // We do not have to flush this cache as things in it are never modified by us.
+    void Flush() override {}
 
     /// Gets the shader entries for the shader
     const GLShader::ShaderEntries& GetShaderEntries() const {

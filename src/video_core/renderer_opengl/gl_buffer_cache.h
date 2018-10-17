@@ -15,14 +15,17 @@
 
 namespace OpenGL {
 
-struct CachedBufferEntry final {
-    VAddr GetAddr() const {
+struct CachedBufferEntry final : public RasterizerCacheObject {
+    VAddr GetAddr() const override {
         return addr;
     }
 
-    std::size_t GetSizeInBytes() const {
+    std::size_t GetSizeInBytes() const override {
         return size;
     }
+
+    // We do not have to flush this cache as things in it are never modified by us.
+    void Flush() override {}
 
     VAddr addr;
     std::size_t size;

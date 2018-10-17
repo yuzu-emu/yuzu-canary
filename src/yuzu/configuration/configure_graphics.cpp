@@ -75,7 +75,7 @@ void ConfigureGraphics::setConfiguration() {
         static_cast<int>(FromResolutionFactor(Settings::values.resolution_factor)));
     ui->toggle_frame_limit->setChecked(Settings::values.use_frame_limit);
     ui->frame_limit->setValue(Settings::values.frame_limit);
-    ui->use_accurate_framebuffers->setChecked(Settings::values.use_accurate_framebuffers);
+    ui->use_accurate_gpu_emulation->setChecked(Settings::values.use_accurate_gpu_emulation);
     bg_color = QColor::fromRgbF(Settings::values.bg_red, Settings::values.bg_green,
                                 Settings::values.bg_blue);
     ui->bg_button->setStyleSheet(
@@ -87,7 +87,7 @@ void ConfigureGraphics::applyConfiguration() {
         ToResolutionFactor(static_cast<Resolution>(ui->resolution_factor_combobox->currentIndex()));
     Settings::values.use_frame_limit = ui->toggle_frame_limit->isChecked();
     Settings::values.frame_limit = ui->frame_limit->value();
-    Settings::values.use_accurate_framebuffers = ui->use_accurate_framebuffers->isChecked();
+    Settings::values.use_accurate_gpu_emulation = ui->use_accurate_gpu_emulation->isChecked();
     Settings::values.bg_red = static_cast<float>(bg_color.redF());
     Settings::values.bg_green = static_cast<float>(bg_color.greenF());
     Settings::values.bg_blue = static_cast<float>(bg_color.blueF());
