@@ -2,6 +2,8 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <array>
+#include "common/common_types.h"
 #include "common/logging/log.h"
 #include "core/core.h"
 #include "core/core_timing.h"
@@ -19,6 +21,16 @@
 #include "core/hle/service/service.h"
 #include "core/settings.h"
 
+#include "core/hle/service/hid/controllers/controller_base.h"
+#include "core/hle/service/hid/controllers/debug_pad.h"
+#include "core/hle/service/hid/controllers/gesture.h"
+#include "core/hle/service/hid/controllers/keyboard.h"
+#include "core/hle/service/hid/controllers/mouse.h"
+#include "core/hle/service/hid/controllers/npad.h"
+#include "core/hle/service/hid/controllers/stubbed.h"
+#include "core/hle/service/hid/controllers/touchscreen.h"
+#include "core/hle/service/hid/controllers/xpad.h"
+
 namespace Service::HID {
 
 // Updating period for each HID device.
@@ -26,6 +38,22 @@ namespace Service::HID {
 constexpr u64 pad_update_ticks = CoreTiming::BASE_CLOCK_RATE / 100;
 constexpr u64 accelerometer_update_ticks = CoreTiming::BASE_CLOCK_RATE / 100;
 constexpr u64 gyroscope_update_ticks = CoreTiming::BASE_CLOCK_RATE / 100;
+constexpr std::size_t SHARED_MEMORY_SIZE = 0x40000;
+enum class HidController : std::size_t {
+    DebugPad,
+    Touchscreen,
+    Mouse,
+    Keyboard,
+    XPad,
+    Unknown1,
+    Unknown2,
+    Unknown3,
+    SixAxisSensor,
+    NPad,
+    Gesture,
+
+    MaxControllers,
+};
 
 class IAppletResource final : public ServiceFramework<IAppletResource> {
 public:
@@ -37,17 +65,55 @@ public:
 
         auto& kernel = Core::System::GetInstance().Kernel();
         shared_mem = Kernel::SharedMemory::Create(
-            kernel, nullptr, 0x40000, Kernel::MemoryPermission::ReadWrite,
+            kernel, nullptr, SHARED_MEMORY_SIZE, Kernel::MemoryPermission::ReadWrite,
             Kernel::MemoryPermission::Read, 0, Kernel::MemoryRegion::BASE, "HID:SharedMemory");
+
+        MakeController<Controller_DebugPad>(HidController::DebugPad);
+        MakeController<Controller_Touchscreen>(HidController::Touchscreen);
+        MakeController<Controller_Mouse>(HidController::Mouse);
+        MakeController<Controller_Keyboard>(HidController::Keyboard);
+        MakeController<Controller_XPad>(HidController::XPad);
+        MakeController<Controller_Stubbed>(HidController::Unknown1);
+        MakeController<Controller_Stubbed>(HidController::Unknown2);
+        MakeController<Controller_Stubbed>(HidController::Unknown3);
+        MakeController<Controller_Stubbed>(HidController::SixAxisSensor);
+        MakeController<Controller_NPad>(HidController::NPad);
+        MakeController<Controller_Gesture>(HidController::Gesture);
+
+        // Homebrew doesn't try to activate some controllers, so we activate them by default
+        GetController<Controller_NPad>(HidController::NPad).ActivateController();
+        GetController<Controller_Touchscreen>(HidController::Touchscreen).ActivateController();
+
+        GetController<Controller_Stubbed>(HidController::Unknown1).SetCommonHeaderOffset(0x4c00);
+        GetController<Controller_Stubbed>(HidController::Unknown2).SetCommonHeaderOffset(0x4e00);
+        GetController<Controller_Stubbed>(HidController::Unknown3).SetCommonHeaderOffset(0x5000);
 
         // Register update callbacks
         pad_update_event = CoreTiming::RegisterEvent(
             "HID::UpdatePadCallback",
-            [this](u64 userdata, int cycles_late) { UpdatePadCallback(userdata, cycles_late); });
+            [this](u64 userdata, int cycles_late) { UpdateControllers(userdata, cycles_late); });
 
         // TODO(shinyquagsire23): Other update callbacks? (accel, gyro?)
 
         CoreTiming::ScheduleEvent(pad_update_ticks, pad_update_event);
+    }
+
+    void ActivateController(HidController controller) {
+        controllers[static_cast<size_t>(controller)]->ActivateController();
+    }
+
+    void DeactivateController(HidController controller) {
+        controllers[static_cast<size_t>(controller)]->DeactivateController();
+    }
+
+    template <typename T>
+    void MakeController(HidController controller) {
+        controllers[static_cast<std::size_t>(controller)] = std::make_unique<T>();
+    }
+
+    template <typename T>
+    T& GetController(HidController controller) {
+        return static_cast<T&>(*controllers[static_cast<size_t>(controller)]);
     }
 
     ~IAppletResource() {
@@ -62,200 +128,15 @@ private:
         LOG_DEBUG(Service_HID, "called");
     }
 
-    void LoadInputDevices() {
-        std::transform(Settings::values.buttons.begin() + Settings::NativeButton::BUTTON_HID_BEGIN,
-                       Settings::values.buttons.begin() + Settings::NativeButton::BUTTON_HID_END,
-                       buttons.begin(), Input::CreateDevice<Input::ButtonDevice>);
-        std::transform(Settings::values.analogs.begin() + Settings::NativeAnalog::STICK_HID_BEGIN,
-                       Settings::values.analogs.begin() + Settings::NativeAnalog::STICK_HID_END,
-                       sticks.begin(), Input::CreateDevice<Input::AnalogDevice>);
-        touch_device = Input::CreateDevice<Input::TouchDevice>(Settings::values.touch_device);
-        // TODO(shinyquagsire23): gyro, mouse, keyboard
-    }
-
-    void UpdatePadCallback(u64 userdata, int cycles_late) {
-        SharedMemory mem{};
-        std::memcpy(&mem, shared_mem->GetPointer(), sizeof(SharedMemory));
-
-        if (Settings::values.is_device_reload_pending.exchange(false))
-            LoadInputDevices();
-
-        // Set up controllers as neon red+blue Joy-Con attached to console
-        ControllerHeader& controller_header = mem.controllers[Controller_Handheld].header;
-        controller_header.type = ControllerType_Handheld;
-        controller_header.single_colors_descriptor = ColorDesc_ColorsNonexistent;
-        controller_header.right_color_body = JOYCON_BODY_NEON_RED;
-        controller_header.right_color_buttons = JOYCON_BUTTONS_NEON_RED;
-        controller_header.left_color_body = JOYCON_BODY_NEON_BLUE;
-        controller_header.left_color_buttons = JOYCON_BUTTONS_NEON_BLUE;
-
-        for (std::size_t controller = 0; controller < mem.controllers.size(); controller++) {
-            for (auto& layout : mem.controllers[controller].layouts) {
-                layout.header.num_entries = HID_NUM_ENTRIES;
-                layout.header.max_entry_index = HID_NUM_ENTRIES - 1;
-
-                // HID shared memory stores the state of the past 17 samples in a circlular buffer,
-                // each with a timestamp in number of samples since boot.
-                const ControllerInputEntry& last_entry = layout.entries[layout.header.latest_entry];
-
-                layout.header.timestamp_ticks = CoreTiming::GetTicks();
-                layout.header.latest_entry = (layout.header.latest_entry + 1) % HID_NUM_ENTRIES;
-
-                ControllerInputEntry& entry = layout.entries[layout.header.latest_entry];
-                entry.timestamp = last_entry.timestamp + 1;
-                // TODO(shinyquagsire23): Is this always identical to timestamp?
-                entry.timestamp_2 = entry.timestamp;
-
-                // TODO(shinyquagsire23): More than just handheld input
-                if (controller != Controller_Handheld)
-                    continue;
-
-                entry.connection_state = ConnectionState_Connected | ConnectionState_Wired;
-
-                // TODO(shinyquagsire23): Set up some LUTs for each layout mapping in the future?
-                // For now everything is just the default handheld layout, but split Joy-Con will
-                // rotate the face buttons and directions for certain layouts.
-                ControllerPadState& state = entry.buttons;
-                using namespace Settings::NativeButton;
-                state.a.Assign(buttons[A - BUTTON_HID_BEGIN]->GetStatus());
-                state.b.Assign(buttons[B - BUTTON_HID_BEGIN]->GetStatus());
-                state.x.Assign(buttons[X - BUTTON_HID_BEGIN]->GetStatus());
-                state.y.Assign(buttons[Y - BUTTON_HID_BEGIN]->GetStatus());
-                state.lstick.Assign(buttons[LStick - BUTTON_HID_BEGIN]->GetStatus());
-                state.rstick.Assign(buttons[RStick - BUTTON_HID_BEGIN]->GetStatus());
-                state.l.Assign(buttons[L - BUTTON_HID_BEGIN]->GetStatus());
-                state.r.Assign(buttons[R - BUTTON_HID_BEGIN]->GetStatus());
-                state.zl.Assign(buttons[ZL - BUTTON_HID_BEGIN]->GetStatus());
-                state.zr.Assign(buttons[ZR - BUTTON_HID_BEGIN]->GetStatus());
-                state.plus.Assign(buttons[Plus - BUTTON_HID_BEGIN]->GetStatus());
-                state.minus.Assign(buttons[Minus - BUTTON_HID_BEGIN]->GetStatus());
-
-                state.dleft.Assign(buttons[DLeft - BUTTON_HID_BEGIN]->GetStatus());
-                state.dup.Assign(buttons[DUp - BUTTON_HID_BEGIN]->GetStatus());
-                state.dright.Assign(buttons[DRight - BUTTON_HID_BEGIN]->GetStatus());
-                state.ddown.Assign(buttons[DDown - BUTTON_HID_BEGIN]->GetStatus());
-
-                state.lstick_left.Assign(buttons[LStick_Left - BUTTON_HID_BEGIN]->GetStatus());
-                state.lstick_up.Assign(buttons[LStick_Up - BUTTON_HID_BEGIN]->GetStatus());
-                state.lstick_right.Assign(buttons[LStick_Right - BUTTON_HID_BEGIN]->GetStatus());
-                state.lstick_down.Assign(buttons[LStick_Down - BUTTON_HID_BEGIN]->GetStatus());
-
-                state.rstick_left.Assign(buttons[RStick_Left - BUTTON_HID_BEGIN]->GetStatus());
-                state.rstick_up.Assign(buttons[RStick_Up - BUTTON_HID_BEGIN]->GetStatus());
-                state.rstick_right.Assign(buttons[RStick_Right - BUTTON_HID_BEGIN]->GetStatus());
-                state.rstick_down.Assign(buttons[RStick_Down - BUTTON_HID_BEGIN]->GetStatus());
-
-                state.sl.Assign(buttons[SL - BUTTON_HID_BEGIN]->GetStatus());
-                state.sr.Assign(buttons[SR - BUTTON_HID_BEGIN]->GetStatus());
-
-                const auto [stick_l_x_f, stick_l_y_f] = sticks[Joystick_Left]->GetStatus();
-                const auto [stick_r_x_f, stick_r_y_f] = sticks[Joystick_Right]->GetStatus();
-                entry.joystick_left_x = static_cast<s32>(stick_l_x_f * HID_JOYSTICK_MAX);
-                entry.joystick_left_y = static_cast<s32>(stick_l_y_f * HID_JOYSTICK_MAX);
-                entry.joystick_right_x = static_cast<s32>(stick_r_x_f * HID_JOYSTICK_MAX);
-                entry.joystick_right_y = static_cast<s32>(stick_r_y_f * HID_JOYSTICK_MAX);
+    void UpdateControllers(u64 userdata, int cycles_late) {
+        const bool should_reload = Settings::values.is_device_reload_pending.exchange(false);
+        for (const auto& controller : controllers) {
+            if (should_reload) {
+                controller->OnLoadInputDevices();
             }
+            controller->OnUpdate(shared_mem->GetPointer(), SHARED_MEMORY_SIZE);
         }
 
-        TouchScreen& touchscreen = mem.touchscreen;
-        const u64 last_entry = touchscreen.header.latest_entry;
-        const u64 curr_entry = (last_entry + 1) % touchscreen.entries.size();
-        const u64 timestamp = CoreTiming::GetTicks();
-        const u64 sample_counter = touchscreen.entries[last_entry].header.timestamp + 1;
-        touchscreen.header.timestamp_ticks = timestamp;
-        touchscreen.header.num_entries = touchscreen.entries.size();
-        touchscreen.header.latest_entry = curr_entry;
-        touchscreen.header.max_entry_index = touchscreen.entries.size();
-        touchscreen.header.timestamp = timestamp;
-        touchscreen.entries[curr_entry].header.timestamp = sample_counter;
-
-        TouchScreenEntryTouch touch_entry{};
-        auto [x, y, pressed] = touch_device->GetStatus();
-        touch_entry.timestamp = timestamp;
-        touch_entry.x = static_cast<u16>(x * Layout::ScreenUndocked::Width);
-        touch_entry.y = static_cast<u16>(y * Layout::ScreenUndocked::Height);
-        touch_entry.touch_index = 0;
-
-        // TODO(DarkLordZach): Maybe try to derive these from EmuWindow?
-        touch_entry.diameter_x = 15;
-        touch_entry.diameter_y = 15;
-        touch_entry.angle = 0;
-
-        // TODO(DarkLordZach): Implement multi-touch support
-        if (pressed) {
-            touchscreen.entries[curr_entry].header.num_touches = 1;
-            touchscreen.entries[curr_entry].touches[0] = touch_entry;
-        } else {
-            touchscreen.entries[curr_entry].header.num_touches = 0;
-        }
-
-        // TODO(shinyquagsire23): Properly implement mouse
-        Mouse& mouse = mem.mouse;
-        const u64 last_mouse_entry = mouse.header.latest_entry;
-        const u64 curr_mouse_entry = (mouse.header.latest_entry + 1) % mouse.entries.size();
-        const u64 mouse_sample_counter = mouse.entries[last_mouse_entry].timestamp + 1;
-        mouse.header.timestamp_ticks = timestamp;
-        mouse.header.num_entries = mouse.entries.size();
-        mouse.header.max_entry_index = mouse.entries.size();
-        mouse.header.latest_entry = curr_mouse_entry;
-
-        mouse.entries[curr_mouse_entry].timestamp = mouse_sample_counter;
-        mouse.entries[curr_mouse_entry].timestamp_2 = mouse_sample_counter;
-
-        // TODO(shinyquagsire23): Properly implement keyboard
-        Keyboard& keyboard = mem.keyboard;
-        const u64 last_keyboard_entry = keyboard.header.latest_entry;
-        const u64 curr_keyboard_entry =
-            (keyboard.header.latest_entry + 1) % keyboard.entries.size();
-        const u64 keyboard_sample_counter = keyboard.entries[last_keyboard_entry].timestamp + 1;
-        keyboard.header.timestamp_ticks = timestamp;
-        keyboard.header.num_entries = keyboard.entries.size();
-        keyboard.header.latest_entry = last_keyboard_entry;
-        keyboard.header.max_entry_index = keyboard.entries.size();
-
-        keyboard.entries[curr_keyboard_entry].timestamp = keyboard_sample_counter;
-        keyboard.entries[curr_keyboard_entry].timestamp_2 = keyboard_sample_counter;
-
-        // TODO(shinyquagsire23): Figure out what any of these are
-        for (auto& input : mem.unk_input_1) {
-            const u64 last_input_entry = input.header.latest_entry;
-            const u64 curr_input_entry = (input.header.latest_entry + 1) % input.entries.size();
-            const u64 input_sample_counter = input.entries[last_input_entry].timestamp + 1;
-
-            input.header.timestamp_ticks = timestamp;
-            input.header.num_entries = input.entries.size();
-            input.header.latest_entry = last_input_entry;
-            input.header.max_entry_index = input.entries.size();
-
-            input.entries[curr_input_entry].timestamp = input_sample_counter;
-            input.entries[curr_input_entry].timestamp_2 = input_sample_counter;
-        }
-
-        for (auto& input : mem.unk_input_2) {
-            input.header.timestamp_ticks = timestamp;
-            input.header.num_entries = 17;
-            input.header.latest_entry = 0;
-            input.header.max_entry_index = 0;
-        }
-
-        UnkInput3& input = mem.unk_input_3;
-        const u64 last_input_entry = input.header.latest_entry;
-        const u64 curr_input_entry = (input.header.latest_entry + 1) % input.entries.size();
-        const u64 input_sample_counter = input.entries[last_input_entry].timestamp + 1;
-
-        input.header.timestamp_ticks = timestamp;
-        input.header.num_entries = input.entries.size();
-        input.header.latest_entry = last_input_entry;
-        input.header.max_entry_index = input.entries.size();
-
-        input.entries[curr_input_entry].timestamp = input_sample_counter;
-        input.entries[curr_input_entry].timestamp_2 = input_sample_counter;
-
-        // TODO(shinyquagsire23): Signal events
-
-        std::memcpy(shared_mem->GetPointer(), &mem, sizeof(SharedMemory));
-
-        // Reschedule recurrent event
         CoreTiming::ScheduleEvent(pad_update_ticks - cycles_late, pad_update_event);
     }
 
@@ -265,11 +146,8 @@ private:
     // CoreTiming update events
     CoreTiming::EventType* pad_update_event;
 
-    // Stored input state info
-    std::array<std::unique_ptr<Input::ButtonDevice>, Settings::NativeButton::NUM_BUTTONS_HID>
-        buttons;
-    std::array<std::unique_ptr<Input::AnalogDevice>, Settings::NativeAnalog::NUM_STICKS_HID> sticks;
-    std::unique_ptr<Input::TouchDevice> touch_device;
+    std::array<std::unique_ptr<ControllerBase>, static_cast<size_t>(HidController::MaxControllers)>
+        controllers{};
 };
 
 class IActiveVibrationDeviceList final : public ServiceFramework<IActiveVibrationDeviceList> {
@@ -301,7 +179,7 @@ public:
             {31, &Hid::ActivateKeyboard, "ActivateKeyboard"},
             {40, nullptr, "AcquireXpadIdEventHandle"},
             {41, nullptr, "ReleaseXpadIdEventHandle"},
-            {51, nullptr, "ActivateXpad"},
+            {51, &Hid::ActivateXpad, "ActivateXpad"},
             {55, nullptr, "GetXpadIds"},
             {56, nullptr, "ActivateJoyXpad"},
             {58, nullptr, "GetJoyXpadLifoHandle"},
@@ -362,8 +240,8 @@ public:
             {206, &Hid::SendVibrationValues, "SendVibrationValues"},
             {207, nullptr, "SendVibrationGcErmCommand"},
             {208, nullptr, "GetActualVibrationGcErmCommand"},
-            {209, nullptr, "BeginPermitVibrationSession"},
-            {210, nullptr, "EndPermitVibrationSession"},
+            {209, &Hid::BeginPermitVibrationSession, "BeginPermitVibrationSession"},
+            {210, &Hid::EndPermitVibrationSession, "EndPermitVibrationSession"},
             {300, &Hid::ActivateConsoleSixAxisSensor, "ActivateConsoleSixAxisSensor"},
             {301, &Hid::StartConsoleSixAxisSensor, "StartConsoleSixAxisSensor"},
             {302, nullptr, "StopConsoleSixAxisSensor"},
@@ -401,16 +279,11 @@ public:
         // clang-format on
 
         RegisterHandlers(functions);
-
-        auto& kernel = Core::System::GetInstance().Kernel();
-        event = Kernel::Event::Create(kernel, Kernel::ResetType::OneShot, "hid:EventHandle");
     }
     ~Hid() = default;
 
 private:
     std::shared_ptr<IAppletResource> applet_resource;
-    u32 joy_hold_type{0};
-    Kernel::SharedPtr<Kernel::Event> event;
 
     void CreateAppletResource(Kernel::HLERequestContext& ctx) {
         if (applet_resource == nullptr) {
@@ -423,31 +296,59 @@ private:
         LOG_DEBUG(Service_HID, "called");
     }
 
-    void ActivateDebugPad(Kernel::HLERequestContext& ctx) {
+    void ActivateXpad(Kernel::HLERequestContext& ctx) {
+        applet_resource->ActivateController(HidController::XPad);
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        LOG_DEBUG(Service_HID, "called");
+    }
+
+    void ActivateDebugPad(Kernel::HLERequestContext& ctx) {
+        applet_resource->ActivateController(HidController::DebugPad);
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void ActivateTouchScreen(Kernel::HLERequestContext& ctx) {
+        applet_resource->ActivateController(HidController::Touchscreen);
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void ActivateMouse(Kernel::HLERequestContext& ctx) {
+        applet_resource->ActivateController(HidController::Mouse);
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void ActivateKeyboard(Kernel::HLERequestContext& ctx) {
+        applet_resource->ActivateController(HidController::Keyboard);
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        LOG_DEBUG(Service_HID, "called");
+    }
+
+    void ActivateGesture(Kernel::HLERequestContext& ctx) {
+        applet_resource->ActivateController(HidController::Gesture);
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+        LOG_DEBUG(Service_HID, "called");
+    }
+
+    void ActivateNpadWithRevision(Kernel::HLERequestContext& ctx) {
+        // Should have no effect with how our npad sets up the data
+        applet_resource->ActivateController(HidController::NPad);
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void StartSixAxisSensor(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        auto handle = rp.PopRaw<u32>();
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
         LOG_WARNING(Service_HID, "(STUBBED) called");
@@ -468,84 +369,168 @@ private:
     }
 
     void SetSupportedNpadStyleSet(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        auto supported_styleset = rp.PopRaw<u32>();
+        applet_resource->GetController<Controller_NPad>(HidController::NPad)
+            .SetSupportedStyleSet({supported_styleset});
+
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void GetSupportedNpadStyleSet(Kernel::HLERequestContext& ctx) {
+        auto& controller = applet_resource->GetController<Controller_NPad>(HidController::NPad);
+
         IPC::ResponseBuilder rb{ctx, 3};
         rb.Push(RESULT_SUCCESS);
-        rb.Push<u32>(0);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        rb.Push<u32>(controller.GetSupportedStyleSet().raw);
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void SetSupportedNpadIdType(Kernel::HLERequestContext& ctx) {
+        applet_resource->GetController<Controller_NPad>(HidController::NPad)
+            .SetSupportedNPadIdTypes(ctx.ReadBuffer().data(), ctx.GetReadBufferSize());
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void ActivateNpad(Kernel::HLERequestContext& ctx) {
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        applet_resource->ActivateController(HidController::NPad);
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void AcquireNpadStyleSetUpdateEventHandle(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        auto npad_id = rp.PopRaw<u32>();
         IPC::ResponseBuilder rb{ctx, 2, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushCopyObjects(event);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        rb.PushCopyObjects(applet_resource->GetController<Controller_NPad>(HidController::NPad)
+                               .GetStyleSetChangedEvent());
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void DisconnectNpad(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        auto npad_id = rp.PopRaw<u32>();
+        applet_resource->GetController<Controller_NPad>(HidController::NPad)
+            .DisconnectNPad(npad_id);
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void GetPlayerLedPattern(Kernel::HLERequestContext& ctx) {
-        IPC::ResponseBuilder rb{ctx, 2};
+        IPC::RequestParser rp{ctx};
+        auto npad_id = rp.PopRaw<u32>();
+        IPC::ResponseBuilder rb{ctx, 4};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        rb.PushRaw<u64>(applet_resource->GetController<Controller_NPad>(HidController::NPad)
+                            .GetLedPattern(npad_id)
+                            .raw);
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void SetNpadJoyHoldType(Kernel::HLERequestContext& ctx) {
+        auto& controller = applet_resource->GetController<Controller_NPad>(HidController::NPad);
+        IPC::RequestParser rp{ctx};
+        const auto hold_type = rp.PopRaw<u64>();
+        controller.SetHoldType(Controller_NPad::NpadHoldType{hold_type});
+
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void GetNpadJoyHoldType(Kernel::HLERequestContext& ctx) {
-        IPC::ResponseBuilder rb{ctx, 3};
+        const auto& controller =
+            applet_resource->GetController<Controller_NPad>(HidController::NPad);
+        IPC::ResponseBuilder rb{ctx, 4};
         rb.Push(RESULT_SUCCESS);
-        rb.Push(joy_hold_type);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        rb.Push<u64>(static_cast<u64>(controller.GetHoldType()));
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void SetNpadJoyAssignmentModeSingleByDefault(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        auto npad_id = rp.PopRaw<u32>();
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
         LOG_WARNING(Service_HID, "(STUBBED) called");
+    }
+
+    void BeginPermitVibrationSession(Kernel::HLERequestContext& ctx) {
+        applet_resource->GetController<Controller_NPad>(HidController::NPad)
+            .SetVibrationEnabled(true);
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+        LOG_DEBUG(Service_HID, "called");
+    }
+
+    void EndPermitVibrationSession(Kernel::HLERequestContext& ctx) {
+        applet_resource->GetController<Controller_NPad>(HidController::NPad)
+            .SetVibrationEnabled(false);
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void SendVibrationValue(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        const auto controller_id = rp.PopRaw<u32>();
+        const auto vibration_values = rp.PopRaw<Controller_NPad::Vibration>();
+
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+
+        applet_resource->GetController<Controller_NPad>(HidController::NPad)
+            .VibrateController({controller_id}, {vibration_values});
+        LOG_DEBUG(Service_HID, "called");
+    }
+
+    void SendVibrationValues(Kernel::HLERequestContext& ctx) {
+        const auto controllers = ctx.ReadBuffer(0);
+        const auto vibrations = ctx.ReadBuffer(1);
+
+        std::vector<u32> controller_list(controllers.size() / sizeof(u32));
+        std::vector<Controller_NPad::Vibration> vibration_list(vibrations.size() /
+                                                               sizeof(Controller_NPad::Vibration));
+
+        std::memcpy(controller_list.data(), controllers.data(), controllers.size());
+        std::memcpy(vibration_list.data(), vibrations.data(), vibrations.size());
+        std::transform(controller_list.begin(), controller_list.end(), controller_list.begin(),
+                       [](u32 controller_id) { return controller_id - 3; });
+
+        applet_resource->GetController<Controller_NPad>(HidController::NPad)
+            .VibrateController(controller_list, vibration_list);
+
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void GetActualVibrationValue(Kernel::HLERequestContext& ctx) {
-        IPC::ResponseBuilder rb{ctx, 2};
+        IPC::ResponseBuilder rb{ctx, 6};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        rb.PushRaw<Controller_NPad::Vibration>(
+            applet_resource->GetController<Controller_NPad>(HidController::NPad)
+                .GetLastVibration());
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void SetNpadJoyAssignmentModeDual(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        const auto npad_id = rp.PopRaw<u32>();
+        auto& controller = applet_resource->GetController<Controller_NPad>(HidController::NPad);
+        controller.SetNpadMode(npad_id, Controller_NPad::NPadAssignments::Dual);
+
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void MergeSingleJoyAsDualJoy(Kernel::HLERequestContext& ctx) {
@@ -555,6 +540,8 @@ private:
     }
 
     void SetNpadHandheldActivationMode(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        auto mode = rp.PopRaw<u32>();
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
         LOG_WARNING(Service_HID, "(STUBBED) called");
@@ -563,8 +550,9 @@ private:
     void GetVibrationDeviceInfo(Kernel::HLERequestContext& ctx) {
         IPC::ResponseBuilder rb{ctx, 4};
         rb.Push(RESULT_SUCCESS);
-        rb.Push<u64>(0);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
+        rb.Push<u32>(1);
+        rb.Push<u32>(0);
+        LOG_DEBUG(Service_HID, "called");
     }
 
     void CreateActiveVibrationDeviceList(Kernel::HLERequestContext& ctx) {
@@ -572,12 +560,6 @@ private:
         rb.Push(RESULT_SUCCESS);
         rb.PushIpcInterface<IActiveVibrationDeviceList>();
         LOG_DEBUG(Service_HID, "called");
-    }
-
-    void SendVibrationValues(Kernel::HLERequestContext& ctx) {
-        IPC::ResponseBuilder rb{ctx, 2};
-        rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
     }
 
     void ActivateConsoleSixAxisSensor(Kernel::HLERequestContext& ctx) {
@@ -593,18 +575,6 @@ private:
     }
 
     void StopSixAxisSensor(Kernel::HLERequestContext& ctx) {
-        IPC::ResponseBuilder rb{ctx, 2};
-        rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
-    }
-
-    void ActivateGesture(Kernel::HLERequestContext& ctx) {
-        IPC::ResponseBuilder rb{ctx, 2};
-        rb.Push(RESULT_SUCCESS);
-        LOG_WARNING(Service_HID, "(STUBBED) called");
-    }
-
-    void ActivateNpadWithRevision(Kernel::HLERequestContext& ctx) {
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
         LOG_WARNING(Service_HID, "(STUBBED) called");
