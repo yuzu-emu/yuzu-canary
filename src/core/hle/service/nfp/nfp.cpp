@@ -144,7 +144,7 @@ private:
     }
 
     const u64 device_handle{0xDEAD};
-    const HID::ControllerID npad_id{HID::Controller_Player1};
+    const u32 npad_id{0}; // This is the first player controller id
     State state{State::NonInitialized};
     DeviceState device_state{DeviceState::Initialized};
     Kernel::SharedPtr<Kernel::Event> activate_event;
