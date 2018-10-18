@@ -132,6 +132,8 @@ struct SurfaceParams {
         case Tegra::Texture::TextureType::Texture2D:
         case Tegra::Texture::TextureType::Texture2DNoMipmap:
             return SurfaceTarget::Texture2D;
+        case Tegra::Texture::TextureType::Texture3D:
+            return SurfaceTarget::Texture3D;
         case Tegra::Texture::TextureType::TextureCubemap:
             return SurfaceTarget::TextureCubemap;
         case Tegra::Texture::TextureType::Texture1DArray:
@@ -791,6 +793,7 @@ struct SurfaceParams {
     struct {
         u32 index;
         u32 array_mode;
+        u32 volume;
         u32 layer_stride;
         u32 base_layer;
     } rt;

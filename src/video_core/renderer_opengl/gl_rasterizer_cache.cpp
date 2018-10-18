@@ -155,6 +155,7 @@ void SurfaceParams::InitCacheParameters(Tegra::GPUVAddr gpu_addr_) {
     params.rt.index = static_cast<u32>(index);
     params.rt.array_mode = config.array_mode;
     params.rt.layer_stride = config.layer_stride;
+    params.rt.volume = config.volume;
     params.rt.base_layer = config.base_layer;
 
     params.InitCacheParameters(config.Address());
@@ -1122,8 +1123,8 @@ Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, bool pres
         } else if (preserve_contents) {
             // If surface parameters changed and we care about keeping the previous data, recreate
             // the surface from the old one
-            Unregister(surface);
             Surface new_surface{RecreateSurface(surface, params)};
+            Unregister(surface);
             Register(new_surface);
             return new_surface;
         } else {
@@ -1219,6 +1220,9 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& old_surface,
         } else {
             CopySurface(old_surface, new_surface, copy_pbo.handle);
         }
+        break;
+    case SurfaceParams::SurfaceTarget::Texture3D:
+        AccurateCopySurface(old_surface, new_surface);
         break;
     case SurfaceParams::SurfaceTarget::TextureCubemap: {
         if (old_params.rt.array_mode != 1) {

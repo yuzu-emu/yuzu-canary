@@ -1142,6 +1142,7 @@ private:
         case Tegra::Shader::TextureType::Texture2D: {
             return 2;
         }
+        case Tegra::Shader::TextureType::Texture3D:
         case Tegra::Shader::TextureType::TextureCube: {
             return 3;
         }
