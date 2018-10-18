@@ -448,7 +448,10 @@ public:
                 BitField<8, 3, u32> block_depth;
                 BitField<12, 1, InvMemoryLayout> type;
             } memory_layout;
-            u32 array_mode;
+            union {
+                BitField<0, 16, u32> array_mode;
+                BitField<16, 1, u32> volume;
+            };
             u32 layer_stride;
             u32 base_layer;
             INSERT_PADDING_WORDS(7);
