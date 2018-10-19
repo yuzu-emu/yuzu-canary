@@ -376,6 +376,49 @@ public:
     }
 
     /**
+     * Writes code that does a register assignment to a half float value operation.
+     * @param reg The destination register to use.
+     * @param elem The element to use for the operation.
+     * @param value The code representing the value to assign. Type has to be half float.
+     * @param type Half float kind of assignment.
+     * @param dest_num_components Number of components in the destionation.
+     * @param value_num_components Number of components in the value.
+     * @param is_saturated Optional, when True, saturates the provided value.
+     * @param dest_elem Optional, the destination element to use for the operation.
+     */
+    void SetRegisterToHalfFloat(const Register& reg, u64 elem, const std::string& value,
+                                Tegra::Shader::HalfMerge merge, u64 dest_num_components,
+                                u64 value_num_components, bool is_saturated = false,
+                                u64 dest_elem = 0) {
+        ASSERT_MSG(!is_saturated, "Unimplemented");
+
+        const std::string result = [&]() {
+            switch (merge) {
+            case Tegra::Shader::HalfMerge::H0_H1:
+                return "uintBitsToFloat(packHalf2x16(" + value + "))";
+            case Tegra::Shader::HalfMerge::F32:
+                // Half float instructions take the first component when doing a float cast.
+                return "float(" + value + ".x)";
+            case Tegra::Shader::HalfMerge::Mrg_H0:
+                // TODO(Rodrigo): I guess Mrg_H0 and Mrg_H1 take their respective component from the
+                // pack. I couldn't test this on hardware but it shouldn't really matter since most
+                // of the time when a Mrg_* flag is used both components will be mirrored. That
+                // being said, it deserves a test.
+                return "((" + GetRegisterAsInteger(reg, 0, false) +
+                       " & 0xffff0000) | (packHalf2x16(" + value + ") & 0x0000ffff))";
+            case Tegra::Shader::HalfMerge::Mrg_H1:
+                return "((" + GetRegisterAsInteger(reg, 0, false) +
+                       " & 0x0000ffff) | (packHalf2x16(" + value + ") & 0xffff0000))";
+            default:
+                UNREACHABLE();
+                return std::string("0");
+            }
+        }();
+
+        SetRegister(reg, elem, result, dest_num_components, value_num_components, dest_elem);
+    }
+
+    /**
      * Writes code that does a register assignment to input attribute operation. Input attributes
      * are stored as floats, so this may require conversion.
      * @param reg The destination register to use.
@@ -877,6 +920,19 @@ private:
         return fmt::format("uintBitsToFloat({})", instr.alu.GetImm20_32());
     }
 
+    /// Generates code representing a vec2 pair unpacked from a half float immediate
+    static std::string UnpackHalfImmediate(const Instruction& instr, bool negate) {
+        const std::string immediate = GetHalfFloat(std::to_string(instr.half_imm.PackImmediates()));
+        if (!negate) {
+            return immediate;
+        }
+        const std::string negate_first = instr.half_imm.first_negate != 0 ? "-" : "";
+        const std::string negate_second = instr.half_imm.second_negate != 0 ? "-" : "";
+        const std::string negate_vec = "vec2(" + negate_first + "1, " + negate_second + "1)";
+
+        return '(' + immediate + " * " + negate_vec + ')';
+    }
+
     /// Generates code representing a texture sampler.
     std::string GetSampler(const Sampler& sampler, Tegra::Shader::TextureType type, bool is_array,
                            bool is_shadow) {
@@ -1010,6 +1066,41 @@ private:
         }
 
         return result;
+    }
+
+    /*
+     * Transforms the input string GLSL operand into an unpacked half float pair.
+     * @note This function returns a float type pair instead of a half float pair. This is because
+     * real half floats are not standarized in GLSL but unpackHalf2x16 (which returns a vec2) is.
+     * @param operand Input operand. It has to be an unsigned integer.
+     * @param type How to unpack the unsigned integer to a half float pair.
+     * @param abs Get the absolute value of unpacked half floats.
+     * @param neg Get the negative value of unpacked half floats.
+     * @returns String corresponding to a half float pair.
+     */
+    static std::string GetHalfFloat(const std::string& operand,
+                                    Tegra::Shader::HalfType type = Tegra::Shader::HalfType::H0_H1,
+                                    bool abs = false, bool neg = false) {
+        // "vec2" calls emitted in this function are intended to alias components.
+        const std::string value = [&]() {
+            switch (type) {
+            case Tegra::Shader::HalfType::H0_H1:
+                return "unpackHalf2x16(" + operand + ')';
+            case Tegra::Shader::HalfType::F32:
+                return "vec2(uintBitsToFloat(" + operand + "))";
+            case Tegra::Shader::HalfType::H0_H0:
+            case Tegra::Shader::HalfType::H1_H1: {
+                const bool high = type == Tegra::Shader::HalfType::H1_H1;
+                const char unpack_index = "xy"[high ? 1 : 0];
+                return "vec2(unpackHalf2x16(" + operand + ")." + unpack_index + ')';
+            }
+            default:
+                UNREACHABLE();
+                return std::string("vec2(0)");
+            }
+        }();
+
+        return GetOperandAbsNeg(value, abs, neg);
     }
 
     /*
@@ -1748,6 +1839,86 @@ private:
 
             break;
         }
+        case OpCode::Type::ArithmeticHalf: {
+            if (opcode->GetId() == OpCode::Id::HADD2_C || opcode->GetId() == OpCode::Id::HADD2_R) {
+                ASSERT_MSG(instr.alu_half.ftz == 0, "Unimplemented");
+            }
+            const bool negate_a =
+                opcode->GetId() != OpCode::Id::HMUL2_R && instr.alu_half.negate_a != 0;
+            const bool negate_b =
+                opcode->GetId() != OpCode::Id::HMUL2_C && instr.alu_half.negate_b != 0;
+
+            const std::string op_a =
+                GetHalfFloat(regs.GetRegisterAsInteger(instr.gpr8, 0, false), instr.alu_half.type_a,
+                             instr.alu_half.abs_a != 0, negate_a);
+
+            std::string op_b;
+            switch (opcode->GetId()) {
+            case OpCode::Id::HADD2_C:
+            case OpCode::Id::HMUL2_C:
+                op_b = regs.GetUniform(instr.cbuf34.index, instr.cbuf34.offset,
+                                       GLSLRegister::Type::UnsignedInteger);
+                break;
+            case OpCode::Id::HADD2_R:
+            case OpCode::Id::HMUL2_R:
+                op_b = regs.GetRegisterAsInteger(instr.gpr20, 0, false);
+                break;
+            default:
+                UNREACHABLE();
+                op_b = "0";
+                break;
+            }
+            op_b = GetHalfFloat(op_b, instr.alu_half.type_b, instr.alu_half.abs_b != 0, negate_b);
+
+            const std::string result = [&]() {
+                switch (opcode->GetId()) {
+                case OpCode::Id::HADD2_C:
+                case OpCode::Id::HADD2_R:
+                    return '(' + op_a + " + " + op_b + ')';
+                case OpCode::Id::HMUL2_C:
+                case OpCode::Id::HMUL2_R:
+                    return '(' + op_a + " * " + op_b + ')';
+                default:
+                    LOG_CRITICAL(HW_GPU, "Unhandled half float instruction: {}", opcode->GetName());
+                    UNREACHABLE();
+                    return std::string("0");
+                }
+            }();
+
+            regs.SetRegisterToHalfFloat(instr.gpr0, 0, result, instr.alu_half.merge, 1, 1,
+                                        instr.alu_half.saturate != 0);
+            break;
+        }
+        case OpCode::Type::ArithmeticHalfImmediate: {
+            if (opcode->GetId() == OpCode::Id::HADD2_IMM) {
+                ASSERT_MSG(instr.alu_half_imm.ftz == 0, "Unimplemented");
+            } else {
+                ASSERT_MSG(instr.alu_half_imm.precision == Tegra::Shader::HalfPrecision::None,
+                           "Unimplemented");
+            }
+
+            const std::string op_a = GetHalfFloat(
+                regs.GetRegisterAsInteger(instr.gpr8, 0, false), instr.alu_half_imm.type_a,
+                instr.alu_half_imm.abs_a != 0, instr.alu_half_imm.negate_a != 0);
+
+            const std::string op_b = UnpackHalfImmediate(instr, true);
+
+            const std::string result = [&]() {
+                switch (opcode->GetId()) {
+                case OpCode::Id::HADD2_IMM:
+                    return op_a + " + " + op_b;
+                case OpCode::Id::HMUL2_IMM:
+                    return op_a + " * " + op_b;
+                default:
+                    UNREACHABLE();
+                    return std::string("0");
+                }
+            }();
+
+            regs.SetRegisterToHalfFloat(instr.gpr0, 0, result, instr.alu_half_imm.merge, 1, 1,
+                                        instr.alu_half_imm.saturate != 0);
+            break;
+        }
         case OpCode::Type::Ffma: {
             const std::string op_a = regs.GetRegisterAsFloat(instr.gpr8);
             std::string op_b = instr.ffma.negate_b ? "-" : "";
@@ -1790,6 +1961,59 @@ private:
 
             regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " * " + op_b + " + " + op_c, 1, 1,
                                     instr.alu.saturate_d);
+            break;
+        }
+        case OpCode::Type::Hfma2: {
+            if (opcode->GetId() == OpCode::Id::HFMA2_RR) {
+                ASSERT_MSG(instr.hfma2.rr.precision == Tegra::Shader::HalfPrecision::None,
+                           "Unimplemented");
+            } else {
+                ASSERT_MSG(instr.hfma2.precision == Tegra::Shader::HalfPrecision::None,
+                           "Unimplemented");
+            }
+            const bool saturate = opcode->GetId() == OpCode::Id::HFMA2_RR
+                                      ? instr.hfma2.rr.saturate != 0
+                                      : instr.hfma2.saturate != 0;
+
+            const std::string op_a =
+                GetHalfFloat(regs.GetRegisterAsInteger(instr.gpr8, 0, false), instr.hfma2.type_a);
+            std::string op_b, op_c;
+
+            switch (opcode->GetId()) {
+            case OpCode::Id::HFMA2_CR:
+                op_b = GetHalfFloat(regs.GetUniform(instr.cbuf34.index, instr.cbuf34.offset,
+                                                    GLSLRegister::Type::UnsignedInteger),
+                                    instr.hfma2.type_b, false, instr.hfma2.negate_b);
+                op_c = GetHalfFloat(regs.GetRegisterAsInteger(instr.gpr39, 0, false),
+                                    instr.hfma2.type_reg39, false, instr.hfma2.negate_c);
+                break;
+            case OpCode::Id::HFMA2_RC:
+                op_b = GetHalfFloat(regs.GetRegisterAsInteger(instr.gpr39, 0, false),
+                                    instr.hfma2.type_reg39, false, instr.hfma2.negate_b);
+                op_c = GetHalfFloat(regs.GetUniform(instr.cbuf34.index, instr.cbuf34.offset,
+                                                    GLSLRegister::Type::UnsignedInteger),
+                                    instr.hfma2.type_b, false, instr.hfma2.negate_c);
+                break;
+            case OpCode::Id::HFMA2_RR:
+                op_b = GetHalfFloat(regs.GetRegisterAsInteger(instr.gpr20, 0, false),
+                                    instr.hfma2.type_b, false, instr.hfma2.negate_b);
+                op_c = GetHalfFloat(regs.GetRegisterAsInteger(instr.gpr39, 0, false),
+                                    instr.hfma2.rr.type_c, false, instr.hfma2.rr.negate_c);
+                break;
+            case OpCode::Id::HFMA2_IMM_R:
+                op_b = UnpackHalfImmediate(instr, true);
+                op_c = GetHalfFloat(regs.GetRegisterAsInteger(instr.gpr39, 0, false),
+                                    instr.hfma2.type_reg39, false, instr.hfma2.negate_c);
+                break;
+            default:
+                UNREACHABLE();
+                op_c = op_b = "vec2(0)";
+                break;
+            }
+
+            const std::string result = '(' + op_a + " * " + op_b + " + " + op_c + ')';
+
+            regs.SetRegisterToHalfFloat(instr.gpr0, 0, result, instr.hfma2.merge, 1, 1, saturate);
             break;
         }
         case OpCode::Type::Conversion: {
@@ -2611,6 +2835,51 @@ private:
             }
             break;
         }
+        case OpCode::Type::HalfSetPredicate: {
+            ASSERT_MSG(instr.hsetp2.ftz == 0, "Unimplemented");
+
+            const std::string op_a =
+                GetHalfFloat(regs.GetRegisterAsInteger(instr.gpr8, 0, false), instr.hsetp2.type_a,
+                             instr.hsetp2.abs_a, instr.hsetp2.negate_a);
+
+            const std::string op_b = [&]() {
+                switch (opcode->GetId()) {
+                case OpCode::Id::HSETP2_R:
+                    return GetHalfFloat(regs.GetRegisterAsInteger(instr.gpr20, 0, false),
+                                        instr.hsetp2.type_b, instr.hsetp2.abs_a,
+                                        instr.hsetp2.negate_b);
+                default:
+                    UNREACHABLE();
+                    return std::string("vec2(0)");
+                }
+            }();
+
+            // We can't use the constant predicate as destination.
+            ASSERT(instr.hsetp2.pred3 != static_cast<u64>(Pred::UnusedIndex));
+
+            const std::string second_pred =
+                GetPredicateCondition(instr.hsetp2.pred39, instr.hsetp2.neg_pred != 0);
+
+            const std::string combiner = GetPredicateCombiner(instr.hsetp2.op);
+
+            const std::string component_combiner = instr.hsetp2.h_and ? "&&" : "||";
+            const std::string predicate =
+                '(' + GetPredicateComparison(instr.hsetp2.cond, op_a + ".x", op_b + ".x") + ' ' +
+                component_combiner + ' ' +
+                GetPredicateComparison(instr.hsetp2.cond, op_a + ".y", op_b + ".y") + ')';
+
+            // Set the primary predicate to the result of Predicate OP SecondPredicate
+            SetPredicate(instr.hsetp2.pred3,
+                         '(' + predicate + ") " + combiner + " (" + second_pred + ')');
+
+            if (instr.hsetp2.pred0 != static_cast<u64>(Pred::UnusedIndex)) {
+                // Set the secondary predicate to the result of !Predicate OP SecondPredicate,
+                // if enabled
+                SetPredicate(instr.hsetp2.pred0,
+                             "!(" + predicate + ") " + combiner + " (" + second_pred + ')');
+            }
+            break;
+        }
         case OpCode::Type::PredicateSetRegister: {
             const std::string op_a =
                 GetPredicateCondition(instr.pset.pred12, instr.pset.neg_pred12 != 0);
@@ -2769,6 +3038,50 @@ private:
                 regs.SetRegisterToInteger(instr.gpr0, false, 0, predicate + " ? 0xFFFFFFFF : 0", 1,
                                           1);
             }
+            break;
+        }
+        case OpCode::Type::HalfSet: {
+            ASSERT_MSG(instr.hset2.ftz == 0, "Unimplemented");
+
+            const std::string op_a =
+                GetHalfFloat(regs.GetRegisterAsInteger(instr.gpr8, 0, false), instr.hset2.type_a,
+                             instr.hset2.abs_a != 0, instr.hset2.negate_a != 0);
+
+            const std::string op_b = [&]() {
+                switch (opcode->GetId()) {
+                case OpCode::Id::HSET2_R:
+                    return GetHalfFloat(regs.GetRegisterAsInteger(instr.gpr20, 0, false),
+                                        instr.hset2.type_b, instr.hset2.abs_b != 0,
+                                        instr.hset2.negate_b != 0);
+                default:
+                    UNREACHABLE();
+                    return std::string("vec2(0)");
+                }
+            }();
+
+            const std::string second_pred =
+                GetPredicateCondition(instr.hset2.pred39, instr.hset2.neg_pred != 0);
+
+            const std::string combiner = GetPredicateCombiner(instr.hset2.op);
+
+            // HSET2 operates on each half float in the pack.
+            std::string result;
+            for (int i = 0; i < 2; ++i) {
+                const std::string float_value = i == 0 ? "0x00003c00" : "0x3c000000";
+                const std::string integer_value = i == 0 ? "0x0000ffff" : "0xffff0000";
+                const std::string value = instr.hset2.bf == 1 ? float_value : integer_value;
+
+                const std::string comp = std::string(".") + "xy"[i];
+                const std::string predicate =
+                    "((" + GetPredicateComparison(instr.hset2.cond, op_a + comp, op_b + comp) +
+                    ") " + combiner + " (" + second_pred + "))";
+
+                result += '(' + predicate + " ? " + value + " : 0)";
+                if (i == 0) {
+                    result += " | ";
+                }
+            }
+            regs.SetRegisterToInteger(instr.gpr0, false, 0, '(' + result + ')', 1, 1);
             break;
         }
         case OpCode::Type::Xmad: {
