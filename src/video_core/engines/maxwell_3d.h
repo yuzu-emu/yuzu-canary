@@ -643,8 +643,10 @@ public:
                 u32 d3d_cull_mode;
 
                 ComparisonOp depth_test_func;
+                float alpha_test_ref;
+                ComparisonOp alpha_test_func;
 
-                INSERT_PADDING_WORDS(0xB);
+                INSERT_PADDING_WORDS(0x9);
 
                 struct {
                     u32 separate_alpha;
