@@ -570,10 +570,11 @@ void RasterizerOpenGL::DrawArrays() {
     SyncBlendState();
     SyncLogicOpState();
     SyncCullMode();
-    SyncAlphaTest();
     SyncScissorTest();
+    // Alpha Testing is synced on shaders.
     SyncTransformFeedback();
     SyncPointState();
+    CheckAlphaTests();
 
     // TODO(bunnei): Sync framebuffer_scale uniform here
     // TODO(bunnei): Sync scissorbox uniform(s) here
@@ -1007,17 +1008,6 @@ void RasterizerOpenGL::SyncLogicOpState() {
     state.logic_op.operation = MaxwellToGL::LogicOp(regs.logic_op.operation);
 }
 
-void RasterizerOpenGL::SyncAlphaTest() {
-    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
-
-    // TODO(Rodrigo): Alpha testing is a legacy OpenGL feature, but it can be
-    // implemented with a test+discard in fragment shaders.
-    if (regs.alpha_test_enabled != 0) {
-        LOG_CRITICAL(Render_OpenGL, "Alpha testing is not implemented");
-        UNREACHABLE();
-    }
-}
-
 void RasterizerOpenGL::SyncScissorTest() {
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
 
@@ -1050,6 +1040,17 @@ void RasterizerOpenGL::SyncPointState() {
     // register carrying a default value. For now, if the point size is zero, assume it's
     // OpenGL's default (1).
     state.point.size = regs.point_size == 0 ? 1 : regs.point_size;
+}
+
+void RasterizerOpenGL::CheckAlphaTests() {
+    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
+
+    if (regs.alpha_test_enabled != 0 && regs.rt_control.count > 1) {
+        LOG_CRITICAL(
+            Render_OpenGL,
+            "Alpha Testing is enabled with Multiple Render Targets, this behavior is undefined.");
+        UNREACHABLE();
+    }
 }
 
 } // namespace OpenGL
