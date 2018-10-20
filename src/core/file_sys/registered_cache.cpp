@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <algorithm>
 #include <regex>
 #include <mbedtls/sha256.h>
 #include "common/assert.h"
@@ -28,6 +29,14 @@ std::string RegisteredCacheEntry::DebugInfo() const {
 
 bool operator<(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs) {
     return (lhs.title_id < rhs.title_id) || (lhs.title_id == rhs.title_id && lhs.type < rhs.type);
+}
+
+bool operator==(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs) {
+    return std::tie(lhs.title_id, lhs.type) == std::tie(rhs.title_id, rhs.type);
+}
+
+bool operator!=(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs) {
+    return !operator==(lhs, rhs);
 }
 
 static bool FollowsTwoDigitDirFormat(std::string_view name) {
@@ -593,6 +602,9 @@ std::vector<RegisteredCacheEntry> RegisteredCacheUnion::ListEntries() const {
             },
             [](const CNMT& c, const ContentRecord& r) { return true; });
     }
+
+    std::sort(out.begin(), out.end());
+    out.erase(std::unique(out.begin(), out.end()), out.end());
     return out;
 }
 
@@ -616,6 +628,9 @@ std::vector<RegisteredCacheEntry> RegisteredCacheUnion::ListEntriesFilter(
                 return true;
             });
     }
+
+    std::sort(out.begin(), out.end());
+    out.erase(std::unique(out.begin(), out.end()), out.end());
     return out;
 }
 } // namespace FileSys
