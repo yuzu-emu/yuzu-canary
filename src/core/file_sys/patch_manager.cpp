@@ -168,7 +168,8 @@ bool PatchManager::HasNSOPatch(const std::array<u8, 32>& build_id_) const {
 
 static void ApplyLayeredFS(VirtualFile& romfs, u64 title_id, ContentRecordType type) {
     const auto load_dir = Service::FileSystem::GetModificationLoadRoot(title_id);
-    if (type != ContentRecordType::Program || load_dir == nullptr || load_dir->GetSize() <= 0) {
+    if ((type != ContentRecordType::Program && type != ContentRecordType::Data) ||
+        load_dir == nullptr || load_dir->GetSize() <= 0) {
         return;
     }
 
@@ -218,7 +219,7 @@ VirtualFile PatchManager::PatchRomFS(VirtualFile romfs, u64 ivfc_offset, Content
                                         title_id, static_cast<u8>(type))
                                 .c_str();
 
-    if (type == ContentRecordType::Program)
+    if (type == ContentRecordType::Program || type == ContentRecordType::Data)
         LOG_INFO(Loader, log_string);
     else
         LOG_DEBUG(Loader, log_string);
