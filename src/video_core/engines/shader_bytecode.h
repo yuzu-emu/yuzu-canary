@@ -335,6 +335,26 @@ enum class IsberdMode : u64 {
 
 enum class IsberdShift : u64 { None = 0, U16 = 1, B32 = 2 };
 
+enum class HalfType : u64 {
+    H0_H1 = 0,
+    F32 = 1,
+    H0_H0 = 2,
+    H1_H1 = 3,
+};
+
+enum class HalfMerge : u64 {
+    H0_H1 = 0,
+    F32 = 1,
+    Mrg_H0 = 2,
+    Mrg_H1 = 3,
+};
+
+enum class HalfPrecision : u64 {
+    None = 0,
+    FTZ = 1,
+    FMZ = 2,
+};
+
 enum class IpaInterpMode : u64 {
     Linear = 0,
     Perspective = 1,
@@ -554,6 +574,70 @@ union Instruction {
     } alu_integer;
 
     union {
+        BitField<39, 1, u64> ftz;
+        BitField<32, 1, u64> saturate;
+        BitField<49, 2, HalfMerge> merge;
+
+        BitField<43, 1, u64> negate_a;
+        BitField<44, 1, u64> abs_a;
+        BitField<47, 2, HalfType> type_a;
+
+        BitField<31, 1, u64> negate_b;
+        BitField<30, 1, u64> abs_b;
+        BitField<47, 2, HalfType> type_b;
+
+        BitField<35, 2, HalfType> type_c;
+    } alu_half;
+
+    union {
+        BitField<39, 2, HalfPrecision> precision;
+        BitField<39, 1, u64> ftz;
+        BitField<52, 1, u64> saturate;
+        BitField<49, 2, HalfMerge> merge;
+
+        BitField<43, 1, u64> negate_a;
+        BitField<44, 1, u64> abs_a;
+        BitField<47, 2, HalfType> type_a;
+    } alu_half_imm;
+
+    union {
+        BitField<29, 1, u64> first_negate;
+        BitField<20, 9, u64> first;
+
+        BitField<56, 1, u64> second_negate;
+        BitField<30, 9, u64> second;
+
+        u32 PackImmediates() const {
+            // Immediates are half floats shifted.
+            constexpr u32 imm_shift = 6;
+            return static_cast<u32>((first << imm_shift) | (second << (16 + imm_shift)));
+        }
+    } half_imm;
+
+    union {
+        union {
+            BitField<37, 2, HalfPrecision> precision;
+            BitField<32, 1, u64> saturate;
+
+            BitField<30, 1, u64> negate_c;
+            BitField<35, 2, HalfType> type_c;
+        } rr;
+
+        BitField<57, 2, HalfPrecision> precision;
+        BitField<52, 1, u64> saturate;
+
+        BitField<49, 2, HalfMerge> merge;
+
+        BitField<47, 2, HalfType> type_a;
+
+        BitField<56, 1, u64> negate_b;
+        BitField<28, 2, HalfType> type_b;
+
+        BitField<51, 1, u64> negate_c;
+        BitField<53, 2, HalfType> type_reg39;
+    } hfma2;
+
+    union {
         BitField<40, 1, u64> invert;
     } popc;
 
@@ -717,6 +801,23 @@ union Instruction {
     } csetp;
 
     union {
+        BitField<35, 4, PredCondition> cond;
+        BitField<49, 1, u64> h_and;
+        BitField<6, 1, u64> ftz;
+        BitField<45, 2, PredOperation> op;
+        BitField<3, 3, u64> pred3;
+        BitField<0, 3, u64> pred0;
+        BitField<43, 1, u64> negate_a;
+        BitField<44, 1, u64> abs_a;
+        BitField<47, 2, HalfType> type_a;
+        BitField<31, 1, u64> negate_b;
+        BitField<30, 1, u64> abs_b;
+        BitField<28, 2, HalfType> type_b;
+        BitField<42, 1, u64> neg_pred;
+        BitField<39, 3, u64> pred39;
+    } hsetp2;
+
+    union {
         BitField<39, 3, u64> pred39;
         BitField<42, 1, u64> neg_pred;
         BitField<43, 1, u64> neg_a;
@@ -729,6 +830,21 @@ union Instruction {
         BitField<55, 1, u64> ftz;
         BitField<56, 1, u64> neg_imm;
     } fset;
+
+    union {
+        BitField<49, 1, u64> bf;
+        BitField<35, 3, PredCondition> cond;
+        BitField<50, 1, u64> ftz;
+        BitField<45, 2, PredOperation> op;
+        BitField<43, 1, u64> negate_a;
+        BitField<44, 1, u64> abs_a;
+        BitField<47, 2, HalfType> type_a;
+        BitField<31, 1, u64> negate_b;
+        BitField<30, 1, u64> abs_b;
+        BitField<28, 2, HalfType> type_b;
+        BitField<42, 1, u64> neg_pred;
+        BitField<39, 3, u64> pred39;
+    } hset2;
 
     union {
         BitField<39, 3, u64> pred39;
@@ -1145,6 +1261,18 @@ public:
         LEA_RZ,
         LEA_IMM,
         LEA_HI,
+        HADD2_C,
+        HADD2_R,
+        HADD2_IMM,
+        HMUL2_C,
+        HMUL2_R,
+        HMUL2_IMM,
+        HFMA2_CR,
+        HFMA2_RC,
+        HFMA2_RR,
+        HFMA2_IMM_R,
+        HSETP2_R,
+        HSET2_R,
         POPC_C,
         POPC_R,
         POPC_IMM,
@@ -1218,9 +1346,12 @@ public:
         ArithmeticImmediate,
         ArithmeticInteger,
         ArithmeticIntegerImmediate,
+        ArithmeticHalf,
+        ArithmeticHalfImmediate,
         Bfe,
         Shift,
         Ffma,
+        Hfma2,
         Flow,
         Synch,
         Memory,
@@ -1228,6 +1359,8 @@ public:
         FloatSetPredicate,
         IntegerSet,
         IntegerSetPredicate,
+        HalfSet,
+        HalfSetPredicate,
         PredicateSetPredicate,
         PredicateSetRegister,
         Conversion,
@@ -1389,6 +1522,18 @@ private:
             INST("001101101101----", Id::LEA_IMM, Type::ArithmeticInteger, "LEA_IMM"),
             INST("010010111101----", Id::LEA_RZ, Type::ArithmeticInteger, "LEA_RZ"),
             INST("00011000--------", Id::LEA_HI, Type::ArithmeticInteger, "LEA_HI"),
+            INST("0111101-1-------", Id::HADD2_C, Type::ArithmeticHalf, "HADD2_C"),
+            INST("0101110100010---", Id::HADD2_R, Type::ArithmeticHalf, "HADD2_R"),
+            INST("0111101-0-------", Id::HADD2_IMM, Type::ArithmeticHalfImmediate, "HADD2_IMM"),
+            INST("0111100-1-------", Id::HMUL2_C, Type::ArithmeticHalf, "HMUL2_C"),
+            INST("0101110100001---", Id::HMUL2_R, Type::ArithmeticHalf, "HMUL2_R"),
+            INST("0111100-0-------", Id::HMUL2_IMM, Type::ArithmeticHalfImmediate, "HMUL2_IMM"),
+            INST("01110---1-------", Id::HFMA2_CR, Type::Hfma2, "HFMA2_CR"),
+            INST("01100---1-------", Id::HFMA2_RC, Type::Hfma2, "HFMA2_RC"),
+            INST("0101110100000---", Id::HFMA2_RR, Type::Hfma2, "HFMA2_RR"),
+            INST("01110---0-------", Id::HFMA2_IMM_R, Type::Hfma2, "HFMA2_R_IMM"),
+            INST("0101110100100---", Id::HSETP2_R, Type::HalfSetPredicate, "HSETP_R"),
+            INST("0101110100011---", Id::HSET2_R, Type::HalfSet, "HSET2_R"),
             INST("0101000010000---", Id::MUFU, Type::Arithmetic, "MUFU"),
             INST("0100110010010---", Id::RRO_C, Type::Arithmetic, "RRO_C"),
             INST("0101110010010---", Id::RRO_R, Type::Arithmetic, "RRO_R"),
