@@ -17,6 +17,7 @@
 #include "core/file_sys/errors.h"
 #include "core/file_sys/mode.h"
 #include "core/file_sys/nca_metadata.h"
+#include "core/file_sys/patch_manager.h"
 #include "core/file_sys/savedata_factory.h"
 #include "core/file_sys/vfs.h"
 #include "core/hle/ipc_helpers.h"
@@ -630,6 +631,7 @@ void FSP_SRV::OpenDataStorageByDataId(Kernel::HLERequestContext& ctx) {
               static_cast<u8>(storage_id), unknown, title_id);
 
     auto data = OpenRomFS(title_id, storage_id, FileSys::ContentRecordType::Data);
+
     if (data.Failed()) {
         // TODO(DarkLordZach): Find the right error code to use here
         LOG_ERROR(Service_FS,
@@ -640,7 +642,9 @@ void FSP_SRV::OpenDataStorageByDataId(Kernel::HLERequestContext& ctx) {
         return;
     }
 
-    IStorage storage(std::move(data.Unwrap()));
+    FileSys::PatchManager pm{title_id};
+
+    IStorage storage(pm.PatchRomFS(std::move(data.Unwrap()), 0, FileSys::ContentRecordType::Data));
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(RESULT_SUCCESS);
