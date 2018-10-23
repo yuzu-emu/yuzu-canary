@@ -10,6 +10,7 @@
 #include <QMainWindow>
 #include <QTimer>
 
+#include <boost/optional.hpp>
 #include "common/common_types.h"
 #include "core/core.h"
 #include "ui_main.h"
@@ -29,8 +30,9 @@ class WaitTreeWidget;
 enum class GameListOpenTarget;
 
 namespace FileSys {
+class RegisteredCacheUnion;
 class VfsFilesystem;
-}
+} // namespace FileSys
 
 namespace Tegra {
 class DebugContext;
@@ -175,6 +177,8 @@ private slots:
     void OnReinitializeKeys(ReinitializeKeyBehavior behavior);
 
 private:
+    boost::optional<u64> SelectRomFSDumpTarget(const FileSys::RegisteredCacheUnion&,
+                                               u64 program_id);
     void UpdateStatusBar();
 
     Ui::MainWindow ui;
