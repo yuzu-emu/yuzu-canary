@@ -50,6 +50,10 @@ constexpr u64 GetUpdateTitleID(u64 base_title_id) {
 // boost flat_map requires operator< for O(log(n)) lookups.
 bool operator<(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs);
 
+// std unique requires operator== to identify duplicates.
+bool operator==(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs);
+bool operator!=(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs);
+
 /*
  * A class that catalogues NCAs in the registered directory structure.
  * Nintendo's registered format follows this structure:
@@ -60,8 +64,8 @@ bool operator<(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs)
  *         | 00
  *         | 01 <- Actual content split along 4GB boundaries. (optional)
  *
- * (This impl also supports substituting the nca dir for an nca file, as that's more convenient when
- * 4GB splitting can be ignored.)
+ * (This impl also supports substituting the nca dir for an nca file, as that's more convenient
+ * when 4GB splitting can be ignored.)
  */
 class RegisteredCache {
     friend class RegisteredCacheUnion;
