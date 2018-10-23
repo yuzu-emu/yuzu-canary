@@ -96,6 +96,11 @@ struct Header {
             }
         } ps;
     };
+
+    u64 GetLocalMemorySize() {
+        return (common1.shader_local_memory_low_size |
+                (common2.shader_local_memory_high_size << 24));
+    }
 };
 
 static_assert(sizeof(Header) == 0x50, "Incorrect structure size");
