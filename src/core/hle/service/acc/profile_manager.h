@@ -36,7 +36,7 @@ struct UUID {
     }
 
     // TODO(ogniK): Properly generate uuids based on RFC-4122
-    const UUID& Generate();
+    static UUID Generate();
 
     // Set the UUID to {0,0} to be considered an invalid user
     void Invalidate() {
@@ -44,6 +44,15 @@ struct UUID {
     }
     std::string Format() const {
         return fmt::format("0x{:016X}{:016X}", uuid[1], uuid[0]);
+    }
+
+    std::string FormatSwitch() const {
+        std::array<u8, 16> s{};
+        std::memcpy(s.data(), uuid.data(), sizeof(u128));
+        return fmt::format("{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{"
+                           ":02x}{:02x}{:02x}{:02x}{:02x}",
+                           s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8], s[9], s[10], s[11],
+                           s[12], s[13], s[14], s[15]);
     }
 };
 static_assert(sizeof(UUID) == 16, "UUID is an invalid size!");
@@ -81,12 +90,13 @@ static_assert(sizeof(ProfileBase) == 0x38, "ProfileBase is an invalid size");
 /// objects
 class ProfileManager {
 public:
-    ProfileManager(); // TODO(ogniK): Load from system save
+    ProfileManager();
     ~ProfileManager();
 
     ResultCode AddUser(const ProfileInfo& user);
     ResultCode CreateNewUser(UUID uuid, const ProfileUsername& username);
     ResultCode CreateNewUser(UUID uuid, const std::string& username);
+    boost::optional<UUID> GetUser(std::size_t index) const;
     boost::optional<std::size_t> GetUserIndex(const UUID& uuid) const;
     boost::optional<std::size_t> GetUserIndex(const ProfileInfo& user) const;
     bool GetProfileBase(boost::optional<std::size_t> index, ProfileBase& profile) const;
@@ -100,6 +110,7 @@ public:
     std::size_t GetUserCount() const;
     std::size_t GetOpenUserCount() const;
     bool UserExists(UUID uuid) const;
+    bool UserExistsIndex(std::size_t index) const;
     void OpenUser(UUID uuid);
     void CloseUser(UUID uuid);
     UserIDArray GetOpenUsers() const;
@@ -108,7 +119,13 @@ public:
 
     bool CanSystemRegisterUser() const;
 
+    bool RemoveUser(UUID uuid);
+    bool SetProfileBase(UUID uuid, const ProfileBase& profile);
+
 private:
+    void ParseUserSaveFile();
+    void WriteUserSaveFile();
+
     std::array<ProfileInfo, MAX_USERS> profiles{};
     std::size_t user_count = 0;
     boost::optional<std::size_t> AddToProfiles(const ProfileInfo& profile);
