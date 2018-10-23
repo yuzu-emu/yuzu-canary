@@ -100,6 +100,8 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 }
 #endif
 
+constexpr u64 DLC_BASE_TITLE_ID_MASK = 0xFFFFFFFFFFFFE000;
+
 /**
  * "Callouts" are one-time instructional messages shown to the user. In the config settings, there
  * is a bitfield "callout_flags" options, used to track if a message has already been shown to the
@@ -823,14 +825,10 @@ static bool RomFSRawCopy(QProgressDialog& dialog, const FileSys::VirtualDir& src
 }
 
 void GMainWindow::OnGameListDumpRomFS(u64 program_id, const std::string& game_path) {
-    const auto path = fmt::format("{}{:016X}/romfs",
-                                  FileUtil::GetUserPath(FileUtil::UserPath::DumpDir), program_id);
-
-    const auto failed = [this, &path] {
+    const auto failed = [this] {
         QMessageBox::warning(this, tr("RomFS Extraction Failed!"),
                              tr("There was an error copying the RomFS files or the user "
                                 "cancelled the operation."));
-        vfs->DeleteDirectory(path);
     };
 
     const auto loader = Loader::GetLoader(vfs->OpenFile(game_path, FileSys::Mode::Read));
@@ -845,10 +843,24 @@ void GMainWindow::OnGameListDumpRomFS(u64 program_id, const std::string& game_pa
         return;
     }
 
-    const auto romfs =
-        loader->IsRomFSUpdatable()
-            ? FileSys::PatchManager(program_id).PatchRomFS(file, loader->ReadRomFSIVFCOffset())
-            : file;
+    const auto installed = Service::FileSystem::GetUnionContents();
+    auto romfs_title_id = SelectRomFSDumpTarget(*installed, program_id);
+
+    if (!romfs_title_id) {
+        failed();
+        return;
+    }
+
+    const auto path = fmt::format(
+        "{}{:016X}/romfs", FileUtil::GetUserPath(FileUtil::UserPath::DumpDir), *romfs_title_id);
+
+    FileSys::VirtualFile romfs;
+
+    if (*romfs_title_id == program_id) {
+        romfs = file;
+    } else {
+        romfs = installed->GetEntry(*romfs_title_id, FileSys::ContentRecordType::Data)->GetRomFS();
+    }
 
     const auto extracted = FileSys::ExtractRomFS(romfs, FileSys::RomFSExtractionType::Full);
     if (extracted == nullptr) {
@@ -860,6 +872,7 @@ void GMainWindow::OnGameListDumpRomFS(u64 program_id, const std::string& game_pa
 
     if (out == nullptr) {
         failed();
+        vfs->DeleteDirectory(path);
         return;
     }
 
@@ -870,8 +883,11 @@ void GMainWindow::OnGameListDumpRomFS(u64 program_id, const std::string& game_pa
            "files into the new directory while <br>skeleton will only create the directory "
            "structure."),
         {"Full", "Skeleton"}, 0, false, &ok);
-    if (!ok)
+    if (!ok) {
         failed();
+        vfs->DeleteDirectory(path);
+        return;
+    }
 
     const auto full = res == "Full";
     const auto entry_size = CalculateRomFSEntrySize(extracted, full);
@@ -888,6 +904,7 @@ void GMainWindow::OnGameListDumpRomFS(u64 program_id, const std::string& game_pa
     } else {
         progress.close();
         failed();
+        vfs->DeleteDirectory(path);
     }
 }
 
@@ -1457,6 +1474,42 @@ void GMainWindow::OnReinitializeKeys(ReinitializeKeyBehavior behavior) {
     if (behavior == ReinitializeKeyBehavior::Warning) {
         game_list->PopulateAsync(UISettings::values.gamedir, UISettings::values.gamedir_deepscan);
     }
+}
+
+boost::optional<u64> GMainWindow::SelectRomFSDumpTarget(
+    const FileSys::RegisteredCacheUnion& installed, u64 program_id) {
+    const auto dlc_entries =
+        installed.ListEntriesFilter(FileSys::TitleType::AOC, FileSys::ContentRecordType::Data);
+    std::vector<FileSys::RegisteredCacheEntry> dlc_match;
+    dlc_match.reserve(dlc_entries.size());
+    std::copy_if(dlc_entries.begin(), dlc_entries.end(), std::back_inserter(dlc_match),
+                 [&program_id, &installed](const FileSys::RegisteredCacheEntry& entry) {
+                     return (entry.title_id & DLC_BASE_TITLE_ID_MASK) == program_id &&
+                            installed.GetEntry(entry)->GetStatus() == Loader::ResultStatus::Success;
+                 });
+
+    std::vector<u64> romfs_tids;
+    romfs_tids.push_back(program_id);
+    for (const auto& entry : dlc_match)
+        romfs_tids.push_back(entry.title_id);
+
+    if (romfs_tids.size() > 1) {
+        QStringList list{"Base"};
+        for (std::size_t i = 1; i < romfs_tids.size(); ++i)
+            list.push_back(QStringLiteral("DLC %1").arg(romfs_tids[i] & 0x7FF));
+
+        bool ok;
+        const auto res = QInputDialog::getItem(
+            this, tr("Select RomFS Dump Target"),
+            tr("Please select which RomFS you would like to dump."), list, 0, false, &ok);
+        if (!ok) {
+            return boost::none;
+        }
+
+        return romfs_tids[list.indexOf(res)];
+    }
+
+    return program_id;
 }
 
 bool GMainWindow::ConfirmClose() {
