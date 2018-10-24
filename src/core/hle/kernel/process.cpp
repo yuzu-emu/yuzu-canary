@@ -232,6 +232,12 @@ void Process::LoadModule(CodeSet module_, VAddr base_addr) {
     MapSegment(module_.CodeSegment(), VMAPermission::ReadExecute, MemoryState::CodeStatic);
     MapSegment(module_.RODataSegment(), VMAPermission::Read, MemoryState::CodeMutable);
     MapSegment(module_.DataSegment(), VMAPermission::ReadWrite, MemoryState::CodeMutable);
+
+    // Clear instruction cache in CPU JIT
+    Core::System::GetInstance().ArmInterface(0).ClearInstructionCache();
+    Core::System::GetInstance().ArmInterface(1).ClearInstructionCache();
+    Core::System::GetInstance().ArmInterface(2).ClearInstructionCache();
+    Core::System::GetInstance().ArmInterface(3).ClearInstructionCache();
 }
 
 ResultVal<VAddr> Process::HeapAllocate(VAddr target, u64 size, VMAPermission perms) {
