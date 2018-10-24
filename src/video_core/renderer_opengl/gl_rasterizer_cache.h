@@ -168,6 +168,23 @@ struct SurfaceParams {
         }
     }
 
+    static bool SurfaceTargetIsLayered(SurfaceTarget target) {
+        switch (target) {
+        case SurfaceTarget::Texture1D:
+        case SurfaceTarget::Texture2D:
+        case SurfaceTarget::Texture3D:
+            return false;
+        case SurfaceTarget::Texture1DArray:
+        case SurfaceTarget::Texture2DArray:
+        case SurfaceTarget::TextureCubemap:
+            return true;
+        default:
+            LOG_CRITICAL(HW_GPU, "Unimplemented surface_target={}", static_cast<u32>(target));
+            UNREACHABLE();
+            return false;
+        }
+    }
+
     /**
      * Gets the compression factor for the specified PixelFormat. This applies to just the
      * "compressed width" and "compressed height", not the overall compression factor of a
@@ -742,6 +759,25 @@ struct SurfaceParams {
         return size_in_bytes_gl / 6;
     }
 
+    /// Returns the exact size of memory occupied by the texture in VRAM, including mipmaps.
+    std::size_t MemorySize() const {
+        std::size_t size = InnerMemorySize(is_layered);
+        if (is_layered)
+            return size * depth;
+        return size;
+    }
+
+    /// Returns the exact size of the memory occupied by a layer in a texture in VRAM, including
+    /// mipmaps.
+    std::size_t LayerMemorySize() const {
+        return InnerMemorySize(true);
+    }
+
+    /// Returns the size of a layer of this surface in OpenGL.
+    std::size_t LayerSizeGL() const {
+        return SizeInBytesRaw(true) / depth;
+    }
+
     /// Creates SurfaceParams from a texture configuration
     static SurfaceParams CreateForTexture(const Tegra::Texture::FullTextureInfo& config,
                                           const GLShader::SamplerEntry& entry);
@@ -782,6 +818,7 @@ struct SurfaceParams {
     u32 unaligned_height;
     SurfaceTarget target;
     u32 max_mip_level;
+    bool is_layered;
 
     // Parameters used for caching
     VAddr addr;
@@ -797,6 +834,9 @@ struct SurfaceParams {
         u32 layer_stride;
         u32 base_layer;
     } rt;
+
+private:
+    std::size_t InnerMemorySize(bool layer_only = false) const;
 };
 
 }; // namespace OpenGL
