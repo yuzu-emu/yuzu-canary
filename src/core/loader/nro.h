@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include "common/common_types.h"
 #include "core/loader/linker.h"
 #include "core/loader/loader.h"
@@ -39,6 +40,8 @@ public:
     ResultStatus ReadRomFS(FileSys::VirtualFile& dir) override;
     ResultStatus ReadTitle(std::string& title) override;
     bool IsRomFSUpdatable() const override;
+
+    static bool LoadNro(const std::vector<u8>& data, const std::string& name, VAddr load_base);
 
 private:
     bool LoadNro(const FileSys::VfsFile& file, VAddr load_base);
