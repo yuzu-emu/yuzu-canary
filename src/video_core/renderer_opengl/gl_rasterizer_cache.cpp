@@ -78,6 +78,29 @@ void SurfaceParams::InitCacheParameters(Tegra::GPUVAddr gpu_addr_) {
     }
 }
 
+std::size_t SurfaceParams::InnerMemorySize(bool layer_only) const {
+    const u32 compression_factor{GetCompressionFactor(pixel_format)};
+    const u32 bytes_per_pixel{GetBytesPerPixel(pixel_format)};
+    u32 m_depth = (layer_only ? 1U : depth);
+    u32 m_width = std::max(1U, width / compression_factor);
+    u32 m_height = std::max(1U, height / compression_factor);
+    std::size_t size = Tegra::Texture::CalculateSize(is_tiled, bytes_per_pixel, m_width, m_height,
+                                                     m_depth, block_height, block_depth);
+    u32 m_block_height = block_height;
+    u32 m_block_depth = block_depth;
+    std::size_t block_size_bytes = 512 * block_height * block_depth; // 512 is GOB size
+    for (u32 i = 1; i < max_mip_level; i++) {
+        m_width = std::max(1U, m_width / 2);
+        m_height = std::max(1U, m_height / 2);
+        m_depth = std::max(1U, m_depth / 2);
+        m_block_height = std::max(1U, m_block_height / 2);
+        m_block_depth = std::max(1U, m_block_depth / 2);
+        size += Tegra::Texture::CalculateSize(is_tiled, bytes_per_pixel, m_width, m_height, m_depth,
+                                              m_block_height, m_block_depth);
+    }
+    return is_tiled ? Common::AlignUp(size, block_size_bytes) : size;
+}
+
 /*static*/ SurfaceParams SurfaceParams::CreateForTexture(
     const Tegra::Texture::FullTextureInfo& config, const GLShader::SamplerEntry& entry) {
     SurfaceParams params{};
@@ -124,6 +147,7 @@ void SurfaceParams::InitCacheParameters(Tegra::GPUVAddr gpu_addr_) {
         break;
     }
 
+    params.is_layered = SurfaceTargetIsLayered(params.target);
     params.max_mip_level = config.tic.max_mip_level + 1;
     params.rt = {};
 
@@ -150,6 +174,7 @@ void SurfaceParams::InitCacheParameters(Tegra::GPUVAddr gpu_addr_) {
     params.target = SurfaceTarget::Texture2D;
     params.depth = 1;
     params.max_mip_level = 0;
+    params.is_layered = false;
 
     // Render target specific parameters, not used for caching
     params.rt.index = static_cast<u32>(index);
@@ -182,6 +207,7 @@ void SurfaceParams::InitCacheParameters(Tegra::GPUVAddr gpu_addr_) {
     params.target = SurfaceTarget::Texture2D;
     params.depth = 1;
     params.max_mip_level = 0;
+    params.is_layered = false;
     params.rt = {};
 
     params.InitCacheParameters(zeta_address);
@@ -361,10 +387,11 @@ void MortonCopy(u32 stride, u32 block_height, u32 height, u32 block_depth, u32 d
     }
 }
 
-static constexpr std::array<void (*)(u32, u32, u32, u32, u32, u8*, std::size_t, VAddr),
-                            SurfaceParams::MaxPixelFormat>
-    morton_to_gl_fns = {
-        // clang-format off
+using GLConversionArray = std::array<void (*)(u32, u32, u32, u32, u32, u8*, std::size_t, VAddr),
+                                     SurfaceParams::MaxPixelFormat>;
+
+static constexpr GLConversionArray morton_to_gl_fns = {
+    // clang-format off
         MortonCopy<true, PixelFormat::ABGR8U>,
         MortonCopy<true, PixelFormat::ABGR8S>,
         MortonCopy<true, PixelFormat::ABGR8UI>,
@@ -418,13 +445,11 @@ static constexpr std::array<void (*)(u32, u32, u32, u32, u32, u8*, std::size_t, 
         MortonCopy<true, PixelFormat::Z24S8>,
         MortonCopy<true, PixelFormat::S8Z24>,
         MortonCopy<true, PixelFormat::Z32FS8>,
-        // clang-format on
+    // clang-format on
 };
 
-static constexpr std::array<void (*)(u32, u32, u32, u32, u32, u8*, std::size_t, VAddr),
-                            SurfaceParams::MaxPixelFormat>
-    gl_to_morton_fns = {
-        // clang-format off
+static constexpr GLConversionArray gl_to_morton_fns = {
+    // clang-format off
         MortonCopy<false, PixelFormat::ABGR8U>,
         MortonCopy<false, PixelFormat::ABGR8S>,
         MortonCopy<false, PixelFormat::ABGR8UI>,
@@ -479,8 +504,34 @@ static constexpr std::array<void (*)(u32, u32, u32, u32, u32, u8*, std::size_t, 
         MortonCopy<false, PixelFormat::Z24S8>,
         MortonCopy<false, PixelFormat::S8Z24>,
         MortonCopy<false, PixelFormat::Z32FS8>,
-        // clang-format on
+    // clang-format on
 };
+
+void SwizzleFunc(const GLConversionArray& functions, const SurfaceParams& params,
+                 std::vector<u8>& gl_buffer) {
+    u32 depth = params.depth;
+    if (params.target == SurfaceParams::SurfaceTarget::Texture2D) {
+        // TODO(Blinkhawk): Eliminate this condition once all texture types are implemented.
+        depth = 1U;
+    }
+    if (params.is_layered) {
+        u64 offset = 0;
+        u64 offset_gl = 0;
+        u64 layer_size = params.LayerMemorySize();
+        u64 gl_size = params.LayerSizeGL();
+        for (u32 i = 0; i < depth; i++) {
+            functions[static_cast<std::size_t>(params.pixel_format)](
+                params.width, params.block_height, params.height, params.block_depth, 1,
+                gl_buffer.data() + offset_gl, gl_size, params.addr + offset);
+            offset += layer_size;
+            offset_gl += gl_size;
+        }
+    } else {
+        functions[static_cast<std::size_t>(params.pixel_format)](
+            params.width, params.block_height, params.height, params.block_depth, depth,
+            gl_buffer.data(), gl_buffer.size(), params.addr);
+    }
+}
 
 static bool BlitSurface(const Surface& src_surface, const Surface& dst_surface,
                         GLuint read_fb_handle, GLuint draw_fb_handle, GLenum src_attachment = 0,
@@ -881,21 +932,10 @@ void CachedSurface::LoadGLBuffer() {
 
     gl_buffer.resize(params.size_in_bytes_gl);
     if (params.is_tiled) {
-        u32 depth = params.depth;
-        u32 block_depth = params.block_depth;
-
         ASSERT_MSG(params.block_width == 1, "Block width is defined as {} on texture type {}",
                    params.block_width, static_cast<u32>(params.target));
 
-        if (params.target == SurfaceParams::SurfaceTarget::Texture2D) {
-            // TODO(Blinkhawk): Eliminate this condition once all texture types are implemented.
-            depth = 1U;
-            block_depth = 1U;
-        }
-
-        morton_to_gl_fns[static_cast<std::size_t>(params.pixel_format)](
-            params.width, params.block_height, params.height, block_depth, depth, gl_buffer.data(),
-            gl_buffer.size(), params.addr);
+        SwizzleFunc(morton_to_gl_fns, params, gl_buffer);
     } else {
         const auto texture_src_data{Memory::GetPointer(params.addr)};
         const auto texture_src_data_end{texture_src_data + params.size_in_bytes_gl};
@@ -929,19 +969,10 @@ void CachedSurface::FlushGLBuffer() {
     const u8* const texture_src_data = Memory::GetPointer(params.addr);
     ASSERT(texture_src_data);
     if (params.is_tiled) {
-        u32 depth = params.depth;
-        u32 block_depth = params.block_depth;
-
         ASSERT_MSG(params.block_width == 1, "Block width is defined as {} on texture type {}",
                    params.block_width, static_cast<u32>(params.target));
 
-        if (params.target == SurfaceParams::SurfaceTarget::Texture2D) {
-            // TODO(Blinkhawk): Eliminate this condition once all texture types are implemented.
-            depth = 1U;
-        }
-        gl_to_morton_fns[static_cast<size_t>(params.pixel_format)](
-            params.width, params.block_height, params.height, block_depth, depth, gl_buffer.data(),
-            gl_buffer.size(), GetAddr());
+        SwizzleFunc(gl_to_morton_fns, params, gl_buffer);
     } else {
         std::memcpy(Memory::GetPointer(GetAddr()), gl_buffer.data(), GetSizeInBytes());
     }
@@ -1179,7 +1210,7 @@ void RasterizerCacheOpenGL::AccurateCopySurface(const Surface& src_surface,
                                                 const Surface& dst_surface) {
     const auto& src_params{src_surface->GetSurfaceParams()};
     const auto& dst_params{dst_surface->GetSurfaceParams()};
-    FlushRegion(src_params.addr, dst_params.size_in_bytes);
+    FlushRegion(src_params.addr, dst_params.MemorySize());
     LoadSurface(dst_surface);
 }
 
@@ -1221,44 +1252,10 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& old_surface,
             CopySurface(old_surface, new_surface, copy_pbo.handle);
         }
         break;
+    case SurfaceParams::SurfaceTarget::TextureCubemap:
     case SurfaceParams::SurfaceTarget::Texture3D:
         AccurateCopySurface(old_surface, new_surface);
         break;
-    case SurfaceParams::SurfaceTarget::TextureCubemap: {
-        if (old_params.rt.array_mode != 1) {
-            // TODO(bunnei): This is used by Breath of the Wild, I'm not sure how to implement this
-            // yet (array rendering used as a cubemap texture).
-            LOG_CRITICAL(HW_GPU, "Unhandled rendertarget array_mode {}", old_params.rt.array_mode);
-            UNREACHABLE();
-            return new_surface;
-        }
-
-        // This seems to be used for render-to-cubemap texture
-        ASSERT_MSG(old_params.target == SurfaceParams::SurfaceTarget::Texture2D, "Unexpected");
-        ASSERT_MSG(old_params.pixel_format == new_params.pixel_format, "Unexpected");
-        ASSERT_MSG(old_params.rt.base_layer == 0, "Unimplemented");
-
-        // TODO(bunnei): Verify the below - this stride seems to be in 32-bit words, not pixels.
-        // Tested with Splatoon 2, Super Mario Odyssey, and Breath of the Wild.
-        const std::size_t byte_stride{old_params.rt.layer_stride * sizeof(u32)};
-
-        for (std::size_t index = 0; index < new_params.depth; ++index) {
-            Surface face_surface{TryGetReservedSurface(old_params)};
-            ASSERT_MSG(face_surface, "Unexpected");
-
-            if (is_blit) {
-                BlitSurface(face_surface, new_surface, read_framebuffer.handle,
-                            draw_framebuffer.handle, face_surface->GetSurfaceParams().rt.index,
-                            new_params.rt.index, index);
-            } else {
-                CopySurface(face_surface, new_surface, copy_pbo.handle,
-                            face_surface->GetSurfaceParams().rt.index, new_params.rt.index, index);
-            }
-
-            old_params.addr += byte_stride;
-        }
-        break;
-    }
     default:
         LOG_CRITICAL(Render_OpenGL, "Unimplemented surface target={}",
                      static_cast<u32>(new_params.target));
@@ -1266,7 +1263,7 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& old_surface,
     }
 
     return new_surface;
-}
+} // namespace OpenGL
 
 Surface RasterizerCacheOpenGL::TryFindFramebufferSurface(VAddr addr) const {
     return TryGet(addr);
