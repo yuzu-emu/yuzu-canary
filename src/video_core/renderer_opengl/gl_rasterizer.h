@@ -93,6 +93,7 @@ private:
     private:
         Tegra::Texture::TextureFilter mag_filter;
         Tegra::Texture::TextureFilter min_filter;
+        Tegra::Texture::TextureMipmapFilter mip_filter;
         Tegra::Texture::WrapMode wrap_u;
         Tegra::Texture::WrapMode wrap_v;
         Tegra::Texture::WrapMode wrap_p;
