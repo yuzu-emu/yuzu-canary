@@ -278,7 +278,7 @@ public:
                         const Maxwell3D::Regs::ShaderStage& stage, const std::string& suffix,
                         const Tegra::Shader::Header& header)
         : shader{shader}, declarations{declarations}, stage{stage}, suffix{suffix}, header{header},
-          fixed_pipeline_output_attributes_used{} {
+          fixed_pipeline_output_attributes_used{}, local_memory_size{0} {
         BuildRegisterList();
         BuildInputList();
     }
@@ -436,6 +436,25 @@ public:
         shader.AddLine(dest + " = " + src + ';');
     }
 
+    std::string GetLocalMemoryAsFloat(const std::string& index) {
+        return "lmem[" + index + ']';
+    }
+
+    std::string GetLocalMemoryAsInteger(const std::string& index, bool is_signed = false) {
+        const std::string func{is_signed ? "floatToIntBits" : "floatBitsToUint"};
+        return func + "(lmem[" + index + "])";
+    }
+
+    void SetLocalMemoryAsFloat(const std::string& index, const std::string& value) {
+        shader.AddLine("lmem[" + index + "] = " + value + ';');
+    }
+
+    void SetLocalMemoryAsInteger(const std::string& index, const std::string& value,
+                                 bool is_signed = false) {
+        const std::string func{is_signed ? "intBitsToFloat" : "uintBitsToFloat"};
+        shader.AddLine("lmem[" + index + "] = " + func + '(' + value + ");");
+    }
+
     std::string GetControlCode(const Tegra::Shader::ControlCode cc) const {
         switch (cc) {
         case Tegra::Shader::ControlCode::NEU:
@@ -533,6 +552,7 @@ public:
     void GenerateDeclarations(const std::string& suffix) {
         GenerateVertex();
         GenerateRegisters(suffix);
+        GenerateLocalMemory();
         GenerateInternalFlags();
         GenerateInputAttrs();
         GenerateOutputAttrs();
@@ -578,6 +598,10 @@ public:
         return entry.GetName();
     }
 
+    void SetLocalMemory(u64 lmem) {
+        local_memory_size = lmem;
+    }
+
 private:
     /// Generates declarations for registers.
     void GenerateRegisters(const std::string& suffix) {
@@ -586,6 +610,15 @@ private:
                                  std::to_string(reg.GetIndex()) + '_' + suffix + " = 0;");
         }
         declarations.AddNewLine();
+    }
+
+    /// Generates declarations for local memory.
+    void GenerateLocalMemory() {
+        if (local_memory_size > 0) {
+            declarations.AddLine("float lmem[" + std::to_string((local_memory_size - 1 + 4) / 4) +
+                                 "];");
+            declarations.AddNewLine();
+        }
     }
 
     /// Generates declarations for internal flags.
@@ -895,6 +928,7 @@ private:
     const std::string& suffix;
     const Tegra::Shader::Header& header;
     std::unordered_set<Attribute::Index> fixed_pipeline_output_attributes_used;
+    u64 local_memory_size;
 };
 
 class GLSLGenerator {
@@ -904,6 +938,8 @@ public:
         : subroutines(subroutines), program_code(program_code), main_offset(main_offset),
           stage(stage), suffix(suffix) {
         std::memcpy(&header, program_code.data(), sizeof(Tegra::Shader::Header));
+        local_memory_size = header.GetLocalMemorySize();
+        regs.SetLocalMemory(local_memory_size);
         Generate(suffix);
     }
 
@@ -2324,6 +2360,39 @@ private:
                 shader.AddLine("}");
                 break;
             }
+            case OpCode::Id::LD_L: {
+                // Add an extra scope and declare the index register inside to prevent
+                // overwriting it in case it is used as an output of the LD instruction.
+                shader.AddLine('{');
+                ++shader.scope;
+
+                std::string op = '(' + regs.GetRegisterAsInteger(instr.gpr8, 0, false) + " + " +
+                                 std::to_string(instr.smem_imm.Value()) + ')';
+
+                shader.AddLine("uint index = (" + op + " / 4);");
+
+                const std::string op_a = regs.GetLocalMemoryAsFloat("index");
+
+                if (instr.ld_l.unknown != 1) {
+                    LOG_CRITICAL(HW_GPU, "LD_L Unhandled mode: {}",
+                                 static_cast<unsigned>(instr.ld_l.unknown.Value()));
+                    UNREACHABLE();
+                }
+
+                switch (instr.ldst_sl.type.Value()) {
+                case Tegra::Shader::StoreType::Bytes32:
+                    regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1);
+                    break;
+                default:
+                    LOG_CRITICAL(HW_GPU, "LD_L Unhandled type: {}",
+                                 static_cast<unsigned>(instr.ldst_sl.type.Value()));
+                    UNREACHABLE();
+                }
+
+                --shader.scope;
+                shader.AddLine('}');
+                break;
+            }
             case OpCode::Id::ST_A: {
                 ASSERT_MSG(instr.gpr8.Value() == Register::ZeroIndex,
                            "Indirect attribute loads are not supported");
@@ -2350,6 +2419,37 @@ private:
                     StoreNextElement(reg_offset);
                 }
 
+                break;
+            }
+            case OpCode::Id::ST_L: {
+                // Add an extra scope and declare the index register inside to prevent
+                // overwriting it in case it is used as an output of the LD instruction.
+                shader.AddLine('{');
+                ++shader.scope;
+
+                std::string op = '(' + regs.GetRegisterAsInteger(instr.gpr8, 0, false) + " + " +
+                                 std::to_string(instr.smem_imm.Value()) + ')';
+
+                shader.AddLine("uint index = (" + op + " / 4);");
+
+                if (instr.st_l.unknown != 0) {
+                    LOG_CRITICAL(HW_GPU, "ST_L Unhandled mode: {}",
+                                 static_cast<unsigned>(instr.st_l.unknown.Value()));
+                    UNREACHABLE();
+                }
+
+                switch (instr.ldst_sl.type.Value()) {
+                case Tegra::Shader::StoreType::Bytes32:
+                    regs.SetLocalMemoryAsFloat("index", regs.GetRegisterAsFloat(instr.gpr0));
+                    break;
+                default:
+                    LOG_CRITICAL(HW_GPU, "ST_L Unhandled type: {}",
+                                 static_cast<unsigned>(instr.ldst_sl.type.Value()));
+                    UNREACHABLE();
+                }
+
+                --shader.scope;
+                shader.AddLine('}');
                 break;
             }
             case OpCode::Id::TEX: {
@@ -3575,6 +3675,7 @@ private:
     const u32 main_offset;
     Maxwell3D::Regs::ShaderStage stage;
     const std::string& suffix;
+    u64 local_memory_size;
 
     ShaderWriter shader;
     ShaderWriter declarations;
