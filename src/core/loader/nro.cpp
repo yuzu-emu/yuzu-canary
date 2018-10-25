@@ -127,18 +127,23 @@ static constexpr u32 PageAlignSize(u32 size) {
     return (size + Memory::PAGE_MASK) & ~Memory::PAGE_MASK;
 }
 
-bool AppLoader_NRO::LoadNro(const FileSys::VfsFile& file, VAddr load_base) {
-    // Read NSO header
-    NroHeader nro_header{};
-    if (sizeof(NroHeader) != file.ReadObject(&nro_header)) {
+/*static*/ bool AppLoader_NRO::LoadNro(const std::vector<u8>& data, const std::string& name,
+                                       VAddr load_base) {
+
+    if (data.size() < sizeof(NroHeader)) {
         return {};
     }
+
+    // Read NSO header
+    NroHeader nro_header{};
+    std::memcpy(&nro_header, data.data(), sizeof(NroHeader));
     if (nro_header.magic != Common::MakeMagic('N', 'R', 'O', '0')) {
         return {};
     }
 
     // Build program image
-    std::vector<u8> program_image = file.ReadBytes(PageAlignSize(nro_header.file_size));
+    std::vector<u8> program_image(PageAlignSize(nro_header.file_size));
+    std::memcpy(program_image.data(), data.data(), program_image.size());
     if (program_image.size() != PageAlignSize(nro_header.file_size)) {
         return {};
     }
@@ -182,9 +187,13 @@ bool AppLoader_NRO::LoadNro(const FileSys::VfsFile& file, VAddr load_base) {
     Core::CurrentProcess()->LoadModule(std::move(codeset), load_base);
 
     // Register module with GDBStub
-    GDBStub::RegisterModule(file.GetName(), load_base, load_base);
+    GDBStub::RegisterModule(name, load_base, load_base);
 
     return true;
+}
+
+bool AppLoader_NRO::LoadNro(const FileSys::VfsFile& file, VAddr load_base) {
+    return AppLoader_NRO::LoadNro(file.ReadAllBytes(), file.GetName(), load_base);
 }
 
 ResultStatus AppLoader_NRO::Load(Kernel::Process& process) {
