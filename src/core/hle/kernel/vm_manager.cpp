@@ -143,6 +143,26 @@ ResultVal<VMManager::VMAHandle> VMManager::MapBackingMemory(VAddr target, u8* me
     return MakeResult<VMAHandle>(MergeAdjacent(vma_handle));
 }
 
+ResultVal<VAddr> VMManager::FindFreeRegion(u64 size) const {
+    // Find the first Free VMA.
+    const VAddr base = GetASLRRegionBaseAddress();
+    const VMAHandle vma_handle = std::find_if(vma_map.begin(), vma_map.end(), [&](const auto& vma) {
+        if (vma.second.type != VMAType::Free)
+            return false;
+
+        const VAddr vma_end = vma.second.base + vma.second.size;
+        return vma_end > base && vma_end >= base + size;
+    });
+
+    if (vma_handle == vma_map.end()) {
+        // TODO(Subv): Find the correct error code here.
+        return ResultCode(-1);
+    }
+
+    const VAddr target = std::max(base, vma_handle->second.base);
+    return MakeResult<VAddr>(target);
+}
+
 ResultVal<VMManager::VMAHandle> VMManager::MapMMIO(VAddr target, PAddr paddr, u64 size,
                                                    MemoryState state,
                                                    Memory::MemoryHookPointer mmio_handler) {
