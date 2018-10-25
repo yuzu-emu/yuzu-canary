@@ -730,7 +730,7 @@ struct SurfaceParams {
     }
 
     /// Returns the rectangle corresponding to this surface
-    MathUtil::Rectangle<u32> GetRect() const;
+    MathUtil::Rectangle<u32> GetRect(u32 mip_level = 0) const;
 
     /// Returns the total size of this surface in bytes, adjusted for compression
     std::size_t SizeInBytesRaw(bool ignore_tiled = false) const {
@@ -761,7 +761,7 @@ struct SurfaceParams {
 
     /// Returns the exact size of memory occupied by the texture in VRAM, including mipmaps.
     std::size_t MemorySize() const {
-        std::size_t size = InnerMemorySize(is_layered);
+        std::size_t size = InnerMemorySize(false, is_layered);
         if (is_layered)
             return size * depth;
         return size;
@@ -770,12 +770,65 @@ struct SurfaceParams {
     /// Returns the exact size of the memory occupied by a layer in a texture in VRAM, including
     /// mipmaps.
     std::size_t LayerMemorySize() const {
-        return InnerMemorySize(true);
+        return InnerMemorySize(false, true);
     }
 
     /// Returns the size of a layer of this surface in OpenGL.
-    std::size_t LayerSizeGL() const {
-        return SizeInBytesRaw(true) / depth;
+    std::size_t LayerSizeGL(u32 mip_level) const {
+        return InnerMipmapMemorySize(mip_level, true, is_layered, false);
+    }
+
+    std::size_t GetMipmapSizeGL(u32 mip_level, bool ignore_compressed = true) const {
+        std::size_t size = InnerMipmapMemorySize(mip_level, true, is_layered, ignore_compressed);
+        if (is_layered)
+            return size * depth;
+        return size;
+    }
+
+    std::size_t GetMipmapLevelOffset(u32 mip_level) const {
+        std::size_t offset = 0;
+        for (u32 i = 0; i < mip_level; i++)
+            offset += InnerMipmapMemorySize(i, false, is_layered);
+        return offset;
+    }
+
+    std::size_t GetMipmapLevelOffsetGL(u32 mip_level) const {
+        std::size_t offset = 0;
+        for (u32 i = 0; i < mip_level; i++)
+            offset += InnerMipmapMemorySize(i, true, is_layered);
+        return offset;
+    }
+
+    u32 MipWidth(u32 mip_level) const {
+        return std::max(1U, width >> mip_level);
+    }
+
+    u32 MipHeight(u32 mip_level) const {
+        return std::max(1U, height >> mip_level);
+    }
+
+    u32 MipDepth(u32 mip_level) const {
+        return std::max(1U, depth >> mip_level);
+    }
+
+    u32 MipBlockHeight(u32 mip_level) const {
+        u32 height = MipHeight(mip_level);
+        u32 bh = block_height;
+        // Magical block resizing algorithm, needs more testing.
+        while (bh > 1 && (height +  bh - 1) / bh <= 16) {
+            bh = bh >> 1;
+        }
+        return bh;
+    }
+
+    u32 MipBlockDepth(u32 mip_level) const {
+        u32 depth = MipDepth(mip_level);
+        u32 bd = block_depth;
+        // Magical block resizing algorithm, needs more testing.
+        while (bd > 1 && depth / bd <= 16) {
+            bd = bd >> 1;
+        }
+        return bd;
     }
 
     /// Creates SurfaceParams from a texture configuration
@@ -836,7 +889,10 @@ struct SurfaceParams {
     } rt;
 
 private:
-    std::size_t InnerMemorySize(bool layer_only = false) const;
+    std::size_t InnerMipmapMemorySize(u32 mip_level, bool force_gl = false, bool layer_only = false,
+                                      bool uncompressed = false) const;
+    std::size_t InnerMemorySize(bool force_gl = false, bool layer_only = false,
+                                bool uncompressed = false) const;
 };
 
 }; // namespace OpenGL
@@ -898,8 +954,10 @@ public:
     void UploadGLTexture(GLuint read_fb_handle, GLuint draw_fb_handle);
 
 private:
+    void UploadGLMipmapTexture(u32 mip_map, GLuint read_fb_handle, GLuint draw_fb_handle);
+
     OGLTexture texture;
-    std::vector<u8> gl_buffer;
+    std::vector<std::vector<u8>> gl_buffer;
     SurfaceParams params;
     GLenum gl_target;
     std::size_t cached_size_in_bytes;
