@@ -158,6 +158,14 @@ public:
     ResultVal<VMAHandle> MapBackingMemory(VAddr target, u8* memory, u64 size, MemoryState state);
 
     /**
+     * Finds the first free address that can hold a region of the desired size.
+     *
+     * @param size Size of the desired region.
+     * @return The found free address.
+     */
+    ResultVal<VAddr> FindFreeRegion(u64 size) const;
+
+    /**
      * Maps a memory-mapped IO region at a given address.
      *
      * @param target The guest address to start the mapping at.
