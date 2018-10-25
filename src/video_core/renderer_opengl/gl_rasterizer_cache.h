@@ -77,19 +77,28 @@ struct SurfaceParams {
         ASTC_2D_8X8 = 45,
         ASTC_2D_8X5 = 46,
         ASTC_2D_5X4 = 47,
+        SBGRA8 = 48,
+        SDXT1 = 49,
+        SDXT23 = 50,
+        SDXT45 = 51,
+        SBC7U = 52,
+        SASTC_2D_4X4 = 53,
+        SASTC_2D_8X8 = 54,
+        SASTC_2D_8X5 = 55,
+        SASTC_2D_5X4 = 56,
 
         MaxColorFormat,
 
         // Depth formats
-        Z32F = 48,
-        Z16 = 49,
+        Z32F = 57,
+        Z16 = 58,
 
         MaxDepthFormat,
 
         // DepthStencil formats
-        Z24S8 = 50,
-        S8Z24 = 51,
-        Z32FS8 = 52,
+        Z24S8 = 59,
+        S8Z24 = 60,
+        Z32FS8 = 61,
 
         MaxDepthStencilFormat,
 
@@ -244,6 +253,15 @@ struct SurfaceParams {
             4, // ASTC_2D_8X8
             4, // ASTC_2D_8X5
             4, // ASTC_2D_5X4
+            1, // SBGRA8
+            4, // SDXT1
+            4, // SDXT23
+            4, // SDXT45
+            4, // SBC7U
+            4, // SASTC_2D_4X4
+            4, // SASTC_2D_8X8
+            4, // SASTC_2D_8X5
+            4, // SASTC_2D_5X4
             1, // Z32F
             1, // Z16
             1, // Z24S8
@@ -308,6 +326,15 @@ struct SurfaceParams {
             16,  // ASTC_2D_8X8
             32,  // ASTC_2D_8X5
             32,  // ASTC_2D_5X4
+            32,  // SBGRA8
+            64,  // SDXT1
+            128, // SDXT23
+            128, // SDXT45
+            128, // BC7U
+            32,  // SASTC_2D_4X4
+            16,  // SASTC_2D_8X8
+            32,  // SASTC_2D_8X5
+            32,  // SASTC_2D_5X4
             32,  // Z32F
             16,  // Z16
             32,  // Z24S8
@@ -346,6 +373,7 @@ struct SurfaceParams {
         // TODO (Hexagon12): Converting SRGBA to RGBA is a hack and doesn't completely correct the
         // gamma.
         case Tegra::RenderTargetFormat::RGBA8_SRGB:
+            return PixelFormat::SRGBA8;
         case Tegra::RenderTargetFormat::RGBA8_UNORM:
             return PixelFormat::ABGR8U;
         case Tegra::RenderTargetFormat::RGBA8_SNORM:
@@ -353,6 +381,7 @@ struct SurfaceParams {
         case Tegra::RenderTargetFormat::RGBA8_UINT:
             return PixelFormat::ABGR8UI;
         case Tegra::RenderTargetFormat::BGRA8_SRGB:
+            return PixelFormat::SBGRA8;
         case Tegra::RenderTargetFormat::BGRA8_UNORM:
             return PixelFormat::BGRA8;
         case Tegra::RenderTargetFormat::RGB10_A2_UNORM:
@@ -416,10 +445,14 @@ struct SurfaceParams {
     }
 
     static PixelFormat PixelFormatFromTextureFormat(Tegra::Texture::TextureFormat format,
-                                                    Tegra::Texture::ComponentType component_type) {
+                                                    Tegra::Texture::ComponentType component_type,
+                                                    bool sRGB) {
         // TODO(Subv): Properly implement this
         switch (format) {
         case Tegra::Texture::TextureFormat::A8R8G8B8:
+            if (sRGB) {
+                return PixelFormat::SRGBA8;
+            }
             switch (component_type) {
             case Tegra::Texture::ComponentType::UNORM:
                 return PixelFormat::ABGR8U;
@@ -554,11 +587,11 @@ struct SurfaceParams {
         case Tegra::Texture::TextureFormat::Z24S8:
             return PixelFormat::Z24S8;
         case Tegra::Texture::TextureFormat::DXT1:
-            return PixelFormat::DXT1;
+            return sRGB ? PixelFormat::SDXT1 : PixelFormat::DXT1;
         case Tegra::Texture::TextureFormat::DXT23:
-            return PixelFormat::DXT23;
+            return sRGB ? PixelFormat::SDXT23 : PixelFormat::DXT23;
         case Tegra::Texture::TextureFormat::DXT45:
-            return PixelFormat::DXT45;
+            return sRGB ? PixelFormat::SDXT45 : PixelFormat::DXT45;
         case Tegra::Texture::TextureFormat::DXN1:
             return PixelFormat::DXN1;
         case Tegra::Texture::TextureFormat::DXN2:
@@ -572,19 +605,19 @@ struct SurfaceParams {
                          static_cast<u32>(component_type));
             UNREACHABLE();
         case Tegra::Texture::TextureFormat::BC7U:
-            return PixelFormat::BC7U;
+            return sRGB ? PixelFormat::SBC7U : PixelFormat::BC7U;
         case Tegra::Texture::TextureFormat::BC6H_UF16:
             return PixelFormat::BC6H_UF16;
         case Tegra::Texture::TextureFormat::BC6H_SF16:
             return PixelFormat::BC6H_SF16;
         case Tegra::Texture::TextureFormat::ASTC_2D_4X4:
-            return PixelFormat::ASTC_2D_4X4;
+            return sRGB ? PixelFormat::SASTC_2D_4X4 : PixelFormat::ASTC_2D_4X4;
         case Tegra::Texture::TextureFormat::ASTC_2D_5X4:
-            return PixelFormat::ASTC_2D_5X4;
+            return sRGB ? PixelFormat::SASTC_2D_5X4 : PixelFormat::ASTC_2D_5X4;
         case Tegra::Texture::TextureFormat::ASTC_2D_8X8:
-            return PixelFormat::ASTC_2D_8X8;
+            return sRGB ? PixelFormat::SASTC_2D_8X8 : PixelFormat::ASTC_2D_8X8;
         case Tegra::Texture::TextureFormat::ASTC_2D_8X5:
-            return PixelFormat::ASTC_2D_8X5;
+            return sRGB ? PixelFormat::SASTC_2D_8X5 : PixelFormat::ASTC_2D_8X5;
         case Tegra::Texture::TextureFormat::R16_G16:
             switch (component_type) {
             case Tegra::Texture::ComponentType::FLOAT:
