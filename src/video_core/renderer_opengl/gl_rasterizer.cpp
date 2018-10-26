@@ -116,7 +116,8 @@ RasterizerOpenGL::RasterizerOpenGL(Core::Frontend::EmuWindow& window, ScreenInfo
     state.Apply();
 
     glEnable(GL_BLEND);
-
+    // Enable sRGB by default
+    glEnable(GL_FRAMEBUFFER_SRGB);
     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &uniform_buffer_alignment);
 
     LOG_CRITICAL(Render_OpenGL, "Sync fixed function OpenGL state here!");
@@ -417,6 +418,7 @@ void RasterizerOpenGL::ConfigureFramebuffers(bool using_color_fb, bool using_dep
 
     // Bind the framebuffer surfaces
     state.draw.draw_framebuffer = framebuffer.handle;
+    state.framebuffer_srgb.enabled = (regs.framebuffer_srgb_disabled == 0);
     state.Apply();
 
     if (using_color_fb) {
