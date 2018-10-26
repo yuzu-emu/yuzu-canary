@@ -13,6 +13,9 @@ namespace OpenGL {
 OpenGLState OpenGLState::cur_state;
 
 OpenGLState::OpenGLState() {
+    // sRGB seems to be always enabled unless is disabled by the register
+    // so make it enabled by default
+    framebuffer_srgb.enabled = true;
     // These all match default OpenGL values
     cull.enabled = false;
     cull.mode = GL_BACK;
@@ -86,6 +89,14 @@ OpenGLState::OpenGLState() {
 }
 
 void OpenGLState::Apply() const {
+    // sRGB
+    if (framebuffer_srgb.enabled != cur_state.framebuffer_srgb.enabled) {
+        if (framebuffer_srgb.enabled) {
+            glEnable(GL_FRAMEBUFFER_SRGB);
+        } else {
+            glDisable(GL_FRAMEBUFFER_SRGB);
+        }
+    }
     // Culling
     if (cull.enabled != cur_state.cull.enabled) {
         if (cull.enabled) {
