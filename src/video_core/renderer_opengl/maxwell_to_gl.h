@@ -135,12 +135,29 @@ inline GLenum PrimitiveTopology(Maxwell::PrimitiveTopology topology) {
     return {};
 }
 
-inline GLenum TextureFilterMode(Tegra::Texture::TextureFilter filter_mode) {
+inline GLenum TextureFilterMode(Tegra::Texture::TextureFilter filter_mode,
+                                Tegra::Texture::TextureMipmapFilter mip_filter_mode) {
     switch (filter_mode) {
-    case Tegra::Texture::TextureFilter::Linear:
-        return GL_LINEAR;
-    case Tegra::Texture::TextureFilter::Nearest:
-        return GL_NEAREST;
+    case Tegra::Texture::TextureFilter::Linear: {
+        switch (mip_filter_mode) {
+        case Tegra::Texture::TextureMipmapFilter::None:
+            return GL_LINEAR;
+        case Tegra::Texture::TextureMipmapFilter::Nearest:
+            return GL_NEAREST_MIPMAP_LINEAR;
+        case Tegra::Texture::TextureMipmapFilter::Linear:
+            return GL_LINEAR_MIPMAP_LINEAR;
+        }
+    }
+    case Tegra::Texture::TextureFilter::Nearest: {
+        switch (mip_filter_mode) {
+        case Tegra::Texture::TextureMipmapFilter::None:
+            return GL_NEAREST;
+        case Tegra::Texture::TextureMipmapFilter::Nearest:
+            return GL_NEAREST_MIPMAP_NEAREST;
+        case Tegra::Texture::TextureMipmapFilter::Linear:
+            return GL_LINEAR_MIPMAP_NEAREST;
+        }
+    }
     }
     LOG_CRITICAL(Render_OpenGL, "Unimplemented texture filter mode={}",
                  static_cast<u32>(filter_mode));
