@@ -208,6 +208,16 @@ enum class UniformType : u64 {
     Double = 5,
 };
 
+enum class StoreType : u64 {
+    Unsigned8 = 0,
+    Signed8 = 1,
+    Unsigned16 = 2,
+    Signed16 = 3,
+    Bytes32 = 4,
+    Bytes64 = 5,
+    Bytes128 = 6,
+};
+
 enum class IMinMaxExchange : u64 {
     None = 0,
     XLo = 1,
@@ -748,6 +758,18 @@ union Instruction {
     } ld_c;
 
     union {
+        BitField<48, 3, StoreType> type;
+    } ldst_sl;
+
+    union {
+        BitField<44, 2, u64> unknown;
+    } ld_l;
+
+    union {
+        BitField<44, 2, u64> unknown;
+    } st_l;
+
+    union {
         BitField<0, 3, u64> pred0;
         BitField<3, 3, u64> pred3;
         BitField<7, 1, u64> abs_a;
@@ -1209,6 +1231,7 @@ union Instruction {
     BitField<61, 1, u64> is_b_imm;
     BitField<60, 1, u64> is_b_gpr;
     BitField<59, 1, u64> is_c_gpr;
+    BitField<20, 24, s64> smem_imm;
 
     Attribute attribute;
     Sampler sampler;
@@ -1232,8 +1255,12 @@ public:
         BRA,
         PBK,
         LD_A,
+        LD_L,
+        LD_S,
         LD_C,
         ST_A,
+        ST_L,
+        ST_S,
         LDG, // Load from global memory
         STG, // Store in global memory
         TEX,
@@ -1490,8 +1517,12 @@ private:
             INST("111000110100---", Id::BRK, Type::Flow, "BRK"),
             INST("1111000011110---", Id::DEPBAR, Type::Synch, "DEPBAR"),
             INST("1110111111011---", Id::LD_A, Type::Memory, "LD_A"),
+            INST("1110111101001---", Id::LD_S, Type::Memory, "LD_S"),
+            INST("1110111101000---", Id::LD_L, Type::Memory, "LD_L"),
             INST("1110111110010---", Id::LD_C, Type::Memory, "LD_C"),
             INST("1110111111110---", Id::ST_A, Type::Memory, "ST_A"),
+            INST("1110111101011---", Id::ST_S, Type::Memory, "ST_S"),
+            INST("1110111101010---", Id::ST_L, Type::Memory, "ST_L"),
             INST("1110111011010---", Id::LDG, Type::Memory, "LDG"),
             INST("1110111011011---", Id::STG, Type::Memory, "STG"),
             INST("110000----111---", Id::TEX, Type::Memory, "TEX"),
