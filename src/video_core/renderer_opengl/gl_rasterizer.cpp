@@ -418,6 +418,7 @@ void RasterizerOpenGL::ConfigureFramebuffers(bool using_color_fb, bool using_dep
     // Bind the framebuffer surfaces
     state.draw.draw_framebuffer = framebuffer.handle;
     state.Apply();
+    state.framebuffer_srgb.enabled = regs.framebuffer_srgb != 0;
 
     if (using_color_fb) {
         if (single_color_target) {
@@ -429,6 +430,9 @@ void RasterizerOpenGL::ConfigureFramebuffers(bool using_color_fb, bool using_dep
                 // Assume that a surface will be written to if it is used as a framebuffer, even if
                 // the shader doesn't actually write to it.
                 color_surface->MarkAsModified(true, res_cache);
+                // Workaround for and issue in nvidia drivers
+                // https://devtalk.nvidia.com/default/topic/776591/opengl/gl_framebuffer_srgb-functions-incorrectly/
+                state.framebuffer_srgb.enabled |= color_surface->GetSurfaceParams().srgb_conversion;
             }
 
             glFramebufferTexture2D(
@@ -446,6 +450,11 @@ void RasterizerOpenGL::ConfigureFramebuffers(bool using_color_fb, bool using_dep
                     // Assume that a surface will be written to if it is used as a framebuffer, even
                     // if the shader doesn't actually write to it.
                     color_surface->MarkAsModified(true, res_cache);
+                    // Enable sRGB only for supported formats
+                    // Workaround for and issue in nvidia drivers
+                    // https://devtalk.nvidia.com/default/topic/776591/opengl/gl_framebuffer_srgb-functions-incorrectly/
+                    state.framebuffer_srgb.enabled |=
+                        color_surface->GetSurfaceParams().srgb_conversion;
                 }
 
                 buffers[index] = GL_COLOR_ATTACHMENT0 + regs.rt_control.GetMap(index);
@@ -537,7 +546,9 @@ void RasterizerOpenGL::Clear() {
 
     ConfigureFramebuffers(use_color, use_depth || use_stencil, false,
                           regs.clear_buffers.RT.Value());
-
+    // Copy the sRGB setting to the clear state to avoid problem with
+    // specific driver implementations
+    clear_state.framebuffer_srgb.enabled = state.framebuffer_srgb.enabled;
     clear_state.Apply();
 
     if (use_color) {

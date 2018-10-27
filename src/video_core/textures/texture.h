@@ -173,6 +173,7 @@ struct TICEntry {
     };
     union {
         BitField<0, 16, u32> width_minus_1;
+        BitField<22, 1, u32> srgb_conversion;
         BitField<23, 4, TextureType> texture_type;
     };
     union {
@@ -226,6 +227,10 @@ struct TICEntry {
     bool IsTiled() const {
         return header_version == TICHeaderVersion::BlockLinear ||
                header_version == TICHeaderVersion::BlockLinearColorKey;
+    }
+
+    bool IsSrgbConversionEnabled() const {
+        return srgb_conversion != 0;
     }
 };
 static_assert(sizeof(TICEntry) == 0x20, "TICEntry has wrong size");
