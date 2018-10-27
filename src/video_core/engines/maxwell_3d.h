@@ -723,7 +723,11 @@ public:
                 StencilOp stencil_back_op_zpass;
                 ComparisonOp stencil_back_func_func;
 
-                INSERT_PADDING_WORDS(0x17);
+                INSERT_PADDING_WORDS(0x4);
+
+                u32 framebuffer_srgb;
+
+                INSERT_PADDING_WORDS(0x12);
 
                 union {
                     BitField<2, 1, u32> coord_origin;
@@ -1086,6 +1090,7 @@ ASSERT_REG_POSITION(stencil_back_op_fail, 0x566);
 ASSERT_REG_POSITION(stencil_back_op_zfail, 0x567);
 ASSERT_REG_POSITION(stencil_back_op_zpass, 0x568);
 ASSERT_REG_POSITION(stencil_back_func_func, 0x569);
+ASSERT_REG_POSITION(framebuffer_srgb, 0x56E);
 ASSERT_REG_POSITION(point_coord_replace, 0x581);
 ASSERT_REG_POSITION(code_address, 0x582);
 ASSERT_REG_POSITION(draw, 0x585);

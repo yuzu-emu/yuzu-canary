@@ -36,6 +36,10 @@ constexpr TextureUnit ProcTexDiffLUT{9};
 class OpenGLState {
 public:
     struct {
+        bool enabled; // GL_FRAMEBUFFER_SRGB
+    } framebuffer_srgb;
+
+    struct {
         bool enabled;      // GL_CULL_FACE
         GLenum mode;       // GL_CULL_FACE_MODE
         GLenum front_face; // GL_FRONT_FACE
@@ -161,7 +165,12 @@ public:
     static OpenGLState GetCurState() {
         return cur_state;
     }
-
+    static bool GetsRGBUsed() {
+        return s_rgb_used;
+    }
+    static void ClearsRGBUsed() {
+        s_rgb_used = false;
+    }
     /// Apply this state as the current OpenGL state
     void Apply() const;
 
@@ -176,6 +185,9 @@ public:
 
 private:
     static OpenGLState cur_state;
+    // Workaround for sRGB problems caused by
+    // QT not supporting srgb output
+    static bool s_rgb_used;
 };
 
 } // namespace OpenGL
