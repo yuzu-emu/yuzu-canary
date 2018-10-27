@@ -131,11 +131,11 @@ void Controller_NPad::OnInit() {
 }
 
 void Controller_NPad::OnLoadInputDevices() {
-    std::transform(Settings::values.buttons.begin() + Settings::NativeButton::BUTTON_HID_BEGIN,
-                   Settings::values.buttons.begin() + Settings::NativeButton::BUTTON_HID_END,
+    std::transform(Settings::values->buttons.begin() + Settings::NativeButton::BUTTON_HID_BEGIN,
+                   Settings::values->buttons.begin() + Settings::NativeButton::BUTTON_HID_END,
                    buttons.begin(), Input::CreateDevice<Input::ButtonDevice>);
-    std::transform(Settings::values.analogs.begin() + Settings::NativeAnalog::STICK_HID_BEGIN,
-                   Settings::values.analogs.begin() + Settings::NativeAnalog::STICK_HID_END,
+    std::transform(Settings::values->analogs.begin() + Settings::NativeAnalog::STICK_HID_BEGIN,
+                   Settings::values->analogs.begin() + Settings::NativeAnalog::STICK_HID_END,
                    sticks.begin(), Input::CreateDevice<Input::AnalogDevice>);
 }
 
@@ -289,7 +289,7 @@ void Controller_NPad::OnUpdate(u8* data, std::size_t data_len) {
         case NPadControllerType::Handheld:
             handheld_entry.connection_status.raw = 0;
             handheld_entry.connection_status.IsConnected.Assign(1);
-            if (!Settings::values.use_docked_mode) {
+            if (!Settings::values->use_docked_mode) {
                 handheld_entry.connection_status.IsWired.Assign(1);
             }
             handheld_entry.pad_states.raw = pad_state.raw;
@@ -504,7 +504,7 @@ bool Controller_NPad::IsControllerSupported(NPadControllerType controller) const
             return false;
         }
         // Handheld should not be supported in docked mode
-        if (Settings::values.use_docked_mode) {
+        if (Settings::values->use_docked_mode) {
             return false;
         }
 
@@ -535,7 +535,7 @@ Controller_NPad::NPadControllerType Controller_NPad::DecideBestController(
     if (IsControllerSupported(priority)) {
         return priority;
     }
-    const auto is_docked = Settings::values.use_docked_mode;
+    const auto is_docked = Settings::values->use_docked_mode;
     if (is_docked && priority == NPadControllerType::Handheld) {
         priority = NPadControllerType::JoyDual;
         if (IsControllerSupported(priority)) {

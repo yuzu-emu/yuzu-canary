@@ -12,6 +12,10 @@ ConfigureDialog::ConfigureDialog(QWidget* parent, const HotkeyRegistry& registry
     : QDialog(parent), ui(new Ui::ConfigureDialog) {
     ui->setupUi(this);
     ui->generalTab->PopulateHotkeyList(registry);
+    ui->inputTab->setPerGame(false);
+    ui->graphicsTab->setPerGame(false);
+    ui->audioTab->setPerGame(false);
+    ui->debugTab->setPerGame(false);
     this->setConfiguration();
 }
 

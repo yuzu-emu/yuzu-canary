@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
                 PrintVersion();
                 return 0;
             case 'p':
-                Settings::values.program_args = argv[optind];
+                Settings::values->program_args = argv[optind];
                 ++optind;
                 break;
             }

@@ -222,7 +222,7 @@ void RendererOpenGL::LoadColorToActiveGLTexture(u8 color_r, u8 color_g, u8 color
  * Initializes the OpenGL state and creates persistent objects.
  */
 void RendererOpenGL::InitOpenGLObjects() {
-    glClearColor(Settings::values.bg_red, Settings::values.bg_green, Settings::values.bg_blue,
+    glClearColor(Settings::values->bg_red, Settings::values->bg_green, Settings::values->bg_blue,
                  0.0f);
 
     // Link shaders and get variable locations
@@ -379,8 +379,8 @@ void RendererOpenGL::DrawScreenTriangles(const ScreenInfo& screen_info, float x,
 void RendererOpenGL::DrawScreen() {
     if (renderer_settings.set_background_color) {
         // Update background color before drawing
-        glClearColor(Settings::values.bg_red, Settings::values.bg_green, Settings::values.bg_blue,
-                     0.0f);
+        glClearColor(Settings::values->bg_red, Settings::values->bg_green,
+                     Settings::values->bg_blue, 0.0f);
     }
 
     const auto& layout = render_window.GetFramebufferLayout();

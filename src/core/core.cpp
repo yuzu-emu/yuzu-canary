@@ -38,7 +38,6 @@ namespace Core {
 
 /*static*/ System System::s_instance;
 
-namespace {
 FileSys::VirtualFile GetGameFileFromPath(const FileSys::VirtualFilesystem& vfs,
                                          const std::string& path) {
     // To account for split 00+01+etc files.
@@ -70,6 +69,7 @@ FileSys::VirtualFile GetGameFileFromPath(const FileSys::VirtualFilesystem& vfs,
     return vfs->OpenFile(path, FileSys::Mode::Read);
 }
 
+namespace {
 /// Runs a CPU core while the system is powered on
 void RunCpuCore(Cpu& cpu_state) {
     while (Core::System::GetInstance().IsPoweredOn()) {
@@ -135,6 +135,16 @@ struct System::Impl {
         // Create a default fs if one doesn't already exist.
         if (virtual_filesystem == nullptr)
             virtual_filesystem = std::make_shared<FileSys::RealVfsFilesystem>();
+
+        // Force update title ID for per game settings in case any services use them
+        u64 title_id = 0;
+        if (app_loader->ReadProgramId(title_id) == Loader::ResultStatus::Success)
+            Settings::values.SetCurrentTitleID(title_id);
+        else
+            Settings::values.SetCurrentTitleID(Settings::DEFAULT_PER_GAME);
+
+        // Write config to log
+        Settings::values->LogSettings();
 
         auto main_process = Kernel::Process::Create(kernel, "main");
         kernel.MakeCurrentProcess(main_process.get());
