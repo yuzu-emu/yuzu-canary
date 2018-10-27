@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -20,6 +21,7 @@
 #include "core/file_sys/registered_cache.h"
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/loader/loader.h"
+#include "core/settings.h"
 #include "yuzu/compatibility_list.h"
 #include "yuzu/game_list.h"
 #include "yuzu/game_list_p.h"
@@ -58,6 +60,7 @@ QString FormatGameName(const std::string& physical_name) {
 
 QString FormatPatchNameVersions(const FileSys::PatchManager& patch_manager,
                                 Loader::AppLoader& loader, bool updatable = true) {
+    const auto& disabled = Settings::values[patch_manager.GetTitleID()].disabled_patches;
     QString out;
     FileSys::VirtualFile update_raw;
     loader.ReadUpdateRaw(update_raw);
@@ -67,10 +70,13 @@ QString FormatPatchNameVersions(const FileSys::PatchManager& patch_manager,
             continue;
         }
 
+        const auto patch_disabled =
+            std::find(disabled.begin(), disabled.end(), kv.first) != disabled.end();
         const QString type = QString::fromStdString(kv.first);
 
         if (kv.second.empty()) {
-            out.append(QStringLiteral("%1\n").arg(type));
+            out.append((patch_disabled ? QStringLiteral("<s>%1</s><br>") : QStringLiteral("%1<br>"))
+                           .arg(type));
         } else {
             auto ver = kv.second;
 
@@ -79,7 +85,9 @@ QString FormatPatchNameVersions(const FileSys::PatchManager& patch_manager,
                 ver = Loader::GetFileTypeString(loader.GetFileType());
             }
 
-            out.append(QStringLiteral("%1 (%2)\n").arg(type, QString::fromStdString(ver)));
+            out.append((patch_disabled ? QStringLiteral("<s>%1 (%2)</s><br>")
+                                       : QStringLiteral("%1 (%2)<br>"))
+                           .arg(type, QString::fromStdString(ver)));
         }
     }
 

@@ -152,21 +152,22 @@ TelemetrySession::TelemetrySession() {
     Telemetry::AppendOSInfo(field_collection);
 
     // Log user configuration information
-    AddField(Telemetry::FieldType::UserConfig, "Audio_SinkId", Settings::values.sink_id);
+    AddField(Telemetry::FieldType::UserConfig, "Audio_SinkId", Settings::values->sink_id);
     AddField(Telemetry::FieldType::UserConfig, "Audio_EnableAudioStretching",
-             Settings::values.enable_audio_stretching);
+             Settings::values->enable_audio_stretching);
     AddField(Telemetry::FieldType::UserConfig, "Core_UseCpuJit", Settings::values.use_cpu_jit);
     AddField(Telemetry::FieldType::UserConfig, "Core_UseMultiCore",
              Settings::values.use_multi_core);
     AddField(Telemetry::FieldType::UserConfig, "Renderer_ResolutionFactor",
-             Settings::values.resolution_factor);
+             Settings::values->resolution_factor);
     AddField(Telemetry::FieldType::UserConfig, "Renderer_UseFrameLimit",
-             Settings::values.use_frame_limit);
-    AddField(Telemetry::FieldType::UserConfig, "Renderer_FrameLimit", Settings::values.frame_limit);
-    AddField(Telemetry::FieldType::UserConfig, "Renderer_UseAccurateGpuEmulation",
+             Settings::values->use_frame_limit);
+    AddField(Telemetry::FieldType::UserConfig, "Renderer_FrameLimit",
+             Settings::values->frame_limit);
+    AddField(Telemetry::FieldType::UserConfig, "Renderer_UseAccurateFramebuffers",
              Settings::values.use_accurate_gpu_emulation);
     AddField(Telemetry::FieldType::UserConfig, "System_UseDockedMode",
-             Settings::values.use_docked_mode);
+             Settings::values->use_docked_mode);
 }
 
 TelemetrySession::~TelemetrySession() {

@@ -668,7 +668,7 @@ private:
         IPC::ResponseBuilder rb{ctx, 6};
         rb.Push(RESULT_SUCCESS);
 
-        if (Settings::values.use_docked_mode) {
+        if (Settings::values->use_docked_mode) {
             rb.Push(static_cast<u32>(Service::VI::DisplayResolution::DockedWidth));
             rb.Push(static_cast<u32>(Service::VI::DisplayResolution::DockedHeight));
         } else {
@@ -877,7 +877,7 @@ private:
         IPC::ResponseBuilder rb{ctx, 6};
         rb.Push(RESULT_SUCCESS);
 
-        if (Settings::values.use_docked_mode) {
+        if (Settings::values->use_docked_mode) {
             rb.Push(static_cast<u64>(DisplayResolution::DockedWidth));
             rb.Push(static_cast<u64>(DisplayResolution::DockedHeight));
         } else {
