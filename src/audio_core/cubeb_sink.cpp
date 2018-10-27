@@ -163,7 +163,7 @@ long CubebSinkStream::DataCallback(cubeb_stream* stream, void* user_data, const 
     const std::size_t samples_to_write = num_channels * num_frames;
     std::size_t samples_written;
 
-    if (Settings::values.enable_audio_stretching) {
+    if (Settings::values->enable_audio_stretching) {
         const std::vector<s16> in{impl->queue.Pop()};
         const std::size_t num_in{in.size() / num_channels};
         s16* const out{reinterpret_cast<s16*>(buffer)};

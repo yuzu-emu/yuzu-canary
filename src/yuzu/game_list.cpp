@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <regex>
+#include <QAbstractTextDocumentLayout>
 #include <QApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -12,11 +13,15 @@
 #include <QJsonObject>
 #include <QKeyEvent>
 #include <QMenu>
+#include <QPainter>
+#include <QStyledItemDelegate>
+#include <QTextDocument>
 #include <QThreadPool>
 #include <fmt/format.h>
 #include "common/common_paths.h"
 #include "common/common_types.h"
 #include "common/logging/log.h"
+#include "core/file_sys/mode.h"
 #include "core/file_sys/patch_manager.h"
 #include "yuzu/compatibility_list.h"
 #include "yuzu/game_list.h"
@@ -24,6 +29,52 @@
 #include "yuzu/game_list_worker.h"
 #include "yuzu/main.h"
 #include "yuzu/ui_settings.h"
+
+class HTMLDelegate : public QStyledItemDelegate {
+public:
+    void paint(QPainter* painter, const QStyleOptionViewItem& _option,
+               const QModelIndex& index) const override {
+        auto option = _option;
+        initStyleOption(&option, index);
+
+        QStyle* style = option.widget ? option.widget->style() : QApplication::style();
+
+        QTextDocument document;
+        document.setHtml(option.text);
+
+        /// Painting item without text
+        option.text = QString();
+        style->drawControl(QStyle::CE_ItemViewItem, &option, painter);
+
+        QAbstractTextDocumentLayout::PaintContext ctx;
+
+        // Highlighting text if item is selected
+        if (option.state & QStyle::State_Selected) {
+            ctx.palette.setColor(QPalette::Text,
+                                 option.palette.color(QPalette::Active, QPalette::HighlightedText));
+        } else {
+            ctx.palette.setColor(QPalette::Text,
+                                 option.palette.color(QPalette::Normal, QPalette::Text));
+        }
+
+        QRect textRect = style->subElementRect(QStyle::SE_ItemViewItemText, &option);
+        painter->save();
+        painter->translate(textRect.topLeft());
+        painter->setClipRect(textRect.translated(-textRect.topLeft()));
+        document.documentLayout()->draw(painter, ctx);
+        painter->restore();
+    }
+
+    QSize sizeHint(const QStyleOptionViewItem& _option, const QModelIndex& index) const override {
+        auto option = _option;
+        initStyleOption(&option, index);
+
+        QTextDocument document;
+        document.setHtml(option.text);
+        document.setTextWidth(option.rect.width());
+        return QSize(document.idealWidth(), UISettings::values.icon_size);
+    }
+};
 
 GameListSearchField::KeyReleaseEater::KeyReleaseEater(GameList* gamelist) : gamelist{gamelist} {}
 
@@ -214,6 +265,7 @@ GameList::GameList(FileSys::VirtualFilesystem vfs, GMainWindow* parent)
     tree_view->setEditTriggers(QHeaderView::NoEditTriggers);
     tree_view->setUniformRowHeights(true);
     tree_view->setContextMenuPolicy(Qt::CustomContextMenu);
+    tree_view->setItemDelegate(new HTMLDelegate);
 
     item_model->insertColumns(0, COLUMN_COUNT);
     item_model->setHeaderData(COLUMN_NAME, Qt::Horizontal, tr("Name"));
@@ -326,6 +378,8 @@ void GameList::PopupContextMenu(const QPoint& menu_location) {
     QAction* dump_romfs = context_menu.addAction(tr("Dump RomFS"));
     QAction* copy_tid = context_menu.addAction(tr("Copy Title ID to Clipboard"));
     QAction* navigate_to_gamedb_entry = context_menu.addAction(tr("Navigate to GameDB entry"));
+    context_menu.addSeparator();
+    QAction* properties = context_menu.addAction(tr("Properties"));
 
     open_save_location->setEnabled(program_id != 0);
     auto it = FindMatchingCompatibilityEntry(compatibility_list, program_id);
@@ -339,6 +393,8 @@ void GameList::PopupContextMenu(const QPoint& menu_location) {
     connect(copy_tid, &QAction::triggered, [&]() { emit CopyTIDRequested(program_id); });
     connect(navigate_to_gamedb_entry, &QAction::triggered,
             [&]() { emit NavigateToGamedbEntryRequested(program_id, compatibility_list); });
+    connect(properties, &QAction::triggered,
+            [&]() { emit OpenGamePropertiesDialogRequested(path); });
 
     context_menu.exec(tree_view->viewport()->mapToGlobal(menu_location));
 }

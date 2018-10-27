@@ -20,6 +20,9 @@ public:
 
     void applyConfiguration();
 
+public slots:
+    void RequestGameListUpdate();
+
 private:
     void setConfiguration();
 

@@ -6,6 +6,7 @@
 #include "core/core.h"
 #include "core/settings.h"
 #include "ui_configure_graphics.h"
+#include "yuzu/configuration/config.h"
 #include "yuzu/configuration/configure_graphics.h"
 
 namespace {
@@ -55,7 +56,7 @@ ConfigureGraphics::ConfigureGraphics(QWidget* parent)
     ui->setupUi(this);
     this->setConfiguration();
 
-    ui->frame_limit->setEnabled(Settings::values.use_frame_limit);
+    ui->frame_limit->setEnabled(Settings::values->use_frame_limit);
     connect(ui->toggle_frame_limit, &QCheckBox::stateChanged, ui->frame_limit,
             &QSpinBox::setEnabled);
     connect(ui->bg_button, &QPushButton::clicked, this, [this] {
@@ -72,23 +73,51 @@ ConfigureGraphics::~ConfigureGraphics() = default;
 
 void ConfigureGraphics::setConfiguration() {
     ui->resolution_factor_combobox->setCurrentIndex(
-        static_cast<int>(FromResolutionFactor(Settings::values.resolution_factor)));
-    ui->toggle_frame_limit->setChecked(Settings::values.use_frame_limit);
-    ui->frame_limit->setValue(Settings::values.frame_limit);
+        static_cast<int>(FromResolutionFactor(Settings::values->resolution_factor)));
+    ui->toggle_frame_limit->setChecked(Settings::values->use_frame_limit);
+    ui->frame_limit->setValue(Settings::values->frame_limit);
     ui->use_accurate_gpu_emulation->setChecked(Settings::values.use_accurate_gpu_emulation);
-    bg_color = QColor::fromRgbF(Settings::values.bg_red, Settings::values.bg_green,
-                                Settings::values.bg_blue);
+    bg_color = QColor::fromRgbF(Settings::values->bg_red, Settings::values->bg_green,
+                                Settings::values->bg_blue);
     ui->bg_button->setStyleSheet(
         QString("QPushButton { background-color: %1 }").arg(bg_color.name()));
 }
 
+void ConfigureGraphics::setPerGame(bool per_game) {
+    ui->bg_checkbox->setHidden(!per_game);
+    ui->resolution_factor_checkbox->setHidden(!per_game);
+    ui->use_accurate_gpu_emulation->setHidden(per_game);
+    ui->override_label->setHidden(!per_game);
+    ui->toggle_frame_limit->setTristate(per_game);
+}
+
+void ConfigureGraphics::loadValuesChange(const PerGameValuesChange& change) {
+    ui->bg_checkbox->setChecked(change.bg_red || change.bg_green || change.bg_blue);
+    ui->toggle_frame_limit->setCheckState(
+        change.use_frame_limit ? (Settings::values->use_frame_limit ? Qt::Checked : Qt::Unchecked)
+                               : Qt::PartiallyChecked);
+    ui->frame_limit->setEnabled(change.use_frame_limit || Settings::values->use_frame_limit);
+    ui->resolution_factor_checkbox->setChecked(change.resolution_factor);
+}
+
+void ConfigureGraphics::mergeValuesChange(PerGameValuesChange& change) {
+    change.bg_red = ui->bg_checkbox->isChecked();
+    change.bg_green = ui->bg_checkbox->isChecked();
+    change.bg_blue = ui->bg_checkbox->isChecked();
+    change.use_frame_limit = ui->toggle_frame_limit->checkState() != Qt::PartiallyChecked;
+    change.frame_limit = ui->toggle_frame_limit->checkState() != Qt::PartiallyChecked;
+    change.resolution_factor = ui->resolution_factor_checkbox->isChecked();
+}
+
 void ConfigureGraphics::applyConfiguration() {
-    Settings::values.resolution_factor =
+    Settings::values->resolution_factor =
         ToResolutionFactor(static_cast<Resolution>(ui->resolution_factor_combobox->currentIndex()));
-    Settings::values.use_frame_limit = ui->toggle_frame_limit->isChecked();
-    Settings::values.frame_limit = ui->frame_limit->value();
+    Settings::values->use_frame_limit = ui->toggle_frame_limit->checkState() == Qt::PartiallyChecked
+                                            ? Settings::values.default_game.use_frame_limit
+                                            : ui->toggle_frame_limit->isChecked();
+    Settings::values->frame_limit = ui->frame_limit->value();
     Settings::values.use_accurate_gpu_emulation = ui->use_accurate_gpu_emulation->isChecked();
-    Settings::values.bg_red = static_cast<float>(bg_color.redF());
-    Settings::values.bg_green = static_cast<float>(bg_color.greenF());
-    Settings::values.bg_blue = static_cast<float>(bg_color.blueF());
+    Settings::values->bg_red = static_cast<float>(bg_color.redF());
+    Settings::values->bg_green = static_cast<float>(bg_color.greenF());
+    Settings::values->bg_blue = static_cast<float>(bg_color.blueF());
 }

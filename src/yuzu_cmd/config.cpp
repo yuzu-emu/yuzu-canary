@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <memory>
+#include <sstream>
 #include <SDL.h>
 #include <inih/cpp/INIReader.h>
 #include "common/file_util.h"
@@ -65,54 +66,97 @@ static const std::array<std::array<int, 5>, Settings::NativeAnalog::NumAnalogs> 
     },
 }};
 
-void Config::ReadValues() {
+void Config::ReadValuesForTitleID(Settings::PerGameValues& values, const std::string& name) {
     // Controls
+    auto group = fmt::format("{}Controls", name);
     for (int i = 0; i < Settings::NativeButton::NumButtons; ++i) {
         std::string default_param = InputCommon::GenerateKeyboardParam(default_buttons[i]);
-        Settings::values.buttons[i] =
-            sdl2_config->Get("Controls", Settings::NativeButton::mapping[i], default_param);
-        if (Settings::values.buttons[i].empty())
-            Settings::values.buttons[i] = default_param;
+        values.buttons[i] =
+            sdl2_config->Get(group, Settings::NativeButton::mapping[i], default_param);
+        if (values.buttons[i].empty())
+            values.buttons[i] = default_param;
     }
 
     for (int i = 0; i < Settings::NativeAnalog::NumAnalogs; ++i) {
         std::string default_param = InputCommon::GenerateAnalogParamFromKeys(
             default_analogs[i][0], default_analogs[i][1], default_analogs[i][2],
             default_analogs[i][3], default_analogs[i][4], 0.5f);
-        Settings::values.analogs[i] =
-            sdl2_config->Get("Controls", Settings::NativeAnalog::mapping[i], default_param);
-        if (Settings::values.analogs[i].empty())
-            Settings::values.analogs[i] = default_param;
+        values.analogs[i] =
+            sdl2_config->Get(group, Settings::NativeAnalog::mapping[i], default_param);
+        if (values.analogs[i].empty())
+            values.analogs[i] = default_param;
     }
 
-    Settings::values.motion_device = sdl2_config->Get(
-        "Controls", "motion_device", "engine:motion_emu,update_period:100,sensitivity:0.01");
-    Settings::values.touch_device =
-        sdl2_config->Get("Controls", "touch_device", "engine:emu_window");
+    values.motion_device = sdl2_config->Get(group, "motion_device",
+                                            "engine:motion_emu,update_period:100,sensitivity:0.01");
+    values.touch_device = sdl2_config->Get(group, "touch_device", "engine:emu_window");
 
-    // Core
-    Settings::values.use_cpu_jit = sdl2_config->GetBoolean("Core", "use_cpu_jit", true);
-    Settings::values.use_multi_core = sdl2_config->GetBoolean("Core", "use_multi_core", false);
+    // System
+    values.use_docked_mode = sdl2_config->GetBoolean("System", "use_docked_mode", false);
 
     // Renderer
-    Settings::values.resolution_factor =
-        (float)sdl2_config->GetReal("Renderer", "resolution_factor", 1.0);
-    Settings::values.use_frame_limit = sdl2_config->GetBoolean("Renderer", "use_frame_limit", true);
-    Settings::values.frame_limit =
-        static_cast<u16>(sdl2_config->GetInteger("Renderer", "frame_limit", 100));
+    group = fmt::format("{}Renderer", name);
+    values.resolution_factor = (float)sdl2_config->GetReal(group, "resolution_factor", 1.0);
+    values.use_frame_limit = sdl2_config->GetBoolean(group, "use_frame_limit", true);
+    values.frame_limit = static_cast<u16>(sdl2_config->GetInteger(group, "frame_limit", 100));
     Settings::values.use_accurate_gpu_emulation =
         sdl2_config->GetBoolean("Renderer", "use_accurate_gpu_emulation", false);
 
-    Settings::values.bg_red = (float)sdl2_config->GetReal("Renderer", "bg_red", 0.0);
-    Settings::values.bg_green = (float)sdl2_config->GetReal("Renderer", "bg_green", 0.0);
-    Settings::values.bg_blue = (float)sdl2_config->GetReal("Renderer", "bg_blue", 0.0);
+    values.bg_red = (float)sdl2_config->GetReal(group, "bg_red", 0.0);
+    values.bg_green = (float)sdl2_config->GetReal(group, "bg_green", 0.0);
+    values.bg_blue = (float)sdl2_config->GetReal(group, "bg_blue", 0.0);
 
     // Audio
-    Settings::values.sink_id = sdl2_config->Get("Audio", "output_engine", "auto");
-    Settings::values.enable_audio_stretching =
-        sdl2_config->GetBoolean("Audio", "enable_audio_stretching", true);
-    Settings::values.audio_device_id = sdl2_config->Get("Audio", "output_device", "auto");
-    Settings::values.volume = sdl2_config->GetReal("Audio", "volume", 1);
+    group = fmt::format("{}Audio", name);
+    values.sink_id = sdl2_config->Get(group, "output_engine", "auto");
+    values.enable_audio_stretching =
+        sdl2_config->GetBoolean(group, "enable_audio_stretching", true);
+    values.audio_device_id = sdl2_config->Get(group, "output_device", "auto");
+    values.volume = sdl2_config->GetReal(group, "volume", 1);
+
+    // Debugging
+    group = fmt::format("{}Debugging", name);
+    values.program_args = sdl2_config->Get(group, "program_args", "");
+
+    // Add Ons
+    group = fmt::format("{}AddOns", name);
+    const auto disabled_str = sdl2_config->Get(group, "disabled_patches", "");
+
+    std::stringstream ss(disabled_str);
+    std::string line;
+    values.disabled_patches.clear();
+    while (std::getline(ss, line, ';'))
+        values.disabled_patches.push_back(line);
+}
+
+bool Config::UpdateCurrentGame(u64 title_id, Settings::PerGameValues& values) {
+    if (std::find(titles.begin(), titles.end(), title_id) == titles.end())
+        return false;
+
+    values = Settings::values.default_game;
+    ReadValuesForTitleID(values, fmt::format("{:016X}", title_id));
+    return true;
+}
+
+void Config::ReadValues() {
+    ReadValuesForTitleID(Settings::values.default_game, "");
+
+    const auto titles_str = sdl2_config->Get("Per Game", "Titles", "");
+    std::stringstream ss(titles_str);
+
+    std::string token;
+    while (std::getline(ss, token, '|')) {
+        if (token.size() != 16)
+            continue;
+
+        const u64 val = std::stoull(token, nullptr, 16);
+        titles.push_back(val);
+    }
+
+    Settings::values.SetUpdateCurrentGameFunction(
+        [this](u64 title_id, Settings::PerGameValues& values) {
+            return UpdateCurrentGame(title_id, values);
+        });
 
     // Data Storage
     Settings::values.use_virtual_sd =
@@ -124,13 +168,20 @@ void Config::ReadValues() {
                           sdl2_config->Get("Data Storage", "sdmc_directory",
                                            FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir)));
 
+    // Core
+    Settings::values.use_cpu_jit = sdl2_config->GetBoolean("Core", "use_cpu_jit", true);
+    Settings::values.use_multi_core = sdl2_config->GetBoolean("Core", "use_multi_core", false);
+
     // System
-    Settings::values.use_docked_mode = sdl2_config->GetBoolean("System", "use_docked_mode", false);
     Settings::values.enable_nfc = sdl2_config->GetBoolean("System", "enable_nfc", true);
     const auto size = sdl2_config->GetInteger("System", "users_size", 0);
 
     Settings::values.current_user = std::clamp<int>(
         sdl2_config->GetInteger("System", "current_user", 0), 0, Service::Account::MAX_USERS - 1);
+
+    // Renderer
+    Settings::values.use_accurate_gpu_emulation =
+        sdl2_config->GetBoolean("Renderer", "use_accurate_gpu_emulation", false);
 
     // Miscellaneous
     Settings::values.log_filter = sdl2_config->Get("Miscellaneous", "log_filter", "*:Trace");
@@ -140,7 +191,6 @@ void Config::ReadValues() {
     Settings::values.use_gdbstub = sdl2_config->GetBoolean("Debugging", "use_gdbstub", false);
     Settings::values.gdbstub_port =
         static_cast<u16>(sdl2_config->GetInteger("Debugging", "gdbstub_port", 24689));
-    Settings::values.program_args = sdl2_config->Get("Debugging", "program_args", "");
 
     // Web Service
     Settings::values.enable_telemetry =
