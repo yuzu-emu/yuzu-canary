@@ -10,6 +10,12 @@
 
 namespace Tegra::Texture {
 
+// GOBSize constant. Calculated by 64 bytes in x multiplied by 8 y coords, represents
+// an small rect of (64/bytes_per_pixel)X8.
+inline std::size_t GetGOBSize() {
+    return 512;
+}
+
 /**
  * Unswizzles a swizzled texture without changing its format.
  */
