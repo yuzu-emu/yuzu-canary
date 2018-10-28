@@ -1527,8 +1527,25 @@ private:
                 ASSERT_MSG(instr.fmul.cc == 0, "FMUL cc is not implemented");
 
                 op_b = GetOperandAbsNeg(op_b, false, instr.fmul.negate_b);
-                regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " * " + op_b, 1, 1,
+
+                shader.AddLine('{');
+                ++shader.scope;
+
+                // This avoids optimizations of constant propagation and keeps the code as the original
+                // Sadly using the precise keyword causes "linking" errors on fragment shaders.
+                if (stage == Maxwell3D::Regs::ShaderStage::Fragment) {
+                    shader.AddLine("float tmp = " + op_a + " * " + op_b + ';');
+                } else {
+                    shader.AddLine("precise float tmp = " + op_a + " * " + op_b + ';');
+                }
+
+
+                regs.SetRegisterToFloat(instr.gpr0, 0,  "tmp", 1, 1,
                                         instr.alu.saturate_d);
+
+
+                --shader.scope;
+                shader.AddLine('}');
                 break;
             }
             case OpCode::Id::FADD_C:
@@ -1536,8 +1553,25 @@ private:
             case OpCode::Id::FADD_IMM: {
                 op_a = GetOperandAbsNeg(op_a, instr.alu.abs_a, instr.alu.negate_a);
                 op_b = GetOperandAbsNeg(op_b, instr.alu.abs_b, instr.alu.negate_b);
-                regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " + " + op_b, 1, 1,
+
+                shader.AddLine('{');
+                ++shader.scope;
+
+                // This avoids optimizations of constant propagation and keeps the code as the original
+                // Sadly using the precise keyword causes "linking" errors on fragment shaders.
+                if (stage == Maxwell3D::Regs::ShaderStage::Fragment) {
+                    shader.AddLine("float tmp = " + op_a + " + " + op_b + ';');
+                } else {
+                    shader.AddLine("precise float tmp = " + op_a + " + " + op_b + ';');
+                }
+                regs.SetRegisterToFloat(instr.gpr0, 0, "tmp", 1, 1,
                                         instr.alu.saturate_d);
+
+
+                --shader.scope;
+                shader.AddLine('}');
+
+
                 break;
             }
             case OpCode::Id::MUFU: {
@@ -2109,8 +2143,23 @@ private:
             }
             }
 
-            regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " * " + op_b + " + " + op_c, 1, 1,
+            shader.AddLine('{');
+            ++shader.scope;
+
+            // This avoids optimizations of constant propagation and keeps the code as the original
+            // Sadly using the precise keyword causes "linking" errors on fragment shaders.
+            if (stage == Maxwell3D::Regs::ShaderStage::Fragment) {
+                shader.AddLine("float tmp = fma(" + op_a + ", " + op_b + ", " + op_c + ");");
+            } else {
+                shader.AddLine("precise float tmp = fma(" + op_a + ", " + op_b + ", " + op_c + ");");
+            }
+
+            regs.SetRegisterToFloat(instr.gpr0, 0,  "tmp", 1, 1,
                                     instr.alu.saturate_d);
+
+
+            --shader.scope;
+            shader.AddLine('}');
             break;
         }
         case OpCode::Type::Hfma2: {
