@@ -500,6 +500,8 @@ QStringList GMainWindow::GetUnsupportedGLExtensions() {
         unsupported_ext.append("ARB_multi_bind");
     if (!GLAD_GL_ARB_copy_image)
         unsupported_ext.append("ARB_copy_image");
+    if (!GLAD_GL_ARB_gpu_shader5)
+        unsupported_ext.append("ARB_gpu_shader5");
 
     // Extensions required to support some texture formats.
     if (!GLAD_GL_EXT_texture_compression_s3tc)
