@@ -342,10 +342,10 @@ public:
      */
     void SetRegisterToFloat(const Register& reg, u64 elem, const std::string& value,
                             u64 dest_num_components, u64 value_num_components,
-                            bool is_saturated = false, u64 dest_elem = 0) {
+                            bool is_saturated = false, u64 dest_elem = 0, bool precise = false) {
 
         SetRegister(reg, elem, is_saturated ? "clamp(" + value + ", 0.0, 1.0)" : value,
-                    dest_num_components, value_num_components, dest_elem);
+                    dest_num_components, value_num_components, dest_elem, precise);
     }
 
     /**
@@ -369,7 +369,7 @@ public:
         const std::string func{is_signed ? "intBitsToFloat" : "uintBitsToFloat"};
 
         SetRegister(reg, elem, func + '(' + ConvertIntegerSize(value, size) + ')',
-                    dest_num_components, value_num_components, dest_elem);
+                    dest_num_components, value_num_components, dest_elem, false);
 
         if (sets_cc) {
             const std::string zero_condition = "( " + ConvertIntegerSize(value, size) + " == 0 )";
@@ -417,7 +417,7 @@ public:
             }
         }();
 
-        SetRegister(reg, elem, result, dest_num_components, value_num_components, dest_elem);
+        SetRegister(reg, elem, result, dest_num_components, value_num_components, dest_elem, false);
     }
 
     /**
@@ -774,7 +774,8 @@ private:
      * @param dest_elem Optional, the destination element to use for the operation.
      */
     void SetRegister(const Register& reg, u64 elem, const std::string& value,
-                     u64 dest_num_components, u64 value_num_components, u64 dest_elem) {
+                     u64 dest_num_components, u64 value_num_components, u64 dest_elem,
+                     bool precise) {
         if (reg == Register::ZeroIndex) {
             LOG_CRITICAL(HW_GPU, "Cannot set Register::ZeroIndex");
             UNREACHABLE();
@@ -791,7 +792,18 @@ private:
             src += GetSwizzle(elem);
         }
 
-        shader.AddLine(dest + " = " + src + ';');
+        if (precise && stage != Maxwell3D::Regs::ShaderStage::Fragment) {
+            shader.AddLine('{');
+            ++shader.scope;
+            // This avoids optimizations of constant propagation and keeps the code as the original
+            // Sadly using the precise keyword causes "linking" errors on fragment shaders.
+            shader.AddLine("precise float tmp = " + src + ';');
+            shader.AddLine(dest + " = tmp;");
+            --shader.scope;
+            shader.AddLine('}');
+        } else {
+            shader.AddLine(dest + " = " + src + ';');
+        }
     }
 
     /// Build the GLSL register list.
@@ -1527,8 +1539,9 @@ private:
                 ASSERT_MSG(instr.fmul.cc == 0, "FMUL cc is not implemented");
 
                 op_b = GetOperandAbsNeg(op_b, false, instr.fmul.negate_b);
+
                 regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " * " + op_b, 1, 1,
-                                        instr.alu.saturate_d);
+                                        instr.alu.saturate_d, 0, true);
                 break;
             }
             case OpCode::Id::FADD_C:
@@ -1536,8 +1549,9 @@ private:
             case OpCode::Id::FADD_IMM: {
                 op_a = GetOperandAbsNeg(op_a, instr.alu.abs_a, instr.alu.negate_a);
                 op_b = GetOperandAbsNeg(op_b, instr.alu.abs_b, instr.alu.negate_b);
+
                 regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " + " + op_b, 1, 1,
-                                        instr.alu.saturate_d);
+                                        instr.alu.saturate_d, 0, true);
                 break;
             }
             case OpCode::Id::MUFU: {
@@ -1545,31 +1559,31 @@ private:
                 switch (instr.sub_op) {
                 case SubOp::Cos:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "cos(" + op_a + ')', 1, 1,
-                                            instr.alu.saturate_d);
+                                            instr.alu.saturate_d, 0, true);
                     break;
                 case SubOp::Sin:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "sin(" + op_a + ')', 1, 1,
-                                            instr.alu.saturate_d);
+                                            instr.alu.saturate_d, 0, true);
                     break;
                 case SubOp::Ex2:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "exp2(" + op_a + ')', 1, 1,
-                                            instr.alu.saturate_d);
+                                            instr.alu.saturate_d, 0, true);
                     break;
                 case SubOp::Lg2:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "log2(" + op_a + ')', 1, 1,
-                                            instr.alu.saturate_d);
+                                            instr.alu.saturate_d, 0, true);
                     break;
                 case SubOp::Rcp:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "1.0 / " + op_a, 1, 1,
-                                            instr.alu.saturate_d);
+                                            instr.alu.saturate_d, 0, true);
                     break;
                 case SubOp::Rsq:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "inversesqrt(" + op_a + ')', 1, 1,
-                                            instr.alu.saturate_d);
+                                            instr.alu.saturate_d, 0, true);
                     break;
                 case SubOp::Sqrt:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "sqrt(" + op_a + ')', 1, 1,
-                                            instr.alu.saturate_d);
+                                            instr.alu.saturate_d, 0, true);
                     break;
                 default:
                     LOG_CRITICAL(HW_GPU, "Unhandled MUFU sub op: {0:x}",
@@ -1590,7 +1604,7 @@ private:
                 regs.SetRegisterToFloat(instr.gpr0, 0,
                                         '(' + condition + ") ? min(" + parameters + ") : max(" +
                                             parameters + ')',
-                                        1, 1);
+                                        1, 1, false, 0, true);
                 break;
             }
             case OpCode::Id::RRO_C:
@@ -1619,7 +1633,7 @@ private:
                 regs.SetRegisterToFloat(instr.gpr0, 0,
                                         regs.GetRegisterAsFloat(instr.gpr8) + " * " +
                                             GetImmediate32(instr),
-                                        1, 1, instr.fmul32.saturate);
+                                        1, 1, instr.fmul32.saturate, 0, true);
                 break;
             }
             case OpCode::Id::FADD32I: {
@@ -1642,7 +1656,7 @@ private:
                     op_b = "-(" + op_b + ')';
                 }
 
-                regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " + " + op_b, 1, 1);
+                regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " + " + op_b, 1, 1, false, 0, true);
                 break;
             }
             }
@@ -2109,8 +2123,9 @@ private:
             }
             }
 
-            regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " * " + op_b + " + " + op_c, 1, 1,
-                                    instr.alu.saturate_d);
+            regs.SetRegisterToFloat(instr.gpr0, 0, "fma(" + op_a + ", " + op_b + ", " + op_c + ')',
+                                    1, 1, instr.alu.saturate_d, 0, true);
+
             break;
         }
         case OpCode::Type::Hfma2: {
