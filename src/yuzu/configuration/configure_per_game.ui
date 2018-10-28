@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ConfigurePerGameDialog</class>
+ <widget class="QDialog" name="ConfigurePerGameDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>461</width>
+    <height>500</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>yuzu Game Configuration</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="ConfigurePerGameGeneral" name="generalTab">
+      <attribute name="title">
+       <string>General</string>
+      </attribute>
+     </widget>
+      <widget class="ConfigureInput" name="inputTab">
+        <attribute name="title">
+          <string>Input</string>
+        </attribute>
+      </widget>
+      <widget class="ConfigureGraphics" name="graphicsTab">
+        <attribute name="title">
+          <string>Graphics</string>
+        </attribute>
+      </widget>
+      <widget class="ConfigureAudio" name="audioTab">
+        <attribute name="title">
+          <string>Audio</string>
+        </attribute>
+      </widget>
+      <widget class="ConfigureDebug" name="debugTab">
+        <attribute name="title">
+          <string>Debug</string>
+        </attribute>
+      </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ConfigurePerGameGeneral</class>
+   <extends>QWidget</extends>
+   <header>configuration/configure_per_general.h</header>
+   <container>1</container>
+  </customwidget>
+   <customwidget>
+     <class>ConfigureInput</class>
+     <extends>QWidget</extends>
+     <header>configuration/configure_input.h</header>
+     <container>1</container>
+   </customwidget>
+   <customwidget>
+     <class>ConfigureGraphics</class>
+     <extends>QWidget</extends>
+     <header>configuration/configure_graphics.h</header>
+     <container>1</container>
+   </customwidget>
+   <customwidget>
+     <class>ConfigureAudio</class>
+     <extends>QWidget</extends>
+     <header>configuration/configure_audio.h</header>
+     <container>1</container>
+   </customwidget>
+   <customwidget>
+     <class>ConfigureDebug</class>
+     <extends>QWidget</extends>
+     <header>configuration/configure_debug.h</header>
+     <container>1</container>
+   </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>ConfigurePerGameDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>220</x>
+     <y>380</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>220</x>
+     <y>200</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>ConfigurePerGameDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>220</x>
+     <y>380</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>220</x>
+     <y>200</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

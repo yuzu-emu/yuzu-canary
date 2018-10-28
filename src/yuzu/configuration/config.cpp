@@ -9,6 +9,42 @@
 #include "yuzu/configuration/config.h"
 #include "yuzu/ui_settings.h"
 
+PerGameValuesChange CalculateValuesDelta(const Settings::PerGameValues& base,
+                                         const Settings::PerGameValues& changed) {
+    PerGameValuesChange out{};
+    for (std::size_t i = 0; i < Settings::NativeButton::NumButtons; ++i) {
+        if (base.buttons[i] != changed.buttons[i])
+            out.buttons[i] = true;
+    }
+
+    for (std::size_t i = 0; i < Settings::NativeAnalog::NumAnalogs; ++i) {
+        if (base.analogs[i] != changed.analogs[i])
+            out.analogs[i] = true;
+    }
+
+    out.motion_device = base.motion_device != changed.motion_device;
+    out.touch_device = base.touch_device != changed.touch_device;
+
+    out.use_docked_mode = base.use_docked_mode != changed.use_docked_mode;
+
+    out.resolution_factor = base.resolution_factor != changed.resolution_factor;
+    out.use_frame_limit = base.use_frame_limit != changed.use_frame_limit;
+    out.frame_limit = base.frame_limit != changed.frame_limit;
+
+    out.bg_red = base.bg_red != changed.bg_red;
+    out.bg_green = base.bg_green != changed.bg_green;
+    out.bg_blue = base.bg_blue != changed.bg_blue;
+
+    out.sink_id = base.sink_id != changed.sink_id;
+    out.enable_audio_stretching = base.enable_audio_stretching != changed.enable_audio_stretching;
+    out.audio_device_id = base.audio_device_id != changed.audio_device_id;
+    out.volume = base.volume != changed.volume;
+
+    out.program_args = base.program_args != changed.program_args;
+
+    return out;
+}
+
 Config::Config() {
     // TODO: Don't hardcode the path; let the frontend decide where to put the config files.
     qt_config_loc = FileUtil::GetUserPath(FileUtil::UserPath::ConfigDir) + "qt-config.ini";
@@ -47,66 +83,210 @@ const std::array<std::array<int, 5>, Settings::NativeAnalog::NumAnalogs> Config:
     },
 }};
 
-void Config::ReadValues() {
+Settings::PerGameValues ApplyValuesDelta(const Settings::PerGameValues& base,
+                                         const Settings::PerGameValues& changed,
+                                         const PerGameValuesChange& changes) {
+    Settings::PerGameValues out{};
+    for (std::size_t i = 0; i < Settings::NativeButton::NumButtons; ++i) {
+        out.buttons[i] = changes.buttons[i] ? changed.buttons[i] : base.buttons[i];
+    }
+
+    for (std::size_t i = 0; i < Settings::NativeAnalog::NumAnalogs; ++i) {
+        out.analogs[i] = changes.analogs[i] ? changed.analogs[i] : base.analogs[i];
+    }
+
+    out.motion_device = changes.motion_device ? changed.motion_device : base.motion_device;
+    out.touch_device = changes.touch_device ? changed.touch_device : base.touch_device;
+
+    out.use_docked_mode = changes.use_docked_mode ? changed.use_docked_mode : base.use_docked_mode;
+
+    out.resolution_factor =
+        changes.resolution_factor ? changed.resolution_factor : base.resolution_factor;
+    out.use_frame_limit = changes.use_frame_limit ? changed.use_frame_limit : base.use_frame_limit;
+    out.frame_limit = changes.frame_limit ? changed.frame_limit : base.frame_limit;
+
+    out.bg_red = changes.bg_red ? changed.bg_red : base.bg_red;
+    out.bg_green = changes.bg_green ? changed.bg_green : base.bg_green;
+    out.bg_blue = changes.bg_blue ? changed.bg_blue : base.bg_blue;
+
+    out.sink_id = changes.sink_id ? changed.sink_id : base.sink_id;
+    out.enable_audio_stretching = changes.enable_audio_stretching ? changed.enable_audio_stretching
+                                                                  : base.enable_audio_stretching;
+    out.audio_device_id = changes.audio_device_id ? changed.audio_device_id : base.audio_device_id;
+    out.volume = changes.volume ? changed.volume : base.volume;
+
+    out.program_args = changes.program_args ? changed.program_args : base.program_args;
+
+    out.disabled_patches = changed.disabled_patches;
+
+    return out;
+}
+
+void Config::ReadPerGameSettings(Settings::PerGameValues& values) const {
     qt_config->beginGroup("Controls");
     for (int i = 0; i < Settings::NativeButton::NumButtons; ++i) {
         std::string default_param = InputCommon::GenerateKeyboardParam(default_buttons[i]);
-        Settings::values.buttons[i] =
+        values.buttons[i] =
             qt_config
                 ->value(Settings::NativeButton::mapping[i], QString::fromStdString(default_param))
                 .toString()
                 .toStdString();
-        if (Settings::values.buttons[i].empty())
-            Settings::values.buttons[i] = default_param;
+        if (values.buttons[i].empty())
+            values.buttons[i] = default_param;
     }
 
     for (int i = 0; i < Settings::NativeAnalog::NumAnalogs; ++i) {
         std::string default_param = InputCommon::GenerateAnalogParamFromKeys(
             default_analogs[i][0], default_analogs[i][1], default_analogs[i][2],
             default_analogs[i][3], default_analogs[i][4], 0.5f);
-        Settings::values.analogs[i] =
+        values.analogs[i] =
             qt_config
                 ->value(Settings::NativeAnalog::mapping[i], QString::fromStdString(default_param))
                 .toString()
                 .toStdString();
-        if (Settings::values.analogs[i].empty())
-            Settings::values.analogs[i] = default_param;
+        if (values.analogs[i].empty())
+            values.analogs[i] = default_param;
     }
 
-    Settings::values.motion_device =
+    values.motion_device =
         qt_config->value("motion_device", "engine:motion_emu,update_period:100,sensitivity:0.01")
             .toString()
             .toStdString();
-    Settings::values.touch_device =
+    values.touch_device =
         qt_config->value("touch_device", "engine:emu_window").toString().toStdString();
 
     qt_config->endGroup();
 
-    qt_config->beginGroup("Core");
-    Settings::values.use_cpu_jit = qt_config->value("use_cpu_jit", true).toBool();
-    Settings::values.use_multi_core = qt_config->value("use_multi_core", false).toBool();
+    qt_config->beginGroup("System");
+    values.use_docked_mode = qt_config->value("use_docked_mode", false).toBool();
     qt_config->endGroup();
 
     qt_config->beginGroup("Renderer");
-    Settings::values.resolution_factor = qt_config->value("resolution_factor", 1.0).toFloat();
-    Settings::values.use_frame_limit = qt_config->value("use_frame_limit", true).toBool();
-    Settings::values.frame_limit = qt_config->value("frame_limit", 100).toInt();
-    Settings::values.use_accurate_gpu_emulation =
-        qt_config->value("use_accurate_gpu_emulation", false).toBool();
+    values.resolution_factor = qt_config->value("resolution_factor", 1.0).toFloat();
+    values.use_frame_limit = qt_config->value("use_frame_limit", true).toBool();
+    values.frame_limit = qt_config->value("frame_limit", 100).toInt();
 
-    Settings::values.bg_red = qt_config->value("bg_red", 0.0).toFloat();
-    Settings::values.bg_green = qt_config->value("bg_green", 0.0).toFloat();
-    Settings::values.bg_blue = qt_config->value("bg_blue", 0.0).toFloat();
+    values.bg_red = qt_config->value("bg_red", 0.0).toFloat();
+    values.bg_green = qt_config->value("bg_green", 0.0).toFloat();
+    values.bg_blue = qt_config->value("bg_blue", 0.0).toFloat();
     qt_config->endGroup();
 
     qt_config->beginGroup("Audio");
-    Settings::values.sink_id = qt_config->value("output_engine", "auto").toString().toStdString();
-    Settings::values.enable_audio_stretching =
-        qt_config->value("enable_audio_stretching", true).toBool();
-    Settings::values.audio_device_id =
-        qt_config->value("output_device", "auto").toString().toStdString();
-    Settings::values.volume = qt_config->value("volume", 1).toFloat();
+    values.sink_id = qt_config->value("output_engine", "auto").toString().toStdString();
+    values.enable_audio_stretching = qt_config->value("enable_audio_stretching", true).toBool();
+    values.audio_device_id = qt_config->value("output_device", "auto").toString().toStdString();
+    values.volume = qt_config->value("volume", 1).toFloat();
     qt_config->endGroup();
+
+    qt_config->beginGroup("Debugging");
+    values.program_args = qt_config->value("program_args", "").toString().toStdString();
+    qt_config->endGroup();
+
+    qt_config->beginGroup("Add Ons");
+    const auto size = qt_config->beginReadArray("Disabled");
+
+    values.disabled_patches = std::vector<std::string>(size);
+    for (std::size_t i = 0; i < size; ++i) {
+        qt_config->setArrayIndex(i);
+        values.disabled_patches[i] = qt_config->value("name", "").toString().toStdString();
+    }
+    qt_config->endArray();
+    qt_config->endGroup();
+}
+
+void Config::ReadPerGameSettingsDelta(PerGameValuesChange& values) const {
+    qt_config->beginGroup("Controls");
+    for (int i = 0; i < Settings::NativeButton::NumButtons; ++i) {
+        values.buttons[i] = qt_config
+                                ->value(QString::fromStdString(Settings::NativeButton::mapping[i] +
+                                                               std::string("_changed")),
+                                        false)
+                                .toBool();
+    }
+
+    for (int i = 0; i < Settings::NativeAnalog::NumAnalogs; ++i) {
+        values.analogs[i] = qt_config
+                                ->value(QString::fromStdString(Settings::NativeAnalog::mapping[i] +
+                                                               std::string("_changed")),
+                                        false)
+                                .toBool();
+    }
+
+    values.motion_device = qt_config->value("motion_device_changed", false).toBool();
+    values.touch_device = qt_config->value("touch_device_changed", false).toBool();
+
+    qt_config->endGroup();
+
+    qt_config->beginGroup("System");
+    values.use_docked_mode = qt_config->value("use_docked_mode_changed", false).toBool();
+    qt_config->endGroup();
+
+    qt_config->beginGroup("Renderer");
+    values.resolution_factor = qt_config->value("resolution_factor_changed", false).toBool();
+    values.use_frame_limit = qt_config->value("use_frame_limit_changed", false).toBool();
+    values.frame_limit = qt_config->value("frame_limit_changed", false).toBool();
+
+    values.bg_red = qt_config->value("bg_red_changed", false).toBool();
+    values.bg_green = qt_config->value("bg_green_changed", false).toBool();
+    values.bg_blue = qt_config->value("bg_blue_changed", false).toBool();
+    qt_config->endGroup();
+
+    qt_config->beginGroup("Audio");
+    values.sink_id = qt_config->value("output_engine_changed", false).toBool();
+    values.enable_audio_stretching =
+        qt_config->value("enable_audio_stretching_changed", false).toBool();
+    values.audio_device_id = qt_config->value("output_device_changed", false).toBool();
+    values.volume = qt_config->value("volume_changed", false).toBool();
+    qt_config->endGroup();
+
+    qt_config->beginGroup("Debugging");
+    values.program_args = qt_config->value("program_args_changed", false).toBool();
+    qt_config->endGroup();
+}
+
+bool Config::UpdateCurrentGame(u64 title_id, Settings::PerGameValues& values) {
+    if (Settings::values.CurrentTitleID() != 0) {
+        update_values.insert_or_assign(Settings::values.CurrentTitleID(), *Settings::values);
+    }
+
+    if (update_values.find(title_id) != update_values.end()) {
+        values = ApplyValuesDelta(Settings::values.default_game, update_values[title_id],
+                                  GetPerGameSettingsDelta(title_id));
+        return true;
+    }
+
+    const auto size = qt_config->beginReadArray("Per Game Settings");
+
+    bool found = false;
+    for (int i = 0; i < size; ++i) {
+        qt_config->setArrayIndex(i);
+        const auto read_title_id = qt_config->value("title_id", 0).toULongLong();
+        if (read_title_id != title_id)
+            continue;
+
+        found = true;
+
+        PerGameValuesChange changes{};
+        ReadPerGameSettings(values);
+        ReadPerGameSettingsDelta(changes);
+
+        values = ApplyValuesDelta(Settings::values.default_game, values, changes);
+    }
+
+    qt_config->endArray();
+
+    if (!found)
+        values = Settings::values.default_game;
+
+    return true;
+}
+
+void Config::ReadValues() {
+    ReadPerGameSettings(Settings::values.default_game);
+    Settings::values.SetUpdateCurrentGameFunction(
+        [this](u64 title_id, Settings::PerGameValues& values) {
+            return UpdateCurrentGame(title_id, values);
+        });
 
     qt_config->beginGroup("Data Storage");
     Settings::values.use_virtual_sd = qt_config->value("use_virtual_sd", true).toBool();
@@ -126,14 +306,23 @@ void Config::ReadValues() {
             .toStdString());
     qt_config->endGroup();
 
+    qt_config->beginGroup("Core");
+    Settings::values.use_cpu_jit = qt_config->value("use_cpu_jit", true).toBool();
+    Settings::values.use_multi_core = qt_config->value("use_multi_core", false).toBool();
+    qt_config->endGroup();
+
     qt_config->beginGroup("System");
-    Settings::values.use_docked_mode = qt_config->value("use_docked_mode", false).toBool();
     Settings::values.enable_nfc = qt_config->value("enable_nfc", true).toBool();
 
     Settings::values.current_user = std::clamp<int>(qt_config->value("current_user", 0).toInt(), 0,
                                                     Service::Account::MAX_USERS - 1);
 
     Settings::values.language_index = qt_config->value("language_index", 1).toInt();
+    qt_config->endGroup();
+
+    qt_config->beginGroup("Renderer");
+    Settings::values.use_accurate_gpu_emulation =
+        qt_config->value("use_accurate_gpu_emulation", false).toBool();
     qt_config->endGroup();
 
     qt_config->beginGroup("Miscellaneous");
@@ -144,7 +333,6 @@ void Config::ReadValues() {
     qt_config->beginGroup("Debugging");
     Settings::values.use_gdbstub = qt_config->value("use_gdbstub", false).toBool();
     Settings::values.gdbstub_port = qt_config->value("gdbstub_port", 24689).toInt();
-    Settings::values.program_args = qt_config->value("program_args", "").toString().toStdString();
     qt_config->endGroup();
 
     qt_config->beginGroup("WebService");
@@ -220,43 +408,142 @@ void Config::ReadValues() {
     qt_config->endGroup();
 }
 
-void Config::SaveValues() {
+void Config::SavePerGameSettings(const Settings::PerGameValues& values) {
     qt_config->beginGroup("Controls");
     for (int i = 0; i < Settings::NativeButton::NumButtons; ++i) {
         qt_config->setValue(QString::fromStdString(Settings::NativeButton::mapping[i]),
-                            QString::fromStdString(Settings::values.buttons[i]));
+                            QString::fromStdString(values.buttons[i]));
     }
     for (int i = 0; i < Settings::NativeAnalog::NumAnalogs; ++i) {
         qt_config->setValue(QString::fromStdString(Settings::NativeAnalog::mapping[i]),
-                            QString::fromStdString(Settings::values.analogs[i]));
+                            QString::fromStdString(values.analogs[i]));
     }
-    qt_config->setValue("motion_device", QString::fromStdString(Settings::values.motion_device));
-    qt_config->setValue("touch_device", QString::fromStdString(Settings::values.touch_device));
+    qt_config->setValue("motion_device", QString::fromStdString(values.motion_device));
+    qt_config->setValue("touch_device", QString::fromStdString(values.touch_device));
     qt_config->endGroup();
 
-    qt_config->beginGroup("Core");
-    qt_config->setValue("use_cpu_jit", Settings::values.use_cpu_jit);
-    qt_config->setValue("use_multi_core", Settings::values.use_multi_core);
+    qt_config->beginGroup("System");
+    qt_config->setValue("use_docked_mode", values.use_docked_mode);
     qt_config->endGroup();
 
     qt_config->beginGroup("Renderer");
-    qt_config->setValue("resolution_factor", (double)Settings::values.resolution_factor);
-    qt_config->setValue("use_frame_limit", Settings::values.use_frame_limit);
-    qt_config->setValue("frame_limit", Settings::values.frame_limit);
-    qt_config->setValue("use_accurate_gpu_emulation", Settings::values.use_accurate_gpu_emulation);
+    qt_config->setValue("resolution_factor", (double)values.resolution_factor);
+    qt_config->setValue("use_frame_limit", values.use_frame_limit);
+    qt_config->setValue("frame_limit", values.frame_limit);
 
     // Cast to double because Qt's written float values are not human-readable
-    qt_config->setValue("bg_red", (double)Settings::values.bg_red);
-    qt_config->setValue("bg_green", (double)Settings::values.bg_green);
-    qt_config->setValue("bg_blue", (double)Settings::values.bg_blue);
+    qt_config->setValue("bg_red", (double)values.bg_red);
+    qt_config->setValue("bg_green", (double)values.bg_green);
+    qt_config->setValue("bg_blue", (double)values.bg_blue);
     qt_config->endGroup();
 
     qt_config->beginGroup("Audio");
-    qt_config->setValue("output_engine", QString::fromStdString(Settings::values.sink_id));
-    qt_config->setValue("enable_audio_stretching", Settings::values.enable_audio_stretching);
-    qt_config->setValue("output_device", QString::fromStdString(Settings::values.audio_device_id));
-    qt_config->setValue("volume", Settings::values.volume);
+    qt_config->setValue("output_engine", QString::fromStdString(values.sink_id));
+    qt_config->setValue("enable_audio_stretching", values.enable_audio_stretching);
+    qt_config->setValue("output_device", QString::fromStdString(values.audio_device_id));
+    qt_config->setValue("volume", values.volume);
     qt_config->endGroup();
+
+    qt_config->beginGroup("Debugging");
+    qt_config->setValue("program_args", QString::fromStdString(values.program_args));
+    qt_config->endGroup();
+
+    qt_config->beginGroup("Add Ons");
+    qt_config->beginWriteArray("Disabled", values.disabled_patches.size());
+    for (std::size_t i = 0; i < values.disabled_patches.size(); ++i) {
+        qt_config->setArrayIndex(i);
+        qt_config->setValue("name", QString::fromStdString(values.disabled_patches[i]));
+    }
+    qt_config->endArray();
+    qt_config->endGroup();
+}
+
+void Config::SavePerGameSettingsDelta(const PerGameValuesChange& values) {
+    qt_config->beginGroup("Controls");
+    for (int i = 0; i < Settings::NativeButton::NumButtons; ++i) {
+        qt_config->setValue(QString::fromStdString(Settings::NativeButton::mapping[i]) + "_changed",
+                            values.buttons[i]);
+    }
+    for (int i = 0; i < Settings::NativeAnalog::NumAnalogs; ++i) {
+        qt_config->setValue(QString::fromStdString(Settings::NativeAnalog::mapping[i]) + "_changed",
+                            values.analogs[i]);
+    }
+    qt_config->setValue("motion_device_changed", values.motion_device);
+    qt_config->setValue("touch_device_changed", values.touch_device);
+    qt_config->endGroup();
+
+    qt_config->beginGroup("System");
+    qt_config->setValue("use_docked_mode_changed", values.use_docked_mode);
+    qt_config->endGroup();
+
+    qt_config->beginGroup("Renderer");
+    qt_config->setValue("resolution_factor_changed", values.resolution_factor);
+    qt_config->setValue("use_frame_limit_changed", values.use_frame_limit);
+    qt_config->setValue("frame_limit_changed", values.frame_limit);
+
+    qt_config->setValue("bg_red_changed", values.bg_red);
+    qt_config->setValue("bg_green_changed", values.bg_green);
+    qt_config->setValue("bg_blue_changed", values.bg_blue);
+    qt_config->endGroup();
+
+    qt_config->beginGroup("Audio");
+    qt_config->setValue("output_engine_changed", values.sink_id);
+    qt_config->setValue("enable_audio_stretching_changed", values.enable_audio_stretching);
+    qt_config->setValue("output_device_changed", values.audio_device_id);
+    qt_config->setValue("volume_changed", values.volume);
+    qt_config->endGroup();
+
+    qt_config->beginGroup("Debugging");
+    qt_config->setValue("program_args_changed", values.program_args);
+    qt_config->endGroup();
+}
+
+void Config::SaveValues() {
+    SavePerGameSettings(Settings::values.default_game);
+
+    Settings::PerGameValues values;
+    UpdateCurrentGame(Settings::values.CurrentTitleID(), values);
+
+    const auto size = qt_config->beginReadArray("Per Game Settings");
+
+    for (int i = 0; i < size; ++i) {
+        qt_config->setArrayIndex(i);
+        const auto read_title_id = qt_config->value("title_id", 0).toULongLong();
+        if (update_values.find(read_title_id) == update_values.end()) {
+            ReadPerGameSettings(values);
+
+            PerGameValuesChange change{};
+            ReadPerGameSettingsDelta(change);
+
+            update_values.emplace(read_title_id, values);
+            update_values_delta.emplace(read_title_id, change);
+        }
+    }
+
+    qt_config->endArray();
+
+    qt_config->beginWriteArray("Per Game Settings", update_values.size());
+
+    int i = 0;
+    for (const auto& kv : update_values) {
+        qt_config->setArrayIndex(i++);
+        qt_config->setValue("title_id", kv.first);
+        SavePerGameSettings(kv.second);
+
+        const auto iter = update_values_delta.find(kv.first);
+        if (iter != update_values_delta.end()) {
+            SavePerGameSettingsDelta(iter->second);
+        } else {
+            LOG_WARNING(
+                Config,
+                "Missing values delta for title_id={:016X}! Falling back to default-derived delta.",
+                kv.first);
+            SavePerGameSettingsDelta(
+                CalculateValuesDelta(Settings::values.default_game, kv.second));
+        }
+    }
+
+    qt_config->endArray();
 
     qt_config->beginGroup("Data Storage");
     qt_config->setValue("use_virtual_sd", Settings::values.use_virtual_sd);
@@ -266,12 +553,20 @@ void Config::SaveValues() {
                         QString::fromStdString(FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir)));
     qt_config->endGroup();
 
+    qt_config->beginGroup("Core");
+    qt_config->setValue("use_cpu_jit", Settings::values.use_cpu_jit);
+    qt_config->setValue("use_multi_core", Settings::values.use_multi_core);
+    qt_config->endGroup();
+
     qt_config->beginGroup("System");
-    qt_config->setValue("use_docked_mode", Settings::values.use_docked_mode);
     qt_config->setValue("enable_nfc", Settings::values.enable_nfc);
     qt_config->setValue("current_user", Settings::values.current_user);
 
     qt_config->setValue("language_index", Settings::values.language_index);
+    qt_config->endGroup();
+
+    qt_config->beginGroup("Renderer");
+    qt_config->setValue("use_accurate_gpu_emulation", Settings::values.use_accurate_gpu_emulation);
     qt_config->endGroup();
 
     qt_config->beginGroup("Miscellaneous");
@@ -282,7 +577,6 @@ void Config::SaveValues() {
     qt_config->beginGroup("Debugging");
     qt_config->setValue("use_gdbstub", Settings::values.use_gdbstub);
     qt_config->setValue("gdbstub_port", Settings::values.gdbstub_port);
-    qt_config->setValue("program_args", QString::fromStdString(Settings::values.program_args));
     qt_config->endGroup();
 
     qt_config->beginGroup("WebService");
@@ -346,4 +640,31 @@ void Config::Reload() {
 
 void Config::Save() {
     SaveValues();
+}
+
+PerGameValuesChange Config::GetPerGameSettingsDelta(u64 title_id) const {
+    if (update_values_delta.find(title_id) != update_values_delta.end())
+        return update_values_delta.at(title_id);
+
+    const auto size = qt_config->beginReadArray("Per Game Settings");
+
+    for (int i = 0; i < size; ++i) {
+        qt_config->setArrayIndex(i);
+        const auto read_title_id = qt_config->value("title_id", 0).toULongLong();
+        if (read_title_id != title_id)
+            continue;
+
+        PerGameValuesChange changes{};
+        ReadPerGameSettingsDelta(changes);
+        qt_config->endArray();
+        return changes;
+    }
+
+    qt_config->endArray();
+
+    return {};
+}
+
+void Config::SetPerGameSettingsDelta(u64 title_id, PerGameValuesChange change) {
+    update_values_delta.insert_or_assign(title_id, change);
 }

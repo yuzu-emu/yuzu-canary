@@ -29,6 +29,10 @@ add_executable(yuzu
     configuration/configure_input.h
     configuration/configure_system.cpp
     configuration/configure_system.h
+    configuration/configure_per_game_dialog.cpp
+    configuration/configure_per_game_dialog.h
+    configuration/configure_per_general.cpp
+    configuration/configure_per_general.h
     configuration/configure_web.cpp
     configuration/configure_web.h
     debugger/graphics/graphics_breakpoint_observer.cpp
@@ -74,6 +78,8 @@ set(UIS
     configuration/configure_general.ui
     configuration/configure_graphics.ui
     configuration/configure_input.ui
+    configuration/configure_per_game.ui
+    configuration/configure_per_general.ui
     configuration/configure_system.ui
     configuration/configure_web.ui
     hotkeys.ui

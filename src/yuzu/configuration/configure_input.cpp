@@ -8,6 +8,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QTimer>
+#include "common/assert.h"
 #include "common/param_package.h"
 #include "input_common/main.h"
 #include "yuzu/configuration/config.h"
@@ -215,6 +216,24 @@ ConfigureInput::ConfigureInput(QWidget* parent)
         }
     });
 
+    buttons_delta = {
+        ui->checkboxA,           ui->checkboxB,           ui->checkboxX,
+        ui->checkboxY,           ui->checkboxLStickMod,   ui->checkboxRStickMod,
+        ui->checkboxL,           ui->checkboxR,           ui->checkboxZL,
+        ui->checkboxZR,          ui->checkboxPlus,        ui->checkboxMinus,
+        ui->checkboxDpadLeft,    ui->checkboxDpadUp,      ui->checkboxDpadRight,
+        ui->checkboxDpadDown,    ui->checkboxLStickLeft,  ui->checkboxLStickUp,
+        ui->checkboxLStickRight, ui->checkboxLStickDown,  ui->checkboxRStickLeft,
+        ui->checkboxRStickUp,    ui->checkboxRStickRight, ui->checkboxRStickDown,
+        ui->checkboxSL,          ui->checkboxSR,          ui->checkboxHome,
+        ui->checkboxScreenshot,
+    };
+
+    analogs_delta = {
+        ui->checkboxLStickPressed,
+        ui->checkboxRStickPressed,
+    };
+
     this->loadConfiguration();
 
     // TODO(wwylele): enable this when we actually emulate it
@@ -222,17 +241,52 @@ ConfigureInput::ConfigureInput(QWidget* parent)
 }
 
 void ConfigureInput::applyConfiguration() {
-    std::transform(buttons_param.begin(), buttons_param.end(), Settings::values.buttons.begin(),
+    Settings::PerGameValues temp{};
+
+    std::transform(buttons_param.begin(), buttons_param.end(), temp.buttons.begin(),
                    [](const Common::ParamPackage& param) { return param.Serialize(); });
-    std::transform(analogs_param.begin(), analogs_param.end(), Settings::values.analogs.begin(),
+    std::transform(analogs_param.begin(), analogs_param.end(), temp.analogs.begin(),
                    [](const Common::ParamPackage& param) { return param.Serialize(); });
+
+    if (std::any_of(buttons_delta.begin(), buttons_delta.end(),
+                    [](const QCheckBox* box) { return box->isHidden(); })) {
+        Settings::values->buttons = temp.buttons;
+        Settings::values->analogs = temp.analogs;
+        return;
+    }
+
+    PerGameValuesChange changes{};
+
+    std::transform(buttons_delta.begin(), buttons_delta.end(), changes.buttons.begin(),
+                   [](const QCheckBox* box) { return box->isChecked(); });
+    std::transform(analogs_delta.begin(), analogs_delta.end(), changes.analogs.begin(),
+                   [](const QCheckBox* box) { return box->isChecked(); });
+
+    temp = ApplyValuesDelta(Settings::values.default_game, temp, changes);
+    Settings::values->buttons = temp.buttons;
+    Settings::values->analogs = temp.analogs;
+}
+
+void ConfigureInput::setPerGame(bool show) {
+    for (auto* button : buttons_delta)
+        button->setHidden(!show);
+    for (auto* analog : analogs_delta)
+        analog->setHidden(!show);
+    ui->override_label->setHidden(!show);
+}
+
+void ConfigureInput::mergeValuesChange(PerGameValuesChange& changes) {
+    std::transform(buttons_delta.begin(), buttons_delta.end(), changes.buttons.begin(),
+                   [](const QCheckBox* box) { return box->isChecked(); });
+    std::transform(analogs_delta.begin(), analogs_delta.end(), changes.analogs.begin(),
+                   [](const QCheckBox* box) { return box->isChecked(); });
 }
 
 void ConfigureInput::loadConfiguration() {
-    std::transform(Settings::values.buttons.begin(), Settings::values.buttons.end(),
+    std::transform(Settings::values->buttons.begin(), Settings::values->buttons.end(),
                    buttons_param.begin(),
                    [](const std::string& str) { return Common::ParamPackage(str); });
-    std::transform(Settings::values.analogs.begin(), Settings::values.analogs.end(),
+    std::transform(Settings::values->analogs.begin(), Settings::values->analogs.end(),
                    analogs_param.begin(),
                    [](const std::string& str) { return Common::ParamPackage(str); });
     updateButtonLabels();
@@ -285,11 +339,27 @@ void ConfigureInput::updateButtonLabels() {
     }
 }
 
+void ConfigureInput::loadValuesChange(const PerGameValuesChange& change) {
+    for (std::size_t i = 0; i < Settings::NativeButton::NumButtons; ++i)
+        buttons_delta[i]->setChecked(change.buttons[i]);
+
+    for (std::size_t i = 0; i < Settings::NativeAnalog::NumAnalogs; ++i)
+        analogs_delta[i]->setChecked(change.analogs[i]);
+}
+
 void ConfigureInput::handleClick(QPushButton* button,
                                  std::function<void(const Common::ParamPackage&)> new_input_setter,
                                  InputCommon::Polling::DeviceType type) {
     button->setText(tr("[press key]"));
     button->setFocus();
+
+    const auto iter = std::find(button_map.begin(), button_map.end(), button);
+    ASSERT(iter != button_map.end());
+    const auto index = std::distance(button_map.begin(), iter);
+    ASSERT(index < Settings::NativeButton::NumButtons && index >= 0);
+    const auto checkbox = buttons_delta[index];
+    if (!checkbox->isHidden())
+        checkbox->setChecked(true);
 
     input_setter = new_input_setter;
 

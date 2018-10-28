@@ -31,11 +31,31 @@
         <item row="0" column="0">
          <layout class="QVBoxLayout" name="buttonMiscMinusVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelMinus">
-            <property name="text">
-             <string>Minus:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonMiscMinusHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelMinus">
+              <property name="text">
+               <string>Minus:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxMinus">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonMinus">
@@ -49,11 +69,31 @@
         <item row="0" column="1">
          <layout class="QVBoxLayout" name="buttonMiscPlusVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelPlus">
-            <property name="text">
-             <string>Plus:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonMiscPlusHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelPlus">
+              <property name="text">
+               <string>Plus:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxPlus">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonPlus">
@@ -67,33 +107,34 @@
         <item row="1" column="0">
          <layout class="QVBoxLayout" name="buttonMiscHomeVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelHome">
-            <property name="text">
-             <string>Home:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonMiscHomeHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelHome">
+              <property name="text">
+               <string>Home:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxHome">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonHome">
-            <property name="text">
-             <string/>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item row="1" column="1">
-         <layout class="QVBoxLayout" name="buttonMiscScrCapVerticalLayout">
-          <item>
-           <widget class="QLabel" name="labelScrCap">
-            <property name="text">
-             <string>Screen
-Capture:</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="buttonScreenshot">
             <property name="text">
              <string/>
             </property>
@@ -114,6 +155,47 @@ Capture:</string>
           </property>
          </spacer>
         </item>
+        <item row="1" column="1">
+         <layout class="QVBoxLayout" name="buttonMiscScrCapVerticalLayout">
+          <item>
+           <layout class="QHBoxLayout" name="buttonMiscScrCapHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelScreenshot">
+              <property name="text">
+               <string>Screen Capture:</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxScreenshot">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QPushButton" name="buttonScreenshot">
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
        </layout>
       </widget>
      </item>
@@ -132,11 +214,31 @@ Capture:</string>
         <item row="0" column="0">
          <layout class="QVBoxLayout" name="buttonFaceButtonsAVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelA">
-            <property name="text">
-             <string>A:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonFaceButtonsAHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelA">
+              <property name="text">
+               <string>A:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxA">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonA">
@@ -150,11 +252,31 @@ Capture:</string>
         <item row="0" column="1">
          <layout class="QVBoxLayout" name="buttonFaceButtonsBVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelB">
-            <property name="text">
-             <string>B:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonFaceButtonsBHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelB">
+              <property name="text">
+               <string>B:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxB">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonB">
@@ -168,11 +290,31 @@ Capture:</string>
         <item row="1" column="0">
          <layout class="QVBoxLayout" name="buttonFaceButtonsXVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelX">
-            <property name="text">
-             <string>X:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonFaceButtonsXHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelX">
+              <property name="text">
+               <string>X:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxX">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonX">
@@ -186,11 +328,31 @@ Capture:</string>
         <item row="1" column="1">
          <layout class="QVBoxLayout" name="buttonFaceButtonsYVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelY">
-            <property name="text">
-             <string>Y:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonFaceButtonsYHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelY">
+              <property name="text">
+               <string>Y:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxY">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonY">
@@ -219,11 +381,31 @@ Capture:</string>
         <item row="1" column="0">
          <layout class="QVBoxLayout" name="buttonDpadUpVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelDpadUp">
-            <property name="text">
-             <string>Up:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonDpadUpHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelDpadUp">
+              <property name="text">
+               <string>Up:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxDpadUp">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonDpadUp">
@@ -237,11 +419,31 @@ Capture:</string>
         <item row="1" column="1">
          <layout class="QVBoxLayout" name="buttonDpadDownVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelDpadDown">
-            <property name="text">
-             <string>Down:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonDpadDownHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelDpadDown">
+              <property name="text">
+               <string>Down:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxDpadDown">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonDpadDown">
@@ -255,11 +457,31 @@ Capture:</string>
         <item row="0" column="0">
          <layout class="QVBoxLayout" name="buttonDpadLeftVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelDpadLeft">
-            <property name="text">
-             <string>Left:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonDpadLeftHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelDpadLeft">
+              <property name="text">
+               <string>Left:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxDpadLeft">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonDpadLeft">
@@ -273,11 +495,31 @@ Capture:</string>
         <item row="0" column="1">
          <layout class="QVBoxLayout" name="buttonDpadRightVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelDpadRight">
-            <property name="text">
-             <string>Right:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonDpadRightHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelDpadRight">
+              <property name="text">
+               <string>Right:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxDpadRight">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonDpadRight">
@@ -306,11 +548,31 @@ Capture:</string>
         <item row="0" column="0">
          <layout class="QVBoxLayout" name="buttonShoulderButtonsLVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelL">
-            <property name="text">
-             <string>L:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonShoulderButtonsLHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelL">
+              <property name="text">
+               <string>L:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxL">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonL">
@@ -324,11 +586,31 @@ Capture:</string>
         <item row="0" column="1">
          <layout class="QVBoxLayout" name="buttonShoulderButtonsRVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelR">
-            <property name="text">
-             <string>R:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonShoulderButtonsRHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelR">
+              <property name="text">
+               <string>R:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxR">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonR">
@@ -342,11 +624,31 @@ Capture:</string>
         <item row="1" column="0">
          <layout class="QVBoxLayout" name="buttonShoulderButtonsZLVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelZL">
-            <property name="text">
-             <string>ZL:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonShoulderButtonsZLHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelZL">
+              <property name="text">
+               <string>ZL:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxZL">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonZL">
@@ -360,11 +662,31 @@ Capture:</string>
         <item row="1" column="1">
          <layout class="QVBoxLayout" name="buttonShoulderButtonsZRVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelZR">
-            <property name="text">
-             <string>ZR:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonShoulderButtonsZRHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelZR">
+              <property name="text">
+               <string>ZR:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxZR">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonZR">
@@ -378,11 +700,31 @@ Capture:</string>
         <item row="2" column="0">
          <layout class="QVBoxLayout" name="buttonShoulderButtonsSLVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelSL">
-            <property name="text">
-             <string>SL:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonShoulderButtonsSLHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelSL">
+              <property name="text">
+               <string>SL:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxSL">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonSL">
@@ -396,11 +738,31 @@ Capture:</string>
         <item row="2" column="1">
          <layout class="QVBoxLayout" name="buttonShoulderButtonsSRVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelSR">
-            <property name="text">
-             <string>SR:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonShoulderButtonsSRHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelSR">
+              <property name="text">
+               <string>SR:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxSR">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonSR">
@@ -432,11 +794,31 @@ Capture:</string>
         <item row="1" column="1">
          <layout class="QVBoxLayout" name="buttonRStickDownVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelRStickDown">
-            <property name="text">
-             <string>Down:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonRStickDownHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelRStickDown">
+              <property name="text">
+               <string>Down:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxRStickDown">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonRStickDown">
@@ -450,11 +832,31 @@ Capture:</string>
         <item row="0" column="1">
          <layout class="QVBoxLayout" name="buttonRStickRightVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelRStickRight">
-            <property name="text">
-             <string>Right:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonRStickRightHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelRStickRight">
+              <property name="text">
+               <string>Right:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxRStickRight">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonRStickRight">
@@ -475,11 +877,31 @@ Capture:</string>
         <item row="0" column="0">
          <layout class="QVBoxLayout" name="buttonRStickLeftVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelRStickLeft">
-            <property name="text">
-             <string>Left:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonRStickLeftHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelRStickLeft">
+              <property name="text">
+               <string>Left:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxRStickLeft">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonRStickLeft">
@@ -493,11 +915,31 @@ Capture:</string>
         <item row="1" column="0">
          <layout class="QVBoxLayout" name="buttonRStickUpVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelRStickUp">
-            <property name="text">
-             <string>Up:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonRStickUpHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelRStickUp">
+              <property name="text">
+               <string>Up:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxRStickUp">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonRStickUp">
@@ -511,11 +953,31 @@ Capture:</string>
         <item row="2" column="0">
          <layout class="QVBoxLayout" name="buttonRStickPressedVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelRStickPressed">
-            <property name="text">
-             <string>Pressed:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonRStickPressedHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelRStickPressed">
+              <property name="text">
+               <string>Pressed:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxRStickPressed">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonRStick">
@@ -529,11 +991,31 @@ Capture:</string>
         <item row="2" column="1">
          <layout class="QVBoxLayout" name="buttonRStickModVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelRStickMod">
-            <property name="text">
-             <string>Modifier:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonRStickModHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelRStickMod">
+              <property name="text">
+               <string>Modifier:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxRStickMod">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonRStickMod">
@@ -562,11 +1044,31 @@ Capture:</string>
         <item row="1" column="1">
          <layout class="QVBoxLayout" name="buttonLStickDownVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelLStickDown">
-            <property name="text">
-             <string>Down:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonLStickDownHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelLStickDown">
+              <property name="text">
+               <string>Down:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxLStickDown">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonLStickDown">
@@ -587,11 +1089,31 @@ Capture:</string>
         <item row="0" column="1">
          <layout class="QVBoxLayout" name="buttonLStickRightVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelLStickRight">
-            <property name="text">
-             <string>Right:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonLStickRightHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelLStickRight">
+              <property name="text">
+               <string>Right:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxLStickRight">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonLStickRight">
@@ -605,11 +1127,31 @@ Capture:</string>
         <item row="0" column="0">
          <layout class="QVBoxLayout" name="buttonLStickLeftVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelLStickLeft">
-            <property name="text">
-             <string>Left:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonLStickLeftHorizontalLayout_2">
+            <item>
+             <widget class="QLabel" name="labelLStickLeft">
+              <property name="text">
+               <string>Left:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxLStickLeft">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonLStickLeft">
@@ -623,11 +1165,31 @@ Capture:</string>
         <item row="1" column="0">
          <layout class="QVBoxLayout" name="buttonLStickUpVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelLStickUp">
-            <property name="text">
-             <string>Up:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonLStickUpHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelLStickUp">
+              <property name="text">
+               <string>Up:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxLStickUp">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonLStickUp">
@@ -641,11 +1203,31 @@ Capture:</string>
         <item row="3" column="0">
          <layout class="QVBoxLayout" name="buttonLStickModVerticalLayout">
           <item>
-           <widget class="QLabel" name="labelLStickMod">
-            <property name="text">
-             <string>Modifier:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonLStickModHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelLStickMod">
+              <property name="text">
+               <string>Modifier:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxLStickMod">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonLStickMod">
@@ -659,11 +1241,31 @@ Capture:</string>
         <item row="3" column="1">
          <layout class="QVBoxLayout" name="buttonLStickPressedVerticalLayout" stretch="0,0">
           <item>
-           <widget class="QLabel" name="labelLStickPressed">
-            <property name="text">
-             <string>Pressed:</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="buttonLStickPressedHorizontalLayout">
+            <item>
+             <widget class="QLabel" name="labelLStickPressed">
+              <property name="text">
+               <string>Pressed:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkboxLStickPressed">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="buttonLStick">
@@ -678,6 +1280,22 @@ Capture:</string>
       </widget>
      </item>
     </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="override_label">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Check the box to override the global default key with this one for this game only.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
    </item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">

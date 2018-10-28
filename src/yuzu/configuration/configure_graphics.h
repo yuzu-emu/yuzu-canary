@@ -7,6 +7,8 @@
 #include <memory>
 #include <QWidget>
 
+struct PerGameValuesChange;
+
 namespace Ui {
 class ConfigureGraphics;
 }
@@ -19,6 +21,10 @@ public:
     ~ConfigureGraphics();
 
     void applyConfiguration();
+
+    void setPerGame(bool per_game);
+    void loadValuesChange(const PerGameValuesChange& change);
+    void mergeValuesChange(PerGameValuesChange& change);
 
 private:
     void setConfiguration();

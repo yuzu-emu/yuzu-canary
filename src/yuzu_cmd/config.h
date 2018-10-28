@@ -12,9 +12,13 @@ class INIReader;
 class Config {
     std::unique_ptr<INIReader> sdl2_config;
     std::string sdl2_config_loc;
+    std::vector<u64> titles;
 
     bool LoadINI(const std::string& default_contents = "", bool retry = true);
     void ReadValues();
+    void ReadValuesForTitleID(Settings::PerGameValues& values, const std::string& name);
+
+    bool UpdateCurrentGame(u64 title_id, Settings::PerGameValues& values);
 
 public:
     Config();
