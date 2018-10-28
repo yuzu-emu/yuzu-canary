@@ -731,11 +731,15 @@ void RasterizerOpenGL::SamplerInfo::SyncWithConfig(const Tegra::Texture::TSCEntr
 
     if (mag_filter != config.mag_filter) {
         mag_filter = config.mag_filter;
-        glSamplerParameteri(s, GL_TEXTURE_MAG_FILTER, MaxwellToGL::TextureFilterMode(mag_filter));
+        glSamplerParameteri(
+            s, GL_TEXTURE_MAG_FILTER,
+            MaxwellToGL::TextureFilterMode(mag_filter, Tegra::Texture::TextureMipmapFilter::None));
     }
-    if (min_filter != config.min_filter) {
+    if (min_filter != config.min_filter || mip_filter != config.mip_filter) {
         min_filter = config.min_filter;
-        glSamplerParameteri(s, GL_TEXTURE_MIN_FILTER, MaxwellToGL::TextureFilterMode(min_filter));
+        mip_filter = config.mip_filter;
+        glSamplerParameteri(s, GL_TEXTURE_MIN_FILTER,
+                            MaxwellToGL::TextureFilterMode(min_filter, mip_filter));
     }
 
     if (wrap_u != config.wrap_u) {
