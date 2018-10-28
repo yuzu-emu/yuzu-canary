@@ -19,6 +19,7 @@
 #include "core/file_sys/vfs_vector.h"
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/loader/loader.h"
+#include "core/settings.h"
 
 namespace FileSys {
 
@@ -50,6 +51,10 @@ PatchManager::PatchManager(u64 title_id) : title_id(title_id) {}
 
 PatchManager::~PatchManager() = default;
 
+u64 PatchManager::GetTitleID() const {
+    return title_id;
+}
+
 VirtualDir PatchManager::PatchExeFS(VirtualDir exefs) const {
     LOG_INFO(Loader, "Patching ExeFS for title_id={:016X}", title_id);
 
@@ -61,7 +66,12 @@ VirtualDir PatchManager::PatchExeFS(VirtualDir exefs) const {
     // Game Updates
     const auto update_tid = GetUpdateTitleID(title_id);
     const auto update = installed->GetEntry(update_tid, ContentRecordType::Program);
-    if (update != nullptr) {
+
+    const auto& disabled = Settings::values[title_id].disabled_patches;
+    const auto update_disabled =
+        std::find(disabled.begin(), disabled.end(), "Update") != disabled.end();
+
+    if (!update_disabled && update != nullptr) {
         if (update->GetStatus() == Loader::ResultStatus::ErrorMissingBKTRBaseRomFS &&
             update->GetExeFS() != nullptr) {
             LOG_INFO(Loader, "    ExeFS: Update ({}) applied successfully",
@@ -73,11 +83,16 @@ VirtualDir PatchManager::PatchExeFS(VirtualDir exefs) const {
     return exefs;
 }
 
-static std::vector<VirtualFile> CollectPatches(const std::vector<VirtualDir>& patch_dirs,
-                                               const std::string& build_id) {
+std::vector<VirtualFile> PatchManager::CollectPatches(const std::vector<VirtualDir>& patch_dirs,
+                                                      const std::string& build_id) const {
+    const auto& disabled = Settings::values[title_id].disabled_patches;
+
     std::vector<VirtualFile> out;
     out.reserve(patch_dirs.size());
     for (const auto& subdir : patch_dirs) {
+        if (std::find(disabled.begin(), disabled.end(), subdir->GetName()) != disabled.end())
+            continue;
+
         auto exefs_dir = subdir->GetSubdirectory("exefs");
         if (exefs_dir != nullptr) {
             for (const auto& file : exefs_dir->GetFiles()) {
@@ -178,6 +193,7 @@ static void ApplyLayeredFS(VirtualFile& romfs, u64 title_id, ContentRecordType t
         return;
     }
 
+    const auto& disabled = Settings::values[title_id].disabled_patches;
     auto patch_dirs = load_dir->GetSubdirectories();
     std::sort(patch_dirs.begin(), patch_dirs.end(),
               [](const VirtualDir& l, const VirtualDir& r) { return l->GetName() < r->GetName(); });
@@ -187,6 +203,9 @@ static void ApplyLayeredFS(VirtualFile& romfs, u64 title_id, ContentRecordType t
     layers.reserve(patch_dirs.size() + 1);
     layers_ext.reserve(patch_dirs.size() + 1);
     for (const auto& subdir : patch_dirs) {
+        if (std::find(disabled.begin(), disabled.end(), subdir->GetName()) != disabled.end())
+            continue;
+
         auto romfs_dir = subdir->GetSubdirectory("romfs");
         if (romfs_dir != nullptr)
             layers.push_back(std::move(romfs_dir));
@@ -232,7 +251,12 @@ VirtualFile PatchManager::PatchRomFS(VirtualFile romfs, u64 ivfc_offset, Content
     // Game Updates
     const auto update_tid = GetUpdateTitleID(title_id);
     const auto update = installed->GetEntryRaw(update_tid, type);
-    if (update != nullptr) {
+
+    const auto& disabled = Settings::values[title_id].disabled_patches;
+    const auto update_disabled =
+        std::find(disabled.begin(), disabled.end(), "Update") != disabled.end();
+
+    if (!update_disabled && update != nullptr) {
         const auto new_nca = std::make_shared<NCA>(update, romfs, ivfc_offset);
         if (new_nca->GetStatus() == Loader::ResultStatus::Success &&
             new_nca->GetRomFS() != nullptr) {
@@ -240,7 +264,7 @@ VirtualFile PatchManager::PatchRomFS(VirtualFile romfs, u64 ivfc_offset, Content
                      FormatTitleVersion(installed->GetEntryVersion(update_tid).get_value_or(0)));
             romfs = new_nca->GetRomFS();
         }
-    } else if (update_raw != nullptr) {
+    } else if (!update_disabled && update_raw != nullptr) {
         const auto new_nca = std::make_shared<NCA>(update_raw, romfs, ivfc_offset);
         if (new_nca->GetStatus() == Loader::ResultStatus::Success &&
             new_nca->GetRomFS() != nullptr) {

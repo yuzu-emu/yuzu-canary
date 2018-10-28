@@ -7,6 +7,8 @@
 #include <memory>
 #include <QWidget>
 
+struct PerGameValuesChange;
+
 namespace Ui {
 class ConfigureAudio;
 }
@@ -17,6 +19,10 @@ class ConfigureAudio : public QWidget {
 public:
     explicit ConfigureAudio(QWidget* parent = nullptr);
     ~ConfigureAudio();
+
+    void setPerGame(bool per_game);
+    void loadValuesChange(const PerGameValuesChange& change);
+    void mergeValuesChange(PerGameValuesChange& change);
 
     void applyConfiguration();
     void retranslateUi();

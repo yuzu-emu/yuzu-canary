@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
+    <width>402</width>
     <height>300</height>
    </rect>
   </property>
@@ -23,31 +23,31 @@
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_2">
-            <item>
-              <widget class="QCheckBox" name="toggle_frame_limit">
-                <property name="text">
-                  <string>Limit Speed Percent</string>
-                </property>
-              </widget>
-            </item>
-            <item>
-              <widget class="QSpinBox" name="frame_limit">
-                <property name="suffix">
-                  <string>%</string>
-                </property>
-                <property name="minimum">
-                  <number>1</number>
-                </property>
-                <property name="maximum">
-                  <number>9999</number>
-                </property>
-                <property name="value">
-                  <number>100</number>
-                </property>
-              </widget>
-            </item>
-          </layout>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <widget class="QCheckBox" name="toggle_frame_limit">
+            <property name="text">
+             <string>Limit Speed Percent</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSpinBox" name="frame_limit">
+            <property name="suffix">
+             <string>%</string>
+            </property>
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>9999</number>
+            </property>
+            <property name="value">
+             <number>100</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
          <widget class="QCheckBox" name="use_accurate_gpu_emulation">
@@ -61,7 +61,7 @@
           <item>
            <widget class="QLabel" name="label">
             <property name="text">
-             <string>Internal Resolution:(Currently does nothing.)</string>
+             <string>Internal Resolution:</string>
             </property>
            </widget>
           </item>
@@ -94,29 +94,55 @@
             </item>
            </widget>
           </item>
+          <item>
+           <widget class="QCheckBox" name="resolution_factor_checkbox">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
          </layout>
         </item>
-         <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_6">
-             <item>
-               <widget class="QLabel" name="bg_label">
-                 <property name="text">
-                   <string>Background Color:</string>
-                 </property>
-               </widget>
-             </item>
-             <item>
-               <widget class="QPushButton" name="bg_button">
-                 <property name="maximumSize">
-                   <size>
-                     <width>40</width>
-                     <height>16777215</height>
-                   </size>
-                 </property>
-               </widget>
-             </item>
-           </layout>
-         </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_6">
+          <item>
+           <widget class="QLabel" name="bg_label">
+            <property name="text">
+             <string>Background Color:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="bg_button">
+            <property name="maximumSize">
+             <size>
+              <width>40</width>
+              <height>16777215</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="bg_checkbox">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
        </layout>
       </widget>
      </item>
@@ -134,6 +160,16 @@
       </size>
      </property>
     </spacer>
+   </item>
+   <item>
+    <widget class="QLabel" name="override_label">
+     <property name="text">
+      <string>Check the box next to internal resolution or background color to override the global default setting with this one for this game only.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>
