@@ -60,6 +60,6 @@ void Controller_Touchscreen::OnUpdate(u8* data, std::size_t size) {
 }
 
 void Controller_Touchscreen::OnLoadInputDevices() {
-    touch_device = Input::CreateDevice<Input::TouchDevice>(Settings::values.touch_device);
+    touch_device = Input::CreateDevice<Input::TouchDevice>(Settings::values->touch_device);
 }
 } // namespace Service::HID

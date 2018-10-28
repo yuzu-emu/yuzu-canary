@@ -122,8 +122,8 @@ std::optional<VAddr> AppLoader_NSO::LoadModule(const FileSys::VfsFile& file, VAd
         codeset.segments[i].size = PageAlignSize(static_cast<u32>(data.size()));
     }
 
-    if (should_pass_arguments && !Settings::values.program_args.empty()) {
-        const auto arg_data = Settings::values.program_args;
+    if (should_pass_arguments && !Settings::values->program_args.empty()) {
+        const auto arg_data = Settings::values->program_args;
         codeset.DataSegment().size += NSO_ARGUMENT_DATA_ALLOCATION_SIZE;
         NSOArgumentHeader args_header{
             NSO_ARGUMENT_DATA_ALLOCATION_SIZE, static_cast<u32_le>(arg_data.size()), {}};
