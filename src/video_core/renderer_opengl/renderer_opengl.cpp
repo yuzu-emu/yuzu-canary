@@ -283,7 +283,8 @@ void RendererOpenGL::CreateRasterizer() {
     if (rasterizer) {
         return;
     }
-
+    // Initialize sRGB Usage
+    OpenGLState::ClearsRGBUsed();
     rasterizer = std::make_unique<RasterizerOpenGL>(render_window, screen_info);
 }
 
@@ -356,13 +357,20 @@ void RendererOpenGL::DrawScreenTriangles(const ScreenInfo& screen_info, float x,
 
     state.texture_units[0].texture = screen_info.display_texture;
     state.texture_units[0].swizzle = {GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA};
+    // Workaround brigthness problems in SMO by enabling sRGB in the final output
+    // if it has been used in the frame
+    // Needed because of this bug in QT
+    // QTBUG-50987
+    state.framebuffer_srgb.enabled = OpenGLState::GetsRGBUsed();
     state.Apply();
-
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices.data());
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
+    // restore default state
+    state.framebuffer_srgb.enabled = false;
     state.texture_units[0].texture = 0;
     state.Apply();
+    // Clear sRGB state for the next frame
+    OpenGLState::ClearsRGBUsed();
 }
 
 /**

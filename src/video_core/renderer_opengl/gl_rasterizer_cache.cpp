@@ -40,6 +40,10 @@ static bool IsPixelFormatASTC(PixelFormat format) {
     case PixelFormat::ASTC_2D_5X4:
     case PixelFormat::ASTC_2D_8X8:
     case PixelFormat::ASTC_2D_8X5:
+    case PixelFormat::ASTC_2D_4X4_SRGB:
+    case PixelFormat::ASTC_2D_5X4_SRGB:
+    case PixelFormat::ASTC_2D_8X8_SRGB:
+    case PixelFormat::ASTC_2D_8X5_SRGB:
         return true;
     default:
         return false;
@@ -55,6 +59,14 @@ static std::pair<u32, u32> GetASTCBlockSize(PixelFormat format) {
     case PixelFormat::ASTC_2D_8X8:
         return {8, 8};
     case PixelFormat::ASTC_2D_8X5:
+        return {8, 5};
+    case PixelFormat::ASTC_2D_4X4_SRGB:
+        return {4, 4};
+    case PixelFormat::ASTC_2D_5X4_SRGB:
+        return {5, 4};
+    case PixelFormat::ASTC_2D_8X8_SRGB:
+        return {8, 8};
+    case PixelFormat::ASTC_2D_8X5_SRGB:
         return {8, 5};
     default:
         LOG_CRITICAL(HW_GPU, "Unhandled format: {}", static_cast<u32>(format));
@@ -108,8 +120,9 @@ std::size_t SurfaceParams::InnerMemorySize(bool layer_only) const {
     params.block_width = params.is_tiled ? config.tic.BlockWidth() : 0,
     params.block_height = params.is_tiled ? config.tic.BlockHeight() : 0,
     params.block_depth = params.is_tiled ? config.tic.BlockDepth() : 0,
-    params.pixel_format =
-        PixelFormatFromTextureFormat(config.tic.format, config.tic.r_type.Value());
+    params.srgb_conversion = config.tic.IsSrgbConversionEnabled();
+    params.pixel_format = PixelFormatFromTextureFormat(config.tic.format, config.tic.r_type.Value(),
+                                                       params.srgb_conversion);
     params.component_type = ComponentTypeFromTexture(config.tic.r_type.Value());
     params.type = GetFormatType(params.pixel_format);
     params.width = Common::AlignUp(config.tic.Width(), GetCompressionFactor(params.pixel_format));
@@ -166,6 +179,8 @@ std::size_t SurfaceParams::InnerMemorySize(bool layer_only) const {
     params.block_height = 1 << config.memory_layout.block_height;
     params.block_depth = 1 << config.memory_layout.block_depth;
     params.pixel_format = PixelFormatFromRenderTargetFormat(config.format);
+    params.srgb_conversion = config.format == Tegra::RenderTargetFormat::BGRA8_SRGB ||
+                             config.format == Tegra::RenderTargetFormat::RGBA8_SRGB;
     params.component_type = ComponentTypeFromRenderTarget(config.format);
     params.type = GetFormatType(params.pixel_format);
     params.width = config.width;
@@ -201,6 +216,7 @@ std::size_t SurfaceParams::InnerMemorySize(bool layer_only) const {
     params.pixel_format = PixelFormatFromDepthFormat(format);
     params.component_type = ComponentTypeFromDepthFormat(format);
     params.type = GetFormatType(params.pixel_format);
+    params.srgb_conversion = false;
     params.width = zeta_width;
     params.height = zeta_height;
     params.unaligned_height = zeta_height;
@@ -224,6 +240,8 @@ std::size_t SurfaceParams::InnerMemorySize(bool layer_only) const {
     params.block_height = params.is_tiled ? std::min(config.BlockHeight(), 32U) : 0,
     params.block_depth = params.is_tiled ? std::min(config.BlockDepth(), 32U) : 0,
     params.pixel_format = PixelFormatFromRenderTargetFormat(config.format);
+    params.srgb_conversion = config.format == Tegra::RenderTargetFormat::BGRA8_SRGB ||
+                             config.format == Tegra::RenderTargetFormat::RGBA8_SRGB;
     params.component_type = ComponentTypeFromRenderTarget(config.format);
     params.type = GetFormatType(params.pixel_format);
     params.width = config.width;
@@ -289,14 +307,29 @@ static constexpr std::array<FormatTuple, SurfaceParams::MaxPixelFormat> tex_form
     {GL_RG16I, GL_RG_INTEGER, GL_SHORT, ComponentType::SInt, false},           // RG16I
     {GL_RG16_SNORM, GL_RG, GL_SHORT, ComponentType::SNorm, false},             // RG16S
     {GL_RGB32F, GL_RGB, GL_FLOAT, ComponentType::Float, false},                // RGB32F
-    {GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, ComponentType::UNorm, false}, // SRGBA8
-    {GL_RG8, GL_RG, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},                       // RG8U
-    {GL_RG8, GL_RG, GL_BYTE, ComponentType::SNorm, false},                                // RG8S
-    {GL_RG32UI, GL_RG_INTEGER, GL_UNSIGNED_INT, ComponentType::UInt, false},              // RG32UI
-    {GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, ComponentType::UInt, false},              // R32UI
-    {GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false}, // ASTC_2D_8X8
-    {GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false}, // ASTC_2D_8X5
-    {GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false}, // ASTC_2D_5X4
+    {GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, ComponentType::UNorm,
+     false},                                                                   // RGBA8_SRGB
+    {GL_RG8, GL_RG, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},            // RG8U
+    {GL_RG8, GL_RG, GL_BYTE, ComponentType::SNorm, false},                     // RG8S
+    {GL_RG32UI, GL_RG_INTEGER, GL_UNSIGNED_INT, ComponentType::UInt, false},   // RG32UI
+    {GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, ComponentType::UInt, false},   // R32UI
+    {GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},        // ASTC_2D_8X8
+    {GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},        // ASTC_2D_8X5
+    {GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},        // ASTC_2D_5X4
+    {GL_SRGB8_ALPHA8, GL_BGRA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false}, // BGRA8
+    // Compressed sRGB formats
+    {GL_COMPRESSED_SRGB_S3TC_DXT1_EXT, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, ComponentType::UNorm,
+     true}, // DXT1_SRGB
+    {GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, ComponentType::UNorm,
+     true}, // DXT23_SRGB
+    {GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, ComponentType::UNorm,
+     true}, // DXT45_SRGB
+    {GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8,
+     ComponentType::UNorm, true},                                              // BC7U_SRGB
+    {GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false}, // ASTC_2D_4X4_SRGB
+    {GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false}, // ASTC_2D_8X8_SRGB
+    {GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false}, // ASTC_2D_8X5_SRGB
+    {GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false}, // ASTC_2D_5X4_SRGB
 
     // Depth formats
     {GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT, ComponentType::Float, false}, // Z32F
@@ -361,6 +394,10 @@ static bool IsFormatBCn(PixelFormat format) {
     case PixelFormat::BC7U:
     case PixelFormat::BC6H_UF16:
     case PixelFormat::BC6H_SF16:
+    case PixelFormat::DXT1_SRGB:
+    case PixelFormat::DXT23_SRGB:
+    case PixelFormat::DXT45_SRGB:
+    case PixelFormat::BC7U_SRGB:
         return true;
     }
     return false;
@@ -432,7 +469,7 @@ static constexpr GLConversionArray morton_to_gl_fns = {
         MortonCopy<true, PixelFormat::RG16I>,
         MortonCopy<true, PixelFormat::RG16S>,
         MortonCopy<true, PixelFormat::RGB32F>,
-        MortonCopy<true, PixelFormat::SRGBA8>,
+        MortonCopy<true, PixelFormat::RGBA8_SRGB>,
         MortonCopy<true, PixelFormat::RG8U>,
         MortonCopy<true, PixelFormat::RG8S>,
         MortonCopy<true, PixelFormat::RG32UI>,
@@ -440,6 +477,15 @@ static constexpr GLConversionArray morton_to_gl_fns = {
         MortonCopy<true, PixelFormat::ASTC_2D_8X8>,
         MortonCopy<true, PixelFormat::ASTC_2D_8X5>,
         MortonCopy<true, PixelFormat::ASTC_2D_5X4>,
+        MortonCopy<true, PixelFormat::BGRA8_SRGB>,
+        MortonCopy<true, PixelFormat::DXT1_SRGB>,
+        MortonCopy<true, PixelFormat::DXT23_SRGB>,
+        MortonCopy<true, PixelFormat::DXT45_SRGB>,
+        MortonCopy<true, PixelFormat::BC7U_SRGB>,
+        MortonCopy<true, PixelFormat::ASTC_2D_4X4_SRGB>,
+        MortonCopy<true, PixelFormat::ASTC_2D_8X8_SRGB>,
+        MortonCopy<true, PixelFormat::ASTC_2D_8X5_SRGB>,
+        MortonCopy<true, PixelFormat::ASTC_2D_5X4_SRGB>,
         MortonCopy<true, PixelFormat::Z32F>,
         MortonCopy<true, PixelFormat::Z16>,
         MortonCopy<true, PixelFormat::Z24S8>,
@@ -491,11 +537,20 @@ static constexpr GLConversionArray gl_to_morton_fns = {
         MortonCopy<false, PixelFormat::RG16I>,
         MortonCopy<false, PixelFormat::RG16S>,
         MortonCopy<false, PixelFormat::RGB32F>,
-        MortonCopy<false, PixelFormat::SRGBA8>,
+        MortonCopy<false, PixelFormat::RGBA8_SRGB>,
         MortonCopy<false, PixelFormat::RG8U>,
         MortonCopy<false, PixelFormat::RG8S>,
         MortonCopy<false, PixelFormat::RG32UI>,
         MortonCopy<false, PixelFormat::R32UI>,
+        nullptr,
+        nullptr,
+        nullptr,
+        MortonCopy<false, PixelFormat::BGRA8_SRGB>,
+        MortonCopy<false, PixelFormat::DXT1_SRGB>,
+        MortonCopy<false, PixelFormat::DXT23_SRGB>,
+        MortonCopy<false, PixelFormat::DXT45_SRGB>,
+        MortonCopy<false, PixelFormat::BC7U_SRGB>,
+        nullptr,
         nullptr,
         nullptr,
         nullptr,
@@ -546,6 +601,8 @@ static bool BlitSurface(const Surface& src_surface, const Surface& dst_surface,
     OpenGLState state;
     state.draw.read_framebuffer = read_fb_handle;
     state.draw.draw_framebuffer = draw_fb_handle;
+    // Set sRGB enabled if the destination surfaces need it
+    state.framebuffer_srgb.enabled = dst_params.srgb_conversion;
     state.Apply();
 
     u32 buffers{};
@@ -881,7 +938,11 @@ static void ConvertFormatAsNeeded_LoadGLBuffer(std::vector<u8>& data, PixelForma
     case PixelFormat::ASTC_2D_4X4:
     case PixelFormat::ASTC_2D_8X8:
     case PixelFormat::ASTC_2D_8X5:
-    case PixelFormat::ASTC_2D_5X4: {
+    case PixelFormat::ASTC_2D_5X4:
+    case PixelFormat::ASTC_2D_4X4_SRGB:
+    case PixelFormat::ASTC_2D_8X8_SRGB:
+    case PixelFormat::ASTC_2D_8X5_SRGB:
+    case PixelFormat::ASTC_2D_5X4_SRGB: {
         // Convert ASTC pixel formats to RGBA8, as most desktop GPUs do not support ASTC.
         u32 block_width{};
         u32 block_height{};
@@ -913,7 +974,9 @@ static void ConvertFormatAsNeeded_FlushGLBuffer(std::vector<u8>& data, PixelForm
     case PixelFormat::G8R8U:
     case PixelFormat::G8R8S:
     case PixelFormat::ASTC_2D_4X4:
-    case PixelFormat::ASTC_2D_8X8: {
+    case PixelFormat::ASTC_2D_8X8:
+    case PixelFormat::ASTC_2D_4X4_SRGB:
+    case PixelFormat::ASTC_2D_8X8_SRGB: {
         LOG_CRITICAL(HW_GPU, "Conversion of format {} after texture flushing is not implemented",
                      static_cast<u32>(pixel_format));
         UNREACHABLE();
