@@ -13,6 +13,7 @@
 #include <boost/optional.hpp>
 #include "common/common_types.h"
 #include "core/core.h"
+#include "core/file_sys/vfs_types.h"
 #include "ui_main.h"
 #include "yuzu/compatibility_list.h"
 #include "yuzu/hotkeys.h"
@@ -157,6 +158,7 @@ private slots:
     void OnGameListCopyTID(u64 program_id);
     void OnGameListNavigateToGamedbEntry(u64 program_id,
                                          const CompatibilityList& compatibility_list);
+    void OnGameListOpenProperties(const std::string& file);
     void OnMenuLoadFile();
     void OnMenuLoadFolder();
     void OnMenuInstallToNAND();
@@ -167,6 +169,7 @@ private slots:
     void OnMenuRecentFile();
     void OnConfigure();
     void OnLoadAmiibo();
+    void OnOpenYuzuFolder();
     void OnAbout();
     void OnToggleFilterBar();
     void OnDisplayTitleBars(bool);

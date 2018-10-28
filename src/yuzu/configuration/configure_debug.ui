@@ -124,6 +124,13 @@
         <item>
          <widget class="QLineEdit" name="homebrew_args_edit"/>
         </item>
+        <item>
+         <widget class="QCheckBox" name="program_args_checkbox">
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
        </layout>
       </item>
      </layout>
@@ -141,6 +148,16 @@
       </size>
      </property>
     </spacer>
+   </item>
+   <item>
+    <widget class="QLabel" name="override_label">
+     <property name="text">
+      <string>Check the box next to the homebrew arguments string to override the global default setting with this one for this game only.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>

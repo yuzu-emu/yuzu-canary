@@ -427,7 +427,7 @@ void ICommonStateGetter::GetDefaultDisplayResolution(Kernel::HLERequestContext& 
     IPC::ResponseBuilder rb{ctx, 4};
     rb.Push(RESULT_SUCCESS);
 
-    if (Settings::values.use_docked_mode) {
+    if (Settings::values->use_docked_mode) {
         rb.Push(static_cast<u32>(Service::VI::DisplayResolution::DockedWidth));
         rb.Push(static_cast<u32>(Service::VI::DisplayResolution::DockedHeight));
     } else {
@@ -439,7 +439,7 @@ void ICommonStateGetter::GetDefaultDisplayResolution(Kernel::HLERequestContext& 
 }
 
 void ICommonStateGetter::GetOperationMode(Kernel::HLERequestContext& ctx) {
-    const bool use_docked_mode{Settings::values.use_docked_mode};
+    const bool use_docked_mode{Settings::values->use_docked_mode};
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(RESULT_SUCCESS);
     rb.Push(static_cast<u8>(use_docked_mode ? OperationMode::Docked : OperationMode::Handheld));
@@ -448,7 +448,7 @@ void ICommonStateGetter::GetOperationMode(Kernel::HLERequestContext& ctx) {
 }
 
 void ICommonStateGetter::GetPerformanceMode(Kernel::HLERequestContext& ctx) {
-    const bool use_docked_mode{Settings::values.use_docked_mode};
+    const bool use_docked_mode{Settings::values->use_docked_mode};
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(RESULT_SUCCESS);
     rb.Push(static_cast<u32>(use_docked_mode ? APM::PerformanceMode::Docked

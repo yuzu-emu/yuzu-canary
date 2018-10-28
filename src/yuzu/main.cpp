@@ -75,6 +75,8 @@ static FileSys::VirtualFile VfsDirectoryCreateFileWrapper(const FileSys::Virtual
 #include "yuzu/compatibility_list.h"
 #include "yuzu/configuration/config.h"
 #include "yuzu/configuration/configure_dialog.h"
+#include "yuzu/configuration/configure_per_game_dialog.h"
+#include "yuzu/configuration/configure_per_general.h"
 #include "yuzu/debugger/console.h"
 #include "yuzu/debugger/graphics/graphics_breakpoints.h"
 #include "yuzu/debugger/graphics/graphics_surface.h"
@@ -340,21 +342,21 @@ void GMainWindow::InitializeHotkeys() {
             });
     connect(hotkey_registry.GetHotkey("Main Window", "Toggle Speed Limit", this),
             &QShortcut::activated, this, [&] {
-                Settings::values.use_frame_limit = !Settings::values.use_frame_limit;
+                Settings::values->use_frame_limit = !Settings::values->use_frame_limit;
                 UpdateStatusBar();
             });
     constexpr u16 SPEED_LIMIT_STEP = 5;
     connect(hotkey_registry.GetHotkey("Main Window", "Increase Speed Limit", this),
             &QShortcut::activated, this, [&] {
-                if (Settings::values.frame_limit < 9999 - SPEED_LIMIT_STEP) {
-                    Settings::values.frame_limit += SPEED_LIMIT_STEP;
+                if (Settings::values->frame_limit < 9999 - SPEED_LIMIT_STEP) {
+                    Settings::values->frame_limit += SPEED_LIMIT_STEP;
                     UpdateStatusBar();
                 }
             });
     connect(hotkey_registry.GetHotkey("Main Window", "Decrease Speed Limit", this),
             &QShortcut::activated, this, [&] {
-                if (Settings::values.frame_limit > SPEED_LIMIT_STEP) {
-                    Settings::values.frame_limit -= SPEED_LIMIT_STEP;
+                if (Settings::values->frame_limit > SPEED_LIMIT_STEP) {
+                    Settings::values->frame_limit -= SPEED_LIMIT_STEP;
                     UpdateStatusBar();
                 }
             });
@@ -406,6 +408,8 @@ void GMainWindow::ConnectWidgetEvents() {
     connect(game_list, &GameList::CopyTIDRequested, this, &GMainWindow::OnGameListCopyTID);
     connect(game_list, &GameList::NavigateToGamedbEntryRequested, this,
             &GMainWindow::OnGameListNavigateToGamedbEntry);
+    connect(game_list, &GameList::OpenGamePropertiesDialogRequested, this,
+            &GMainWindow::OnGameListOpenProperties);
 
     connect(this, &GMainWindow::EmulationStarting, render_window,
             &GRenderWindow::OnEmulationStarting);
@@ -454,6 +458,7 @@ void GMainWindow::ConnectMenuEvents() {
     connect(ui.action_Fullscreen, &QAction::triggered, this, &GMainWindow::ToggleFullscreen);
 
     // Help
+    connect(ui.action_Open_yuzu_Folder, &QAction::triggered, this, &GMainWindow::OnOpenYuzuFolder);
     connect(ui.action_Rederive, &QAction::triggered, this,
             std::bind(&GMainWindow::OnReinitializeKeys, this, ReinitializeKeyBehavior::Warning));
     connect(ui.action_About, &QAction::triggered, this, &GMainWindow::OnAbout);
@@ -961,6 +966,30 @@ void GMainWindow::OnGameListNavigateToGamedbEntry(u64 program_id,
     QDesktopServices::openUrl(QUrl("https://yuzu-emu.org/game/" + directory));
 }
 
+void GMainWindow::OnGameListOpenProperties(const std::string& file) {
+    u64 title_id{};
+    auto loader = Loader::GetLoader(Core::GetGameFileFromPath(vfs, file));
+    if (loader->ReadProgramId(title_id) != Loader::ResultStatus::Success) {
+        QMessageBox::information(
+            this, tr("Per Game Configuration"),
+            tr("Per Game Configuration is not supported on games that do not have a title ID. "
+               "Please use a format that includes the title ID, such as NSP or XCI."));
+        return;
+    }
+
+    Settings::values.SetCurrentTitleID(title_id);
+    ConfigurePerGameDialog dialog{this, *loader, config->GetPerGameSettingsDelta(title_id)};
+    auto result = dialog.exec();
+    if (result != QDialog::Accepted)
+        return;
+
+    config->SetPerGameSettingsDelta(title_id, dialog.applyConfiguration());
+    config->Save();
+    const auto reload = UISettings::values.is_game_list_reload_pending.exchange(false);
+    if (reload)
+        game_list->PopulateAsync(UISettings::values.gamedir, UISettings::values.gamedir_deepscan);
+}
+
 void GMainWindow::OnMenuLoadFile() {
     const QString extensions =
         QString("*.").append(GameList::supported_file_extensions.join(" *.")).append(" main");
@@ -1318,19 +1347,43 @@ void GMainWindow::ToggleWindowMode() {
 }
 
 void GMainWindow::OnConfigure() {
-    ConfigureDialog configureDialog(this, hotkey_registry);
+    const auto old_title_id = Settings::values.CurrentTitleID();
     auto old_theme = UISettings::values.theme;
     const bool old_discord_presence = UISettings::values.enable_discord_presence;
-    auto result = configureDialog.exec();
+
+    int result = QDialog::Rejected;
+
+    if (emu_thread == nullptr) {
+        Settings::values.SetCurrentTitleID(Settings::DEFAULT_PER_GAME);
+        ConfigureDialog configureDialog(this, hotkey_registry);
+
+        result = configureDialog.exec();
+        if (result == QDialog::Accepted)
+            configureDialog.applyConfiguration();
+    } else {
+        ConfigurePerGameDialog configureDialog(this, Core::System::GetInstance().GetAppLoader(),
+                                               config->GetPerGameSettingsDelta(old_title_id));
+
+        result = configureDialog.exec();
+        if (result == QDialog::Accepted)
+            config->SetPerGameSettingsDelta(old_title_id, configureDialog.applyConfiguration());
+    }
+
     if (result == QDialog::Accepted) {
-        configureDialog.applyConfiguration();
         if (UISettings::values.theme != old_theme)
             UpdateUITheme();
         if (UISettings::values.enable_discord_presence != old_discord_presence)
             SetDiscordEnabled(UISettings::values.enable_discord_presence);
-        game_list->PopulateAsync(UISettings::values.gamedir, UISettings::values.gamedir_deepscan);
+        const auto reload = UISettings::values.is_game_list_reload_pending.exchange(false);
+        if (reload) {
+            game_list->PopulateAsync(UISettings::values.gamedir,
+                                     UISettings::values.gamedir_deepscan);
+        }
         config->Save();
     }
+
+    if (emu_thread == nullptr)
+        Settings::values.SetCurrentTitleID(old_title_id);
 }
 
 void GMainWindow::OnLoadAmiibo() {
@@ -1374,6 +1427,11 @@ void GMainWindow::OnLoadAmiibo() {
     }
 }
 
+void GMainWindow::OnOpenYuzuFolder() {
+    QDesktopServices::openUrl(QUrl::fromLocalFile(
+        QString::fromStdString(FileUtil::GetUserPath(FileUtil::UserPath::UserDir))));
+}
+
 void GMainWindow::OnAbout() {
     AboutDialog aboutDialog(this);
     aboutDialog.exec();
@@ -1396,10 +1454,10 @@ void GMainWindow::UpdateStatusBar() {
 
     auto results = Core::System::GetInstance().GetAndResetPerfStats();
 
-    if (Settings::values.use_frame_limit) {
+    if (Settings::values->use_frame_limit) {
         emu_speed_label->setText(tr("Speed: %1% / %2%")
                                      .arg(results.emulation_speed * 100.0, 0, 'f', 0)
-                                     .arg(Settings::values.frame_limit));
+                                     .arg(Settings::values->frame_limit));
     } else {
         emu_speed_label->setText(tr("Speed: %1%").arg(results.emulation_speed * 100.0, 0, 'f', 0));
     }
