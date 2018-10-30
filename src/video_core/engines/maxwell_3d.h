@@ -475,12 +475,13 @@ public:
                 INSERT_PADDING_WORDS(0x45);
 
                 struct {
-                    INSERT_PADDING_WORDS(1);
+                    u32 upload_address;
                     u32 data;
                     u32 entry;
+                    u32 bind;
                 } macros;
 
-                INSERT_PADDING_WORDS(0x189);
+                INSERT_PADDING_WORDS(0x188);
 
                 u32 tfb_enabled;
 
@@ -994,12 +995,28 @@ public:
     /// Returns the texture information for a specific texture in a specific shader stage.
     Texture::FullTextureInfo GetStageTexture(Regs::ShaderStage stage, std::size_t offset) const;
 
+    /// Memory for macro code - it's undetermined how big this is, however 1MB is much larger than
+    /// we've seen used.
+    using MacroMemory = std::array<u32, 0x40000>;
+
+    /// Gets a reference to macro memory.
+    const MacroMemory& GetMacroMemory() const {
+        return macro_memory;
+    }
+
 private:
     void InitializeRegisterDefaults();
 
     VideoCore::RasterizerInterface& rasterizer;
 
-    std::unordered_map<u32, std::vector<u32>> uploaded_macros;
+    static constexpr std::size_t MACRO_COUNT{0x80};
+    static constexpr std::size_t MACRO_MASK{MACRO_COUNT - 1};
+
+    /// Start offsets of each macro in macro_memory
+    std::array<u32, MACRO_COUNT> macro_offsets;
+
+    /// Memory for macro code
+    MacroMemory macro_memory;
 
     /// Macro method that is currently being executed / being fed parameters.
     u32 executing_macro = 0;
@@ -1022,8 +1039,11 @@ private:
      */
     void CallMacroMethod(u32 method, std::vector<u32> parameters);
 
-    /// Handles writes to the macro uploading registers.
+    /// Handles writes to the macro uploading register.
     void ProcessMacroUpload(u32 data);
+
+    /// Handles writes to the macro bind register.
+    void ProcessMacroBind(u32 data);
 
     /// Handles a write to the CLEAR_BUFFERS register.
     void ProcessClearBuffers();

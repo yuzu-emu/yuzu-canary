@@ -22,10 +22,10 @@ public:
 
     /**
      * Executes the macro code with the specified input parameters.
-     * @param code The macro byte code to execute
-     * @param parameters The parameters of the macro
+     * @param offset Offset to start execution at.
+     * @param parameters The parameters of the macro.
      */
-    void Execute(const std::vector<u32>& code, std::vector<u32> parameters);
+    void Execute(u32 offset, std::vector<u32> parameters);
 
 private:
     enum class Operation : u32 {
@@ -110,11 +110,11 @@ private:
     /**
      * Executes a single macro instruction located at the current program counter. Returns whether
      * the interpreter should keep running.
-     * @param code The macro code to execute.
+     * @param offset Offset to start execution at.
      * @param is_delay_slot Whether the current step is being executed due to a delay slot in a
      * previous instruction.
      */
-    bool Step(const std::vector<u32>& code, bool is_delay_slot);
+    bool Step(u32 offset, bool is_delay_slot);
 
     /// Calculates the result of an ALU operation. src_a OP src_b;
     u32 GetALUResult(ALUOperation operation, u32 src_a, u32 src_b) const;
@@ -127,7 +127,7 @@ private:
     bool EvaluateBranchCondition(BranchCondition cond, u32 value) const;
 
     /// Reads an opcode at the current program counter location.
-    Opcode GetOpcode(const std::vector<u32>& code) const;
+    Opcode GetOpcode(u32 offset) const;
 
     /// Returns the specified register's value. Register 0 is hardcoded to always return 0.
     u32 GetRegister(u32 register_id) const;
