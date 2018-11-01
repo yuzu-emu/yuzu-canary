@@ -1,3 +1,26 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 1069eced8482bd01be9fd305447ef94a82c4c999
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1630](https://github.com/yuzu-emu/yuzu/pull/1630)|[4aa9779](https://github.com/yuzu-emu/yuzu/pull/1630/files/)|memory_manager: Do not MapBufferEx over already in use memory.|[bunnei](https://github.com/bunnei)|Yes|
+|[1625](https://github.com/yuzu-emu/yuzu/pull/1625)|[719b0e5](https://github.com/yuzu-emu/yuzu/pull/1625/files/)|Implement ASTC Textures 5x5 and fix a bunch of ASTC texture problems|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1620](https://github.com/yuzu-emu/yuzu/pull/1620)|[346a922](https://github.com/yuzu-emu/yuzu/pull/1620/files/)|ldr_ro: Complete LDR:RO implementation|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1603](https://github.com/yuzu-emu/yuzu/pull/1603)|[2f7e2e8](https://github.com/yuzu-emu/yuzu/pull/1603/files/)|Preliminary implementation of LDG (continuation)|[bunnei](https://github.com/bunnei)|Yes|
+|[1556](https://github.com/yuzu-emu/yuzu/pull/1556)|[5583fe1](https://github.com/yuzu-emu/yuzu/pull/1556/files/)|svc: Improve SleepThread for yield types.|[bunnei](https://github.com/bunnei)|Yes|
+|[1441](https://github.com/yuzu-emu/yuzu/pull/1441)|[f5f6292](https://github.com/yuzu-emu/yuzu/pull/1441/files/)|logging: Add DebuggerBackend for logging to Visual Studio|[CarlKenner](https://github.com/CarlKenner)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
