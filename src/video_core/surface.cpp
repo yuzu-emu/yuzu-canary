@@ -297,6 +297,8 @@ PixelFormat PixelFormatFromTextureFormat(Tegra::Texture::TextureFormat format,
         return is_srgb ? PixelFormat::ASTC_2D_4X4_SRGB : PixelFormat::ASTC_2D_4X4;
     case Tegra::Texture::TextureFormat::ASTC_2D_5X4:
         return is_srgb ? PixelFormat::ASTC_2D_5X4_SRGB : PixelFormat::ASTC_2D_5X4;
+    case Tegra::Texture::TextureFormat::ASTC_2D_5X5:
+        return is_srgb ? PixelFormat::ASTC_2D_5X5_SRGB : PixelFormat::ASTC_2D_5X5;
     case Tegra::Texture::TextureFormat::ASTC_2D_8X8:
         return is_srgb ? PixelFormat::ASTC_2D_8X8_SRGB : PixelFormat::ASTC_2D_8X8;
     case Tegra::Texture::TextureFormat::ASTC_2D_8X5:
@@ -440,10 +442,12 @@ bool IsPixelFormatASTC(PixelFormat format) {
     switch (format) {
     case PixelFormat::ASTC_2D_4X4:
     case PixelFormat::ASTC_2D_5X4:
+    case PixelFormat::ASTC_2D_5X5:
     case PixelFormat::ASTC_2D_8X8:
     case PixelFormat::ASTC_2D_8X5:
     case PixelFormat::ASTC_2D_4X4_SRGB:
     case PixelFormat::ASTC_2D_5X4_SRGB:
+    case PixelFormat::ASTC_2D_5X5_SRGB:
     case PixelFormat::ASTC_2D_8X8_SRGB:
     case PixelFormat::ASTC_2D_8X5_SRGB:
         return true;
@@ -453,27 +457,7 @@ bool IsPixelFormatASTC(PixelFormat format) {
 }
 
 std::pair<u32, u32> GetASTCBlockSize(PixelFormat format) {
-    switch (format) {
-    case PixelFormat::ASTC_2D_4X4:
-        return {4, 4};
-    case PixelFormat::ASTC_2D_5X4:
-        return {5, 4};
-    case PixelFormat::ASTC_2D_8X8:
-        return {8, 8};
-    case PixelFormat::ASTC_2D_8X5:
-        return {8, 5};
-    case PixelFormat::ASTC_2D_4X4_SRGB:
-        return {4, 4};
-    case PixelFormat::ASTC_2D_5X4_SRGB:
-        return {5, 4};
-    case PixelFormat::ASTC_2D_8X8_SRGB:
-        return {8, 8};
-    case PixelFormat::ASTC_2D_8X5_SRGB:
-        return {8, 5};
-    default:
-        LOG_CRITICAL(HW_GPU, "Unhandled format: {}", static_cast<u32>(format));
-        UNREACHABLE();
-    }
+    return {GetDefaultBlockWidth(format), GetDefaultBlockHeight(format)};
 }
 
 bool IsFormatBCn(PixelFormat format) {
