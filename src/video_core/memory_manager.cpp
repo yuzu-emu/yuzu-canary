@@ -4,6 +4,7 @@
 
 #include "common/alignment.h"
 #include "common/assert.h"
+#include "common/logging/log.h"
 #include "video_core/memory_manager.h"
 
 namespace Tegra {
@@ -52,6 +53,15 @@ GPUVAddr MemoryManager::MapBufferEx(VAddr cpu_addr, u64 size) {
 
 GPUVAddr MemoryManager::MapBufferEx(VAddr cpu_addr, GPUVAddr gpu_addr, u64 size) {
     ASSERT((gpu_addr & PAGE_MASK) == 0);
+
+    if (IsPageMapped(gpu_addr)) {
+        // Page has been already mapped. In this case, we must find a new area of memory to use that
+        // is different than the specified one. Super Mario Odyssey hits this scenario when changing
+        // areas, but we do not want to overwrite the old pages.
+        // TODO(bunnei): We need to write a hardware test to confirm this behavior.
+        LOG_CRITICAL(HW_GPU, "attempting to map addr 0x{:016X}, which is not available!", gpu_addr);
+        return MapBufferEx(cpu_addr, size);
+    }
 
     for (u64 offset = 0; offset < size; offset += PAGE_SIZE) {
         VAddr& slot = PageSlot(gpu_addr + offset);
@@ -141,7 +151,8 @@ std::vector<GPUVAddr> MemoryManager::CpuToGpuAddress(VAddr cpu_addr) const {
 }
 
 bool MemoryManager::IsPageMapped(GPUVAddr gpu_addr) {
-    return PageSlot(gpu_addr) != static_cast<u64>(PageStatus::Unmapped);
+    return PageSlot(gpu_addr) != static_cast<u64>(PageStatus::Unmapped) &&
+           PageSlot(gpu_addr) != static_cast<u64>(PageStatus::Allocated);
 }
 
 VAddr& MemoryManager::PageSlot(GPUVAddr gpu_addr) {
