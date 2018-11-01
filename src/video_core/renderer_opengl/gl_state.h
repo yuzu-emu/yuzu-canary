@@ -173,7 +173,8 @@ public:
     }
     /// Apply this state as the current OpenGL state
     void Apply() const;
-
+    /// Set the initial OpenGL state
+    static void ApplyDefaultState();
     /// Resets any references to the given resource
     OpenGLState& UnbindTexture(GLuint handle);
     OpenGLState& ResetSampler(GLuint handle);
@@ -188,6 +189,16 @@ private:
     // Workaround for sRGB problems caused by
     // QT not supporting srgb output
     static bool s_rgb_used;
+    void ApplySRgb() const;
+    void ApplyCulling() const;
+    void ApplyDepth() const;
+    void ApplyPrimitiveRestart() const;
+    void ApplyStencilTest() const;
+    void ApplyScissorTest() const;
+    void ApplyBlending() const;
+    void ApplyLogicOp() const;
+    void ApplyTextures() const;
+    void ApplySamplers() const;
 };
 
 } // namespace OpenGL
