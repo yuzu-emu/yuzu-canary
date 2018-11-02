@@ -103,6 +103,20 @@ private:
     std::size_t bytes_written;
 };
 
+/**
+ * Backend that writes to Visual Studio's output window
+ */
+class DebuggerBackend : public Backend {
+public:
+    static const char* Name() {
+        return "debugger";
+    }
+    const char* GetName() const override {
+        return Name();
+    }
+    void Write(const Entry& entry) override;
+};
+
 void AddBackend(std::unique_ptr<Backend> backend);
 
 void RemoveBackend(std::string_view backend_name);
