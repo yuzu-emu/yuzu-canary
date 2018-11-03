@@ -1598,27 +1598,29 @@ static void DecompressBlock(uint8_t inBuf[16], const uint32_t blockWidth,
 namespace Tegra::Texture::ASTC {
 
 std::vector<uint8_t> Decompress(std::vector<uint8_t>& data, uint32_t width, uint32_t height,
-                                uint32_t block_width, uint32_t block_height) {
+                                uint32_t depth, uint32_t block_width, uint32_t block_height) {
     uint32_t blockIdx = 0;
-    std::vector<uint8_t> outData(height * width * 4);
-    for (uint32_t j = 0; j < height; j += block_height) {
-        for (uint32_t i = 0; i < width; i += block_width) {
+    std::vector<uint8_t> outData(height * width * depth * 4);
+    for (uint32_t k = 0; k < depth; k++) {
+        for (uint32_t j = 0; j < height; j += block_height) {
+            for (uint32_t i = 0; i < width; i += block_width) {
 
-            uint8_t* blockPtr = data.data() + blockIdx * 16;
+                uint8_t* blockPtr = data.data() + blockIdx * 16;
 
-            // Blocks can be at most 12x12
-            uint32_t uncompData[144];
-            ASTCC::DecompressBlock(blockPtr, block_width, block_height, uncompData);
+                // Blocks can be at most 12x12
+                uint32_t uncompData[144];
+                ASTCC::DecompressBlock(blockPtr, block_width, block_height, uncompData);
 
-            uint32_t decompWidth = std::min(block_width, width - i);
-            uint32_t decompHeight = std::min(block_height, height - j);
+                uint32_t decompWidth = std::min(block_width, width - i);
+                uint32_t decompHeight = std::min(block_height, height - j);
 
-            uint8_t* outRow = outData.data() + (j * width + i) * 4;
-            for (uint32_t jj = 0; jj < decompHeight; jj++) {
-                memcpy(outRow + jj * width * 4, uncompData + jj * block_width, decompWidth * 4);
+                uint8_t* outRow = outData.data() + (j * width + i) * 4;
+                for (uint32_t jj = 0; jj < decompHeight; jj++) {
+                    memcpy(outRow + jj * width * 4, uncompData + jj * block_width, decompWidth * 4);
+                }
+
+                blockIdx++;
             }
-
-            blockIdx++;
         }
     }
 
