@@ -72,19 +72,21 @@ enum class PixelFormat {
     ASTC_2D_8X8_SRGB = 54,
     ASTC_2D_8X5_SRGB = 55,
     ASTC_2D_5X4_SRGB = 56,
+    ASTC_2D_5X5 = 57,
+    ASTC_2D_5X5_SRGB = 58,
 
     MaxColorFormat,
 
     // Depth formats
-    Z32F = 57,
-    Z16 = 58,
+    Z32F = 59,
+    Z16 = 60,
 
     MaxDepthFormat,
 
     // DepthStencil formats
-    Z24S8 = 59,
-    S8Z24 = 60,
-    Z32FS8 = 61,
+    Z24S8 = 61,
+    S8Z24 = 62,
+    Z32FS8 = 63,
 
     MaxDepthStencilFormat,
 
@@ -188,6 +190,8 @@ static constexpr u32 GetCompressionFactor(PixelFormat format) {
         4, // ASTC_2D_8X8_SRGB
         4, // ASTC_2D_8X5_SRGB
         4, // ASTC_2D_5X4_SRGB
+        4, // ASTC_2D_5X5
+        4, // ASTC_2D_5X5_SRGB
         1, // Z32F
         1, // Z16
         1, // Z24S8
@@ -197,6 +201,79 @@ static constexpr u32 GetCompressionFactor(PixelFormat format) {
 
     ASSERT(static_cast<std::size_t>(format) < compression_factor_table.size());
     return compression_factor_table[static_cast<std::size_t>(format)];
+}
+
+static constexpr u32 GetDefaultBlockWidth(PixelFormat format) {
+    if (format == PixelFormat::Invalid)
+        return 0;
+    constexpr std::array<u32, MaxPixelFormat> block_width_table = {{
+        1, // ABGR8U
+        1, // ABGR8S
+        1, // ABGR8UI
+        1, // B5G6R5U
+        1, // A2B10G10R10U
+        1, // A1B5G5R5U
+        1, // R8U
+        1, // R8UI
+        1, // RGBA16F
+        1, // RGBA16U
+        1, // RGBA16UI
+        1, // R11FG11FB10F
+        1, // RGBA32UI
+        4, // DXT1
+        4, // DXT23
+        4, // DXT45
+        4, // DXN1
+        4, // DXN2UNORM
+        4, // DXN2SNORM
+        4, // BC7U
+        4, // BC6H_UF16
+        4, // BC6H_SF16
+        4, // ASTC_2D_4X4
+        1, // G8R8U
+        1, // G8R8S
+        1, // BGRA8
+        1, // RGBA32F
+        1, // RG32F
+        1, // R32F
+        1, // R16F
+        1, // R16U
+        1, // R16S
+        1, // R16UI
+        1, // R16I
+        1, // RG16
+        1, // RG16F
+        1, // RG16UI
+        1, // RG16I
+        1, // RG16S
+        1, // RGB32F
+        1, // RGBA8_SRGB
+        1, // RG8U
+        1, // RG8S
+        1, // RG32UI
+        1, // R32UI
+        8, // ASTC_2D_8X8
+        8, // ASTC_2D_8X5
+        5, // ASTC_2D_5X4
+        1, // BGRA8_SRGB
+        4, // DXT1_SRGB
+        4, // DXT23_SRGB
+        4, // DXT45_SRGB
+        4, // BC7U_SRGB
+        4, // ASTC_2D_4X4_SRGB
+        8, // ASTC_2D_8X8_SRGB
+        8, // ASTC_2D_8X5_SRGB
+        5, // ASTC_2D_5X4_SRGB
+        5, // ASTC_2D_5X5
+        5, // ASTC_2D_5X5_SRGB
+        1, // Z32F
+        1, // Z16
+        1, // Z24S8
+        1, // S8Z24
+        1, // Z32FS8
+    }};
+    ASSERT(static_cast<std::size_t>(format) < block_width_table.size());
+    return block_width_table[static_cast<std::size_t>(format)];
 }
 
 static constexpr u32 GetDefaultBlockHeight(PixelFormat format) {
@@ -261,6 +338,8 @@ static constexpr u32 GetDefaultBlockHeight(PixelFormat format) {
         8, // ASTC_2D_8X8_SRGB
         5, // ASTC_2D_8X5_SRGB
         4, // ASTC_2D_5X4_SRGB
+        5, // ASTC_2D_5X5
+        5, // ASTC_2D_5X5_SRGB
         1, // Z32F
         1, // Z16
         1, // Z24S8
@@ -299,7 +378,7 @@ static constexpr u32 GetFormatBpp(PixelFormat format) {
         128, // BC7U
         128, // BC6H_UF16
         128, // BC6H_SF16
-        32,  // ASTC_2D_4X4
+        128, // ASTC_2D_4X4
         16,  // G8R8U
         16,  // G8R8S
         32,  // BGRA8
@@ -322,18 +401,20 @@ static constexpr u32 GetFormatBpp(PixelFormat format) {
         16,  // RG8S
         64,  // RG32UI
         32,  // R32UI
-        16,  // ASTC_2D_8X8
-        16,  // ASTC_2D_8X5
-        32,  // ASTC_2D_5X4
+        128, // ASTC_2D_8X8
+        128, // ASTC_2D_8X5
+        128, // ASTC_2D_5X4
         32,  // BGRA8_SRGB
         64,  // DXT1_SRGB
         128, // DXT23_SRGB
         128, // DXT45_SRGB
         128, // BC7U
-        32,  // ASTC_2D_4X4_SRGB
-        16,  // ASTC_2D_8X8_SRGB
-        16,  // ASTC_2D_8X5_SRGB
-        32,  // ASTC_2D_5X4_SRGB
+        128, // ASTC_2D_4X4_SRGB
+        128, // ASTC_2D_8X8_SRGB
+        128, // ASTC_2D_8X5_SRGB
+        128, // ASTC_2D_5X4_SRGB
+        128, // ASTC_2D_5X5
+        128, // ASTC_2D_5X5_SRGB
         32,  // Z32F
         16,  // Z16
         32,  // Z24S8
