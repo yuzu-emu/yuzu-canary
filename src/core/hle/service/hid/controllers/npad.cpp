@@ -427,6 +427,9 @@ void Controller_NPad::VibrateController(const std::vector<u32>& controller_ids,
 }
 
 Kernel::SharedPtr<Kernel::Event> Controller_NPad::GetStyleSetChangedEvent() const {
+    // TODO(ogniK): Figure out the best time to signal this event. This event seems that it should
+    // be signalled at least once, and signaled after a new controller is connected?
+    styleset_changed_event->Signal();
     return styleset_changed_event;
 }
 
