@@ -351,6 +351,14 @@ void PL_U::GetSharedFontInOrderOfPriority(Kernel::HLERequestContext& ctx) {
         font_sizes.push_back(region.size);
     }
 
+    // Resize buffers if game requests smaller size output.
+    font_codes.resize(
+        std::min<std::size_t>(font_codes.size(), ctx.GetWriteBufferSize(0) / sizeof(u32)));
+    font_offsets.resize(
+        std::min<std::size_t>(font_offsets.size(), ctx.GetWriteBufferSize(1) / sizeof(u32)));
+    font_sizes.resize(
+        std::min<std::size_t>(font_sizes.size(), ctx.GetWriteBufferSize(2) / sizeof(u32)));
+
     ctx.WriteBuffer(font_codes, 0);
     ctx.WriteBuffer(font_offsets, 1);
     ctx.WriteBuffer(font_sizes, 2);
