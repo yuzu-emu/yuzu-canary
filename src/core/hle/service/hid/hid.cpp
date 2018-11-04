@@ -96,6 +96,8 @@ public:
         // TODO(shinyquagsire23): Other update callbacks? (accel, gyro?)
 
         CoreTiming::ScheduleEvent(pad_update_ticks, pad_update_event);
+
+        ReloadInputDevices();
     }
 
     void ActivateController(HidController controller) {
