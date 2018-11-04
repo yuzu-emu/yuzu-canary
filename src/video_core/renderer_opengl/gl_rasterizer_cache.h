@@ -139,7 +139,7 @@ struct SurfaceParams {
     }
 
     u32 MipDepth(u32 mip_level) const {
-        return std::max(1U, depth >> mip_level);
+        return is_layered ? depth : std::max(1U, depth >> mip_level);
     }
 
     // Auto block resizing algorithm from:

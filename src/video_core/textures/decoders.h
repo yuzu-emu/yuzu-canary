@@ -19,8 +19,8 @@ inline std::size_t GetGOBSize() {
 /**
  * Unswizzles a swizzled texture without changing its format.
  */
-std::vector<u8> UnswizzleTexture(VAddr address, u32 tile_size, u32 bytes_per_pixel, u32 width,
-                                 u32 height, u32 depth,
+std::vector<u8> UnswizzleTexture(VAddr address, u32 tile_size_x, u32 tile_size_y,
+                                 u32 bytes_per_pixel, u32 width, u32 height, u32 depth,
                                  u32 block_height = TICEntry::DefaultBlockHeight,
                                  u32 block_depth = TICEntry::DefaultBlockHeight);
 
