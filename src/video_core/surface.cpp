@@ -19,6 +19,8 @@ SurfaceTarget SurfaceTargetFromTextureType(Tegra::Texture::TextureType texture_t
         return SurfaceTarget::Texture3D;
     case Tegra::Texture::TextureType::TextureCubemap:
         return SurfaceTarget::TextureCubemap;
+    case Tegra::Texture::TextureType::TextureCubeArray:
+        return SurfaceTarget::TextureCubeArray;
     case Tegra::Texture::TextureType::Texture1DArray:
         return SurfaceTarget::Texture1DArray;
     case Tegra::Texture::TextureType::Texture2DArray:
@@ -39,6 +41,7 @@ bool SurfaceTargetIsLayered(SurfaceTarget target) {
     case SurfaceTarget::Texture1DArray:
     case SurfaceTarget::Texture2DArray:
     case SurfaceTarget::TextureCubemap:
+    case SurfaceTarget::TextureCubeArray:
         return true;
     default:
         LOG_CRITICAL(HW_GPU, "Unimplemented surface_target={}", static_cast<u32>(target));
