@@ -46,11 +46,9 @@ public:
     } cull;
 
     struct {
-        bool test_enabled;        // GL_DEPTH_TEST
-        GLenum test_func;         // GL_DEPTH_FUNC
-        GLboolean write_mask;     // GL_DEPTH_WRITEMASK
-        GLfloat depth_range_near; // GL_DEPTH_RANGE
-        GLfloat depth_range_far;  // GL_DEPTH_RANGE
+        bool test_enabled;    // GL_DEPTH_TEST
+        GLenum test_func;     // GL_DEPTH_FUNC
+        GLboolean write_mask; // GL_DEPTH_WRITEMASK
     } depth;
 
     struct {
@@ -58,13 +56,14 @@ public:
         GLuint index;
     } primitive_restart; // GL_PRIMITIVE_RESTART
 
-    struct {
+    struct ColorMask {
         GLboolean red_enabled;
         GLboolean green_enabled;
         GLboolean blue_enabled;
         GLboolean alpha_enabled;
-    } color_mask; // GL_COLOR_WRITEMASK
-
+    };
+    std::array<ColorMask, Tegra::Engines::Maxwell3D::Regs::NumRenderTargets>
+        color_mask; // GL_COLOR_WRITEMASK
     struct {
         bool test_enabled; // GL_STENCIL_TEST
         struct {
@@ -78,22 +77,28 @@ public:
         } front, back;
     } stencil;
 
-    struct {
+    struct Blend {
         bool enabled;        // GL_BLEND
+        bool separate_alpha; // Independent blend enabled
         GLenum rgb_equation; // GL_BLEND_EQUATION_RGB
         GLenum a_equation;   // GL_BLEND_EQUATION_ALPHA
         GLenum src_rgb_func; // GL_BLEND_SRC_RGB
         GLenum dst_rgb_func; // GL_BLEND_DST_RGB
         GLenum src_a_func;   // GL_BLEND_SRC_ALPHA
         GLenum dst_a_func;   // GL_BLEND_DST_ALPHA
+    };
+    std::array<Blend, Tegra::Engines::Maxwell3D::Regs::NumRenderTargets> blend;
 
-        struct {
-            GLclampf red;
-            GLclampf green;
-            GLclampf blue;
-            GLclampf alpha;
-        } color; // GL_BLEND_COLOR
-    } blend;
+    struct {
+        bool enabled;
+    } independant_blend;
+
+    struct {
+        GLclampf red;
+        GLclampf green;
+        GLclampf blue;
+        GLclampf alpha;
+    } blend_color; // GL_BLEND_COLOR
 
     struct {
         bool enabled; // GL_LOGIC_OP_MODE
@@ -138,6 +143,16 @@ public:
         GLuint program_pipeline; // GL_PROGRAM_PIPELINE_BINDING
     } draw;
 
+    struct viewport {
+        GLfloat x;
+        GLfloat y;
+        GLfloat width;
+        GLfloat height;
+        GLfloat depth_range_near; // GL_DEPTH_RANGE
+        GLfloat depth_range_far;  // GL_DEPTH_RANGE
+    };
+    std::array<viewport, Tegra::Engines::Maxwell3D::Regs::NumRenderTargets> viewports;
+
     struct {
         bool enabled; // GL_SCISSOR_TEST
         GLint x;
@@ -145,13 +160,6 @@ public:
         GLsizei width;
         GLsizei height;
     } scissor;
-
-    struct {
-        GLint x;
-        GLint y;
-        GLsizei width;
-        GLsizei height;
-    } viewport;
 
     struct {
         float size; // GL_POINT_SIZE
@@ -191,14 +199,18 @@ private:
     static bool s_rgb_used;
     void ApplySRgb() const;
     void ApplyCulling() const;
+    void ApplyColorMask() const;
     void ApplyDepth() const;
     void ApplyPrimitiveRestart() const;
     void ApplyStencilTest() const;
-    void ApplyScissorTest() const;
+    void ApplyViewport() const;
+    void ApplyTargetBlending(int target, bool force) const;
+    void ApplyGlobalBlending() const;
     void ApplyBlending() const;
     void ApplyLogicOp() const;
     void ApplyTextures() const;
     void ApplySamplers() const;
+    void ApplyScissor() const;
 };
 
 } // namespace OpenGL
