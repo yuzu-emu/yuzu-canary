@@ -4,18 +4,21 @@
 
 #include "common/alignment.h"
 #include "common/assert.h"
+#include "common/logging/log.h"
 #include "video_core/memory_manager.h"
 
 namespace Tegra {
 
 GPUVAddr MemoryManager::AllocateSpace(u64 size, u64 align) {
-    std::optional<GPUVAddr> gpu_addr = FindFreeBlock(size, align);
-    ASSERT(gpu_addr);
+    const std::optional<GPUVAddr> gpu_addr{FindFreeBlock(0, size, align, PageStatus::Unmapped)};
 
-    for (u64 offset = 0; offset < size; offset += PAGE_SIZE) {
-        VAddr& slot = PageSlot(*gpu_addr + offset);
+    ASSERT_MSG(gpu_addr, "unable to find available GPU memory");
+
+    for (u64 offset{}; offset < size; offset += PAGE_SIZE) {
+        VAddr& slot{PageSlot(*gpu_addr + offset)};
 
         ASSERT(slot == static_cast<u64>(PageStatus::Unmapped));
+
         slot = static_cast<u64>(PageStatus::Allocated);
     }
 
@@ -23,10 +26,11 @@ GPUVAddr MemoryManager::AllocateSpace(u64 size, u64 align) {
 }
 
 GPUVAddr MemoryManager::AllocateSpace(GPUVAddr gpu_addr, u64 size, u64 align) {
-    for (u64 offset = 0; offset < size; offset += PAGE_SIZE) {
-        VAddr& slot = PageSlot(gpu_addr + offset);
+    for (u64 offset{}; offset < size; offset += PAGE_SIZE) {
+        VAddr& slot{PageSlot(gpu_addr + offset)};
 
         ASSERT(slot == static_cast<u64>(PageStatus::Unmapped));
+
         slot = static_cast<u64>(PageStatus::Allocated);
     }
 
@@ -34,17 +38,19 @@ GPUVAddr MemoryManager::AllocateSpace(GPUVAddr gpu_addr, u64 size, u64 align) {
 }
 
 GPUVAddr MemoryManager::MapBufferEx(VAddr cpu_addr, u64 size) {
-    std::optional<GPUVAddr> gpu_addr = FindFreeBlock(size, PAGE_SIZE);
-    ASSERT(gpu_addr);
+    const std::optional<GPUVAddr> gpu_addr{FindFreeBlock(0, size, PAGE_SIZE, PageStatus::Unmapped)};
 
-    for (u64 offset = 0; offset < size; offset += PAGE_SIZE) {
-        VAddr& slot = PageSlot(*gpu_addr + offset);
+    ASSERT_MSG(gpu_addr, "unable to find available GPU memory");
+
+    for (u64 offset{}; offset < size; offset += PAGE_SIZE) {
+        VAddr& slot{PageSlot(*gpu_addr + offset)};
 
         ASSERT(slot == static_cast<u64>(PageStatus::Unmapped));
+
         slot = cpu_addr + offset;
     }
 
-    MappedRegion region{cpu_addr, *gpu_addr, size};
+    const MappedRegion region{cpu_addr, *gpu_addr, size};
     mapped_regions.push_back(region);
 
     return *gpu_addr;
@@ -53,14 +59,31 @@ GPUVAddr MemoryManager::MapBufferEx(VAddr cpu_addr, u64 size) {
 GPUVAddr MemoryManager::MapBufferEx(VAddr cpu_addr, GPUVAddr gpu_addr, u64 size) {
     ASSERT((gpu_addr & PAGE_MASK) == 0);
 
-    for (u64 offset = 0; offset < size; offset += PAGE_SIZE) {
-        VAddr& slot = PageSlot(gpu_addr + offset);
+    if (PageSlot(gpu_addr) != static_cast<u64>(PageStatus::Allocated)) {
+        // Page has been already mapped. In this case, we must find a new area of memory to use that
+        // is different than the specified one. Super Mario Odyssey hits this scenario when changing
+        // areas, but we do not want to overwrite the old pages.
+        // TODO(bunnei): We need to write a hardware test to confirm this behavior.
+
+        LOG_ERROR(HW_GPU, "attempting to map addr 0x{:016X}, which is not available!", gpu_addr);
+
+        const std::optional<GPUVAddr> new_gpu_addr{
+            FindFreeBlock(gpu_addr, size, PAGE_SIZE, PageStatus::Allocated)};
+
+        ASSERT_MSG(new_gpu_addr, "unable to find available GPU memory");
+
+        gpu_addr = *new_gpu_addr;
+    }
+
+    for (u64 offset{}; offset < size; offset += PAGE_SIZE) {
+        VAddr& slot{PageSlot(gpu_addr + offset)};
 
         ASSERT(slot == static_cast<u64>(PageStatus::Allocated));
+
         slot = cpu_addr + offset;
     }
 
-    MappedRegion region{cpu_addr, gpu_addr, size};
+    const MappedRegion region{cpu_addr, gpu_addr, size};
     mapped_regions.push_back(region);
 
     return gpu_addr;
@@ -69,11 +92,12 @@ GPUVAddr MemoryManager::MapBufferEx(VAddr cpu_addr, GPUVAddr gpu_addr, u64 size)
 GPUVAddr MemoryManager::UnmapBuffer(GPUVAddr gpu_addr, u64 size) {
     ASSERT((gpu_addr & PAGE_MASK) == 0);
 
-    for (u64 offset = 0; offset < size; offset += PAGE_SIZE) {
-        VAddr& slot = PageSlot(gpu_addr + offset);
+    for (u64 offset{}; offset < size; offset += PAGE_SIZE) {
+        VAddr& slot{PageSlot(gpu_addr + offset)};
 
         ASSERT(slot != static_cast<u64>(PageStatus::Allocated) &&
                slot != static_cast<u64>(PageStatus::Unmapped));
+
         slot = static_cast<u64>(PageStatus::Unmapped);
     }
 
@@ -97,13 +121,14 @@ GPUVAddr MemoryManager::GetRegionEnd(GPUVAddr region_start) const {
     return {};
 }
 
-std::optional<GPUVAddr> MemoryManager::FindFreeBlock(u64 size, u64 align) {
-    GPUVAddr gpu_addr = 0;
-    u64 free_space = 0;
+std::optional<GPUVAddr> MemoryManager::FindFreeBlock(GPUVAddr region_start, u64 size, u64 align,
+                                                     PageStatus status) {
+    GPUVAddr gpu_addr{region_start};
+    u64 free_space{};
     align = (align + PAGE_MASK) & ~PAGE_MASK;
 
     while (gpu_addr + free_space < MAX_ADDRESS) {
-        if (!IsPageMapped(gpu_addr + free_space)) {
+        if (PageSlot(gpu_addr + free_space) == static_cast<u64>(status)) {
             free_space += PAGE_SIZE;
             if (free_space >= size) {
                 return gpu_addr;
@@ -119,7 +144,7 @@ std::optional<GPUVAddr> MemoryManager::FindFreeBlock(u64 size, u64 align) {
 }
 
 std::optional<VAddr> MemoryManager::GpuToCpuAddress(GPUVAddr gpu_addr) {
-    VAddr base_addr = PageSlot(gpu_addr);
+    const VAddr base_addr{PageSlot(gpu_addr)};
 
     if (base_addr == static_cast<u64>(PageStatus::Allocated) ||
         base_addr == static_cast<u64>(PageStatus::Unmapped)) {
@@ -133,19 +158,15 @@ std::vector<GPUVAddr> MemoryManager::CpuToGpuAddress(VAddr cpu_addr) const {
     std::vector<GPUVAddr> results;
     for (const auto& region : mapped_regions) {
         if (cpu_addr >= region.cpu_addr && cpu_addr < (region.cpu_addr + region.size)) {
-            u64 offset = cpu_addr - region.cpu_addr;
+            const u64 offset{cpu_addr - region.cpu_addr};
             results.push_back(region.gpu_addr + offset);
         }
     }
     return results;
 }
 
-bool MemoryManager::IsPageMapped(GPUVAddr gpu_addr) {
-    return PageSlot(gpu_addr) != static_cast<u64>(PageStatus::Unmapped);
-}
-
 VAddr& MemoryManager::PageSlot(GPUVAddr gpu_addr) {
-    auto& block = page_table[(gpu_addr >> (PAGE_BITS + PAGE_TABLE_BITS)) & PAGE_TABLE_MASK];
+    auto& block{page_table[(gpu_addr >> (PAGE_BITS + PAGE_TABLE_BITS)) & PAGE_TABLE_MASK]};
     if (!block) {
         block = std::make_unique<PageBlock>();
         block->fill(static_cast<VAddr>(PageStatus::Unmapped));

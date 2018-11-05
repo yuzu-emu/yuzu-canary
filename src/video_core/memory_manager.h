@@ -34,14 +34,14 @@ public:
     static constexpr u64 PAGE_MASK = PAGE_SIZE - 1;
 
 private:
-    std::optional<GPUVAddr> FindFreeBlock(u64 size, u64 align = 1);
-    bool IsPageMapped(GPUVAddr gpu_addr);
-    VAddr& PageSlot(GPUVAddr gpu_addr);
-
     enum class PageStatus : u64 {
         Unmapped = 0xFFFFFFFFFFFFFFFFULL,
         Allocated = 0xFFFFFFFFFFFFFFFEULL,
     };
+
+    std::optional<GPUVAddr> FindFreeBlock(GPUVAddr region_start, u64 size, u64 align,
+                                          PageStatus status);
+    VAddr& PageSlot(GPUVAddr gpu_addr);
 
     static constexpr u64 MAX_ADDRESS{0x10000000000ULL};
     static constexpr u64 PAGE_TABLE_BITS{10};
