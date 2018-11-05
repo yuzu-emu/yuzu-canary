@@ -37,6 +37,22 @@ void Maxwell3D::InitializeRegisterDefaults() {
         regs.viewport[viewport].depth_range_near = 0.0f;
         regs.viewport[viewport].depth_range_far = 1.0f;
     }
+    // Doom and Bomberman seems to use the uninitialized registers and just enable blend
+    // so initialize blend registers with sane values
+    regs.blend.equation_rgb = Regs::Blend::Equation::Add;
+    regs.blend.factor_source_rgb = Regs::Blend::Factor::One;
+    regs.blend.factor_dest_rgb = Regs::Blend::Factor::Zero;
+    regs.blend.equation_a = Regs::Blend::Equation::Add;
+    regs.blend.factor_source_a = Regs::Blend::Factor::One;
+    regs.blend.factor_dest_a = Regs::Blend::Factor::Zero;
+    for (std::size_t blend_index = 0; blend_index < Regs::NumRenderTargets; blend_index++) {
+        regs.independent_blend[blend_index].equation_rgb = Regs::Blend::Equation::Add;
+        regs.independent_blend[blend_index].factor_source_rgb = Regs::Blend::Factor::One;
+        regs.independent_blend[blend_index].factor_dest_rgb = Regs::Blend::Factor::Zero;
+        regs.independent_blend[blend_index].equation_a = Regs::Blend::Equation::Add;
+        regs.independent_blend[blend_index].factor_source_a = Regs::Blend::Factor::One;
+        regs.independent_blend[blend_index].factor_dest_a = Regs::Blend::Factor::Zero;
+    }
 }
 
 void Maxwell3D::CallMacroMethod(u32 method, std::vector<u32> parameters) {
