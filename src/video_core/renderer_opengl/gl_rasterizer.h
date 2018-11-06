@@ -133,7 +133,7 @@ private:
     u32 SetupTextures(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage, Shader& shader,
                       GLenum primitive_mode, u32 current_unit);
 
-    /// Syncs the viewport to match the guest state
+    /// Syncs the viewport and depth range to match the guest state
     void SyncViewport();
 
     /// Syncs the clip enabled status to match the guest state
@@ -147,9 +147,6 @@ private:
 
     /// Syncs the primitve restart to match the guest state
     void SyncPrimitiveRestart();
-
-    /// Syncs the depth range to match the guest state
-    void SyncDepthRange();
 
     /// Syncs the depth test state to match the guest state
     void SyncDepthTestState();
@@ -171,6 +168,9 @@ private:
 
     /// Syncs the point state to match the guest state
     void SyncPointState();
+
+    /// Syncs Color Mask
+    void SyncColorMask();
 
     /// Check asserts for alpha testing.
     void CheckAlphaTests();
