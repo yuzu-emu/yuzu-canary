@@ -33,7 +33,8 @@ using Maxwell = Tegra::Engines::Maxwell3D::Regs;
 using PixelFormat = VideoCore::Surface::PixelFormat;
 using SurfaceType = VideoCore::Surface::SurfaceType;
 
-MICROPROFILE_DEFINE(OpenGL_VAO, "OpenGL", "Vertex Array Setup", MP_RGB(128, 128, 192));
+MICROPROFILE_DEFINE(OpenGL_VAO, "OpenGL", "Vertex Format Setup", MP_RGB(128, 128, 192));
+MICROPROFILE_DEFINE(OpenGL_VB, "OpenGL", "Vertex Buffer Setup", MP_RGB(128, 128, 192));
 MICROPROFILE_DEFINE(OpenGL_Shader, "OpenGL", "Shader Setup", MP_RGB(128, 128, 192));
 MICROPROFILE_DEFINE(OpenGL_UBO, "OpenGL", "Const Buffer Setup", MP_RGB(128, 128, 192));
 MICROPROFILE_DEFINE(OpenGL_Index, "OpenGL", "Index Buffer Setup", MP_RGB(128, 128, 192));
@@ -122,10 +123,15 @@ RasterizerOpenGL::RasterizerOpenGL(Core::Frontend::EmuWindow& window, ScreenInfo
 
 RasterizerOpenGL::~RasterizerOpenGL() {}
 
-void RasterizerOpenGL::SetupVertexArrays() {
-    MICROPROFILE_SCOPE(OpenGL_VAO);
-    const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
+void RasterizerOpenGL::SetupVertexFormat() {
+    auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
     const auto& regs = gpu.regs;
+
+    if (!gpu.dirty_flags.vertex_attrib_format)
+        return;
+    gpu.dirty_flags.vertex_attrib_format = false;
+
+    MICROPROFILE_SCOPE(OpenGL_VAO);
 
     auto [iter, is_cache_miss] = vertex_array_cache.try_emplace(regs.vertex_attrib_format);
     auto& VAO = iter->second;
@@ -175,8 +181,13 @@ void RasterizerOpenGL::SetupVertexArrays() {
         }
     }
     state.draw.vertex_array = VAO.handle;
-    state.draw.vertex_buffer = buffer_cache.GetHandle();
     state.Apply();
+}
+
+void RasterizerOpenGL::SetupVertexBuffer() {
+    MICROPROFILE_SCOPE(OpenGL_VB);
+    const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
+    const auto& regs = gpu.regs;
 
     // Upload all guest vertex arrays sequentially to our buffer
     for (u32 index = 0; index < Maxwell::NumVertexArrays; ++index) {
@@ -203,6 +214,9 @@ void RasterizerOpenGL::SetupVertexArrays() {
             glVertexBindingDivisor(index, 0);
         }
     }
+
+    // Implicit set by glBindVertexBuffer. Stupid glstate handling...
+    state.draw.vertex_buffer = buffer_cache.GetHandle();
 }
 
 DrawParameters RasterizerOpenGL::SetupDraw() {
@@ -620,7 +634,8 @@ void RasterizerOpenGL::DrawArrays() {
 
     buffer_cache.Map(buffer_size);
 
-    SetupVertexArrays();
+    SetupVertexFormat();
+    SetupVertexBuffer();
     DrawParameters params = SetupDraw();
     SetupShaders(params.primitive_mode);
 
