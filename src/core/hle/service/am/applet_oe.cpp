@@ -12,8 +12,10 @@ namespace Service::AM {
 
 class IApplicationProxy final : public ServiceFramework<IApplicationProxy> {
 public:
-    explicit IApplicationProxy(std::shared_ptr<NVFlinger::NVFlinger> nvflinger)
-        : ServiceFramework("IApplicationProxy"), nvflinger(std::move(nvflinger)) {
+    explicit IApplicationProxy(std::shared_ptr<NVFlinger::NVFlinger> nvflinger,
+                               std::shared_ptr<AppletMessageQueue> msg_queue)
+        : ServiceFramework("IApplicationProxy"), nvflinger(std::move(nvflinger)),
+          msg_queue(std::move(msg_queue)) {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &IApplicationProxy::GetCommonStateGetter, "GetCommonStateGetter"},
@@ -70,7 +72,7 @@ private:
     void GetCommonStateGetter(Kernel::HLERequestContext& ctx) {
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ICommonStateGetter>();
+        rb.PushIpcInterface<ICommonStateGetter>(msg_queue);
         LOG_DEBUG(Service_AM, "called");
     }
 
@@ -89,17 +91,20 @@ private:
     }
 
     std::shared_ptr<NVFlinger::NVFlinger> nvflinger;
+    std::shared_ptr<AppletMessageQueue> msg_queue;
 };
 
 void AppletOE::OpenApplicationProxy(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<IApplicationProxy>(nvflinger);
+    rb.PushIpcInterface<IApplicationProxy>(nvflinger, msg_queue);
     LOG_DEBUG(Service_AM, "called");
 }
 
-AppletOE::AppletOE(std::shared_ptr<NVFlinger::NVFlinger> nvflinger)
-    : ServiceFramework("appletOE"), nvflinger(std::move(nvflinger)) {
+AppletOE::AppletOE(std::shared_ptr<NVFlinger::NVFlinger> nvflinger,
+                   std::shared_ptr<AppletMessageQueue> msg_queue)
+    : ServiceFramework("appletOE"), nvflinger(std::move(nvflinger)),
+      msg_queue(std::move(msg_queue)) {
     static const FunctionInfo functions[] = {
         {0, &AppletOE::OpenApplicationProxy, "OpenApplicationProxy"},
     };
@@ -107,5 +112,9 @@ AppletOE::AppletOE(std::shared_ptr<NVFlinger::NVFlinger> nvflinger)
 }
 
 AppletOE::~AppletOE() = default;
+
+const std::shared_ptr<AppletMessageQueue>& AppletOE::GetMessageQueue() const {
+    return msg_queue;
+}
 
 } // namespace Service::AM
