@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <queue>
 #include "core/hle/service/service.h"
 
 namespace Kernel {
@@ -37,6 +38,31 @@ enum SystemLanguage {
     // 4.0.0+
     SimplifiedChinese = 15,
     TraditionalChinese = 16,
+};
+
+class AppletMessageQueue {
+public:
+    enum class AppletMessage : u32 {
+        NoMessage = 0,
+        FocusStateChanged = 15,
+        OperationModeChanged = 30,
+        PerformanceModeChanged = 31,
+    };
+
+    AppletMessageQueue();
+    ~AppletMessageQueue();
+
+    const Kernel::SharedPtr<Kernel::Event>& GetMesssageRecieveEvent() const;
+    const Kernel::SharedPtr<Kernel::Event>& GetOperationModeChangedEvent() const;
+    void PushMessage(AppletMessage msg);
+    AppletMessage PopMessage();
+    std::size_t GetMessageCount() const;
+    void OperationModeChanged();
+
+private:
+    std::queue<AppletMessage> messages;
+    Kernel::SharedPtr<Kernel::Event> on_new_message;
+    Kernel::SharedPtr<Kernel::Event> on_operation_mode_changed;
 };
 
 class IWindowController final : public ServiceFramework<IWindowController> {
@@ -102,7 +128,7 @@ private:
 
 class ICommonStateGetter final : public ServiceFramework<ICommonStateGetter> {
 public:
-    ICommonStateGetter();
+    explicit ICommonStateGetter(std::shared_ptr<AppletMessageQueue> msg_queue);
     ~ICommonStateGetter() override;
 
 private:
@@ -126,6 +152,7 @@ private:
     void GetDefaultDisplayResolution(Kernel::HLERequestContext& ctx);
 
     Kernel::SharedPtr<Kernel::Event> event;
+    std::shared_ptr<AppletMessageQueue> msg_queue;
 };
 
 class ILibraryAppletCreator final : public ServiceFramework<ILibraryAppletCreator> {

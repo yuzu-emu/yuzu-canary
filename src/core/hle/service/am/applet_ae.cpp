@@ -12,8 +12,10 @@ namespace Service::AM {
 
 class ILibraryAppletProxy final : public ServiceFramework<ILibraryAppletProxy> {
 public:
-    explicit ILibraryAppletProxy(std::shared_ptr<NVFlinger::NVFlinger> nvflinger)
-        : ServiceFramework("ILibraryAppletProxy"), nvflinger(std::move(nvflinger)) {
+    explicit ILibraryAppletProxy(std::shared_ptr<NVFlinger::NVFlinger> nvflinger,
+                                 std::shared_ptr<AppletMessageQueue> msg_queue)
+        : ServiceFramework("ILibraryAppletProxy"), nvflinger(std::move(nvflinger)),
+          msg_queue(std::move(msg_queue)) {
         static const FunctionInfo functions[] = {
             {0, &ILibraryAppletProxy::GetCommonStateGetter, "GetCommonStateGetter"},
             {1, &ILibraryAppletProxy::GetSelfController, "GetSelfController"},
@@ -32,7 +34,7 @@ private:
     void GetCommonStateGetter(Kernel::HLERequestContext& ctx) {
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ICommonStateGetter>();
+        rb.PushIpcInterface<ICommonStateGetter>(msg_queue);
         LOG_DEBUG(Service_AM, "called");
     }
 
@@ -93,12 +95,15 @@ private:
     }
 
     std::shared_ptr<NVFlinger::NVFlinger> nvflinger;
+    std::shared_ptr<AppletMessageQueue> msg_queue;
 };
 
 class ISystemAppletProxy final : public ServiceFramework<ISystemAppletProxy> {
 public:
-    explicit ISystemAppletProxy(std::shared_ptr<NVFlinger::NVFlinger> nvflinger)
-        : ServiceFramework("ISystemAppletProxy"), nvflinger(std::move(nvflinger)) {
+    explicit ISystemAppletProxy(std::shared_ptr<NVFlinger::NVFlinger> nvflinger,
+                                std::shared_ptr<AppletMessageQueue> msg_queue)
+        : ServiceFramework("ISystemAppletProxy"), nvflinger(std::move(nvflinger)),
+          msg_queue(std::move(msg_queue)) {
         static const FunctionInfo functions[] = {
             {0, &ISystemAppletProxy::GetCommonStateGetter, "GetCommonStateGetter"},
             {1, &ISystemAppletProxy::GetSelfController, "GetSelfController"},
@@ -119,7 +124,7 @@ private:
     void GetCommonStateGetter(Kernel::HLERequestContext& ctx) {
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ICommonStateGetter>();
+        rb.PushIpcInterface<ICommonStateGetter>(msg_queue);
         LOG_DEBUG(Service_AM, "called");
     }
 
@@ -186,31 +191,34 @@ private:
         LOG_DEBUG(Service_AM, "called");
     }
     std::shared_ptr<NVFlinger::NVFlinger> nvflinger;
+    std::shared_ptr<AppletMessageQueue> msg_queue;
 };
 
 void AppletAE::OpenSystemAppletProxy(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<ISystemAppletProxy>(nvflinger);
+    rb.PushIpcInterface<ISystemAppletProxy>(nvflinger, msg_queue);
     LOG_DEBUG(Service_AM, "called");
 }
 
 void AppletAE::OpenLibraryAppletProxy(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<ILibraryAppletProxy>(nvflinger);
+    rb.PushIpcInterface<ILibraryAppletProxy>(nvflinger, msg_queue);
     LOG_DEBUG(Service_AM, "called");
 }
 
 void AppletAE::OpenLibraryAppletProxyOld(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<ILibraryAppletProxy>(nvflinger);
+    rb.PushIpcInterface<ILibraryAppletProxy>(nvflinger, msg_queue);
     LOG_DEBUG(Service_AM, "called");
 }
 
-AppletAE::AppletAE(std::shared_ptr<NVFlinger::NVFlinger> nvflinger)
-    : ServiceFramework("appletAE"), nvflinger(std::move(nvflinger)) {
+AppletAE::AppletAE(std::shared_ptr<NVFlinger::NVFlinger> nvflinger,
+                   std::shared_ptr<AppletMessageQueue> msg_queue)
+    : ServiceFramework("appletAE"), nvflinger(std::move(nvflinger)),
+      msg_queue(std::move(msg_queue)) {
     // clang-format off
     static const FunctionInfo functions[] = {
         {100, &AppletAE::OpenSystemAppletProxy, "OpenSystemAppletProxy"},
@@ -227,5 +235,9 @@ AppletAE::AppletAE(std::shared_ptr<NVFlinger::NVFlinger> nvflinger)
 }
 
 AppletAE::~AppletAE() = default;
+
+const std::shared_ptr<AppletMessageQueue>& AppletAE::GetMessageQueue() const {
+    return msg_queue;
+}
 
 } // namespace Service::AM
