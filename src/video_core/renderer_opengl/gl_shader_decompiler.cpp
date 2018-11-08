@@ -2742,12 +2742,12 @@ private:
                 }
                 case 3: {
                     if (is_array) {
-                        UNIMPLEMENTED_MSG("3-coordinate arrays not fully implemented");
-                        const std::string x = regs.GetRegisterAsFloat(instr.gpr8);
-                        const std::string y = regs.GetRegisterAsFloat(instr.gpr20);
-                        coord = "vec2 coords = vec2(" + x + ", " + y + ");";
-                        texture_type = Tegra::Shader::TextureType::Texture2D;
-                        is_array = false;
+                        const std::string index = regs.GetRegisterAsInteger(instr.gpr8);
+                        const std::string x = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
+                        const std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 2);
+                        const std::string z = regs.GetRegisterAsFloat(instr.gpr20);
+                        coord =
+                            "vec4 coords = vec4(" + x + ", " + y + ", " + z + ", " + index + ");";
                     } else {
                         const std::string x = regs.GetRegisterAsFloat(instr.gpr8);
                         const std::string y = regs.GetRegisterAsFloat(instr.gpr8.Value() + 1);
@@ -2777,7 +2777,11 @@ private:
                     break;
                 }
                 case Tegra::Shader::TextureProcessMode::LZ: {
-                    texture = "textureLod(" + sampler + ", coords, 0.0)";
+                    if (depth_compare && is_array) {
+                        texture = "texture(" + sampler + ", coords)";
+                    } else {
+                        texture = "textureLod(" + sampler + ", coords, 0.0)";
+                    }
                     break;
                 }
                 case Tegra::Shader::TextureProcessMode::LL: {
