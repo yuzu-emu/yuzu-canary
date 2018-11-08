@@ -338,7 +338,54 @@ void ISelfController::GetIdleTimeDetectionExtension(Kernel::HLERequestContext& c
     LOG_WARNING(Service_AM, "(STUBBED) called");
 }
 
-ICommonStateGetter::ICommonStateGetter() : ServiceFramework("ICommonStateGetter") {
+AppletMessageQueue::AppletMessageQueue() {
+    auto& kernel = Core::System::GetInstance().Kernel();
+    on_new_message = Kernel::Event::Create(kernel, Kernel::ResetType::Sticky,
+                                           "AMMessageQueue:OnMessageRecieved");
+    on_operation_mode_changed = Kernel::Event::Create(kernel, Kernel::ResetType::OneShot,
+                                                      "AMMessageQueue:OperationModeChanged");
+}
+
+AppletMessageQueue::~AppletMessageQueue() = default;
+
+const Kernel::SharedPtr<Kernel::Event>& AppletMessageQueue::GetMesssageRecieveEvent() const {
+    return on_new_message;
+}
+
+const Kernel::SharedPtr<Kernel::Event>& AppletMessageQueue::GetOperationModeChangedEvent() const {
+    return on_operation_mode_changed;
+}
+
+void AppletMessageQueue::PushMessage(AppletMessage msg) {
+    messages.push(msg);
+    on_new_message->Signal();
+}
+
+AppletMessageQueue::AppletMessage AppletMessageQueue::PopMessage() {
+    if (messages.empty()) {
+        on_new_message->Clear();
+        return AppletMessage::NoMessage;
+    }
+    auto msg = messages.front();
+    messages.pop();
+    if (messages.empty()) {
+        on_new_message->Clear();
+    }
+    return msg;
+}
+
+std::size_t AppletMessageQueue::GetMessageCount() const {
+    return messages.size();
+}
+
+void AppletMessageQueue::OperationModeChanged() {
+    PushMessage(AppletMessage::OperationModeChanged);
+    PushMessage(AppletMessage::PerformanceModeChanged);
+    on_operation_mode_changed->Signal();
+}
+
+ICommonStateGetter::ICommonStateGetter(std::shared_ptr<AppletMessageQueue> msg_queue)
+    : ServiceFramework("ICommonStateGetter"), msg_queue(std::move(msg_queue)) {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, &ICommonStateGetter::GetEventHandle, "GetEventHandle"},
@@ -388,21 +435,19 @@ void ICommonStateGetter::GetBootMode(Kernel::HLERequestContext& ctx) {
 }
 
 void ICommonStateGetter::GetEventHandle(Kernel::HLERequestContext& ctx) {
-    event->Signal();
-
     IPC::ResponseBuilder rb{ctx, 2, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushCopyObjects(event);
+    rb.PushCopyObjects(msg_queue->GetMesssageRecieveEvent());
 
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "called");
 }
 
 void ICommonStateGetter::ReceiveMessage(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(RESULT_SUCCESS);
-    rb.Push<u32>(15);
+    rb.PushEnum<AppletMessageQueue::AppletMessage>(msg_queue->PopMessage());
 
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "called");
 }
 
 void ICommonStateGetter::GetCurrentFocusState(Kernel::HLERequestContext& ctx) {
@@ -414,13 +459,11 @@ void ICommonStateGetter::GetCurrentFocusState(Kernel::HLERequestContext& ctx) {
 }
 
 void ICommonStateGetter::GetDefaultDisplayResolutionChangeEvent(Kernel::HLERequestContext& ctx) {
-    event->Signal();
-
     IPC::ResponseBuilder rb{ctx, 2, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushCopyObjects(event);
+    rb.PushCopyObjects(msg_queue->GetOperationModeChangedEvent());
 
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "called");
 }
 
 void ICommonStateGetter::GetDefaultDisplayResolution(Kernel::HLERequestContext& ctx) {
@@ -444,7 +487,7 @@ void ICommonStateGetter::GetOperationMode(Kernel::HLERequestContext& ctx) {
     rb.Push(RESULT_SUCCESS);
     rb.Push(static_cast<u8>(use_docked_mode ? OperationMode::Docked : OperationMode::Handheld));
 
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "called");
 }
 
 void ICommonStateGetter::GetPerformanceMode(Kernel::HLERequestContext& ctx) {
@@ -454,7 +497,7 @@ void ICommonStateGetter::GetPerformanceMode(Kernel::HLERequestContext& ctx) {
     rb.Push(static_cast<u32>(use_docked_mode ? APM::PerformanceMode::Docked
                                              : APM::PerformanceMode::Handheld));
 
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    LOG_DEBUG(Service_AM, "called");
 }
 
 class IStorageAccessor final : public ServiceFramework<IStorageAccessor> {
@@ -840,8 +883,12 @@ void IApplicationFunctions::GetPseudoDeviceId(Kernel::HLERequestContext& ctx) {
 
 void InstallInterfaces(SM::ServiceManager& service_manager,
                        std::shared_ptr<NVFlinger::NVFlinger> nvflinger) {
-    std::make_shared<AppletAE>(nvflinger)->InstallAsService(service_manager);
-    std::make_shared<AppletOE>(nvflinger)->InstallAsService(service_manager);
+    auto message_queue = std::make_shared<AppletMessageQueue>();
+    message_queue->PushMessage(
+        AppletMessageQueue::AppletMessage::FocusStateChanged); // Needed on game boot
+
+    std::make_shared<AppletAE>(nvflinger, message_queue)->InstallAsService(service_manager);
+    std::make_shared<AppletOE>(nvflinger, message_queue)->InstallAsService(service_manager);
     std::make_shared<IdleSys>()->InstallAsService(service_manager);
     std::make_shared<OMM>()->InstallAsService(service_manager);
     std::make_shared<SPSM>()->InstallAsService(service_manager);
