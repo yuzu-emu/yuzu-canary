@@ -108,7 +108,15 @@ void Maxwell3D::WriteReg(u32 method, u32 value, u32 remaining_params) {
         debug_context->OnEvent(Tegra::DebugContext::Event::MaxwellCommandLoaded, nullptr);
     }
 
+    u32 old = regs.reg_array[method];
     regs.reg_array[method] = value;
+
+    if (value != old) {
+        if (method >= MAXWELL3D_REG_INDEX(vertex_attrib_format) &&
+            method < MAXWELL3D_REG_INDEX(vertex_attrib_format) + regs.vertex_attrib_format.size()) {
+            dirty_flags.vertex_attrib_format = true;
+        }
+    }
 
     switch (method) {
     case MAXWELL3D_REG_INDEX(macros.data): {

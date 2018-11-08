@@ -207,7 +207,8 @@ private:
 
     std::size_t CalculateIndexBufferSize() const;
 
-    void SetupVertexArrays();
+    void SetupVertexFormat();
+    void SetupVertexBuffer();
 
     DrawParameters SetupDraw();
 
