@@ -25,6 +25,7 @@ public:
 
 private:
     void setConfiguration();
+    void OnDockedModeChanged(bool last_state, bool new_state);
 
     std::unique_ptr<Ui::ConfigureGeneral> ui;
 };
