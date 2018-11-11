@@ -8,9 +8,11 @@
 #include <thread>
 
 // VFS includes must be before glad as they will conflict with Windows file api, which uses defines.
+#include "applets/software_keyboard.h"
 #include "core/file_sys/vfs.h"
 #include "core/file_sys/vfs_real.h"
 #include "core/hle/service/acc/profile_manager.h"
+#include "core/hle/service/am/applets/applets.h"
 
 // These are wrappers to avoid the calls to CreateDirectory and CreateFile becuase of the Windows
 // defines.
@@ -550,6 +552,8 @@ bool GMainWindow::LoadROM(const QString& filename) {
     system.SetFilesystem(vfs);
 
     system.SetGPUDebugContext(debug_context);
+
+    Service::AM::Applets::RegisterSoftwareKeyboard(std::make_shared<QtSoftwareKeyboard>(*this));
 
     const Core::System::ResultStatus result{system.Load(*render_window, filename.toStdString())};
 
