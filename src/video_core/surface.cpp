@@ -306,6 +306,8 @@ PixelFormat PixelFormatFromTextureFormat(Tegra::Texture::TextureFormat format,
         return is_srgb ? PixelFormat::ASTC_2D_8X8_SRGB : PixelFormat::ASTC_2D_8X8;
     case Tegra::Texture::TextureFormat::ASTC_2D_8X5:
         return is_srgb ? PixelFormat::ASTC_2D_8X5_SRGB : PixelFormat::ASTC_2D_8X5;
+    case Tegra::Texture::TextureFormat::ASTC_2D_10X8:
+        return is_srgb ? PixelFormat::ASTC_2D_10X8_SRGB : PixelFormat::ASTC_2D_10X8;
     case Tegra::Texture::TextureFormat::R16_G16:
         switch (component_type) {
         case Tegra::Texture::ComponentType::FLOAT:
@@ -453,6 +455,8 @@ bool IsPixelFormatASTC(PixelFormat format) {
     case PixelFormat::ASTC_2D_5X5_SRGB:
     case PixelFormat::ASTC_2D_8X8_SRGB:
     case PixelFormat::ASTC_2D_8X5_SRGB:
+    case PixelFormat::ASTC_2D_10X8:
+    case PixelFormat::ASTC_2D_10X8_SRGB:
         return true;
     default:
         return false;
