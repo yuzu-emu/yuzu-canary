@@ -1004,6 +1004,12 @@ public:
     State state{};
     MemoryManager& memory_manager;
 
+    struct DirtyFlags {
+        bool vertex_attrib_format = true;
+    };
+
+    DirtyFlags dirty_flags;
+
     /// Reads a register value located at the input method address
     u32 GetRegisterValue(u32 method) const;
 
