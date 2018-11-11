@@ -7,7 +7,9 @@
 #include <array>
 #include "common/common_types.h"
 #include "common/swap.h"
+#include "core/frontend/input.h"
 #include "core/hle/service/hid/controllers/controller_base.h"
+#include "core/settings.h"
 
 namespace Service::HID {
 class Controller_Mouse final : public ControllerBase {
@@ -35,7 +37,8 @@ private:
         s32_le y;
         s32_le delta_x;
         s32_le delta_y;
-        s32_le mouse_wheel;
+        s32_le mouse_wheel_x;
+        s32_le mouse_wheel_y;
         s32_le button;
         s32_le attribute;
     };
@@ -46,5 +49,9 @@ private:
         std::array<MouseState, 17> mouse_states;
     };
     SharedMemory shared_memory{};
+
+    std::unique_ptr<Input::MouseDevice> mouse_device;
+    std::array<std::unique_ptr<Input::ButtonDevice>, Settings::NativeMouseButton::NumMouseButtons>
+        mouse_button_devices;
 };
 } // namespace Service::HID
