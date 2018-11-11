@@ -5,10 +5,13 @@
 #pragma once
 
 #include <array>
+#include "common/bit_field.h"
 #include "common/common_funcs.h"
 #include "common/common_types.h"
 #include "common/swap.h"
+#include "core/frontend/input.h"
 #include "core/hle/service/hid/controllers/controller_base.h"
+#include "core/settings.h"
 
 namespace Service::HID {
 class Controller_DebugPad final : public ControllerBase {
@@ -35,11 +38,40 @@ private:
     };
     static_assert(sizeof(AnalogStick) == 0x8);
 
+    struct PadState {
+        union {
+            u32_le raw{};
+            BitField<0, 1, u32_le> a;
+            BitField<1, 1, u32_le> b;
+            BitField<2, 1, u32_le> x;
+            BitField<3, 1, u32_le> y;
+            BitField<4, 1, u32_le> l;
+            BitField<5, 1, u32_le> r;
+            BitField<6, 1, u32_le> zl;
+            BitField<7, 1, u32_le> zr;
+            BitField<8, 1, u32_le> plus;
+            BitField<9, 1, u32_le> minus;
+            BitField<10, 1, u32_le> d_left;
+            BitField<11, 1, u32_le> d_up;
+            BitField<12, 1, u32_le> d_right;
+            BitField<13, 1, u32_le> d_down;
+        };
+    };
+    static_assert(sizeof(PadState) == 0x4, "PadState is an invalid size");
+
+    struct Attributes {
+        union {
+            u32_le raw{};
+            BitField<0, 1, u32_le> connected;
+        };
+    };
+    static_assert(sizeof(Attributes) == 0x4, "Attributes is an invalid size");
+
     struct PadStates {
         s64_le sampling_number;
         s64_le sampling_number2;
-        u32_le attribute;
-        u32_le button_state;
+        Attributes attribute;
+        PadState pad_state;
         AnalogStick r_stick;
         AnalogStick l_stick;
     };
@@ -52,5 +84,10 @@ private:
     };
     static_assert(sizeof(SharedMemory) == 0x400, "SharedMemory is an invalid size");
     SharedMemory shared_memory{};
+
+    std::array<std::unique_ptr<Input::ButtonDevice>, Settings::NativeButton::NUM_BUTTONS_HID>
+        buttons;
+    std::array<std::unique_ptr<Input::AnalogDevice>, Settings::NativeAnalog::NUM_STICKS_HID>
+        analogs;
 };
 } // namespace Service::HID
