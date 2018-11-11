@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>300</width>
-    <height>377</height>
+    <height>407</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -71,13 +71,6 @@
        <layout class="QHBoxLayout" name="EmulationHorizontalLayout">
         <item>
          <layout class="QVBoxLayout" name="EmulationVerticalLayout">
-          <item>
-           <widget class="QCheckBox" name="use_docked_mode">
-            <property name="text">
-             <string>Enable docked mode</string>
-            </property>
-           </widget>
-          </item>
           <item>
            <widget class="QCheckBox" name="enable_nfc">
             <property name="text">
