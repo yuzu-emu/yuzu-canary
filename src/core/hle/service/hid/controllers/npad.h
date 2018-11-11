@@ -5,12 +5,17 @@
 #pragma once
 
 #include <array>
+#include "common/bit_field.h"
 #include "common/common_types.h"
 #include "core/frontend/input.h"
+#include "core/hle/kernel/event.h"
 #include "core/hle/service/hid/controllers/controller_base.h"
 #include "core/settings.h"
 
 namespace Service::HID {
+
+constexpr u32 NPAD_HANDHELD = 32;
+constexpr u32 NPAD_UNKNOWN = 16; // TODO(ogniK): What is this?
 
 class Controller_NPad final : public ControllerBase {
 public:
@@ -107,11 +112,19 @@ public:
     Vibration GetLastVibration() const;
 
     void AddNewController(NPadControllerType controller);
+    void AddNewControllerAt(NPadControllerType controller, u32 npad_id);
 
     void ConnectNPad(u32 npad_id);
     void DisconnectNPad(u32 npad_id);
     LedPattern GetLedPattern(u32 npad_id);
     void SetVibrationEnabled(bool can_vibrate);
+    void ClearAllConnectedControllers();
+    void DisconnectAllConnectedControllers();
+    void ConnectAllDisconnectedControllers();
+    void ClearAllControllers();
+
+    static std::size_t NPadIdToIndex(u32 npad_id);
+    static u32 IndexToNPad(std::size_t index);
 
 private:
     struct CommonHeader {
@@ -164,8 +177,11 @@ private:
             BitField<23, 1, u64_le> r_stick_down;
 
             // Not always active?
-            BitField<24, 1, u64_le> sl;
-            BitField<25, 1, u64_le> sr;
+            BitField<24, 1, u64_le> left_sl;
+            BitField<25, 1, u64_le> left_sr;
+
+            BitField<26, 1, u64_le> right_sl;
+            BitField<27, 1, u64_le> right_sr;
         };
     };
     static_assert(sizeof(ControllerPadState) == 8, "ControllerPadState is an invalid size");
@@ -189,12 +205,17 @@ private:
     };
     static_assert(sizeof(ConnectionState) == 4, "ConnectionState is an invalid size");
 
-    struct GenericStates {
-        s64_le timestamp;
-        s64_le timestamp2;
+    struct ControllerPad {
         ControllerPadState pad_states;
         AnalogPosition l_stick;
         AnalogPosition r_stick;
+    };
+    static_assert(sizeof(ControllerPad) == 0x18, "ControllerPad is an invalid size");
+
+    struct GenericStates {
+        s64_le timestamp;
+        s64_le timestamp2;
+        ControllerPad pad;
         ConnectionState connection_status;
     };
     static_assert(sizeof(GenericStates) == 0x30, "NPadGenericStates is an invalid size");
@@ -266,15 +287,20 @@ private:
     static_assert(sizeof(NPadEntry) == 0x5000, "NPadEntry is an invalid size");
 
     struct ControllerHolder {
-        Controller_NPad::NPadControllerType type;
+        NPadControllerType type;
         bool is_connected;
     };
 
     NPadType style{};
     std::array<NPadEntry, 10> shared_memory_entries{};
-    std::array<std::unique_ptr<Input::ButtonDevice>, Settings::NativeButton::NUM_BUTTONS_HID>
+    std::array<
+        std::array<std::unique_ptr<Input::ButtonDevice>, Settings::NativeButton::NUM_BUTTONS_HID>,
+        10>
         buttons;
-    std::array<std::unique_ptr<Input::AnalogDevice>, Settings::NativeAnalog::NUM_STICKS_HID> sticks;
+    std::array<
+        std::array<std::unique_ptr<Input::AnalogDevice>, Settings::NativeAnalog::NUM_STICKS_HID>,
+        10>
+        sticks;
     std::vector<u32> supported_npad_id_types{};
     NpadHoldType hold_type{NpadHoldType::Vertical};
     Kernel::SharedPtr<Kernel::Event> styleset_changed_event;
@@ -285,5 +311,8 @@ private:
     void InitNewlyAddedControler(std::size_t controller_idx);
     bool IsControllerSupported(NPadControllerType controller) const;
     NPadControllerType DecideBestController(NPadControllerType priority) const;
+    void RequestPadStateUpdate(u32 npad_id);
+    std::array<ControllerPad, 10> npad_pad_states{};
+    bool IsControllerSupported(NPadControllerType controller);
 };
 } // namespace Service::HID

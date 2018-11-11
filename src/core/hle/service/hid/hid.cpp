@@ -34,8 +34,8 @@
 namespace Service::HID {
 
 // Updating period for each HID device.
-// TODO(shinyquagsire23): These need better values.
-constexpr u64 pad_update_ticks = CoreTiming::BASE_CLOCK_RATE / 100;
+// TODO(ogniK): Find actual polling rate of hid
+constexpr u64 pad_update_ticks = CoreTiming::BASE_CLOCK_RATE / 66;
 constexpr u64 accelerometer_update_ticks = CoreTiming::BASE_CLOCK_RATE / 100;
 constexpr u64 gyroscope_update_ticks = CoreTiming::BASE_CLOCK_RATE / 100;
 constexpr std::size_t SHARED_MEMORY_SIZE = 0x40000;
