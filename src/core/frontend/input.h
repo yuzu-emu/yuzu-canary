@@ -132,4 +132,11 @@ using MotionDevice = InputDevice<std::tuple<Math::Vec3<float>, Math::Vec3<float>
  */
 using TouchDevice = InputDevice<std::tuple<float, float, bool>>;
 
+/**
+ * A mouse device is an input device that returns a tuple of two floats and four ints.
+ * The first two floats are X and Y device coordinates of the mouse (from 0-1).
+ * The s32s are the mouse wheel.
+ */
+using MouseDevice = InputDevice<std::tuple<float, float, s32, s32>>;
+
 } // namespace Input
