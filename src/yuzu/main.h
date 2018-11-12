@@ -29,6 +29,10 @@ class ProfilerWidget;
 class WaitTreeWidget;
 enum class GameListOpenTarget;
 
+namespace Core::Frontend {
+struct SoftwareKeyboardParameters;
+} // namespace Core::Frontend
+
 namespace FileSys {
 class RegisteredCacheUnion;
 class VfsFilesystem;
@@ -94,6 +98,11 @@ signals:
 
     // Signal that tells widgets to update icons to use the current theme
     void UpdateThemedIcons();
+
+public slots:
+    std::optional<std::u16string> SoftwareKeyboardGetText(
+        const Core::Frontend::SoftwareKeyboardParameters& parameters);
+    void SoftwareKeyboardInvokeCheckDialog(std::u16string error_message);
 
 private:
     void InitializeWidgets();
