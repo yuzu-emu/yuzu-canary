@@ -715,18 +715,18 @@ static void FastCopySurface(const Surface& src_surface, const Surface& dst_surfa
 
 MICROPROFILE_DEFINE(OpenGL_CopySurface, "OpenGL", "CopySurface", MP_RGB(128, 192, 64));
 static void CopySurface(const Surface& src_surface, const Surface& dst_surface,
-                        GLuint copy_pbo_handle, GLenum src_attachment = 0,
-                        GLenum dst_attachment = 0, std::size_t cubemap_face = 0) {
+                        const GLuint copy_pbo_handle, const GLenum src_attachment = 0,
+                        const GLenum dst_attachment = 0, const std::size_t cubemap_face = 0) {
     MICROPROFILE_SCOPE(OpenGL_CopySurface);
     ASSERT_MSG(dst_attachment == 0, "Unimplemented");
 
     const auto& src_params{src_surface->GetSurfaceParams()};
     const auto& dst_params{dst_surface->GetSurfaceParams()};
 
-    auto source_format = GetFormatTuple(src_params.pixel_format, src_params.component_type);
-    auto dest_format = GetFormatTuple(dst_params.pixel_format, dst_params.component_type);
+    const auto source_format = GetFormatTuple(src_params.pixel_format, src_params.component_type);
+    const auto dest_format = GetFormatTuple(dst_params.pixel_format, dst_params.component_type);
 
-    std::size_t buffer_size = std::max(src_params.size_in_bytes, dst_params.size_in_bytes);
+    const std::size_t buffer_size = std::max(src_params.size_in_bytes, dst_params.size_in_bytes);
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, copy_pbo_handle);
     glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size, nullptr, GL_STREAM_DRAW_ARB);
@@ -750,13 +750,10 @@ static void CopySurface(const Surface& src_surface, const Surface& dst_surface,
             LOG_DEBUG(HW_GPU, "Trying to upload extra texture data from the CPU during "
                               "reinterpretation but the texture is tiled.");
         }
-        std::size_t remaining_size = dst_params.size_in_bytes - src_params.size_in_bytes;
-        std::vector<u8> data(remaining_size);
-        std::memcpy(data.data(), Memory::GetPointer(dst_params.addr + src_params.size_in_bytes),
-                    data.size());
+        const std::size_t remaining_size = dst_params.size_in_bytes - src_params.size_in_bytes;
 
         glBufferSubData(GL_PIXEL_PACK_BUFFER, src_params.size_in_bytes, remaining_size,
-                        data.data());
+                        Memory::GetPointer(dst_params.addr + src_params.size_in_bytes));
     }
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
