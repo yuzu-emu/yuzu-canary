@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "common/bit_field.h"
 #include "common/common_funcs.h"
 #include "common/common_types.h"
 #include "common/swap.h"
@@ -29,9 +30,18 @@ public:
     void OnLoadInputDevices() override;
 
 private:
+    struct Attributes {
+        union {
+            u32 raw{};
+            BitField<0, 1, u32_le> start_touch;
+            BitField<1, 1, u32_le> end_touch;
+        };
+    };
+    static_assert(sizeof(Attributes) == 0x4, "Attributes is an invalid size");
+
     struct TouchState {
         u64_le delta_time;
-        u32_le attribute;
+        Attributes attribute;
         u32_le finger;
         u32_le x;
         u32_le y;

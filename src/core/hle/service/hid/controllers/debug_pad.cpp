@@ -6,8 +6,13 @@
 #include "common/common_types.h"
 #include "core/core_timing.h"
 #include "core/hle/service/hid/controllers/debug_pad.h"
+#include "core/settings.h"
 
 namespace Service::HID {
+
+constexpr s32 HID_JOYSTICK_MAX = 0x7fff;
+constexpr s32 HID_JOYSTICK_MIN = -0x7fff;
+enum class JoystickId : std::size_t { Joystick_Left, Joystick_Right };
 
 Controller_DebugPad::Controller_DebugPad() = default;
 Controller_DebugPad::~Controller_DebugPad() = default;
@@ -33,10 +38,43 @@ void Controller_DebugPad::OnUpdate(u8* data, std::size_t size) {
 
     cur_entry.sampling_number = last_entry.sampling_number + 1;
     cur_entry.sampling_number2 = cur_entry.sampling_number;
-    // TODO(ogniK): Update debug pad states
+    cur_entry.attribute.connected.Assign(1);
+    auto& pad = cur_entry.pad_state;
+
+    using namespace Settings::NativeButton;
+    pad.a.Assign(buttons[A - BUTTON_HID_BEGIN]->GetStatus());
+    pad.b.Assign(buttons[B - BUTTON_HID_BEGIN]->GetStatus());
+    pad.x.Assign(buttons[X - BUTTON_HID_BEGIN]->GetStatus());
+    pad.y.Assign(buttons[Y - BUTTON_HID_BEGIN]->GetStatus());
+    pad.l.Assign(buttons[L - BUTTON_HID_BEGIN]->GetStatus());
+    pad.r.Assign(buttons[R - BUTTON_HID_BEGIN]->GetStatus());
+    pad.zl.Assign(buttons[ZL - BUTTON_HID_BEGIN]->GetStatus());
+    pad.zr.Assign(buttons[ZR - BUTTON_HID_BEGIN]->GetStatus());
+    pad.plus.Assign(buttons[Plus - BUTTON_HID_BEGIN]->GetStatus());
+    pad.minus.Assign(buttons[Minus - BUTTON_HID_BEGIN]->GetStatus());
+    pad.d_left.Assign(buttons[DLeft - BUTTON_HID_BEGIN]->GetStatus());
+    pad.d_up.Assign(buttons[DUp - BUTTON_HID_BEGIN]->GetStatus());
+    pad.d_right.Assign(buttons[DRight - BUTTON_HID_BEGIN]->GetStatus());
+    pad.d_down.Assign(buttons[DDown - BUTTON_HID_BEGIN]->GetStatus());
+
+    const auto [stick_l_x_f, stick_l_y_f] =
+        analogs[static_cast<std::size_t>(JoystickId::Joystick_Left)]->GetStatus();
+    const auto [stick_r_x_f, stick_r_y_f] =
+        analogs[static_cast<std::size_t>(JoystickId::Joystick_Right)]->GetStatus();
+    cur_entry.l_stick.x = static_cast<s32>(stick_l_x_f * HID_JOYSTICK_MAX);
+    cur_entry.l_stick.y = static_cast<s32>(stick_l_y_f * HID_JOYSTICK_MAX);
+    cur_entry.r_stick.x = static_cast<s32>(stick_r_x_f * HID_JOYSTICK_MAX);
+    cur_entry.r_stick.y = static_cast<s32>(stick_r_y_f * HID_JOYSTICK_MAX);
 
     std::memcpy(data, &shared_memory, sizeof(SharedMemory));
 }
 
-void Controller_DebugPad::OnLoadInputDevices() {}
+void Controller_DebugPad::OnLoadInputDevices() {
+    std::transform(Settings::values.debug_pad_buttons.begin(),
+                   Settings::values.debug_pad_buttons.end(), buttons.begin(),
+                   Input::CreateDevice<Input::ButtonDevice>);
+    std::transform(Settings::values.debug_pad_analogs.begin(),
+                   Settings::values.debug_pad_analogs.end(), analogs.begin(),
+                   Input::CreateDevice<Input::AnalogDevice>);
+}
 } // namespace Service::HID
