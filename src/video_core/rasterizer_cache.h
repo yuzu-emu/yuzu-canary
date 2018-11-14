@@ -5,6 +5,7 @@
 #pragma once
 
 #include <set>
+#include <unordered_map>
 
 #include <boost/icl/interval_map.hpp>
 #include <boost/range/iterator_range_core.hpp>
@@ -88,29 +89,25 @@ public:
 
     /// Invalidates everything in the cache
     void InvalidateAll() {
-        while (object_cache.begin() != object_cache.end()) {
-            Unregister(*object_cache.begin()->second.begin());
+        while (interval_cache.begin() != interval_cache.end()) {
+            Unregister(*interval_cache.begin()->second.begin());
         }
     }
 
 protected:
     /// Tries to get an object from the cache with the specified address
     T TryGet(VAddr addr) const {
-        const ObjectInterval interval{addr};
-        for (auto& pair : boost::make_iterator_range(object_cache.equal_range(interval))) {
-            for (auto& cached_object : pair.second) {
-                if (cached_object->GetAddr() == addr) {
-                    return cached_object;
-                }
-            }
-        }
+        const auto iter = map_cache.find(addr);
+        if (iter != map_cache.end())
+            return iter->second;
         return nullptr;
     }
 
     /// Register an object into the cache
     void Register(const T& object) {
         object->SetIsRegistered(true);
-        object_cache.add({GetInterval(object), ObjectSet{object}});
+        interval_cache.add({GetInterval(object), ObjectSet{object}});
+        map_cache.insert({object->GetAddr(), object});
         rasterizer.UpdatePagesCachedCount(object->GetAddr(), object->GetSizeInBytes(), 1);
     }
 
@@ -118,13 +115,13 @@ protected:
     void Unregister(const T& object) {
         object->SetIsRegistered(false);
         rasterizer.UpdatePagesCachedCount(object->GetAddr(), object->GetSizeInBytes(), -1);
-
         // Only flush if use_accurate_gpu_emulation is enabled, as it incurs a performance hit
         if (Settings::values.use_accurate_gpu_emulation) {
             FlushObject(object);
         }
 
-        object_cache.subtract({GetInterval(object), ObjectSet{object}});
+        interval_cache.subtract({GetInterval(object), ObjectSet{object}});
+        map_cache.erase(object->GetAddr());
     }
 
     /// Returns a ticks counter used for tracking when cached objects were last modified
@@ -141,7 +138,7 @@ private:
 
         std::vector<T> objects;
         const ObjectInterval interval{addr, addr + size};
-        for (auto& pair : boost::make_iterator_range(object_cache.equal_range(interval))) {
+        for (auto& pair : boost::make_iterator_range(interval_cache.equal_range(interval))) {
             for (auto& cached_object : pair.second) {
                 if (!cached_object) {
                     continue;
@@ -167,15 +164,17 @@ private:
     }
 
     using ObjectSet = std::set<T>;
-    using ObjectCache = boost::icl::interval_map<VAddr, ObjectSet>;
-    using ObjectInterval = typename ObjectCache::interval_type;
+    using ObjectCache = std::unordered_map<VAddr, T>;
+    using IntervalCache = boost::icl::interval_map<VAddr, ObjectSet>;
+    using ObjectInterval = typename IntervalCache::interval_type;
 
     static auto GetInterval(const T& object) {
         return ObjectInterval::right_open(object->GetAddr(),
                                           object->GetAddr() + object->GetSizeInBytes());
     }
 
-    ObjectCache object_cache; ///< Cache of objects
-    u64 modified_ticks{};     ///< Counter of cache state ticks, used for in-order flushing
+    ObjectCache map_cache;
+    IntervalCache interval_cache; ///< Cache of objects
+    u64 modified_ticks{};         ///< Counter of cache state ticks, used for in-order flushing
     VideoCore::RasterizerInterface& rasterizer;
 };
