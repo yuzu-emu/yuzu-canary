@@ -70,6 +70,8 @@
     <addaction name="separator"/>
     <addaction name="action_Load_Amiibo"/>
     <addaction name="separator"/>
+    <addaction name="action_Open_yuzu_Folder"/>
+    <addaction name="separator"/>
     <addaction name="action_Exit"/>
    </widget>
    <widget class="QMenu" name="menu_Emulation">
@@ -110,7 +112,6 @@
      <string>&amp;Help</string>
     </property>
     <addaction name="action_Report_Compatibility"/>
-    <addaction name="action_Open_yuzu_Folder" />
     <addaction name="separator"/>
     <addaction name="action_About"/>
    </widget>
