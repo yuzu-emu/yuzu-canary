@@ -170,17 +170,20 @@ static constexpr u32 PageAlignSize(u32 size) {
                     arg_data.size());
     }
 
-    // Read MOD header
-    ModHeader mod_header{};
     // Default .bss to NRO header bss size if MOD0 section doesn't exist
     u32 bss_size{PageAlignSize(nro_header.bss_size)};
+
+    // Read MOD header
+    ModHeader mod_header{};
     std::memcpy(&mod_header, program_image.data() + nro_header.module_header_offset,
                 sizeof(ModHeader));
+
     const bool has_mod_header{mod_header.magic == Common::MakeMagic('M', 'O', 'D', '0')};
     if (has_mod_header) {
         // Resize program image to include .bss section and page align each section
         bss_size = PageAlignSize(mod_header.bss_end_offset - mod_header.bss_start_offset);
     }
+
     codeset.DataSegment().size += bss_size;
     program_image.resize(static_cast<u32>(program_image.size()) + bss_size);
 
