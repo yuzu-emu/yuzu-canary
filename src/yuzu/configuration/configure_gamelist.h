@@ -21,6 +21,8 @@ public:
     void applyConfiguration();
 
 private:
+    void RequestGameListUpdate();
+
     void setConfiguration();
 
     void changeEvent(QEvent*) override;
