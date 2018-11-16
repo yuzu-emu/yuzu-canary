@@ -23,6 +23,9 @@ ConfigureGeneral::ConfigureGeneral(QWidget* parent)
 
     this->setConfiguration();
 
+    connect(ui->toggle_deepscan, &QCheckBox::stateChanged, this,
+            [] { UISettings::values.is_game_list_reload_pending.exchange(true); });
+
     ui->use_cpu_jit->setEnabled(!Core::System::GetInstance().IsPoweredOn());
 }
 
