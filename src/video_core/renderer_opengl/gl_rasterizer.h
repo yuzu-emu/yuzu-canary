@@ -160,6 +160,12 @@ private:
     /// Syncs the LogicOp state to match the guest state
     void SyncLogicOpState();
 
+    /// Syncs the the color clamp state
+    void SyncFragmentColorClampState();
+
+    /// Syncs the alpha coverage and alpha to one
+    void SyncMultiSampleState();
+
     /// Syncs the scissor test state to match the guest state
     void SyncScissorTest();
 
