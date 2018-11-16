@@ -15,6 +15,7 @@
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/kernel/hle_ipc.h"
 #include "core/hle/service/audio/hwopus.h"
+#include "core/settings.h"
 
 namespace Service::Audio {
 
@@ -142,6 +143,10 @@ void HwOpus::GetWorkBufferSize(Kernel::HLERequestContext& ctx) {
     ASSERT_MSG(channel_count == 1 || channel_count == 2, "Invalid channel count");
     u32 worker_buffer_sz = static_cast<u32>(WorkerBufferSize(channel_count));
     LOG_DEBUG(Audio, "called worker_buffer_sz={}", worker_buffer_sz);
+
+    if (Settings::values.sink_id == "null") {
+        worker_buffer_sz = 0;
+    }
 
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(RESULT_SUCCESS);
