@@ -28,8 +28,9 @@ void Module::Interface::GetRandomBytes(Kernel::HLERequestContext& ctx) {
 
     std::size_t size = ctx.GetWriteBufferSize();
 
+    std::uniform_int_distribution<u16> distribution(0, std::numeric_limits<u8>::max());
     std::vector<u8> data(size);
-    std::generate(data.begin(), data.end(), rng);
+    std::generate(data.begin(), data.end(), [&] { return static_cast<u8>(distribution(rng)); });
 
     ctx.WriteBuffer(data);
 
