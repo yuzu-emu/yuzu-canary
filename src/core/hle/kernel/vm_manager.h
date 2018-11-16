@@ -18,6 +18,20 @@ enum class ProgramAddressSpaceType : u8;
 
 namespace Kernel {
 
+// Checks if address + size is greater than the given address
+// This can return false if the size causes an overflow of a 64-bit type
+// or if the given size is zero.
+constexpr bool IsValidAddressRange(VAddr address, u64 size) {
+    return address + size > address;
+}
+
+// Checks if a given address range lies within a larger address range.
+constexpr bool IsInsideAddressRange(VAddr address, u64 size, VAddr address_range_begin,
+                                    VAddr address_range_end) {
+    const VAddr end_address = address + size - 1;
+    return address_range_begin <= address && end_address <= address_range_end - 1;
+}
+
 enum class VMAType : u8 {
     /// VMA represents an unmapped region of the address space.
     Free,
@@ -166,6 +180,22 @@ public:
     ResultVal<VAddr> FindFreeRegion(u64 size) const;
 
     /**
+     * Maps memory to the PersonalMmHeap region at a given address.
+     *
+     * @param target The address of where you want to map
+     * @param size The size of the memory you want to map
+     */
+    ResultCode MapPhysicalMemory(VAddr target, u64 size);
+
+    /**
+     * Unmaps memory from the PersonalMmHeap region at a given address.
+     *
+     * @param target The address of where you want to unmap
+     * @param size The size of the memory you want to unmap
+     */
+    ResultCode UnmapPhysicalMemory(VAddr target, u64 size);
+
+    /**
      * Maps a memory-mapped IO region at a given address.
      *
      * @param target The guest address to start the mapping at.
@@ -275,6 +305,13 @@ public:
     /// Gets the total size of the TLS IO region in bytes.
     u64 GetTLSIORegionSize() const;
 
+    /// Gets the total size of the PersonalMmHeap region in bytes.
+    u64 GetPersonalMmHeapUsage() const;
+
+    bool IsInsideAddressSpace(VAddr address, u64 size) const;
+    bool IsInsideNewMapRegion(VAddr address, u64 size) const;
+    bool IsInsideMapRegion(VAddr address, u64 size) const;
+
     /// Each VMManager has its own page table, which is set as the main one when the owning process
     /// is scheduled.
     Memory::PageTable page_table;
@@ -358,5 +395,7 @@ private:
     VAddr heap_start = 0;
     VAddr heap_end = 0;
     u64 heap_used = 0;
+
+    u64 personal_heap_usage = 0;
 };
 } // namespace Kernel
