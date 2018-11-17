@@ -582,6 +582,8 @@ void RasterizerOpenGL::DrawArrays() {
 
     ConfigureFramebuffers(state);
     SyncColorMask();
+    SyncFragmentColorClampState();
+    SyncMultiSampleState();
     SyncDepthTestState();
     SyncStencilTestState();
     SyncBlendState();
@@ -642,7 +644,7 @@ void RasterizerOpenGL::DrawArrays() {
     params.DispatchDraw();
 
     // Disable scissor test
-    state.scissor.enabled = false;
+    state.viewports[0].scissor.enabled = false;
 
     accelerate_draw = AccelDraw::Disabled;
 
@@ -777,15 +779,13 @@ void RasterizerOpenGL::SamplerInfo::SyncWithConfig(const Tegra::Texture::FullTex
                             MaxwellToGL::DepthCompareFunc(depth_compare_func));
     }
 
-    if (wrap_u == Tegra::Texture::WrapMode::Border || wrap_v == Tegra::Texture::WrapMode::Border ||
-        wrap_p == Tegra::Texture::WrapMode::Border) {
-        const GLvec4 new_border_color = {{config.border_color_r, config.border_color_g,
-                                          config.border_color_b, config.border_color_a}};
-        if (border_color != new_border_color) {
-            border_color = new_border_color;
-            glSamplerParameterfv(s, GL_TEXTURE_BORDER_COLOR, border_color.data());
-        }
+    const GLvec4 new_border_color = {{config.border_color_r, config.border_color_g,
+                                      config.border_color_b, config.border_color_a}};
+    if (border_color != new_border_color) {
+        border_color = new_border_color;
+        glSamplerParameterfv(s, GL_TEXTURE_BORDER_COLOR, border_color.data());
     }
+
     if (info.tic.use_header_opt_control == 0) {
         if (GLAD_GL_ARB_texture_filter_anisotropic) {
             glSamplerParameterf(s, GL_TEXTURE_MAX_ANISOTROPY,
@@ -923,15 +923,15 @@ u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, Shader& shader,
 
 void RasterizerOpenGL::SyncViewport(OpenGLState& current_state) {
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
-    for (size_t i = 0; i < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets; i++) {
+    for (std::size_t i = 0; i < Tegra::Engines::Maxwell3D::Regs::NumViewports; i++) {
         const MathUtil::Rectangle<s32> viewport_rect{regs.viewport_transform[i].GetRect()};
         auto& viewport = current_state.viewports[i];
         viewport.x = viewport_rect.left;
         viewport.y = viewport_rect.bottom;
         viewport.width = static_cast<GLfloat>(viewport_rect.GetWidth());
         viewport.height = static_cast<GLfloat>(viewport_rect.GetHeight());
-        viewport.depth_range_far = regs.viewport[i].depth_range_far;
-        viewport.depth_range_near = regs.viewport[i].depth_range_near;
+        viewport.depth_range_far = regs.viewports[i].depth_range_far;
+        viewport.depth_range_near = regs.viewports[i].depth_range_near;
     }
 }
 
@@ -1022,7 +1022,9 @@ void RasterizerOpenGL::SyncStencilTestState() {
 
 void RasterizerOpenGL::SyncColorMask() {
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
-    for (size_t i = 0; i < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets; i++) {
+    const std::size_t count =
+        regs.independent_blend_enable ? Tegra::Engines::Maxwell3D::Regs::NumRenderTargets : 1;
+    for (std::size_t i = 0; i < count; i++) {
         const auto& source = regs.color_mask[regs.color_mask_common ? 0 : i];
         auto& dest = state.color_mask[i];
         dest.red_enabled = (source.R == 0) ? GL_FALSE : GL_TRUE;
@@ -1030,6 +1032,17 @@ void RasterizerOpenGL::SyncColorMask() {
         dest.blue_enabled = (source.B == 0) ? GL_FALSE : GL_TRUE;
         dest.alpha_enabled = (source.A == 0) ? GL_FALSE : GL_TRUE;
     }
+}
+
+void RasterizerOpenGL::SyncMultiSampleState() {
+    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
+    state.multisample_control.alpha_to_coverage = regs.multisample_control.alpha_to_coverage != 0;
+    state.multisample_control.alpha_to_one = regs.multisample_control.alpha_to_one != 0;
+}
+
+void RasterizerOpenGL::SyncFragmentColorClampState() {
+    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
+    state.fragment_color_clamp.enabled = regs.frag_color_clamp != 0;
 }
 
 void RasterizerOpenGL::SyncBlendState() {
@@ -1053,13 +1066,13 @@ void RasterizerOpenGL::SyncBlendState() {
             blend.src_a_func = MaxwellToGL::BlendFunc(regs.blend.factor_source_a);
             blend.dst_a_func = MaxwellToGL::BlendFunc(regs.blend.factor_dest_a);
         }
-        for (size_t i = 1; i < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets; i++) {
+        for (std::size_t i = 1; i < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets; i++) {
             state.blend[i].enabled = false;
         }
         return;
     }
 
-    for (size_t i = 0; i < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets; i++) {
+    for (std::size_t i = 0; i < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets; i++) {
         auto& blend = state.blend[i];
         blend.enabled = regs.blend.enable[i] != 0;
         if (!blend.enabled)
@@ -1079,7 +1092,6 @@ void RasterizerOpenGL::SyncBlendState() {
 void RasterizerOpenGL::SyncLogicOpState() {
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
 
-    // TODO(Subv): Support more than just render target 0.
     state.logic_op.enabled = regs.logic_op.enable != 0;
 
     if (!state.logic_op.enabled)
@@ -1092,19 +1104,21 @@ void RasterizerOpenGL::SyncLogicOpState() {
 }
 
 void RasterizerOpenGL::SyncScissorTest() {
-    // TODO: what is the correct behavior here, a single scissor for all targets
-    // or scissor disabled for the rest of the targets?
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
-    state.scissor.enabled = (regs.scissor_test.enable != 0);
-    if (regs.scissor_test.enable == 0) {
-        return;
+    for (std::size_t i = 0; i < Tegra::Engines::Maxwell3D::Regs::NumViewports; i++) {
+        const auto& src = regs.scissor_test[i];
+        auto& dst = state.viewports[i].scissor;
+        dst.enabled = (src.enable != 0);
+        if (dst.enabled == 0) {
+            return;
+        }
+        const u32 width = src.max_x - src.min_x;
+        const u32 height = src.max_y - src.min_y;
+        dst.x = src.min_x;
+        dst.y = src.min_y;
+        dst.width = width;
+        dst.height = height;
     }
-    const u32 width = regs.scissor_test.max_x - regs.scissor_test.min_x;
-    const u32 height = regs.scissor_test.max_y - regs.scissor_test.min_y;
-    state.scissor.x = regs.scissor_test.min_x;
-    state.scissor.y = regs.scissor_test.min_y;
-    state.scissor.width = width;
-    state.scissor.height = height;
 }
 
 void RasterizerOpenGL::SyncTransformFeedback() {
@@ -1118,11 +1132,7 @@ void RasterizerOpenGL::SyncTransformFeedback() {
 
 void RasterizerOpenGL::SyncPointState() {
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
-
-    // TODO(Rodrigo): Most games do not set a point size. I think this is a case of a
-    // register carrying a default value. For now, if the point size is zero, assume it's
-    // OpenGL's default (1).
-    state.point.size = regs.point_size == 0 ? 1 : regs.point_size;
+    state.point.size = regs.point_size;
 }
 
 void RasterizerOpenGL::CheckAlphaTests() {
