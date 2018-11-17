@@ -229,14 +229,21 @@ u32 BytesPerPixel(TextureFormat format) {
     }
 }
 
+void UnswizzleTexture(u8* const unswizzled_data, VAddr address, u32 tile_size_x, u32 tile_size_y,
+                      u32 bytes_per_pixel, u32 width, u32 height, u32 depth, u32 block_height,
+                      u32 block_depth) {
+    CopySwizzledData((width + tile_size_x - 1) / tile_size_x,
+                     (height + tile_size_y - 1) / tile_size_y, depth, bytes_per_pixel,
+                     bytes_per_pixel, Memory::GetPointer(address), unswizzled_data, true,
+                     block_height, block_depth);
+}
+
 std::vector<u8> UnswizzleTexture(VAddr address, u32 tile_size_x, u32 tile_size_y,
                                  u32 bytes_per_pixel, u32 width, u32 height, u32 depth,
                                  u32 block_height, u32 block_depth) {
     std::vector<u8> unswizzled_data(width * height * depth * bytes_per_pixel);
-    CopySwizzledData((width + tile_size_x - 1) / tile_size_x,
-                     (height + tile_size_y - 1) / tile_size_y, depth, bytes_per_pixel,
-                     bytes_per_pixel, Memory::GetPointer(address), unswizzled_data.data(), true,
-                     block_height, block_depth);
+    UnswizzleTexture(unswizzled_data.data(), address, tile_size_x, tile_size_y, bytes_per_pixel,
+                     width, height, depth, block_height, block_depth);
     return unswizzled_data;
 }
 
