@@ -1341,7 +1341,13 @@ void GMainWindow::OnConfigure() {
             UpdateUITheme();
         if (UISettings::values.enable_discord_presence != old_discord_presence)
             SetDiscordEnabled(UISettings::values.enable_discord_presence);
-        game_list->PopulateAsync(UISettings::values.gamedir, UISettings::values.gamedir_deepscan);
+
+        const auto reload = UISettings::values.is_game_list_reload_pending.exchange(false);
+        if (reload) {
+            game_list->PopulateAsync(UISettings::values.gamedir,
+                                     UISettings::values.gamedir_deepscan);
+        }
+
         config->Save();
     }
 }
