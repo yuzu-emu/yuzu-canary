@@ -77,8 +77,8 @@ private:
         IPC::ResponseBuilder rb{ctx, 6};
         rb.Push(RESULT_SUCCESS);
         rb.Push<u32>(consumed);
-        rb.Push<u64>(performance);
         rb.Push<u32>(sample_count);
+        rb.Push<u64>(performance);
         ctx.WriteBuffer(samples.data(), samples.size() * sizeof(s16));
     }
 
