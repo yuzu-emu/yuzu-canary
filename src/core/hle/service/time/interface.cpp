@@ -23,7 +23,8 @@ Time::Time(std::shared_ptr<Module> time, const char* name)
         {300, nullptr, "CalculateMonotonicSystemClockBaseTimePoint"},
         {400, &Time::GetClockSnapshot, "GetClockSnapshot"},
         {401, nullptr, "GetClockSnapshotFromSystemClockContext"},
-        {500, nullptr, "CalculateStandardUserSystemClockDifferenceByUser"},
+        {500, &Time::CalculateStandardUserSystemClockDifferenceByUser,
+         "CalculateStandardUserSystemClockDifferenceByUser"},
         {501, nullptr, "CalculateSpanBetween"},
     };
     RegisterHandlers(functions);
