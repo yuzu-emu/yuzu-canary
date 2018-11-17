@@ -2,11 +2,48 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include "common/logging/log.h"
+#include "core/hle/ipc_helpers.h"
+#include "core/hle/kernel/event.h"
+#include "core/hle/kernel/hle_ipc.h"
 #include "core/hle/service/btdrv/btdrv.h"
 #include "core/hle/service/service.h"
 #include "core/hle/service/sm/sm.h"
 
 namespace Service::BtDrv {
+
+class Bt final : public ServiceFramework<Bt> {
+public:
+    explicit Bt() : ServiceFramework{"bt"} {
+        // clang-format off
+        static const FunctionInfo functions[] = {
+            {0, nullptr, "Unknown0"},
+            {1, nullptr, "Unknown1"},
+            {2, nullptr, "Unknown2"},
+            {3, nullptr, "Unknown3"},
+            {4, nullptr, "Unknown4"},
+            {5, nullptr, "Unknown5"},
+            {6, nullptr, "Unknown6"},
+            {7, nullptr, "Unknown7"},
+            {8, nullptr, "Unknown8"},
+            {9, &Bt::RegisterEvent, "RegisterEvent"},
+        };
+        // clang-format on
+        RegisterHandlers(functions);
+    }
+
+private:
+    void RegisterEvent(Kernel::HLERequestContext& ctx) {
+        auto& kernel = Core::System::GetInstance().Kernel();
+        register_event =
+            Kernel::Event::Create(kernel, Kernel::ResetType::OneShot, "BT:RegisterEvent");
+        IPC::ResponseBuilder rb{ctx, 2, 1};
+        rb.Push(RESULT_SUCCESS);
+        rb.PushCopyObjects(register_event);
+        LOG_WARNING(Service_BTM, "(STUBBED) called");
+    }
+    Kernel::SharedPtr<Kernel::Event> register_event;
+};
 
 class BtDrv final : public ServiceFramework<BtDrv> {
 public:
@@ -67,6 +104,7 @@ public:
 
 void InstallInterfaces(SM::ServiceManager& sm) {
     std::make_shared<BtDrv>()->InstallAsService(sm);
+    std::make_shared<Bt>()->InstallAsService(sm);
 }
 
 } // namespace Service::BtDrv
