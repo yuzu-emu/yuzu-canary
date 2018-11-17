@@ -299,6 +299,21 @@ void Module::Interface::GetClockSnapshot(Kernel::HLERequestContext& ctx) {
     ctx.WriteBuffer(&clock_snapshot, sizeof(ClockSnapshot));
 }
 
+void Module::Interface::CalculateStandardUserSystemClockDifferenceByUser(
+    Kernel::HLERequestContext& ctx) {
+    LOG_DEBUG(Service_Time, "called");
+
+    IPC::RequestParser rp{ctx};
+    const auto snapshot_a = rp.PopRaw<ClockSnapshot>();
+    const auto snapshot_b = rp.PopRaw<ClockSnapshot>();
+    const u64 difference =
+        snapshot_b.user_clock_context.offset - snapshot_a.user_clock_context.offset;
+
+    IPC::ResponseBuilder rb{ctx, 4};
+    rb.Push(RESULT_SUCCESS);
+    rb.PushRaw<u64>(difference);
+}
+
 Module::Interface::Interface(std::shared_ptr<Module> time, const char* name)
     : ServiceFramework(name), time(std::move(time)) {}
 
