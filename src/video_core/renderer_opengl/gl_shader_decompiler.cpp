@@ -3297,6 +3297,10 @@ private:
                 regs.SetRegisterToInteger(instr.gpr0, false, 0, predicate + " ? 0xFFFFFFFF : 0", 1,
                                           1);
             }
+            if (instr.generates_cc.Value() != 0) {
+                regs.SetInternalFlag(InternalFlag::ZeroFlag, predicate);
+                LOG_WARNING(HW_GPU, "FSET Control Code is incomplete");
+            }
             break;
         }
         case OpCode::Type::IntegerSet: {
@@ -3580,12 +3584,17 @@ private:
                 ASSERT_MSG(instr.bra.constant_buffer == 0,
                            "BRA with constant buffers are not implemented");
                 const Tegra::Shader::ControlCode cc = instr.flow_control_code;
-                if (cc != Tegra::Shader::ControlCode::T) {
-                    LOG_CRITICAL(HW_GPU, "BRA Control Code used: {}", static_cast<u32>(cc));
-                    UNREACHABLE();
-                }
                 const u32 target = offset + instr.bra.GetBranchTarget();
-                shader.AddLine("{ jmp_to = " + std::to_string(target) + "u; break; }");
+                if (cc != Tegra::Shader::ControlCode::T) {
+                    const std::string control_code = regs.GetControlCode(instr.flow_control_code);
+                    shader.AddLine("if (" + control_code + "){");
+                    shader.scope++;
+                    shader.AddLine("{ jmp_to = " + std::to_string(target) + "u; break; }");
+                    shader.scope--;
+                    shader.AddLine('}');
+                } else {
+                    shader.AddLine("{ jmp_to = " + std::to_string(target) + "u; break; }");
+                }
                 break;
             }
             case OpCode::Id::IPA: {
