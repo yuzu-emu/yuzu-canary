@@ -237,6 +237,22 @@ private:
     Data data{};
 };
 
+/// Represents a parcel containing one int '0' as its data
+/// Used by DetachBuffer and Disconnect
+class IGBPEmptyResponseParcel : public Parcel {
+protected:
+    void SerializeData() override {
+        Write(data);
+    }
+
+private:
+    struct Data {
+        u32_le unk_0;
+    };
+
+    Data data{};
+};
+
 class IGBPSetPreallocatedBufferRequestParcel : public Parcel {
 public:
     explicit IGBPSetPreallocatedBufferRequestParcel(std::vector<u8> buffer)
@@ -554,6 +570,12 @@ private:
             ctx.WriteBuffer(response.Serialize());
         } else if (transaction == TransactionId::CancelBuffer) {
             LOG_CRITICAL(Service_VI, "(STUBBED) called, transaction=CancelBuffer");
+        } else if (transaction == TransactionId::Disconnect ||
+                   transaction == TransactionId::DetachBuffer) {
+            const auto buffer = ctx.ReadBuffer();
+
+            IGBPEmptyResponseParcel response{};
+            ctx.WriteBuffer(response.Serialize());
         } else {
             ASSERT_MSG(false, "Unimplemented");
         }
