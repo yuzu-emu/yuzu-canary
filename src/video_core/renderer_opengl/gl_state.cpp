@@ -14,7 +14,10 @@ OpenGLState OpenGLState::cur_state;
 bool OpenGLState::s_rgb_used;
 OpenGLState::OpenGLState() {
     // These all match default OpenGL values
+    geometry_shaders.enabled = false;
     framebuffer_srgb.enabled = false;
+    multisample_control.alpha_to_coverage = false;
+    multisample_control.alpha_to_one = false;
     cull.enabled = false;
     cull.mode = GL_BACK;
     cull.front_face = GL_CCW;
@@ -50,12 +53,12 @@ OpenGLState::OpenGLState() {
         item.height = 0;
         item.depth_range_near = 0.0f;
         item.depth_range_far = 1.0f;
+        item.scissor.enabled = false;
+        item.scissor.x = 0;
+        item.scissor.y = 0;
+        item.scissor.width = 0;
+        item.scissor.height = 0;
     }
-    scissor.enabled = false;
-    scissor.x = 0;
-    scissor.y = 0;
-    scissor.width = 0;
-    scissor.height = 0;
     for (auto& item : blend) {
         item.enabled = true;
         item.rgb_equation = GL_FUNC_ADD;
@@ -88,6 +91,7 @@ OpenGLState::OpenGLState() {
     clip_distance = {};
 
     point.size = 1;
+    fragment_color_clamp.enabled = false;
 }
 
 void OpenGLState::ApplyDefaultState() {
@@ -136,7 +140,7 @@ void OpenGLState::ApplyCulling() const {
 }
 
 void OpenGLState::ApplyColorMask() const {
-    if (GLAD_GL_ARB_viewport_array) {
+    if (GLAD_GL_ARB_viewport_array && independant_blend.enabled) {
         for (size_t i = 0; i < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets; i++) {
             const auto& updated = color_mask[i];
             const auto& current = cur_state.color_mask[i];
@@ -230,26 +234,10 @@ void OpenGLState::ApplyStencilTest() const {
     }
 }
 
-void OpenGLState::ApplyScissor() const {
-    const bool scissor_changed = scissor.enabled != cur_state.scissor.enabled;
-    if (scissor_changed) {
-        if (scissor.enabled) {
-            glEnable(GL_SCISSOR_TEST);
-        } else {
-            glDisable(GL_SCISSOR_TEST);
-        }
-    }
-    if (scissor.enabled &&
-        (scissor_changed || scissor.x != cur_state.scissor.x || scissor.y != cur_state.scissor.y ||
-         scissor.width != cur_state.scissor.width || scissor.height != cur_state.scissor.height)) {
-        glScissor(scissor.x, scissor.y, scissor.width, scissor.height);
-    }
-}
-
 void OpenGLState::ApplyViewport() const {
-    if (GLAD_GL_ARB_viewport_array) {
-        for (GLuint i = 0;
-             i < static_cast<GLuint>(Tegra::Engines::Maxwell3D::Regs::NumRenderTargets); i++) {
+    if (GLAD_GL_ARB_viewport_array && geometry_shaders.enabled) {
+        for (GLuint i = 0; i < static_cast<GLuint>(Tegra::Engines::Maxwell3D::Regs::NumViewports);
+             i++) {
             const auto& current = cur_state.viewports[i];
             const auto& updated = viewports[i];
             if (updated.x != current.x || updated.y != current.y ||
@@ -259,6 +247,22 @@ void OpenGLState::ApplyViewport() const {
             if (updated.depth_range_near != current.depth_range_near ||
                 updated.depth_range_far != current.depth_range_far) {
                 glDepthRangeIndexed(i, updated.depth_range_near, updated.depth_range_far);
+            }
+            const bool scissor_changed = updated.scissor.enabled != current.scissor.enabled;
+            if (scissor_changed) {
+                if (updated.scissor.enabled) {
+                    glEnablei(GL_SCISSOR_TEST, i);
+                } else {
+                    glDisablei(GL_SCISSOR_TEST, i);
+                }
+            }
+            if (updated.scissor.enabled &&
+                (scissor_changed || updated.scissor.x != current.scissor.x ||
+                 updated.scissor.y != current.scissor.y ||
+                 updated.scissor.width != current.scissor.width ||
+                 updated.scissor.height != current.scissor.height)) {
+                glScissorIndexed(i, updated.scissor.x, updated.scissor.y, updated.scissor.width,
+                                 updated.scissor.height);
             }
         }
     } else {
@@ -272,6 +276,21 @@ void OpenGLState::ApplyViewport() const {
         if (updated.depth_range_near != current.depth_range_near ||
             updated.depth_range_far != current.depth_range_far) {
             glDepthRange(updated.depth_range_near, updated.depth_range_far);
+        }
+        const bool scissor_changed = updated.scissor.enabled != current.scissor.enabled;
+        if (scissor_changed) {
+            if (updated.scissor.enabled) {
+                glEnable(GL_SCISSOR_TEST);
+            } else {
+                glDisable(GL_SCISSOR_TEST);
+            }
+        }
+        if (updated.scissor.enabled && (scissor_changed || updated.scissor.x != current.scissor.x ||
+                                        updated.scissor.y != current.scissor.y ||
+                                        updated.scissor.width != current.scissor.width ||
+                                        updated.scissor.height != current.scissor.height)) {
+            glScissor(updated.scissor.x, updated.scissor.y, updated.scissor.width,
+                      updated.scissor.height);
         }
     }
 }
@@ -290,27 +309,16 @@ void OpenGLState::ApplyGlobalBlending() const {
     if (!updated.enabled) {
         return;
     }
-    if (updated.separate_alpha) {
-        if (blend_changed || updated.src_rgb_func != current.src_rgb_func ||
-            updated.dst_rgb_func != current.dst_rgb_func ||
-            updated.src_a_func != current.src_a_func || updated.dst_a_func != current.dst_a_func) {
-            glBlendFuncSeparate(updated.src_rgb_func, updated.dst_rgb_func, updated.src_a_func,
-                                updated.dst_a_func);
-        }
+    if (blend_changed || updated.src_rgb_func != current.src_rgb_func ||
+        updated.dst_rgb_func != current.dst_rgb_func || updated.src_a_func != current.src_a_func ||
+        updated.dst_a_func != current.dst_a_func) {
+        glBlendFuncSeparate(updated.src_rgb_func, updated.dst_rgb_func, updated.src_a_func,
+                            updated.dst_a_func);
+    }
 
-        if (blend_changed || updated.rgb_equation != current.rgb_equation ||
-            updated.a_equation != current.a_equation) {
-            glBlendEquationSeparate(updated.rgb_equation, updated.a_equation);
-        }
-    } else {
-        if (blend_changed || updated.src_rgb_func != current.src_rgb_func ||
-            updated.dst_rgb_func != current.dst_rgb_func) {
-            glBlendFunc(updated.src_rgb_func, updated.dst_rgb_func);
-        }
-
-        if (blend_changed || updated.rgb_equation != current.rgb_equation) {
-            glBlendEquation(updated.rgb_equation);
-        }
+    if (blend_changed || updated.rgb_equation != current.rgb_equation ||
+        updated.a_equation != current.a_equation) {
+        glBlendEquationSeparate(updated.rgb_equation, updated.a_equation);
     }
 }
 
@@ -328,29 +336,17 @@ void OpenGLState::ApplyTargetBlending(std::size_t target, bool force) const {
     if (!updated.enabled) {
         return;
     }
-    if (updated.separate_alpha) {
-        if (blend_changed || updated.src_rgb_func != current.src_rgb_func ||
-            updated.dst_rgb_func != current.dst_rgb_func ||
-            updated.src_a_func != current.src_a_func || updated.dst_a_func != current.dst_a_func) {
-            glBlendFuncSeparateiARB(static_cast<GLuint>(target), updated.src_rgb_func,
-                                    updated.dst_rgb_func, updated.src_a_func, updated.dst_a_func);
-        }
+    if (blend_changed || updated.src_rgb_func != current.src_rgb_func ||
+        updated.dst_rgb_func != current.dst_rgb_func || updated.src_a_func != current.src_a_func ||
+        updated.dst_a_func != current.dst_a_func) {
+        glBlendFuncSeparateiARB(static_cast<GLuint>(target), updated.src_rgb_func,
+                                updated.dst_rgb_func, updated.src_a_func, updated.dst_a_func);
+    }
 
-        if (blend_changed || updated.rgb_equation != current.rgb_equation ||
-            updated.a_equation != current.a_equation) {
-            glBlendEquationSeparateiARB(static_cast<GLuint>(target), updated.rgb_equation,
-                                        updated.a_equation);
-        }
-    } else {
-        if (blend_changed || updated.src_rgb_func != current.src_rgb_func ||
-            updated.dst_rgb_func != current.dst_rgb_func) {
-            glBlendFunciARB(static_cast<GLuint>(target), updated.src_rgb_func,
-                            updated.dst_rgb_func);
-        }
-
-        if (blend_changed || updated.rgb_equation != current.rgb_equation) {
-            glBlendEquationiARB(static_cast<GLuint>(target), updated.rgb_equation);
-        }
+    if (blend_changed || updated.rgb_equation != current.rgb_equation ||
+        updated.a_equation != current.a_equation) {
+        glBlendEquationSeparateiARB(static_cast<GLuint>(target), updated.rgb_equation,
+                                    updated.a_equation);
     }
 }
 
@@ -481,9 +477,29 @@ void OpenGLState::Apply() const {
     if (point.size != cur_state.point.size) {
         glPointSize(point.size);
     }
+    if (GLAD_GL_ARB_color_buffer_float) {
+        if (fragment_color_clamp.enabled != cur_state.fragment_color_clamp.enabled) {
+            glClampColor(GL_CLAMP_FRAGMENT_COLOR_ARB,
+                         fragment_color_clamp.enabled ? GL_TRUE : GL_FALSE);
+        }
+    }
+    if (multisample_control.alpha_to_coverage != cur_state.multisample_control.alpha_to_coverage) {
+        if (multisample_control.alpha_to_coverage) {
+            glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+        } else {
+            glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+        }
+    }
+    if (multisample_control.alpha_to_one != cur_state.multisample_control.alpha_to_one) {
+        if (multisample_control.alpha_to_one) {
+            glEnable(GL_SAMPLE_ALPHA_TO_ONE);
+        } else {
+            glDisable(GL_SAMPLE_ALPHA_TO_ONE);
+        }
+    }
+
     ApplyColorMask();
     ApplyViewport();
-    ApplyScissor();
     ApplyStencilTest();
     ApplySRgb();
     ApplyCulling();
