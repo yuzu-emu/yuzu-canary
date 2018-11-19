@@ -77,6 +77,8 @@ add_library(core STATIC
     file_sys/vfs_vector.h
     file_sys/xts_archive.cpp
     file_sys/xts_archive.h
+    frontend/applets/software_keyboard.cpp
+    frontend/applets/software_keyboard.h
     frontend/emu_window.cpp
     frontend/emu_window.h
     frontend/framebuffer_layout.cpp
@@ -150,6 +152,10 @@ add_library(core STATIC
     hle/service/am/applet_ae.h
     hle/service/am/applet_oe.cpp
     hle/service/am/applet_oe.h
+    hle/service/am/applets/applets.cpp
+    hle/service/am/applets/applets.h
+    hle/service/am/applets/software_keyboard.cpp
+    hle/service/am/applets/software_keyboard.h
     hle/service/am/idle.cpp
     hle/service/am/idle.h
     hle/service/am/omm.cpp
