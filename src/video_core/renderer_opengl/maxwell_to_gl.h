@@ -180,6 +180,12 @@ inline GLenum WrapMode(Tegra::Texture::WrapMode wrap_mode) {
         return GL_CLAMP_TO_BORDER;
     case Tegra::Texture::WrapMode::MirrorOnceClampToEdge:
         return GL_MIRROR_CLAMP_TO_EDGE;
+    case Tegra::Texture::WrapMode::MirrorOnceBorder:
+        if (GL_EXT_texture_mirror_clamp) {
+            return GL_MIRROR_CLAMP_TO_BORDER_EXT;
+        } else {
+            return GL_MIRROR_CLAMP_TO_EDGE;
+        }
     }
     LOG_ERROR(Render_OpenGL, "Unimplemented texture wrap mode={}", static_cast<u32>(wrap_mode));
     return GL_REPEAT;
