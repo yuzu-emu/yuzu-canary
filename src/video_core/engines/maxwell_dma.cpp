@@ -2,7 +2,9 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include "core/core.h"
 #include "core/memory.h"
+#include "video_core/engines/maxwell_3d.h"
 #include "video_core/engines/maxwell_dma.h"
 #include "video_core/rasterizer_interface.h"
 #include "video_core/textures/decoders.h"
@@ -53,6 +55,9 @@ void MaxwellDMA::HandleCopy() {
         UNREACHABLE_MSG("Tiled->Tiled DMA transfers are not yet implemented");
         return;
     }
+
+    // All copies here update the main memory, so mark all rasterizer states as invalid.
+    Core::System::GetInstance().GPU().Maxwell3D().dirty_flags.OnMemoryWrite();
 
     if (regs.exec.is_dst_linear && regs.exec.is_src_linear) {
         // When the enable_2d bit is disabled, the copy is performed as if we were copying a 1D
