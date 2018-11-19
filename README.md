@@ -1,3 +1,30 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 048da7240d793245b156eb29ac52e9b5a514a64d
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1736](https://github.com/yuzu-emu/yuzu/pull/1736)|[9fbe793](https://github.com/yuzu-emu/yuzu/pull/1736/files/)|Added predicate comparison LessEqualWithNan|[Hexagon12](https://github.com/Hexagon12)|Yes|
+|[1735](https://github.com/yuzu-emu/yuzu/pull/1735)|[fab4934](https://github.com/yuzu-emu/yuzu/pull/1735/files/)|Texture decoder: Implemented Tile Width Spacing|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1732](https://github.com/yuzu-emu/yuzu/pull/1732)|[409dcf0](https://github.com/yuzu-emu/yuzu/pull/1732/files/)|svc: Implement yield types 0 and -1|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1725](https://github.com/yuzu-emu/yuzu/pull/1725)|[16e7019](https://github.com/yuzu-emu/yuzu/pull/1725/files/)|Update OpenGL's backend version from 3.3 to 4.3|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1723](https://github.com/yuzu-emu/yuzu/pull/1723)|[97f5c4f](https://github.com/yuzu-emu/yuzu/pull/1723/files/)|RFC: gl_rasterizer: Skip VB upload if the state is clean.|[degasus](https://github.com/degasus)|Yes|
+|[1713](https://github.com/yuzu-emu/yuzu/pull/1713)|[73a0216](https://github.com/yuzu-emu/yuzu/pull/1713/files/)|Implemented BRA CC conditional and FSET CC Setting|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1698](https://github.com/yuzu-emu/yuzu/pull/1698)|[e6d205e](https://github.com/yuzu-emu/yuzu/pull/1698/files/)|Initial implementation of MapPhysicalMemory|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1667](https://github.com/yuzu-emu/yuzu/pull/1667)|[d68795c](https://github.com/yuzu-emu/yuzu/pull/1667/files/)|am: Implement HLE software keyboard applet|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1603](https://github.com/yuzu-emu/yuzu/pull/1603)|[eadf2c0](https://github.com/yuzu-emu/yuzu/pull/1603/files/)|Preliminary implementation of LDG (continuation)|[bunnei](https://github.com/bunnei)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
