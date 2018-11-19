@@ -187,8 +187,6 @@ private:
 
     bool has_ARB_direct_state_access = false;
     bool has_ARB_multi_bind = false;
-    bool has_ARB_separate_shader_objects = false;
-    bool has_ARB_vertex_attrib_binding = false;
 
     OpenGLState state;
 
