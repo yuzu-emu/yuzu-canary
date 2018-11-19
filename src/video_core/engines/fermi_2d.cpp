@@ -2,8 +2,10 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include "core/core.h"
 #include "core/memory.h"
 #include "video_core/engines/fermi_2d.h"
+#include "video_core/engines/maxwell_3d.h"
 #include "video_core/rasterizer_interface.h"
 #include "video_core/textures/decoders.h"
 
@@ -47,6 +49,9 @@ void Fermi2D::HandleSurfaceCopy() {
     u32 dst_bytes_per_pixel = RenderTargetBytesPerPixel(regs.dst.format);
 
     if (!rasterizer.AccelerateSurfaceCopy(regs.src, regs.dst)) {
+        // All copies here update the main memory, so mark all rasterizer states as invalid.
+        Core::System::GetInstance().GPU().Maxwell3D().dirty_flags.OnMemoryWrite();
+
         rasterizer.FlushRegion(source_cpu, src_bytes_per_pixel * regs.src.width * regs.src.height);
         // We have to invalidate the destination region to evict any outdated surfaces from the
         // cache. We do this before actually writing the new data because the destination address
