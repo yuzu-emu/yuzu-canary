@@ -84,6 +84,7 @@ public:
         void GetTimeZoneService(Kernel::HLERequestContext& ctx);
         void GetStandardLocalSystemClock(Kernel::HLERequestContext& ctx);
         void GetClockSnapshot(Kernel::HLERequestContext& ctx);
+        void CalculateStandardUserSystemClockDifferenceByUser(Kernel::HLERequestContext& ctx);
 
     protected:
         std::shared_ptr<Module> time;
