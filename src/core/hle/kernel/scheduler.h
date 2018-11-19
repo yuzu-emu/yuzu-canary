@@ -48,8 +48,14 @@ public:
     /// Unschedules a thread that was already scheduled
     void UnscheduleThread(Thread* thread, u32 priority);
 
+    /// Moves a thread to the back of the current priority queue
+    void RescheduleThread(Thread* thread, u32 priority);
+
     /// Sets the priority of a thread in the scheduler
     void SetThreadPriority(Thread* thread, u32 priority);
+
+    /// Gets the next suggested thread for load balancing
+    Thread* GetNextSuggestedThread(u32 core);
 
     /// Returns a list of all threads managed by the scheduler
     const std::vector<SharedPtr<Thread>>& GetThreadList() const {

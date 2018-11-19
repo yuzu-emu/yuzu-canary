@@ -388,6 +388,66 @@ bool Thread::InvokeWakeupCallback(ThreadWakeupReason reason, SharedPtr<Thread> t
     return wakeup_callback(reason, std::move(thread), std::move(object), index);
 }
 
+void Thread::YieldNormal() {
+    // Avoid yielding if the thread isn't even running.
+    if (status != ThreadStatus::Running) {
+        return;
+    }
+
+    if (nominal_priority < THREADPRIO_COUNT) {
+        scheduler->RescheduleThread(this, nominal_priority);
+        scheduler->Reschedule();
+    }
+}
+
+void Thread::YieldWithLoadBalancing() {
+    auto priority = nominal_priority;
+    auto core = processor_id;
+
+    // Avoid yielding if the thread isn't even running.
+    if (status != ThreadStatus::Running) {
+        Core::System::GetInstance().CpuCore(processor_id).PrepareReschedule();
+        return;
+    }
+
+    SharedPtr<Thread> next;
+    const auto& threads = scheduler->GetThreadList();
+
+    if (priority < THREADPRIO_COUNT) {
+        // Reschedule thread to end of queue.
+        scheduler->RescheduleThread(this, priority);
+
+        const auto iter = std::find_if(threads.begin(), threads.end(),
+                                       [&priority](const SharedPtr<Thread>& thread) {
+                                           return thread->GetNominalPriority() == priority;
+                                       });
+
+        if (iter != threads.end())
+            next = iter->get();
+    }
+
+    Thread* suggested_thread = nullptr;
+
+    for (int i = 0; i < 4; ++i) {
+        if (i == core)
+            continue;
+
+        const auto res =
+            Core::System::GetInstance().CpuCore(i).Scheduler().GetNextSuggestedThread(core);
+        if (res != nullptr) {
+            suggested_thread = res;
+            break;
+        }
+    }
+
+    if (suggested_thread != nullptr)
+        suggested_thread->ChangeCore(core, suggested_thread->GetAffinityMask());
+}
+
+void Thread::YieldAndWaitForLoadBalancing() {
+    UNIMPLEMENTED_MSG("Wait for load balancing thread yield type is not implemented!");
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**

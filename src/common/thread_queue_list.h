@@ -6,6 +6,7 @@
 
 #include <array>
 #include <deque>
+#include <functional>
 #include <boost/range/algorithm_ext/erase.hpp>
 
 namespace Common {
@@ -42,6 +43,21 @@ struct ThreadQueueList {
         while (cur != nullptr) {
             if (!cur->data.empty()) {
                 return cur->data.front();
+            }
+            cur = cur->next_nonempty;
+        }
+
+        return T();
+    }
+
+    T get_first_filter(std::function<bool(T)> filter) const {
+        const Queue* cur = first;
+        while (cur != nullptr) {
+            if (!cur->data.empty()) {
+                for (const auto& item : cur->data) {
+                    if (filter(item))
+                        return item;
+                }
             }
             cur = cur->next_nonempty;
         }
