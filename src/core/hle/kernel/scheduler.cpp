@@ -169,6 +169,16 @@ void Scheduler::UnscheduleThread(Thread* thread, u32 priority) {
     ready_queue.remove(priority, thread);
 }
 
+void Scheduler::RescheduleThread(Thread* thread, u32 priority) {
+    std::lock_guard<std::mutex> lock(scheduler_mutex);
+
+    // Thread is not in queue
+    ASSERT(ready_queue.contains(thread) != -1);
+
+    ready_queue.remove(priority, thread);
+    ready_queue.push_back(priority, thread);
+}
+
 void Scheduler::SetThreadPriority(Thread* thread, u32 priority) {
     std::lock_guard<std::mutex> lock(scheduler_mutex);
 
@@ -177,6 +187,14 @@ void Scheduler::SetThreadPriority(Thread* thread, u32 priority) {
         ready_queue.move(thread, thread->GetPriority(), priority);
     else
         ready_queue.prepare(priority);
+}
+
+Thread* Scheduler::GetNextSuggestedThread(u32 core) {
+    std::lock_guard<std::mutex> lock(scheduler_mutex);
+
+    const auto mask = 1 << core;
+    return ready_queue.get_first_filter(
+        [&mask](Thread* thread) { return (thread->GetAffinityMask() & mask) != 0; });
 }
 
 } // namespace Kernel
