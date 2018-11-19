@@ -171,6 +171,10 @@ public:
         return program_id;
     }
 
+    u32 GetSystemResourceSize() const {
+        return system_resource_size;
+    }
+
     /// Gets the resource limit descriptor for this process
     ResourceLimit& GetResourceLimit() {
         return *resource_limit;
@@ -279,6 +283,8 @@ private:
 
     /// Title ID corresponding to the process
     u64 program_id;
+
+    u32 system_resource_size = 0;
 
     /// Resource limit descriptor for this process
     SharedPtr<ResourceLimit> resource_limit;
