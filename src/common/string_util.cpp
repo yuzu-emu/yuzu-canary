@@ -214,6 +214,15 @@ std::string StringFromFixedZeroTerminatedBuffer(const char* buffer, std::size_t 
     return std::string(buffer, len);
 }
 
+std::u16string UTF16StringFromFixedZeroTerminatedBuffer(std::u16string_view buffer,
+                                                        std::size_t max_len) {
+    std::size_t len = 0;
+    while (len < max_len && buffer[len] != '\0')
+        ++len;
+
+    return std::u16string(buffer.begin(), buffer.begin() + len);
+}
+
 const char* TrimSourcePath(const char* path, const char* root) {
     const char* p = path;
 

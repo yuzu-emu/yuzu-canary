@@ -8,9 +8,11 @@
 #include <thread>
 
 // VFS includes must be before glad as they will conflict with Windows file api, which uses defines.
+#include "applets/software_keyboard.h"
 #include "core/file_sys/vfs.h"
 #include "core/file_sys/vfs_real.h"
 #include "core/hle/service/acc/profile_manager.h"
+#include "core/hle/service/am/applets/applets.h"
 
 // These are wrappers to avoid the calls to CreateDirectory and CreateFile because of the Windows
 // defines.
@@ -59,6 +61,7 @@ static FileSys::VirtualFile VfsDirectoryCreateFileWrapper(const FileSys::Virtual
 #include "core/file_sys/romfs.h"
 #include "core/file_sys/savedata_factory.h"
 #include "core/file_sys/submission_package.h"
+#include "core/frontend/applets/software_keyboard.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/hle/service/filesystem/fsp_ldr.h"
@@ -202,6 +205,27 @@ GMainWindow::~GMainWindow() {
     // will get automatically deleted otherwise
     if (render_window->parent() == nullptr)
         delete render_window;
+}
+
+void GMainWindow::SoftwareKeyboardGetText(
+    const Core::Frontend::SoftwareKeyboardParameters& parameters) {
+    QtSoftwareKeyboardDialog dialog(this, parameters);
+    dialog.setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint |
+                          Qt::WindowSystemMenuHint | Qt::WindowCloseButtonHint);
+    dialog.setWindowModality(Qt::WindowModal);
+    dialog.exec();
+
+    if (!dialog.GetStatus()) {
+        emit SoftwareKeyboardFinishedText(std::nullopt);
+        return;
+    }
+
+    emit SoftwareKeyboardFinishedText(dialog.GetText());
+}
+
+void GMainWindow::SoftwareKeyboardInvokeCheckDialog(std::u16string error_message) {
+    QMessageBox::warning(this, tr("Text Check Failed"), QString::fromStdU16String(error_message));
+    emit SoftwareKeyboardFinishedCheckDialog();
 }
 
 void GMainWindow::InitializeWidgets() {
@@ -558,6 +582,8 @@ bool GMainWindow::LoadROM(const QString& filename) {
     system.SetFilesystem(vfs);
 
     system.SetGPUDebugContext(debug_context);
+
+    system.SetSoftwareKeyboard(std::make_unique<QtSoftwareKeyboard>(*this));
 
     const Core::System::ResultStatus result{system.Load(*render_window, filename.toStdString())};
 
@@ -1228,8 +1254,13 @@ void GMainWindow::OnMenuRecentFile() {
 
 void GMainWindow::OnStartGame() {
     emu_thread->SetRunning(true);
+
+    qRegisterMetaType<Core::Frontend::SoftwareKeyboardParameters>(
+        "Core::Frontend::SoftwareKeyboardParameters");
     qRegisterMetaType<Core::System::ResultStatus>("Core::System::ResultStatus");
     qRegisterMetaType<std::string>("std::string");
+    qRegisterMetaType<std::optional<std::u16string>>("std::optional<std::u16string>");
+
     connect(emu_thread.get(), &EmuThread::ErrorThrown, this, &GMainWindow::OnCoreError);
 
     ui.action_Start->setEnabled(false);
