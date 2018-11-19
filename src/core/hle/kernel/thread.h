@@ -26,6 +26,7 @@ enum ThreadPriority : u32 {
     THREADPRIO_USERLAND_MAX = 24, ///< Highest thread priority for userland apps
     THREADPRIO_DEFAULT = 44,      ///< Default thread priority for userland apps
     THREADPRIO_LOWEST = 63,       ///< Lowest thread priority
+    THREADPRIO_COUNT = 64,        ///< Total number of possible thread priorities.
 };
 
 enum ThreadProcessorId : s32 {
@@ -369,6 +370,10 @@ public:
     u64 GetAffinityMask() const {
         return affinity_mask;
     }
+
+    void YieldNormal();
+    void YieldWithLoadBalancing();
+    void YieldAndWaitForLoadBalancing();
 
 private:
     explicit Thread(KernelCore& kernel);
