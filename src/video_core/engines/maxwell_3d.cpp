@@ -123,9 +123,23 @@ void Maxwell3D::WriteReg(u32 method, u32 value, u32 remaining_params) {
 
     if (regs.reg_array[method] != value) {
         regs.reg_array[method] = value;
+        // Vertex format
         if (method >= MAXWELL3D_REG_INDEX(vertex_attrib_format) &&
             method < MAXWELL3D_REG_INDEX(vertex_attrib_format) + regs.vertex_attrib_format.size()) {
             dirty_flags.vertex_attrib_format = true;
+        }
+
+        // Vertex buffer
+        if (method >= MAXWELL3D_REG_INDEX(vertex_array) &&
+            method < MAXWELL3D_REG_INDEX(vertex_array) + 4 * 32) {
+            dirty_flags.vertex_array |= 1u << ((method - MAXWELL3D_REG_INDEX(vertex_array)) >> 2);
+        } else if (method >= MAXWELL3D_REG_INDEX(vertex_array_limit) &&
+                   method < MAXWELL3D_REG_INDEX(vertex_array_limit) + 2 * 32) {
+            dirty_flags.vertex_array |=
+                1u << ((method - MAXWELL3D_REG_INDEX(vertex_array_limit)) >> 1);
+        } else if (method >= MAXWELL3D_REG_INDEX(instanced_arrays) &&
+                   method < MAXWELL3D_REG_INDEX(instanced_arrays) + 32) {
+            dirty_flags.vertex_array |= 1u << (method - MAXWELL3D_REG_INDEX(instanced_arrays));
         }
     }
 
@@ -258,6 +272,7 @@ void Maxwell3D::ProcessQueryGet() {
             query_result.timestamp = CoreTiming::GetTicks();
             Memory::WriteBlock(*address, &query_result, sizeof(query_result));
         }
+        dirty_flags.OnMemoryWrite();
         break;
     }
     default:
@@ -334,6 +349,7 @@ void Maxwell3D::ProcessCBData(u32 value) {
         memory_manager.GpuToCpuAddress(buffer_address + regs.const_buffer.cb_pos);
 
     Memory::Write32(*address, value);
+    dirty_flags.OnMemoryWrite();
 
     // Increment the current buffer position.
     regs.const_buffer.cb_pos = regs.const_buffer.cb_pos + 4;
