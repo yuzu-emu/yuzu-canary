@@ -265,11 +265,11 @@ static constexpr std::array<FormatTuple, VideoCore::Surface::MaxPixelFormat> tex
     {GL_COMPRESSED_RG_RGTC2, GL_RG, GL_UNSIGNED_INT_8_8_8_8, ComponentType::UNorm,
      true},                                                                     // DXN2UNORM
     {GL_COMPRESSED_SIGNED_RG_RGTC2, GL_RG, GL_INT, ComponentType::SNorm, true}, // DXN2SNORM
-    {GL_COMPRESSED_RGBA_BPTC_UNORM_ARB, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, ComponentType::UNorm,
+    {GL_COMPRESSED_RGBA_BPTC_UNORM, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, ComponentType::UNorm,
      true}, // BC7U
-    {GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB, GL_RGB, GL_UNSIGNED_INT_8_8_8_8,
-     ComponentType::Float, true}, // BC6H_UF16
-    {GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_ARB, GL_RGB, GL_UNSIGNED_INT_8_8_8_8, ComponentType::Float,
+    {GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT, GL_RGB, GL_UNSIGNED_INT_8_8_8_8, ComponentType::Float,
+     true}, // BC6H_UF16
+    {GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT, GL_RGB, GL_UNSIGNED_INT_8_8_8_8, ComponentType::Float,
      true},                                                                    // BC6H_SF16
     {GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},        // ASTC_2D_4X4
     {GL_RG8, GL_RG, GL_UNSIGNED_BYTE, ComponentType::UNorm, false},            // G8R8U
@@ -306,8 +306,8 @@ static constexpr std::array<FormatTuple, VideoCore::Surface::MaxPixelFormat> tex
      true}, // DXT23_SRGB
     {GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, ComponentType::UNorm,
      true}, // DXT45_SRGB
-    {GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8,
-     ComponentType::UNorm, true},                                              // BC7U_SRGB
+    {GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, ComponentType::UNorm,
+     true},                                                                    // BC7U_SRGB
     {GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false}, // ASTC_2D_4X4_SRGB
     {GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false}, // ASTC_2D_8X8_SRGB
     {GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, ComponentType::UNorm, false}, // ASTC_2D_8X5_SRGB
@@ -346,7 +346,7 @@ static GLenum SurfaceTargetToGL(SurfaceTarget target) {
     case SurfaceTarget::TextureCubemap:
         return GL_TEXTURE_CUBE_MAP;
     case SurfaceTarget::TextureCubeArray:
-        return GL_TEXTURE_CUBE_MAP_ARRAY_ARB;
+        return GL_TEXTURE_CUBE_MAP_ARRAY;
     }
     LOG_CRITICAL(Render_OpenGL, "Unimplemented texture target={}", static_cast<u32>(target));
     UNREACHABLE();
@@ -726,7 +726,7 @@ static void CopySurface(const Surface& src_surface, const Surface& dst_surface,
     const std::size_t buffer_size = std::max(src_params.size_in_bytes, dst_params.size_in_bytes);
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, copy_pbo_handle);
-    glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size, nullptr, GL_STREAM_DRAW_ARB);
+    glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size, nullptr, GL_STREAM_DRAW);
     if (source_format.compressed) {
         glGetCompressedTextureImage(src_surface->Texture().handle, src_attachment,
                                     static_cast<GLsizei>(src_params.size_in_bytes), nullptr);
