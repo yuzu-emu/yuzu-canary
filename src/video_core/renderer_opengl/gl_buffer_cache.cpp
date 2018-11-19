@@ -76,7 +76,7 @@ std::tuple<u8*, GLintptr> OGLBufferCache::ReserveMemory(std::size_t size, std::s
     return std::make_tuple(uploaded_ptr, uploaded_offset);
 }
 
-void OGLBufferCache::Map(std::size_t max_size) {
+bool OGLBufferCache::Map(std::size_t max_size) {
     bool invalidate;
     std::tie(buffer_ptr, buffer_offset_base, invalidate) =
         stream_buffer.Map(static_cast<GLsizeiptr>(max_size), 4);
@@ -85,6 +85,7 @@ void OGLBufferCache::Map(std::size_t max_size) {
     if (invalidate) {
         InvalidateAll();
     }
+    return invalidate;
 }
 
 void OGLBufferCache::Unmap() {
