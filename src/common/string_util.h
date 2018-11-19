@@ -67,6 +67,14 @@ bool ComparePartialString(InIt begin, InIt end, const char* other) {
 std::string StringFromFixedZeroTerminatedBuffer(const char* buffer, std::size_t max_len);
 
 /**
+ * Creates a UTF-16 std::u16string from a fixed-size NUL-terminated char buffer. If the buffer isn't
+ * null-terminated, then the string ends at the greatest multiple of two less then or equal to
+ * max_len_bytes.
+ */
+std::u16string UTF16StringFromFixedZeroTerminatedBuffer(std::u16string_view buffer,
+                                                        std::size_t max_len);
+
+/**
  * Attempts to trim an arbitrary prefix from `path`, leaving only the part starting at `root`. It's
  * intended to be used to strip a system-specific build directory from the `__FILE__` macro,
  * leaving only the path relative to the sources root.
