@@ -88,7 +88,7 @@ private:
         /// SamplerInfo struct.
         void Create();
         /// Syncs the sampler object with the config, updating any necessary state.
-        void SyncWithConfig(const Tegra::Texture::FullTextureInfo& info);
+        void SyncWithConfig(const Tegra::Texture::TSCEntry& info);
 
     private:
         Tegra::Texture::TextureFilter mag_filter;
@@ -100,6 +100,10 @@ private:
         bool uses_depth_compare;
         Tegra::Texture::DepthCompareFunc depth_compare_func;
         GLvec4 border_color;
+        float min_lod;
+        float max_lod;
+        float lod_bias;
+        float max_anisotropic;
     };
 
     /**
@@ -159,6 +163,12 @@ private:
 
     /// Syncs the LogicOp state to match the guest state
     void SyncLogicOpState();
+
+    /// Syncs the the color clamp state
+    void SyncFragmentColorClampState();
+
+    /// Syncs the alpha coverage and alpha to one
+    void SyncMultiSampleState();
 
     /// Syncs the scissor test state to match the guest state
     void SyncScissorTest();
