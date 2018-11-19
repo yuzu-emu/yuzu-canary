@@ -13,6 +13,7 @@
 
 namespace Core::Frontend {
 class EmuWindow;
+class SoftwareKeyboardApplet;
 } // namespace Core::Frontend
 
 namespace FileSys {
@@ -235,6 +236,10 @@ public:
     void SetFilesystem(std::shared_ptr<FileSys::VfsFilesystem> vfs);
 
     std::shared_ptr<FileSys::VfsFilesystem> GetFilesystem() const;
+
+    void SetSoftwareKeyboard(std::unique_ptr<Core::Frontend::SoftwareKeyboardApplet> applet);
+
+    const Core::Frontend::SoftwareKeyboardApplet& GetSoftwareKeyboard() const;
 
 private:
     System();

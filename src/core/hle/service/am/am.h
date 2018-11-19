@@ -155,6 +155,34 @@ private:
     std::shared_ptr<AppletMessageQueue> msg_queue;
 };
 
+class IStorage final : public ServiceFramework<IStorage> {
+public:
+    explicit IStorage(std::vector<u8> buffer);
+    ~IStorage() override;
+
+    const std::vector<u8>& GetData() const;
+
+private:
+    void Open(Kernel::HLERequestContext& ctx);
+
+    std::vector<u8> buffer;
+
+    friend class IStorageAccessor;
+};
+
+class IStorageAccessor final : public ServiceFramework<IStorageAccessor> {
+public:
+    explicit IStorageAccessor(IStorage& backing);
+    ~IStorageAccessor() override;
+
+private:
+    void GetSize(Kernel::HLERequestContext& ctx);
+    void Write(Kernel::HLERequestContext& ctx);
+    void Read(Kernel::HLERequestContext& ctx);
+
+    IStorage& backing;
+};
+
 class ILibraryAppletCreator final : public ServiceFramework<ILibraryAppletCreator> {
 public:
     ILibraryAppletCreator();
@@ -163,6 +191,7 @@ public:
 private:
     void CreateLibraryApplet(Kernel::HLERequestContext& ctx);
     void CreateStorage(Kernel::HLERequestContext& ctx);
+    void CreateTransferMemoryStorage(Kernel::HLERequestContext& ctx);
 };
 
 class IApplicationFunctions final : public ServiceFramework<IApplicationFunctions> {
