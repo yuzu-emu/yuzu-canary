@@ -40,6 +40,19 @@ public:
     } framebuffer_srgb;
 
     struct {
+        bool alpha_to_coverage; // GL_ALPHA_TO_COVERAGE
+        bool alpha_to_one;      // GL_ALPHA_TO_ONE
+    } multisample_control;
+
+    struct {
+        bool enabled; // GL_CLAMP_FRAGMENT_COLOR_ARB
+    } fragment_color_clamp;
+
+    struct {
+        bool enabled; // viewports arrays are only supported when geometry shaders are enabled.
+    } geometry_shaders;
+
+    struct {
         bool enabled;      // GL_CULL_FACE
         GLenum mode;       // GL_CULL_FACE_MODE
         GLenum front_face; // GL_FRONT_FACE
@@ -79,7 +92,6 @@ public:
 
     struct Blend {
         bool enabled;        // GL_BLEND
-        bool separate_alpha; // Independent blend enabled
         GLenum rgb_equation; // GL_BLEND_EQUATION_RGB
         GLenum a_equation;   // GL_BLEND_EQUATION_ALPHA
         GLenum src_rgb_func; // GL_BLEND_SRC_RGB
@@ -150,16 +162,15 @@ public:
         GLfloat height;
         GLfloat depth_range_near; // GL_DEPTH_RANGE
         GLfloat depth_range_far;  // GL_DEPTH_RANGE
+        struct {
+            bool enabled; // GL_SCISSOR_TEST
+            GLint x;
+            GLint y;
+            GLsizei width;
+            GLsizei height;
+        } scissor;
     };
-    std::array<viewport, Tegra::Engines::Maxwell3D::Regs::NumRenderTargets> viewports;
-
-    struct {
-        bool enabled; // GL_SCISSOR_TEST
-        GLint x;
-        GLint y;
-        GLsizei width;
-        GLsizei height;
-    } scissor;
+    std::array<viewport, Tegra::Engines::Maxwell3D::Regs::NumViewports> viewports;
 
     struct {
         float size; // GL_POINT_SIZE
@@ -214,7 +225,6 @@ private:
     void ApplyLogicOp() const;
     void ApplyTextures() const;
     void ApplySamplers() const;
-    void ApplyScissor() const;
 };
 
 } // namespace OpenGL

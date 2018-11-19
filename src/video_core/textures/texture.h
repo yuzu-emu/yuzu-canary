@@ -190,6 +190,7 @@ struct TICEntry {
     union {
         BitField<0, 4, u32> res_min_mip_level;
         BitField<4, 4, u32> res_max_mip_level;
+        BitField<12, 12, u32> min_lod_clamp;
     };
 
     GPUVAddr Address() const {
@@ -284,13 +285,25 @@ struct TSCEntry {
         BitField<6, 3, WrapMode> wrap_p;
         BitField<9, 1, u32> depth_compare_enabled;
         BitField<10, 3, DepthCompareFunc> depth_compare_func;
+        BitField<13, 1, u32> srgb_conversion;
+        BitField<20, 3, u32> max_anisotropy;
     };
     union {
         BitField<0, 2, TextureFilter> mag_filter;
         BitField<4, 2, TextureFilter> min_filter;
         BitField<6, 2, TextureMipmapFilter> mip_filter;
+        BitField<9, 1, u32> cubemap_interface_filtering;
+        BitField<12, 13, u32> mip_lod_bias;
     };
-    INSERT_PADDING_BYTES(8);
+    union {
+        BitField<0, 12, u32> min_lod_clamp;
+        BitField<12, 12, u32> max_lod_clamp;
+        BitField<24, 8, u32> srgb_border_color_r;
+    };
+    union {
+        BitField<12, 8, u32> srgb_border_color_g;
+        BitField<20, 8, u32> srgb_border_color_b;
+    };
     float border_color_r;
     float border_color_g;
     float border_color_b;
