@@ -1161,9 +1161,39 @@ static ResultCode ResetSignal(Handle handle) {
 
 /// Creates a TransferMemory object
 static ResultCode CreateTransferMemory(Handle* handle, VAddr addr, u64 size, u32 permissions) {
-    LOG_WARNING(Kernel_SVC, "(STUBBED) called addr=0x{:X}, size=0x{:X}, perms=0x{:08X}", addr, size,
-                permissions);
-    *handle = 0;
+    LOG_DEBUG(Kernel_SVC, "called addr=0x{:X}, size=0x{:X}, perms=0x{:08X}", addr, size,
+              permissions);
+
+    if (!Common::Is4KBAligned(addr)) {
+        LOG_ERROR(Kernel_SVC, "Address ({:016X}) is not page aligned!", addr);
+        return ERR_INVALID_ADDRESS;
+    }
+
+    if (!Common::Is4KBAligned(size) || size == 0) {
+        LOG_ERROR(Kernel_SVC, "Size ({:016X}) is not page aligned or equal to zero!", size);
+        return ERR_INVALID_ADDRESS;
+    }
+
+    if (!IsValidAddressRange(addr, size)) {
+        LOG_ERROR(Kernel_SVC, "Address and size cause overflow! (address={:016X}, size={:016X})",
+                  addr, size);
+        return ERR_INVALID_ADDRESS_STATE;
+    }
+
+    const auto perms = static_cast<MemoryPermission>(permissions);
+    if (perms != MemoryPermission::None && perms != MemoryPermission::Read &&
+        perms != MemoryPermission::ReadWrite) {
+        LOG_ERROR(Kernel_SVC, "Invalid memory permissions for transfer memory! (perms={:08X})",
+                  permissions);
+        return ERR_INVALID_MEMORY_PERMISSIONS;
+    }
+
+    auto& kernel = Core::System::GetInstance().Kernel();
+    auto& handle_table = Core::CurrentProcess()->GetHandleTable();
+    const auto shared_mem_handle = SharedMemory::Create(
+        kernel, handle_table.Get<Process>(CurrentProcess), size, perms, perms, addr);
+
+    CASCADE_RESULT(*handle, handle_table.Create(shared_mem_handle));
     return RESULT_SUCCESS;
 }
 
