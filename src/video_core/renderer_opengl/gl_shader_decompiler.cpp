@@ -85,7 +85,8 @@ struct Subroutine {
 class ControlFlowAnalyzer {
 public:
     ControlFlowAnalyzer(const ProgramCode& program_code, u32 main_offset, const std::string& suffix)
-        : program_code(program_code) {
+        : program_code(program_code), shader_coverage_begin(main_offset),
+          shader_coverage_end(main_offset + 1) {
 
         // Recursively finds all subroutines.
         const Subroutine& program_main = AddSubroutine(main_offset, PROGRAM_END, suffix);
@@ -97,10 +98,16 @@ public:
         return std::move(subroutines);
     }
 
+    std::size_t GetShaderLength() const {
+        return shader_coverage_end * sizeof(u64);
+    }
+
 private:
     const ProgramCode& program_code;
     std::set<Subroutine> subroutines;
     std::map<std::pair<u32, u32>, ExitMethod> exit_method_map;
+    u32 shader_coverage_begin;
+    u32 shader_coverage_end;
 
     /// Adds and analyzes a new subroutine if it is not added yet.
     const Subroutine& AddSubroutine(u32 begin, u32 end, const std::string& suffix) {
@@ -142,6 +149,9 @@ private:
             return exit_method;
 
         for (u32 offset = begin; offset != end && offset != PROGRAM_END; ++offset) {
+            shader_coverage_begin = std::min(shader_coverage_begin, offset);
+            shader_coverage_end = std::max(shader_coverage_end, offset + 1);
+
             const Instruction instr = {program_code[offset]};
             if (const auto opcode = OpCode::Decode(instr)) {
                 switch (opcode->get().GetId()) {
@@ -951,9 +961,10 @@ private:
 class GLSLGenerator {
 public:
     GLSLGenerator(const std::set<Subroutine>& subroutines, const ProgramCode& program_code,
-                  u32 main_offset, Maxwell3D::Regs::ShaderStage stage, const std::string& suffix)
+                  u32 main_offset, Maxwell3D::Regs::ShaderStage stage, const std::string& suffix,
+                  std::size_t shader_length)
         : subroutines(subroutines), program_code(program_code), main_offset(main_offset),
-          stage(stage), suffix(suffix) {
+          stage(stage), suffix(suffix), shader_length(shader_length) {
         std::memcpy(&header, program_code.data(), sizeof(Tegra::Shader::Header));
         local_memory_size = header.GetLocalMemorySize();
         regs.SetLocalMemory(local_memory_size);
@@ -966,7 +977,7 @@ public:
 
     /// Returns entries in the shader that are useful for external functions
     ShaderEntries GetEntries() const {
-        return {regs.GetConstBuffersDeclarations(), regs.GetSamplers()};
+        return {regs.GetConstBuffersDeclarations(), regs.GetSamplers(), shader_length};
     }
 
 private:
@@ -3827,6 +3838,7 @@ private:
     Maxwell3D::Regs::ShaderStage stage;
     const std::string& suffix;
     u64 local_memory_size;
+    std::size_t shader_length;
 
     ShaderWriter shader;
     ShaderWriter declarations;
@@ -3845,9 +3857,10 @@ std::optional<ProgramResult> DecompileProgram(const ProgramCode& program_code, u
                                               Maxwell3D::Regs::ShaderStage stage,
                                               const std::string& suffix) {
     try {
-        const auto subroutines =
-            ControlFlowAnalyzer(program_code, main_offset, suffix).GetSubroutines();
-        GLSLGenerator generator(subroutines, program_code, main_offset, stage, suffix);
+        ControlFlowAnalyzer analyzer(program_code, main_offset, suffix);
+        const auto subroutines = analyzer.GetSubroutines();
+        GLSLGenerator generator(subroutines, program_code, main_offset, stage, suffix,
+                                analyzer.GetShaderLength());
         return ProgramResult{generator.GetShaderCode(), generator.GetEntries()};
     } catch (const DecompileFail& exception) {
         LOG_ERROR(HW_GPU, "Shader decompilation failed: {}", exception.what());
