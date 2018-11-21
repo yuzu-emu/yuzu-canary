@@ -34,6 +34,9 @@ MICROPROFILE_DEFINE(ProcessCommandLists, "GPU", "Execute command buffer", MP_RGB
 void GPU::ProcessCommandLists(const std::vector<CommandListHeader>& commands) {
     MICROPROFILE_SCOPE(ProcessCommandLists);
 
+    // On entering GPU code, assume all memory may be touched by the ARM core.
+    maxwell_3d->dirty_flags.OnMemoryWrite();
+
     auto WriteReg = [this](u32 method, u32 subchannel, u32 value, u32 remaining_params) {
         LOG_TRACE(HW_GPU,
                   "Processing method {:08X} on subchannel {} value "
