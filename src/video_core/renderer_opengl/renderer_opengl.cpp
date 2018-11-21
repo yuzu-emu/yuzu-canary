@@ -304,6 +304,12 @@ void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
         gl_framebuffer_data.resize(texture.width * texture.height * 4);
         break;
     default:
+        internal_format = GL_RGBA;
+        texture.gl_format = GL_RGBA;
+        texture.gl_type = GL_UNSIGNED_INT_8_8_8_8_REV;
+        gl_framebuffer_data.resize(texture.width * texture.height * 4);
+        LOG_CRITICAL(Render_OpenGL, "Unknown framebuffer pixel format: {}",
+                     static_cast<u32>(framebuffer.pixel_format));
         UNREACHABLE();
     }
 
