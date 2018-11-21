@@ -518,32 +518,18 @@ void GMainWindow::OnDisplayTitleBars(bool show) {
 QStringList GMainWindow::GetUnsupportedGLExtensions() {
     QStringList unsupported_ext;
 
-    if (!GLAD_GL_ARB_program_interface_query)
-        unsupported_ext.append("ARB_program_interface_query");
-    if (!GLAD_GL_ARB_separate_shader_objects)
-        unsupported_ext.append("ARB_separate_shader_objects");
-    if (!GLAD_GL_ARB_vertex_attrib_binding)
-        unsupported_ext.append("ARB_vertex_attrib_binding");
     if (!GLAD_GL_ARB_vertex_type_10f_11f_11f_rev)
         unsupported_ext.append("ARB_vertex_type_10f_11f_11f_rev");
     if (!GLAD_GL_ARB_texture_mirror_clamp_to_edge)
         unsupported_ext.append("ARB_texture_mirror_clamp_to_edge");
-    if (!GLAD_GL_ARB_base_instance)
-        unsupported_ext.append("ARB_base_instance");
-    if (!GLAD_GL_ARB_texture_storage)
-        unsupported_ext.append("ARB_texture_storage");
     if (!GLAD_GL_ARB_multi_bind)
         unsupported_ext.append("ARB_multi_bind");
-    if (!GLAD_GL_ARB_copy_image)
-        unsupported_ext.append("ARB_copy_image");
 
     // Extensions required to support some texture formats.
     if (!GLAD_GL_EXT_texture_compression_s3tc)
         unsupported_ext.append("EXT_texture_compression_s3tc");
     if (!GLAD_GL_ARB_texture_compression_rgtc)
         unsupported_ext.append("ARB_texture_compression_rgtc");
-    if (!GLAD_GL_ARB_texture_compression_bptc)
-        unsupported_ext.append("ARB_texture_compression_bptc");
     if (!GLAD_GL_ARB_depth_buffer_float)
         unsupported_ext.append("ARB_depth_buffer_float");
 
@@ -562,8 +548,8 @@ bool GMainWindow::LoadROM(const QString& filename) {
     render_window->MakeCurrent();
 
     if (!gladLoadGL()) {
-        QMessageBox::critical(this, tr("Error while initializing OpenGL 3.3 Core!"),
-                              tr("Your GPU may not support OpenGL 3.3, or you do not "
+        QMessageBox::critical(this, tr("Error while initializing OpenGL 4.3 Core!"),
+                              tr("Your GPU may not support OpenGL 4.3, or you do not "
                                  "have the latest graphics driver."));
         return false;
     }
