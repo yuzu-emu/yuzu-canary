@@ -3,8 +3,10 @@
 // Refer to the license.txt file included.
 
 #include "common/logging/log.h"
+#include "core/core.h"
 #include "core/memory.h"
 #include "video_core/engines/kepler_memory.h"
+#include "video_core/engines/maxwell_3d.h"
 #include "video_core/rasterizer_interface.h"
 
 namespace Tegra::Engines {
@@ -47,6 +49,7 @@ void KeplerMemory::ProcessData(u32 data) {
     rasterizer.InvalidateRegion(dest_address, sizeof(u32));
 
     Memory::Write32(dest_address, data);
+    Core::System::GetInstance().GPU().Maxwell3D().dirty_flags.OnMemoryWrite();
 
     state.write_offset++;
 }
