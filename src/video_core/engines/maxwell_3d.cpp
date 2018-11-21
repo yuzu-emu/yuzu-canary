@@ -69,6 +69,15 @@ void Maxwell3D::InitializeRegisterDefaults() {
     // TODO(Rodrigo): Most games do not set a point size. I think this is a case of a
     // register carrying a default value. Assume it's OpenGL's default (1).
     regs.point_size = 1.0f;
+
+    // TODO(bunnei): Some games do not initialize the color masks (e.g. Sonic Mania). Assuming a
+    // default of enabled fixes rendering here.
+    for (std::size_t color_mask = 0; color_mask < Regs::NumRenderTargets; color_mask++) {
+        regs.color_mask[color_mask].R.Assign(1);
+        regs.color_mask[color_mask].G.Assign(1);
+        regs.color_mask[color_mask].B.Assign(1);
+        regs.color_mask[color_mask].A.Assign(1);
+    }
 }
 
 void Maxwell3D::CallMacroMethod(u32 method, std::vector<u32> parameters) {
