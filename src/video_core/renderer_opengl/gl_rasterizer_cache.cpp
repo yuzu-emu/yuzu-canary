@@ -1275,6 +1275,31 @@ Surface RasterizerCacheOpenGL::GetUncachedSurface(const SurfaceParams& params) {
     return surface;
 }
 
+void RasterizerCacheOpenGL::FastLayeredCopySurface(const Surface& src_surface,
+                                                   const Surface& dst_surface) {
+    const auto& init_params{src_surface->GetSurfaceParams()};
+    const auto& dst_params{dst_surface->GetSurfaceParams()};
+    VAddr address = init_params.addr;
+    const std::size_t layer_size = dst_params.LayerMemorySize();
+    for (u32 layer = 0; layer < dst_params.depth; layer++) {
+        for (u32 mipmap = 0; mipmap < dst_params.max_mip_level; mipmap++) {
+            const VAddr sub_address = address + dst_params.GetMipmapLevelOffset(mipmap);
+            const Surface& copy = TryGet(sub_address);
+            if (!copy)
+                continue;
+            const auto& src_params{copy->GetSurfaceParams()};
+            const u32 width{std::min(src_params.width, dst_params.MipWidth(mipmap))};
+            const u32 height{std::min(src_params.height, dst_params.MipHeight(mipmap))};
+
+            glCopyImageSubData(copy->Texture().handle, SurfaceTargetToGL(src_params.target), 0, 0,
+                               0, 0, dst_surface->Texture().handle,
+                               SurfaceTargetToGL(dst_params.target), mipmap, 0, 0, layer, width,
+                               height, 1);
+        }
+        address += layer_size;
+    }
+}
+
 void RasterizerCacheOpenGL::FermiCopySurface(
     const Tegra::Engines::Fermi2D::Regs::Surface& src_config,
     const Tegra::Engines::Fermi2D::Regs::Surface& dst_config) {
@@ -1340,11 +1365,13 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& old_surface,
             CopySurface(old_surface, new_surface, copy_pbo.handle);
         }
         break;
-    case SurfaceTarget::TextureCubemap:
     case SurfaceTarget::Texture3D:
+        AccurateCopySurface(old_surface, new_surface);
+        break;
+    case SurfaceTarget::TextureCubemap:
     case SurfaceTarget::Texture2DArray:
     case SurfaceTarget::TextureCubeArray:
-        AccurateCopySurface(old_surface, new_surface);
+        FastLayeredCopySurface(old_surface, new_surface);
         break;
     default:
         LOG_CRITICAL(Render_OpenGL, "Unimplemented surface target={}",
