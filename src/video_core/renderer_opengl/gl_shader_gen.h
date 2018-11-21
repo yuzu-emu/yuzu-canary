@@ -163,6 +163,7 @@ private:
 struct ShaderEntries {
     std::vector<ConstBufferEntry> const_buffer_entries;
     std::vector<SamplerEntry> texture_samplers;
+    std::size_t shader_length;
 };
 
 using ProgramResult = std::pair<std::string, ShaderEntries>;
