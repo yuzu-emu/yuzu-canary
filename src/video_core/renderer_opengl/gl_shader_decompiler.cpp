@@ -3260,6 +3260,34 @@ private:
             }
             break;
         }
+        case OpCode::Type::RegisterSetPredicate: {
+            UNIMPLEMENTED_IF(instr.r2p.mode != Tegra::Shader::R2pMode::Pr);
+
+            const std::string apply_mask = [&]() {
+                switch (opcode->get().GetId()) {
+                case OpCode::Id::R2P_IMM:
+                    return std::to_string(instr.r2p.immediate_mask);
+                default:
+                    UNREACHABLE();
+                }
+            }();
+            const std::string mask = '(' + regs.GetRegisterAsInteger(instr.gpr8, 0, false) +
+                                     " >> " + std::to_string(instr.r2p.byte) + ')';
+
+            constexpr u64 programmable_preds = 7;
+            for (u64 pred = 0; pred < programmable_preds; ++pred) {
+                const auto shift = std::to_string(1 << pred);
+
+                shader.AddLine("if ((" + apply_mask + " & " + shift + ") != 0) {");
+                ++shader.scope;
+
+                SetPredicate(pred, '(' + mask + " & " + shift + ") != 0");
+
+                --shader.scope;
+                shader.AddLine('}');
+            }
+            break;
+        }
         case OpCode::Type::FloatSet: {
             const std::string op_a = GetOperandAbsNeg(regs.GetRegisterAsFloat(instr.gpr8),
                                                       instr.fset.abs_a != 0, instr.fset.neg_a != 0);
