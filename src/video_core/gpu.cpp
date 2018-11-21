@@ -17,6 +17,8 @@ u32 FramebufferConfig::BytesPerPixel(PixelFormat format) {
     switch (format) {
     case PixelFormat::ABGR8:
         return 4;
+    default:
+        return 4;
     }
 
     UNREACHABLE();
