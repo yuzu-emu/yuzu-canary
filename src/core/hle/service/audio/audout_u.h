@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <vector>
 #include "core/hle/service/service.h"
 
 namespace AudioCore {
@@ -24,7 +25,7 @@ public:
     ~AudOutU() override;
 
 private:
-    std::shared_ptr<IAudioOut> audio_out_interface;
+    std::vector<std::shared_ptr<IAudioOut>> audio_out_interfaces;
     std::unique_ptr<AudioCore::AudioOut> audio_core;
 
     void ListAudioOutsImpl(Kernel::HLERequestContext& ctx);
