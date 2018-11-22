@@ -117,7 +117,7 @@ private:
     bool Step(u32 offset, bool is_delay_slot);
 
     /// Calculates the result of an ALU operation. src_a OP src_b;
-    u32 GetALUResult(ALUOperation operation, u32 src_a, u32 src_b) const;
+    u32 GetALUResult(ALUOperation operation, u32 src_a, u32 src_b);
 
     /// Performs the result operation on the input result and stores it in the specified register
     /// (if necessary).
@@ -165,5 +165,7 @@ private:
     std::vector<u32> parameters;
     /// Index of the next parameter that will be fetched by the 'parm' instruction.
     u32 next_parameter_index = 0;
+
+    bool carry_flag{};
 };
 } // namespace Tegra
