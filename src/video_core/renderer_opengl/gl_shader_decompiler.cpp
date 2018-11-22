@@ -2885,6 +2885,8 @@ private:
                 UNIMPLEMENTED_IF_MSG(instr.txq.UsesMiscMode(Tegra::Shader::TextureMiscMode::NODEP),
                                      "NODEP is not implemented");
 
+                ++shader.scope;
+                shader.AddLine('{');
                 // TODO: the new commits on the texture refactor, change the way samplers work.
                 // Sadly, not all texture instructions specify the type of texture their sampler
                 // uses. This must be fixed at a later instance.
@@ -2892,8 +2894,14 @@ private:
                     GetSampler(instr.sampler, Tegra::Shader::TextureType::Texture2D, false, false);
                 switch (instr.txq.query_type) {
                 case Tegra::Shader::TextureQueryType::Dimension: {
-                    const std::string texture = "textureQueryLevels(" + sampler + ')';
-                    regs.SetRegisterToInteger(instr.gpr0, true, 0, texture, 1, 1);
+                    const std::string texture = "textureSize(" + sampler + ", " +
+                                                regs.GetRegisterAsInteger(instr.gpr8) + ')';
+                    const std::string mip_level = "textureQueryLevels(" + sampler + ')';
+                    shader.AddLine("ivec2 sizes = " + texture + ';');
+                    regs.SetRegisterToInteger(instr.gpr0, true, 0, "sizes.x", 1, 1);
+                    regs.SetRegisterToInteger(instr.gpr0.Value() + 1, true, 0, "sizes.y", 1, 1);
+                    regs.SetRegisterToInteger(instr.gpr0.Value() + 2, true, 0, "0", 1, 1);
+                    regs.SetRegisterToInteger(instr.gpr0.Value() + 3, true, 0, mip_level, 1, 1);
                     break;
                 }
                 default: {
@@ -2901,6 +2909,8 @@ private:
                                       static_cast<u32>(instr.txq.query_type.Value()));
                 }
                 }
+                --shader.scope;
+                shader.AddLine('}');
                 break;
             }
             case OpCode::Id::TMML: {
