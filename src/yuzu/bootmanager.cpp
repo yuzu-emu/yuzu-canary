@@ -310,7 +310,7 @@ void GRenderWindow::InitRenderTarget() {
     // TODO: One of these flags might be interesting: WA_OpaquePaintEvent, WA_NoBackground,
     // WA_DontShowOnScreen, WA_DeleteOnClose
     QGLFormat fmt;
-    fmt.setVersion(3, 3);
+    fmt.setVersion(4, 3);
     fmt.setProfile(QGLFormat::CoreProfile);
     fmt.setSwapInterval(false);
 
