@@ -156,6 +156,11 @@ private:
     };
     static_assert(sizeof(IoctlFlushL2) == 8, "IoctlFlushL2 is incorrect size");
 
+    struct IoctlGetGpuTime {
+        u64_le gpu_time;
+    };
+    static_assert(sizeof(IoctlGetGpuTime) == 8, "IoctlGetGpuTime is incorrect size");
+
     u32 GetCharacteristics(const std::vector<u8>& input, std::vector<u8>& output);
     u32 GetTPCMasks(const std::vector<u8>& input, std::vector<u8>& output);
     u32 GetActiveSlotMask(const std::vector<u8>& input, std::vector<u8>& output);
@@ -164,6 +169,7 @@ private:
     u32 ZBCSetTable(const std::vector<u8>& input, std::vector<u8>& output);
     u32 ZBCQueryTable(const std::vector<u8>& input, std::vector<u8>& output);
     u32 FlushL2(const std::vector<u8>& input, std::vector<u8>& output);
+    u32 GetGpuTime(const std::vector<u8>& input, std::vector<u8>& output);
 };
 
 } // namespace Service::Nvidia::Devices
