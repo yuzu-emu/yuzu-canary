@@ -111,32 +111,18 @@ void EmuWindow_SDL2::Fullscreen() {
 bool EmuWindow_SDL2::SupportsRequiredGLExtensions() {
     std::vector<std::string> unsupported_ext;
 
-    if (!GLAD_GL_ARB_program_interface_query)
-        unsupported_ext.push_back("ARB_program_interface_query");
-    if (!GLAD_GL_ARB_separate_shader_objects)
-        unsupported_ext.push_back("ARB_separate_shader_objects");
-    if (!GLAD_GL_ARB_vertex_attrib_binding)
-        unsupported_ext.push_back("ARB_vertex_attrib_binding");
     if (!GLAD_GL_ARB_vertex_type_10f_11f_11f_rev)
         unsupported_ext.push_back("ARB_vertex_type_10f_11f_11f_rev");
     if (!GLAD_GL_ARB_texture_mirror_clamp_to_edge)
         unsupported_ext.push_back("ARB_texture_mirror_clamp_to_edge");
-    if (!GLAD_GL_ARB_base_instance)
-        unsupported_ext.push_back("ARB_base_instance");
-    if (!GLAD_GL_ARB_texture_storage)
-        unsupported_ext.push_back("ARB_texture_storage");
     if (!GLAD_GL_ARB_multi_bind)
         unsupported_ext.push_back("ARB_multi_bind");
-    if (!GLAD_GL_ARB_copy_image)
-        unsupported_ext.push_back("ARB_copy_image");
 
     // Extensions required to support some texture formats.
     if (!GLAD_GL_EXT_texture_compression_s3tc)
         unsupported_ext.push_back("EXT_texture_compression_s3tc");
     if (!GLAD_GL_ARB_texture_compression_rgtc)
         unsupported_ext.push_back("ARB_texture_compression_rgtc");
-    if (!GLAD_GL_ARB_texture_compression_bptc)
-        unsupported_ext.push_back("ARB_texture_compression_bptc");
     if (!GLAD_GL_ARB_depth_buffer_float)
         unsupported_ext.push_back("ARB_depth_buffer_float");
 
@@ -157,7 +143,7 @@ EmuWindow_SDL2::EmuWindow_SDL2(bool fullscreen) {
         exit(1);
     }
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
