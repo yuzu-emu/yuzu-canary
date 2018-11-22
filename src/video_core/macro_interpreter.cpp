@@ -35,6 +35,7 @@ void MacroInterpreter::Reset() {
     // The next parameter index starts at 1, because $r1 already has the value of the first
     // parameter.
     next_parameter_index = 1;
+    carry_flag = false;
 }
 
 bool MacroInterpreter::Step(u32 offset, bool is_delay_slot) {
@@ -135,14 +136,28 @@ MacroInterpreter::Opcode MacroInterpreter::GetOpcode(u32 offset) const {
     return {macro_memory[offset + pc / sizeof(u32)]};
 }
 
-u32 MacroInterpreter::GetALUResult(ALUOperation operation, u32 src_a, u32 src_b) const {
+u32 MacroInterpreter::GetALUResult(ALUOperation operation, u32 src_a, u32 src_b) {
     switch (operation) {
-    case ALUOperation::Add:
-        return src_a + src_b;
-    // TODO(Subv): Implement AddWithCarry
-    case ALUOperation::Subtract:
-        return src_a - src_b;
-    // TODO(Subv): Implement SubtractWithBorrow
+    case ALUOperation::Add: {
+        u64 result = static_cast<u64>(src_a) + static_cast<u64>(src_b);
+        carry_flag = result > 0xffffffff;
+        return static_cast<u32>(result);
+    }
+    case ALUOperation::AddWithCarry: {
+        u64 result = static_cast<u64>(src_a) + static_cast<u64>(src_b) + (carry_flag ? 1ULL : 0ULL);
+        carry_flag = result > 0xffffffff;
+        return static_cast<u32>(result);
+    }
+    case ALUOperation::Subtract: {
+        u64 result = static_cast<u64>(src_a) - static_cast<u64>(src_b);
+        carry_flag = result < 0x100000000;
+        return static_cast<u32>(result);
+    }
+    case ALUOperation::SubtractWithBorrow: {
+        u64 result = static_cast<u64>(src_a) - static_cast<u64>(src_b) - (carry_flag ? 0ULL : 1ULL);
+        carry_flag = result < 0x100000000;
+        return static_cast<u32>(result);
+    }
     case ALUOperation::Xor:
         return src_a ^ src_b;
     case ALUOperation::Or:
