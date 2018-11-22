@@ -218,14 +218,19 @@ inline GLenum DepthCompareFunc(Tegra::Texture::DepthCompareFunc func) {
 inline GLenum BlendEquation(Maxwell::Blend::Equation equation) {
     switch (equation) {
     case Maxwell::Blend::Equation::Add:
+    case Maxwell::Blend::Equation::AddGL:
         return GL_FUNC_ADD;
     case Maxwell::Blend::Equation::Subtract:
+    case Maxwell::Blend::Equation::SubtractGL:
         return GL_FUNC_SUBTRACT;
     case Maxwell::Blend::Equation::ReverseSubtract:
+    case Maxwell::Blend::Equation::ReverseSubtractGL:
         return GL_FUNC_REVERSE_SUBTRACT;
     case Maxwell::Blend::Equation::Min:
+    case Maxwell::Blend::Equation::MinGL:
         return GL_MIN;
     case Maxwell::Blend::Equation::Max:
+    case Maxwell::Blend::Equation::MaxGL:
         return GL_MAX;
     }
     LOG_ERROR(Render_OpenGL, "Unimplemented blend equation={}", static_cast<u32>(equation));
