@@ -1,3 +1,33 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: b84f4cfb6261ac8b2cce4ba773f0ddfd73606fac
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1770](https://github.com/yuzu-emu/yuzu/pull/1770)|[4b7733c](https://github.com/yuzu-emu/yuzu/pull/1770/files/)|applets: Add StubApplet and use it as fallback when AppletId is not implemented|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1765](https://github.com/yuzu-emu/yuzu/pull/1765)|[1bee6db](https://github.com/yuzu-emu/yuzu/pull/1765/files/)|audout_u: Add support for multiple IAudioOut streams.|[bunnei](https://github.com/bunnei)|Yes|
+|[1764](https://github.com/yuzu-emu/yuzu/pull/1764)|[b027d7c](https://github.com/yuzu-emu/yuzu/pull/1764/files/)|macro_interpreter: Implement AddWithCarry and SubtractWithBorrow.|[bunnei](https://github.com/bunnei)|Yes|
+|[1762](https://github.com/yuzu-emu/yuzu/pull/1762)|[7f10db1](https://github.com/yuzu-emu/yuzu/pull/1762/files/)|nvhost_ctrl_gpu: Implement IoctlGetGpuTime.|[bunnei](https://github.com/bunnei)|Yes|
+|[1760](https://github.com/yuzu-emu/yuzu/pull/1760)|[d92afc7](https://github.com/yuzu-emu/yuzu/pull/1760/files/)|gl_shader_decompiler: Implement R2P_IMM|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[1744](https://github.com/yuzu-emu/yuzu/pull/1744)|[cfbae58](https://github.com/yuzu-emu/yuzu/pull/1744/files/)|shader_cache: Only lock covered instructions.|[degasus](https://github.com/degasus)|Yes|
+|[1736](https://github.com/yuzu-emu/yuzu/pull/1736)|[76de2d0](https://github.com/yuzu-emu/yuzu/pull/1736/files/)|Added predicate comparison LessEqualWithNan|[Hexagon12](https://github.com/Hexagon12)|Yes|
+|[1735](https://github.com/yuzu-emu/yuzu/pull/1735)|[fab4934](https://github.com/yuzu-emu/yuzu/pull/1735/files/)|Texture decoder: Implemented Tile Width Spacing|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1725](https://github.com/yuzu-emu/yuzu/pull/1725)|[0368260](https://github.com/yuzu-emu/yuzu/pull/1725/files/)|Update OpenGL's backend version from 3.3 to 4.3|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1723](https://github.com/yuzu-emu/yuzu/pull/1723)|[97f5c4f](https://github.com/yuzu-emu/yuzu/pull/1723/files/)|RFC: gl_rasterizer: Skip VB upload if the state is clean.|[degasus](https://github.com/degasus)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1698](https://github.com/yuzu-emu/yuzu/pull/1698)|[e6d205e](https://github.com/yuzu-emu/yuzu/pull/1698/files/)|Initial implementation of MapPhysicalMemory|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1603](https://github.com/yuzu-emu/yuzu/pull/1603)|[eadf2c0](https://github.com/yuzu-emu/yuzu/pull/1603/files/)|Preliminary implementation of LDG (continuation)|[bunnei](https://github.com/bunnei)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
