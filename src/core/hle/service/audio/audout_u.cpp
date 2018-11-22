@@ -44,8 +44,10 @@ enum class AudioState : u32 {
 
 class IAudioOut final : public ServiceFramework<IAudioOut> {
 public:
-    IAudioOut(AudoutParams audio_params, AudioCore::AudioOut& audio_core)
-        : ServiceFramework("IAudioOut"), audio_core(audio_core), audio_params(audio_params) {
+    IAudioOut(AudoutParams audio_params, AudioCore::AudioOut& audio_core, std::string&& device_name,
+              std::string&& unique_name)
+        : ServiceFramework("IAudioOut"), audio_core(audio_core), audio_params(audio_params),
+          device_name(std::move(device_name)) {
 
         static const FunctionInfo functions[] = {
             {0, &IAudioOut::GetAudioOutState, "GetAudioOutState"},
@@ -69,7 +71,7 @@ public:
             Kernel::Event::Create(kernel, Kernel::ResetType::Sticky, "IAudioOutBufferReleased");
 
         stream = audio_core.OpenStream(audio_params.sample_rate, audio_params.channel_count,
-                                       "IAudioOut", [=]() { buffer_event->Signal(); });
+                                       std::move(unique_name), [=]() { buffer_event->Signal(); });
     }
 
 private:
@@ -177,6 +179,7 @@ private:
 
     AudioCore::AudioOut& audio_core;
     AudioCore::StreamPtr stream;
+    std::string device_name;
 
     AudoutParams audio_params{};
 
@@ -199,7 +202,15 @@ void AudOutU::ListAudioOutsImpl(Kernel::HLERequestContext& ctx) {
 void AudOutU::OpenAudioOutImpl(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service_Audio, "called");
 
-    ctx.WriteBuffer(DefaultDevice);
+    const auto device_name_data{ctx.ReadBuffer()};
+    std::string device_name;
+    if (device_name_data[0] != '\0') {
+        device_name.assign(device_name_data.begin(), device_name_data.end());
+    } else {
+        device_name.assign(DefaultDevice.begin(), DefaultDevice.end());
+    }
+    ctx.WriteBuffer(device_name);
+
     IPC::RequestParser rp{ctx};
     auto params{rp.PopRaw<AudoutParams>()};
     if (params.channel_count <= 2) {
@@ -212,10 +223,9 @@ void AudOutU::OpenAudioOutImpl(Kernel::HLERequestContext& ctx) {
         params.sample_rate = DefaultSampleRate;
     }
 
-    // TODO(bunnei): Support more than one IAudioOut interface. When we add this, ListAudioOutsImpl
-    // will likely need to be updated as well.
-    ASSERT_MSG(!audio_out_interface, "Unimplemented");
-    audio_out_interface = std::make_shared<IAudioOut>(params, *audio_core);
+    std::string unique_name{fmt::format("{}-{}", device_name, audio_out_interfaces.size())};
+    auto audio_out_interface = std::make_shared<IAudioOut>(
+        params, *audio_core, std::move(device_name), std::move(unique_name));
 
     IPC::ResponseBuilder rb{ctx, 6, 0, 1};
     rb.Push(RESULT_SUCCESS);
@@ -224,6 +234,8 @@ void AudOutU::OpenAudioOutImpl(Kernel::HLERequestContext& ctx) {
     rb.Push<u32>(static_cast<u32>(AudioCore::Codec::PcmFormat::Int16));
     rb.Push<u32>(static_cast<u32>(AudioState::Stopped));
     rb.PushIpcInterface<Audio::IAudioOut>(audio_out_interface);
+
+    audio_out_interfaces.push_back(std::move(audio_out_interface));
 }
 
 AudOutU::AudOutU() : ServiceFramework("audout:u") {
