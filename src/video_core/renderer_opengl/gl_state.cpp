@@ -233,6 +233,28 @@ void OpenGLState::ApplyStencilTest() const {
         config_stencil(GL_BACK, stencil.back, cur_state.stencil.back);
     }
 }
+// Viewport does not affects glClearBuffer so emulate viewport using scissor test
+void OpenGLState::EmulateViewportWithScissor() {
+    auto& current = viewports[0];
+    if (current.scissor.enabled) {
+        const GLint left = std::max(current.x, current.scissor.x);
+        const GLint right =
+            std::max(current.x + current.width, current.scissor.x + current.scissor.width);
+        const GLint bottom = std::max(current.y, current.scissor.y);
+        const GLint top =
+            std::max(current.y + current.height, current.scissor.y + current.scissor.height);
+        current.scissor.x = std::max(left, 0);
+        current.scissor.y = std::max(bottom, 0);
+        current.scissor.width = std::max(right - left, 0);
+        current.scissor.height = std::max(top - bottom, 0);
+    } else {
+        current.scissor.enabled = true;
+        current.scissor.x = current.x;
+        current.scissor.y = current.y;
+        current.scissor.width = current.width;
+        current.scissor.height = current.height;
+    }
+}
 
 void OpenGLState::ApplyViewport() const {
     if (GLAD_GL_ARB_viewport_array && geometry_shaders.enabled) {
@@ -242,7 +264,9 @@ void OpenGLState::ApplyViewport() const {
             const auto& updated = viewports[i];
             if (updated.x != current.x || updated.y != current.y ||
                 updated.width != current.width || updated.height != current.height) {
-                glViewportIndexedf(i, updated.x, updated.y, updated.width, updated.height);
+                glViewportIndexedf(
+                    i, static_cast<GLfloat>(updated.x), static_cast<GLfloat>(updated.y),
+                    static_cast<GLfloat>(updated.width), static_cast<GLfloat>(updated.height));
             }
             if (updated.depth_range_near != current.depth_range_near ||
                 updated.depth_range_far != current.depth_range_far) {
@@ -270,8 +294,7 @@ void OpenGLState::ApplyViewport() const {
         const auto& updated = viewports[0];
         if (updated.x != current.x || updated.y != current.y || updated.width != current.width ||
             updated.height != current.height) {
-            glViewport(static_cast<GLint>(updated.x), static_cast<GLint>(updated.y),
-                       static_cast<GLsizei>(updated.width), static_cast<GLsizei>(updated.height));
+            glViewport(updated.x, updated.y, updated.width, updated.height);
         }
         if (updated.depth_range_near != current.depth_range_near ||
             updated.depth_range_far != current.depth_range_far) {
