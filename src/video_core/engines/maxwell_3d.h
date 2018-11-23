@@ -1052,6 +1052,11 @@ public:
 
     struct DirtyFlags {
         bool vertex_attrib_format = true;
+        u32 vertex_array = 0xFFFFFFFF;
+
+        void OnMemoryWrite() {
+            vertex_array = 0xFFFFFFFF;
+        }
     };
 
     DirtyFlags dirty_flags;
