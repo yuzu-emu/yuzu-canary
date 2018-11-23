@@ -156,6 +156,8 @@ add_library(core STATIC
     hle/service/am/applets/applets.h
     hle/service/am/applets/software_keyboard.cpp
     hle/service/am/applets/software_keyboard.h
+    hle/service/am/applets/stub_applet.cpp
+    hle/service/am/applets/stub_applet.h
     hle/service/am/idle.cpp
     hle/service/am/idle.h
     hle/service/am/omm.cpp
