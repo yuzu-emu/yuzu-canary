@@ -366,6 +366,11 @@ enum class HalfPrecision : u64 {
     FMZ = 2,
 };
 
+enum class R2pMode : u64 {
+    Pr = 0,
+    Cc = 1,
+};
+
 enum class IpaInterpMode : u64 {
     Linear = 0,
     Perspective = 1,
@@ -854,6 +859,12 @@ union Instruction {
         BitField<42, 1, u64> neg_pred;
         BitField<39, 3, u64> pred39;
     } hsetp2;
+
+    union {
+        BitField<40, 1, R2pMode> mode;
+        BitField<41, 2, u64> byte;
+        BitField<20, 7, u64> immediate_mask;
+    } r2p;
 
     union {
         BitField<39, 3, u64> pred39;
@@ -1383,6 +1394,7 @@ public:
         PSETP,
         PSET,
         CSETP,
+        R2P_IMM,
         XMAD_IMM,
         XMAD_CR,
         XMAD_RC,
@@ -1413,6 +1425,7 @@ public:
         HalfSetPredicate,
         PredicateSetPredicate,
         PredicateSetRegister,
+        RegisterSetPredicate,
         Conversion,
         Xmad,
         Unknown,
@@ -1651,6 +1664,7 @@ private:
             INST("0101000010001---", Id::PSET, Type::PredicateSetRegister, "PSET"),
             INST("0101000010010---", Id::PSETP, Type::PredicateSetPredicate, "PSETP"),
             INST("010100001010----", Id::CSETP, Type::PredicateSetPredicate, "CSETP"),
+            INST("0011100-11110---", Id::R2P_IMM, Type::RegisterSetPredicate, "R2P_IMM"),
             INST("0011011-00------", Id::XMAD_IMM, Type::Xmad, "XMAD_IMM"),
             INST("0100111---------", Id::XMAD_CR, Type::Xmad, "XMAD_CR"),
             INST("010100010-------", Id::XMAD_RC, Type::Xmad, "XMAD_RC"),
