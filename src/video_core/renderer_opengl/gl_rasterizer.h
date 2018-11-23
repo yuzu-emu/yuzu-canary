@@ -185,6 +185,10 @@ private:
     /// Check asserts for alpha testing.
     void CheckAlphaTests();
 
+    /// Check for extension that are not strictly required
+    /// but are needed for correct emulation
+    void CheckExtensions();
+
     bool has_ARB_direct_state_access = false;
     bool has_ARB_multi_bind = false;
     bool has_ARB_separate_shader_objects = false;
