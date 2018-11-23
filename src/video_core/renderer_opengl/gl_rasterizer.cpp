@@ -98,14 +98,9 @@ RasterizerOpenGL::RasterizerOpenGL(Core::Frontend::EmuWindow& window, ScreenInfo
             has_ARB_direct_state_access = true;
         } else if (extension == "GL_ARB_multi_bind") {
             has_ARB_multi_bind = true;
-        } else if (extension == "GL_ARB_separate_shader_objects") {
-            has_ARB_separate_shader_objects = true;
-        } else if (extension == "GL_ARB_vertex_attrib_binding") {
-            has_ARB_vertex_attrib_binding = true;
         }
     }
 
-    ASSERT_MSG(has_ARB_separate_shader_objects, "has_ARB_separate_shader_objects is unsupported");
     OpenGLState::ApplyDefaultState();
 
     // Create render framebuffer
