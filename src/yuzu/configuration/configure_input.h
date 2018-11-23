@@ -11,8 +11,8 @@
 #include <string>
 #include <unordered_map>
 
+#include <QDialog>
 #include <QKeyEvent>
-#include <QWidget>
 
 #include "common/param_package.h"
 #include "core/settings.h"
@@ -28,7 +28,7 @@ namespace Ui {
 class ConfigureInput;
 }
 
-class ConfigureInput : public QWidget {
+class ConfigureInput : public QDialog {
     Q_OBJECT
 
 public:
