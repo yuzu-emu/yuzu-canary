@@ -68,13 +68,13 @@ void Fermi2D::HandleSurfaceCopy() {
             Texture::CopySwizzledData(regs.src.width, regs.src.height, regs.src.depth,
                                       src_bytes_per_pixel, dst_bytes_per_pixel, src_buffer,
                                       dst_buffer, true, regs.src.BlockHeight(),
-                                      regs.src.BlockDepth());
+                                      regs.src.BlockDepth(), 0);
         } else {
             // If the input is linear and the output is tiled, swizzle the input and copy it over.
             Texture::CopySwizzledData(regs.src.width, regs.src.height, regs.src.depth,
                                       src_bytes_per_pixel, dst_bytes_per_pixel, dst_buffer,
                                       src_buffer, false, regs.dst.BlockHeight(),
-                                      regs.dst.BlockDepth());
+                                      regs.dst.BlockDepth(), 0);
         }
     }
 }
