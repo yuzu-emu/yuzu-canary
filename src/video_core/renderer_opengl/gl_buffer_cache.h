@@ -50,7 +50,7 @@ public:
     /// Reserves memory to be used by host's CPU. Returns mapped address and offset.
     std::tuple<u8*, GLintptr> ReserveMemory(std::size_t size, std::size_t alignment = 4);
 
-    void Map(std::size_t max_size);
+    bool Map(std::size_t max_size);
     void Unmap();
 
     GLuint GetHandle() const;
