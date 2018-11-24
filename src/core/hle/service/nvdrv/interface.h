@@ -24,6 +24,8 @@ private:
     void QueryEvent(Kernel::HLERequestContext& ctx);
     void SetClientPID(Kernel::HLERequestContext& ctx);
     void FinishInitialize(Kernel::HLERequestContext& ctx);
+    void GetStatus(Kernel::HLERequestContext& ctx);
+    void DumpGraphicsMemoryInfo(Kernel::HLERequestContext& ctx);
 
     std::shared_ptr<Module> nvdrv;
 
