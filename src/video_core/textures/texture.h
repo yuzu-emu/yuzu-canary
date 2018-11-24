@@ -166,6 +166,8 @@ struct TICEntry {
         BitField<3, 3, u32> block_height;
         BitField<6, 3, u32> block_depth;
 
+        BitField<10, 3, u32> tile_width_spacing;
+
         // High 16 bits of the pitch value
         BitField<0, 16, u32> pitch_high;
         BitField<26, 1, u32> use_header_opt_control;
