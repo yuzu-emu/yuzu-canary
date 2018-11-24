@@ -362,14 +362,14 @@ void OpenGLState::ApplyTargetBlending(std::size_t target, bool force) const {
     if (blend_changed || updated.src_rgb_func != current.src_rgb_func ||
         updated.dst_rgb_func != current.dst_rgb_func || updated.src_a_func != current.src_a_func ||
         updated.dst_a_func != current.dst_a_func) {
-        glBlendFuncSeparateiARB(static_cast<GLuint>(target), updated.src_rgb_func,
-                                updated.dst_rgb_func, updated.src_a_func, updated.dst_a_func);
+        glBlendFuncSeparatei(static_cast<GLuint>(target), updated.src_rgb_func,
+                             updated.dst_rgb_func, updated.src_a_func, updated.dst_a_func);
     }
 
     if (blend_changed || updated.rgb_equation != current.rgb_equation ||
         updated.a_equation != current.a_equation) {
-        glBlendEquationSeparateiARB(static_cast<GLuint>(target), updated.rgb_equation,
-                                    updated.a_equation);
+        glBlendEquationSeparatei(static_cast<GLuint>(target), updated.rgb_equation,
+                                 updated.a_equation);
     }
 }
 
