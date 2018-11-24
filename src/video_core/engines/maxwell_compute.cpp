@@ -8,13 +8,13 @@
 
 namespace Tegra::Engines {
 
-void MaxwellCompute::WriteReg(u32 method, u32 value) {
-    ASSERT_MSG(method < Regs::NUM_REGS,
+void MaxwellCompute::CallMethod(const GPU::MethodCall& method_call) {
+    ASSERT_MSG(method_call.method < Regs::NUM_REGS,
                "Invalid MaxwellCompute register, increase the size of the Regs structure");
 
-    regs.reg_array[method] = value;
+    regs.reg_array[method_call.method] = method_call.argument;
 
-    switch (method) {
+    switch (method_call.method) {
     case MAXWELL_COMPUTE_REG_INDEX(compute): {
         LOG_CRITICAL(HW_GPU, "Compute shaders are not implemented");
         UNREACHABLE();
