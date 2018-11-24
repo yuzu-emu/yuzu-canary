@@ -91,19 +91,20 @@ private:
         void SyncWithConfig(const Tegra::Texture::TSCEntry& info);
 
     private:
-        Tegra::Texture::TextureFilter mag_filter;
-        Tegra::Texture::TextureFilter min_filter;
-        Tegra::Texture::TextureMipmapFilter mip_filter;
-        Tegra::Texture::WrapMode wrap_u;
-        Tegra::Texture::WrapMode wrap_v;
-        Tegra::Texture::WrapMode wrap_p;
-        bool uses_depth_compare;
-        Tegra::Texture::DepthCompareFunc depth_compare_func;
-        GLvec4 border_color;
-        float min_lod;
-        float max_lod;
-        float lod_bias;
-        float max_anisotropic;
+        Tegra::Texture::TextureFilter mag_filter = Tegra::Texture::TextureFilter::Nearest;
+        Tegra::Texture::TextureFilter min_filter = Tegra::Texture::TextureFilter::Nearest;
+        Tegra::Texture::TextureMipmapFilter mip_filter = Tegra::Texture::TextureMipmapFilter::None;
+        Tegra::Texture::WrapMode wrap_u = Tegra::Texture::WrapMode::ClampToEdge;
+        Tegra::Texture::WrapMode wrap_v = Tegra::Texture::WrapMode::ClampToEdge;
+        Tegra::Texture::WrapMode wrap_p = Tegra::Texture::WrapMode::ClampToEdge;
+        bool uses_depth_compare = false;
+        Tegra::Texture::DepthCompareFunc depth_compare_func =
+            Tegra::Texture::DepthCompareFunc::Always;
+        GLvec4 border_color = {};
+        float min_lod = 0.0f;
+        float max_lod = 16.0f;
+        float lod_bias = 0.0f;
+        float max_anisotropic = 1.0f;
     };
 
     /**
@@ -171,7 +172,7 @@ private:
     void SyncMultiSampleState();
 
     /// Syncs the scissor test state to match the guest state
-    void SyncScissorTest();
+    void SyncScissorTest(OpenGLState& current_state);
 
     /// Syncs the transform feedback state to match the guest state
     void SyncTransformFeedback();
