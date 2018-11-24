@@ -176,15 +176,25 @@ void RasterizerOpenGL::SetupVertexFormat() {
     }
     state.draw.vertex_array = VAO.handle;
     state.ApplyVertexBufferState();
+
+    // Rebinding the VAO invalidates the vertex buffer bindings.
+    gpu.dirty_flags.vertex_array = 0xFFFFFFFF;
 }
 
 void RasterizerOpenGL::SetupVertexBuffer() {
-    MICROPROFILE_SCOPE(OpenGL_VB);
-    const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
+    auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
     const auto& regs = gpu.regs;
+
+    if (!gpu.dirty_flags.vertex_array)
+        return;
+
+    MICROPROFILE_SCOPE(OpenGL_VB);
 
     // Upload all guest vertex arrays sequentially to our buffer
     for (u32 index = 0; index < Maxwell::NumVertexArrays; ++index) {
+        if (~gpu.dirty_flags.vertex_array & (1u << index))
+            continue;
+
         const auto& vertex_array = regs.vertex_array[index];
         if (!vertex_array.IsEnabled())
             continue;
@@ -211,6 +221,8 @@ void RasterizerOpenGL::SetupVertexBuffer() {
 
     // Implicit set by glBindVertexBuffer. Stupid glstate handling...
     state.draw.vertex_buffer = buffer_cache.GetHandle();
+
+    gpu.dirty_flags.vertex_array = 0;
 }
 
 DrawParameters RasterizerOpenGL::SetupDraw() {
@@ -600,7 +612,7 @@ void RasterizerOpenGL::DrawArrays() {
         return;
 
     MICROPROFILE_SCOPE(OpenGL_Drawing);
-    const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
+    auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
     const auto& regs = gpu.regs;
 
     ScopeAcquireGLContext acquire_context{emu_window};
@@ -653,7 +665,11 @@ void RasterizerOpenGL::DrawArrays() {
     // Add space for at least 18 constant buffers
     buffer_size += Maxwell::MaxConstBuffers * (MaxConstbufferSize + uniform_buffer_alignment);
 
-    buffer_cache.Map(buffer_size);
+    bool invalidate = buffer_cache.Map(buffer_size);
+    if (invalidate) {
+        // As all cached buffers are invalidated, we need to recheck their state.
+        gpu.dirty_flags.vertex_attrib_format = 0xFFFFFFFF;
+    }
 
     SetupVertexFormat();
     SetupVertexBuffer();
