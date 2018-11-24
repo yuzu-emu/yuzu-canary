@@ -631,7 +631,16 @@ public:
                     }
                 } zeta;
 
-                INSERT_PADDING_WORDS(0x5B);
+                INSERT_PADDING_WORDS(0x41);
+
+                union {
+                    BitField<0, 4, u32> stencil;
+                    BitField<4, 4, u32> unknown;
+                    BitField<8, 4, u32> scissor;
+                    BitField<12, 4, u32> viewport;
+                } clear_flags;
+
+                INSERT_PADDING_WORDS(0x19);
 
                 std::array<VertexAttribute, NumVertexAttributes> vertex_attrib_format;
 
@@ -1134,6 +1143,7 @@ ASSERT_REG_POSITION(stencil_back_func_mask, 0x3D7);
 ASSERT_REG_POSITION(color_mask_common, 0x3E4);
 ASSERT_REG_POSITION(rt_separate_frag_data, 0x3EB);
 ASSERT_REG_POSITION(zeta, 0x3F8);
+ASSERT_REG_POSITION(clear_flags, 0x43E);
 ASSERT_REG_POSITION(vertex_attrib_format, 0x458);
 ASSERT_REG_POSITION(rt_control, 0x487);
 ASSERT_REG_POSITION(zeta_width, 0x48a);
