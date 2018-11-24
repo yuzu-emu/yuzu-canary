@@ -9,6 +9,13 @@
 
 namespace Tegra {
 
+MemoryManager::MemoryManager() {
+    // Mark the first page as reserved, so that 0 is not a valid GPUVAddr. Otherwise, games might
+    // try to use 0 as a valid address, which is also used to mean nullptr. This fixes a bug with
+    // Undertale using 0 for a render target.
+    PageSlot(0) = static_cast<u64>(PageStatus::Reserved);
+}
+
 GPUVAddr MemoryManager::AllocateSpace(u64 size, u64 align) {
     const std::optional<GPUVAddr> gpu_addr{FindFreeBlock(0, size, align, PageStatus::Unmapped)};
 
