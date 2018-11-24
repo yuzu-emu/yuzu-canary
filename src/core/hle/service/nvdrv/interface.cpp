@@ -88,6 +88,20 @@ void NVDRV::FinishInitialize(Kernel::HLERequestContext& ctx) {
     rb.Push(RESULT_SUCCESS);
 }
 
+void NVDRV::GetStatus(Kernel::HLERequestContext& ctx) {
+    LOG_WARNING(Service_NVDRV, "(STUBBED) called");
+    IPC::ResponseBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+}
+
+void NVDRV::DumpGraphicsMemoryInfo(Kernel::HLERequestContext& ctx) {
+    // According to SwitchBrew, this has no inputs and no outputs, so effectively does nothing on
+    // retail hardware.
+    LOG_DEBUG(Service_NVDRV, "called");
+    IPC::ResponseBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+}
+
 NVDRV::NVDRV(std::shared_ptr<Module> nvdrv, const char* name)
     : ServiceFramework(name), nvdrv(std::move(nvdrv)) {
     static const FunctionInfo functions[] = {
@@ -97,10 +111,10 @@ NVDRV::NVDRV(std::shared_ptr<Module> nvdrv, const char* name)
         {3, &NVDRV::Initialize, "Initialize"},
         {4, &NVDRV::QueryEvent, "QueryEvent"},
         {5, nullptr, "MapSharedMem"},
-        {6, nullptr, "GetStatus"},
+        {6, &NVDRV::GetStatus, "GetStatus"},
         {7, nullptr, "ForceSetClientPID"},
         {8, &NVDRV::SetClientPID, "SetClientPID"},
-        {9, nullptr, "DumpGraphicsMemoryInfo"},
+        {9, &NVDRV::DumpGraphicsMemoryInfo, "DumpGraphicsMemoryInfo"},
         {10, nullptr, "InitializeDevtools"},
         {11, &NVDRV::Ioctl, "Ioctl2"},
         {12, nullptr, "Ioctl3"},
