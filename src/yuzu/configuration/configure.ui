@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>461</width>
-    <height>500</height>
+    <height>659</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -24,17 +24,17 @@
        <string>General</string>
       </attribute>
      </widget>
-      <widget class="ConfigureGameList" name="gameListTab">
-        <attribute name="title">
-          <string>Game List</string>
-        </attribute>
-      </widget>
+     <widget class="ConfigureGameList" name="gameListTab">
+      <attribute name="title">
+       <string>Game List</string>
+      </attribute>
+     </widget>
      <widget class="ConfigureSystem" name="systemTab">
       <attribute name="title">
        <string>System</string>
       </attribute>
      </widget>
-     <widget class="ConfigureInput" name="inputTab">
+     <widget class="ConfigureInputSimple" name="inputTab">
       <attribute name="title">
        <string>Input</string>
       </attribute>
@@ -54,11 +54,11 @@
        <string>Debug</string>
       </attribute>
      </widget>
-      <widget class="ConfigureWeb" name="webTab">
-        <attribute name="title">
-          <string>Web</string>
-        </attribute>
-      </widget>
+     <widget class="ConfigureWeb" name="webTab">
+      <attribute name="title">
+       <string>Web</string>
+      </attribute>
+     </widget>
     </widget>
    </item>
    <item>
@@ -77,12 +77,12 @@
    <header>configuration/configure_general.h</header>
    <container>1</container>
   </customwidget>
-   <customwidget>
-     <class>ConfigureGameList</class>
-     <extends>QWidget</extends>
-     <header>configuration/configure_gamelist.h</header>
-     <container>1</container>
-   </customwidget>
+  <customwidget>
+   <class>ConfigureGameList</class>
+   <extends>QWidget</extends>
+   <header>configuration/configure_gamelist.h</header>
+   <container>1</container>
+  </customwidget>
   <customwidget>
    <class>ConfigureSystem</class>
    <extends>QWidget</extends>
@@ -102,9 +102,9 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>ConfigureInput</class>
+   <class>ConfigureInputSimple</class>
    <extends>QWidget</extends>
-   <header>configuration/configure_input.h</header>
+   <header>configuration/configure_input_simple.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
@@ -113,12 +113,12 @@
    <header>configuration/configure_graphics.h</header>
    <container>1</container>
   </customwidget>
-   <customwidget>
-     <class>ConfigureWeb</class>
-     <extends>QWidget</extends>
-     <header>configuration/configure_web.h</header>
-     <container>1</container>
-   </customwidget>
+  <customwidget>
+   <class>ConfigureWeb</class>
+   <extends>QWidget</extends>
+   <header>configuration/configure_web.h</header>
+   <container>1</container>
+  </customwidget>
  </customwidgets>
  <resources/>
  <connections>
