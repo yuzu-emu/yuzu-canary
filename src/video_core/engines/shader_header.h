@@ -62,7 +62,16 @@ struct Header {
             INSERT_PADDING_BYTES(1);  // ImapSystemValuesB
             INSERT_PADDING_BYTES(16); // ImapGenericVector[32]
             INSERT_PADDING_BYTES(2);  // ImapColor
-            INSERT_PADDING_BYTES(2);  // ImapSystemValuesC
+            union {
+                BitField<0, 8, u16> clip_distances;
+                BitField<8, 1, u16> point_sprite_s;
+                BitField<9, 1, u16> point_sprite_t;
+                BitField<10, 1, u16> fog_coordinate;
+                BitField<12, 1, u16> tessellation_eval_point_u;
+                BitField<13, 1, u16> tessellation_eval_point_v;
+                BitField<14, 1, u16> instance_id;
+                BitField<15, 1, u16> vertex_id;
+            };
             INSERT_PADDING_BYTES(5);  // ImapFixedFncTexture[10]
             INSERT_PADDING_BYTES(1);  // ImapReserved
             INSERT_PADDING_BYTES(3);  // OmapSystemValuesA
