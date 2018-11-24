@@ -208,6 +208,7 @@ struct SurfaceParams {
     u32 block_width;
     u32 block_height;
     u32 block_depth;
+    u32 tile_width_spacing;
     PixelFormat pixel_format;
     ComponentType component_type;
     SurfaceType type;
