@@ -490,7 +490,7 @@ bool RendererOpenGL::Init() {
     Core::Telemetry().AddField(Telemetry::FieldType::UserSystem, "GPU_Model", gpu_model);
     Core::Telemetry().AddField(Telemetry::FieldType::UserSystem, "GPU_OpenGL_Version", gl_version);
 
-    if (!GLAD_GL_VERSION_3_3) {
+    if (!GLAD_GL_VERSION_4_3) {
         return false;
     }
 
