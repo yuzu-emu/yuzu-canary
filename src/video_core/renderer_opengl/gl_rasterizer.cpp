@@ -542,6 +542,30 @@ void RasterizerOpenGL::Clear() {
         ASSERT_MSG(regs.zeta_enable != 0, "Tried to clear stencil but buffer is not enabled!");
         use_stencil = true;
         clear_state.stencil.test_enabled = true;
+        if (regs.clear_flags.stencil) {
+            // Stencil affects the clear so fill it with the used masks
+            clear_state.stencil.front.test_func = GL_ALWAYS;
+            clear_state.stencil.front.test_mask = regs.stencil_front_func_mask;
+            clear_state.stencil.front.action_stencil_fail = GL_KEEP;
+            clear_state.stencil.front.action_depth_fail = GL_KEEP;
+            clear_state.stencil.front.action_depth_pass = GL_KEEP;
+            clear_state.stencil.front.write_mask = regs.stencil_front_mask;
+            if (regs.stencil_two_side_enable) {
+                clear_state.stencil.back.test_func = GL_ALWAYS;
+                clear_state.stencil.back.test_mask = regs.stencil_back_func_mask;
+                clear_state.stencil.back.action_stencil_fail = GL_KEEP;
+                clear_state.stencil.back.action_depth_fail = GL_KEEP;
+                clear_state.stencil.back.action_depth_pass = GL_KEEP;
+                clear_state.stencil.back.write_mask = regs.stencil_back_mask;
+            } else {
+                clear_state.stencil.back.test_func = GL_ALWAYS;
+                clear_state.stencil.back.test_mask = 0xFFFFFFFF;
+                clear_state.stencil.back.write_mask = 0xFFFFFFFF;
+                clear_state.stencil.back.action_stencil_fail = GL_KEEP;
+                clear_state.stencil.back.action_depth_fail = GL_KEEP;
+                clear_state.stencil.back.action_depth_pass = GL_KEEP;
+            }
+        }
     }
 
     if (!use_color && !use_depth && !use_stencil) {
@@ -553,6 +577,14 @@ void RasterizerOpenGL::Clear() {
 
     ConfigureFramebuffers(clear_state, use_color, use_depth || use_stencil, false,
                           regs.clear_buffers.RT.Value());
+    if (regs.clear_flags.scissor) {
+        SyncScissorTest(clear_state);
+    }
+
+    if (regs.clear_flags.viewport) {
+        clear_state.EmulateViewportWithScissor();
+    }
+
     clear_state.Apply();
 
     if (use_color) {
@@ -588,7 +620,7 @@ void RasterizerOpenGL::DrawArrays() {
     SyncLogicOpState();
     SyncCullMode();
     SyncPrimitiveRestart();
-    SyncScissorTest();
+    SyncScissorTest(state);
     // Alpha Testing is synced on shaders.
     SyncTransformFeedback();
     SyncPointState();
@@ -815,7 +847,7 @@ void RasterizerOpenGL::SamplerInfo::SyncWithConfig(const Tegra::Texture::TSCEntr
     }
     const u32 bias = config.mip_lod_bias.Value();
     // Sign extend the 13-bit value.
-    const u32 mask = 1U << (13 - 1);
+    constexpr u32 mask = 1U << (13 - 1);
     const float bias_lod = static_cast<s32>((bias ^ mask) - mask) / 256.f;
     if (lod_bias != bias_lod) {
         lod_bias = bias_lod;
@@ -947,8 +979,8 @@ void RasterizerOpenGL::SyncViewport(OpenGLState& current_state) {
         auto& viewport = current_state.viewports[i];
         viewport.x = viewport_rect.left;
         viewport.y = viewport_rect.bottom;
-        viewport.width = static_cast<GLfloat>(viewport_rect.GetWidth());
-        viewport.height = static_cast<GLfloat>(viewport_rect.GetHeight());
+        viewport.width = viewport_rect.GetWidth();
+        viewport.height = viewport_rect.GetHeight();
         viewport.depth_range_far = regs.viewports[i].depth_range_far;
         viewport.depth_range_near = regs.viewports[i].depth_range_near;
     }
@@ -1120,11 +1152,11 @@ void RasterizerOpenGL::SyncLogicOpState() {
     state.logic_op.operation = MaxwellToGL::LogicOp(regs.logic_op.operation);
 }
 
-void RasterizerOpenGL::SyncScissorTest() {
+void RasterizerOpenGL::SyncScissorTest(OpenGLState& current_state) {
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
     for (std::size_t i = 0; i < Tegra::Engines::Maxwell3D::Regs::NumViewports; i++) {
         const auto& src = regs.scissor_test[i];
-        auto& dst = state.viewports[i].scissor;
+        auto& dst = current_state.viewports[i].scissor;
         dst.enabled = (src.enable != 0);
         if (dst.enabled == 0) {
             return;
