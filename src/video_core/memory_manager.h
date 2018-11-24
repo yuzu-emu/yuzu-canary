@@ -18,7 +18,7 @@ using GPUVAddr = u64;
 
 class MemoryManager final {
 public:
-    MemoryManager() = default;
+    MemoryManager();
 
     GPUVAddr AllocateSpace(u64 size, u64 align);
     GPUVAddr AllocateSpace(GPUVAddr gpu_addr, u64 size, u64 align);
@@ -37,6 +37,7 @@ private:
     enum class PageStatus : u64 {
         Unmapped = 0xFFFFFFFFFFFFFFFFULL,
         Allocated = 0xFFFFFFFFFFFFFFFEULL,
+        Reserved = 0xFFFFFFFFFFFFFFFDULL,
     };
 
     std::optional<GPUVAddr> FindFreeBlock(GPUVAddr region_start, u64 size, u64 align,
