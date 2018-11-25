@@ -92,6 +92,8 @@ OpenGLState::OpenGLState() {
 
     point.size = 1;
     fragment_color_clamp.enabled = false;
+    depth_clamp.far_plane = false;
+    depth_clamp.near_plane = false;
 }
 
 void OpenGLState::ApplyDefaultState() {
@@ -469,6 +471,37 @@ void OpenGLState::ApplyVertexBufferState() const {
     }
 }
 
+void OpenGLState::ApplyDepthClamp() const {
+    if (depth_clamp.far_plane == cur_state.depth_clamp.far_plane &&
+        depth_clamp.near_plane == cur_state.depth_clamp.near_plane) {
+        return;
+    }
+    if (depth_clamp.far_plane != depth_clamp.near_plane) {
+        UNIMPLEMENTED_MSG("Unimplemented Depth Clamp Separation!");
+        // Uncomment this to add support for depth clamp separation on AMD cards
+        /*
+        if (GLAD_GL_AMD_depth_clamp_separate) {
+            if (depth_clamp.far_plane) {
+                glEnable(GL_DEPTH_CLAMP_FAR_AMD);
+            } else {
+                glDisable(GL_DEPTH_CLAMP_FAR_AMD);
+            }
+            if (depth_clamp.near_plane) {
+                glEnable(GL_DEPTH_CLAMP_NEAR_AMD);
+            } else {
+                glDisable(GL_DEPTH_CLAMP_NEAR_AMD);
+            }
+            return;
+        }
+        */
+    }
+    if (depth_clamp.far_plane || depth_clamp.near_plane) {
+        glEnable(GL_DEPTH_CLAMP);
+    } else {
+        glDisable(GL_DEPTH_CLAMP);
+    }
+}
+
 void OpenGLState::Apply() const {
     ApplyFramebufferState();
     ApplyVertexBufferState();
@@ -520,7 +553,7 @@ void OpenGLState::Apply() const {
             glDisable(GL_SAMPLE_ALPHA_TO_ONE);
         }
     }
-
+    ApplyDepthClamp();
     ApplyColorMask();
     ApplyViewport();
     ApplyStencilTest();
