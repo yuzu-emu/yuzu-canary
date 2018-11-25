@@ -9,6 +9,7 @@
 #include <vector>
 #include "common/common_types.h"
 #include "core/hle/service/nvflinger/buffer_queue.h"
+#include "video_core/dma_pusher.h"
 #include "video_core/memory_manager.h"
 
 namespace VideoCore {
@@ -119,8 +120,23 @@ public:
     explicit GPU(VideoCore::RasterizerInterface& rasterizer);
     ~GPU();
 
-    /// Processes a command list stored at the specified address in GPU memory.
-    void ProcessCommandLists(const std::vector<CommandListHeader>& commands);
+    struct MethodCall {
+        u32 method{};
+        u32 argument{};
+        u32 subchannel{};
+        u32 method_count{};
+
+        bool IsLastCall() const {
+            return method_count <= 1;
+        }
+
+        MethodCall(u32 method, u32 argument, u32 subchannel = 0, u32 method_count = 0)
+            : method(method), argument(argument), subchannel(subchannel),
+              method_count(method_count) {}
+    };
+
+    /// Calls a GPU method.
+    void CallMethod(const MethodCall& method_call);
 
     /// Returns a reference to the Maxwell3D GPU engine.
     Engines::Maxwell3D& Maxwell3D();
@@ -134,7 +150,14 @@ public:
     /// Returns a const reference to the GPU memory manager.
     const Tegra::MemoryManager& MemoryManager() const;
 
+    /// Returns a reference to the GPU DMA pusher.
+    Tegra::DmaPusher& DmaPusher();
+
+    /// Returns a const reference to the GPU DMA pusher.
+    const Tegra::DmaPusher& DmaPusher() const;
+
 private:
+    std::unique_ptr<Tegra::DmaPusher> dma_pusher;
     std::unique_ptr<Tegra::MemoryManager> memory_manager;
 
     /// Mapping of command subchannels to their bound engine ids.
