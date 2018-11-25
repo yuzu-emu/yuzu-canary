@@ -196,9 +196,15 @@ struct SurfaceParams {
 
     /// Checks if surfaces are compatible for caching
     bool IsCompatibleSurface(const SurfaceParams& other) const {
-        return std::tie(pixel_format, type, width, height, target, depth) ==
-               std::tie(other.pixel_format, other.type, other.width, other.height, other.target,
-                        other.depth);
+        if (std::tie(pixel_format, type, width, height, target, depth, is_tiled) ==
+            std::tie(other.pixel_format, other.type, other.width, other.height, other.target,
+                     other.depth, other.is_tiled)) {
+            if (!is_tiled)
+                return true;
+            return std::tie(block_height, block_depth, tile_width_spacing) ==
+                   std::tie(other.block_height, other.block_depth, other.tile_width_spacing);
+        }
+        return false;
     }
 
     /// Initializes parameters for caching, should be called after everything has been initialized
@@ -208,6 +214,7 @@ struct SurfaceParams {
     u32 block_width;
     u32 block_height;
     u32 block_depth;
+    u32 tile_width_spacing;
     PixelFormat pixel_format;
     ComponentType component_type;
     SurfaceType type;
