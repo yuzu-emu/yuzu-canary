@@ -500,27 +500,42 @@ public:
                                       const Register& buf_reg) {
         const std::string dest = GetOutputAttribute(attribute);
         const std::string src = GetRegisterAsFloat(val_reg);
+        if (dest.empty())
+            return;
 
-        if (!dest.empty()) {
-            // Can happen with unknown/unimplemented output attributes, in which case we ignore the
-            // instruction for now.
-            if (stage == Maxwell3D::Regs::ShaderStage::Geometry) {
-                // TODO(Rodrigo): nouveau sets some attributes after setting emitting a geometry
-                // shader. These instructions use a dirty register as buffer index, to avoid some
-                // drivers from complaining about out of boundary writes, guard them.
-                const std::string buf_index{"((" + GetRegisterAsInteger(buf_reg) + ") % " +
-                                            std::to_string(MAX_GEOMETRY_BUFFERS) + ')'};
-                shader.AddLine("amem[" + buf_index + "][" +
-                               std::to_string(static_cast<u32>(attribute)) + ']' +
-                               GetSwizzle(elem) + " = " + src + ';');
-            } else {
-                if (attribute == Attribute::Index::PointSize) {
-                    fixed_pipeline_output_attributes_used.insert(attribute);
-                    shader.AddLine(dest + " = " + src + ';');
-                } else {
-                    shader.AddLine(dest + GetSwizzle(elem) + " = " + src + ';');
-                }
-            }
+        // Can happen with unknown/unimplemented output attributes, in which case we ignore the
+        // instruction for now.
+        if (stage == Maxwell3D::Regs::ShaderStage::Geometry) {
+            // TODO(Rodrigo): nouveau sets some attributes after setting emitting a geometry
+            // shader. These instructions use a dirty register as buffer index, to avoid some
+            // drivers from complaining about out of boundary writes, guard them.
+            const std::string buf_index{"((" + GetRegisterAsInteger(buf_reg) + ") % " +
+                                        std::to_string(MAX_GEOMETRY_BUFFERS) + ')'};
+            shader.AddLine("amem[" + buf_index + "][" +
+                           std::to_string(static_cast<u32>(attribute)) + ']' + GetSwizzle(elem) +
+                           " = " + src + ';');
+            return;
+        }
+
+        switch (attribute) {
+        case Attribute::Index::ClipDistances0123:
+        case Attribute::Index::ClipDistances4567: {
+            const u64 index = attribute == Attribute::Index::ClipDistances4567 ? 4 : 0 + elem;
+            UNIMPLEMENTED_IF_MSG(
+                ((header.vtg.clip_distances >> index) & 1) == 0,
+                "Shader is setting gl_ClipDistance{} without enabling it in the header", index);
+
+            fixed_pipeline_output_attributes_used.insert(attribute);
+            shader.AddLine(dest + '[' + std::to_string(index) + "] = " + src + ';');
+            break;
+        }
+        case Attribute::Index::PointSize:
+            fixed_pipeline_output_attributes_used.insert(attribute);
+            shader.AddLine(dest + " = " + src + ';');
+            break;
+        default:
+            shader.AddLine(dest + GetSwizzle(elem) + " = " + src + ';');
+            break;
         }
     }
 
@@ -740,12 +755,19 @@ private:
     void GenerateVertex() {
         if (stage != Maxwell3D::Regs::ShaderStage::Vertex)
             return;
+        bool clip_distances_declared = false;
+
         declarations.AddLine("out gl_PerVertex {");
         ++declarations.scope;
         declarations.AddLine("vec4 gl_Position;");
         for (auto& o : fixed_pipeline_output_attributes_used) {
             if (o == Attribute::Index::PointSize)
                 declarations.AddLine("float gl_PointSize;");
+            if (!clip_distances_declared && (o == Attribute::Index::ClipDistances0123 ||
+                                             o == Attribute::Index::ClipDistances4567)) {
+                declarations.AddLine("float gl_ClipDistance[];");
+                clip_distances_declared = true;
+            }
         }
         --declarations.scope;
         declarations.AddLine("};");
@@ -916,6 +938,10 @@ private:
             return "gl_PointSize";
         case Attribute::Index::Position:
             return "position";
+        case Attribute::Index::ClipDistances0123:
+        case Attribute::Index::ClipDistances4567: {
+            return "gl_ClipDistance";
+        }
         default:
             const u32 index{static_cast<u32>(attribute) -
                             static_cast<u32>(Attribute::Index::Attribute_0)};
