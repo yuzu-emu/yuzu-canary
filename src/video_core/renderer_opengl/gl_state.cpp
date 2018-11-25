@@ -92,6 +92,8 @@ OpenGLState::OpenGLState() {
 
     point.size = 1;
     fragment_color_clamp.enabled = false;
+    depth_clamp.far_plane = false;
+    depth_clamp.near_plane = false;
 }
 
 void OpenGLState::ApplyDefaultState() {
@@ -140,7 +142,7 @@ void OpenGLState::ApplyCulling() const {
 }
 
 void OpenGLState::ApplyColorMask() const {
-    if (GLAD_GL_ARB_viewport_array && independant_blend.enabled) {
+    if (independant_blend.enabled) {
         for (size_t i = 0; i < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets; i++) {
             const auto& updated = color_mask[i];
             const auto& current = cur_state.color_mask[i];
@@ -257,7 +259,7 @@ void OpenGLState::EmulateViewportWithScissor() {
 }
 
 void OpenGLState::ApplyViewport() const {
-    if (GLAD_GL_ARB_viewport_array && geometry_shaders.enabled) {
+    if (geometry_shaders.enabled) {
         for (GLuint i = 0; i < static_cast<GLuint>(Tegra::Engines::Maxwell3D::Regs::NumViewports);
              i++) {
             const auto& current = cur_state.viewports[i];
@@ -469,6 +471,21 @@ void OpenGLState::ApplyVertexBufferState() const {
     }
 }
 
+void OpenGLState::ApplyDepthClamp() const {
+    if (depth_clamp.far_plane == cur_state.depth_clamp.far_plane &&
+        depth_clamp.near_plane == cur_state.depth_clamp.near_plane) {
+        return;
+    }
+    if (depth_clamp.far_plane != depth_clamp.near_plane) {
+        UNIMPLEMENTED_MSG("Unimplemented Depth Clamp Separation!");
+    }
+    if (depth_clamp.far_plane || depth_clamp.near_plane) {
+        glEnable(GL_DEPTH_CLAMP);
+    } else {
+        glDisable(GL_DEPTH_CLAMP);
+    }
+}
+
 void OpenGLState::Apply() const {
     ApplyFramebufferState();
     ApplyVertexBufferState();
@@ -500,11 +517,9 @@ void OpenGLState::Apply() const {
     if (point.size != cur_state.point.size) {
         glPointSize(point.size);
     }
-    if (GLAD_GL_ARB_color_buffer_float) {
-        if (fragment_color_clamp.enabled != cur_state.fragment_color_clamp.enabled) {
-            glClampColor(GL_CLAMP_FRAGMENT_COLOR_ARB,
-                         fragment_color_clamp.enabled ? GL_TRUE : GL_FALSE);
-        }
+    if (fragment_color_clamp.enabled != cur_state.fragment_color_clamp.enabled) {
+        glClampColor(GL_CLAMP_FRAGMENT_COLOR_ARB,
+                     fragment_color_clamp.enabled ? GL_TRUE : GL_FALSE);
     }
     if (multisample_control.alpha_to_coverage != cur_state.multisample_control.alpha_to_coverage) {
         if (multisample_control.alpha_to_coverage) {
@@ -520,7 +535,7 @@ void OpenGLState::Apply() const {
             glDisable(GL_SAMPLE_ALPHA_TO_ONE);
         }
     }
-
+    ApplyDepthClamp();
     ApplyColorMask();
     ApplyViewport();
     ApplyStencilTest();
