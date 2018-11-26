@@ -1,3 +1,28 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: a41943dc5527084dbad878053c9288e7e140518c
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1792](https://github.com/yuzu-emu/yuzu/pull/1792)|[0d20225](https://github.com/yuzu-emu/yuzu/pull/1792/files/)|gpu: Rewrite GPU command list processing with DmaPusher class.|[bunnei](https://github.com/bunnei)|Yes|
+|[1786](https://github.com/yuzu-emu/yuzu/pull/1786)|[8a1dd39](https://github.com/yuzu-emu/yuzu/pull/1786/files/)|Add Depth Clamp Support|[Tinob](https://github.com/Tinob)|Yes|
+|[1780](https://github.com/yuzu-emu/yuzu/pull/1780)|[7022569](https://github.com/yuzu-emu/yuzu/pull/1780/files/)|configure_input: Add Controller Setup Profiles and simplify input UI|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1704](https://github.com/yuzu-emu/yuzu/pull/1704)|[86ad1f8](https://github.com/yuzu-emu/yuzu/pull/1704/files/)|file_sys: Implement open source system archives|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1698](https://github.com/yuzu-emu/yuzu/pull/1698)|[e6d205e](https://github.com/yuzu-emu/yuzu/pull/1698/files/)|Initial implementation of MapPhysicalMemory|[ogniK5377](https://github.com/ogniK5377)|Yes|
+|[1603](https://github.com/yuzu-emu/yuzu/pull/1603)|[fd98bf1](https://github.com/yuzu-emu/yuzu/pull/1603/files/)|Preliminary implementation of LDG (continuation)|[bunnei](https://github.com/bunnei)|Yes|
+|[1556](https://github.com/yuzu-emu/yuzu/pull/1556)|[5583fe1](https://github.com/yuzu-emu/yuzu/pull/1556/files/)|svc: Improve SleepThread for yield types.|[bunnei](https://github.com/bunnei)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
