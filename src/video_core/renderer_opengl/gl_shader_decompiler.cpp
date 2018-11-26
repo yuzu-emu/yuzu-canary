@@ -1721,6 +1721,26 @@ private:
 
             break;
         }
+        case OpCode::Type::Bfi: {
+            UNIMPLEMENTED_IF(instr.generates_cc);
+
+            const auto [base, packed_shift] = [&]() -> std::tuple<std::string, std::string> {
+                switch (opcode->get().GetId()) {
+                case OpCode::Id::BFI_IMM_R:
+                    return {regs.GetRegisterAsInteger(instr.gpr39, 0, false),
+                            std::to_string(instr.alu.GetSignedImm20_20())};
+                default:
+                    UNREACHABLE();
+                }
+            }();
+            const std::string offset = '(' + packed_shift + " & 0xff)";
+            const std::string bits = "((" + packed_shift + " >> 8) & 0xff)";
+            const std::string insert = regs.GetRegisterAsInteger(instr.gpr8, 0, false);
+            regs.SetRegisterToInteger(
+                instr.gpr0, false, 0,
+                "bitfieldInsert(" + base + ", " + insert + ", " + offset + ", " + bits + ')', 1, 1);
+            break;
+        }
         case OpCode::Type::Shift: {
             std::string op_a = regs.GetRegisterAsInteger(instr.gpr8, 0, true);
             std::string op_b;
