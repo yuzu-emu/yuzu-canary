@@ -27,7 +27,7 @@
 #include "yuzu/configuration/configure_mouse_advanced.h"
 
 ConfigureInput::ConfigureInput(QWidget* parent)
-    : QWidget(parent), ui(std::make_unique<Ui::ConfigureInput>()) {
+    : QDialog(parent), ui(std::make_unique<Ui::ConfigureInput>()) {
     ui->setupUi(this);
 
     players_controller = {
