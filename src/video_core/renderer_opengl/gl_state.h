@@ -185,7 +185,7 @@ public:
         GLfloat clamp;
     } polygon_offset;
 
-    std::array<bool, 2> clip_distance; // GL_CLIP_DISTANCE
+    std::array<bool, 8> clip_distance; // GL_CLIP_DISTANCE
 
     OpenGLState();
 
