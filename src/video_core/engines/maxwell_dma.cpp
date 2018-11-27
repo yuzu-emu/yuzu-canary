@@ -14,16 +14,16 @@ namespace Tegra::Engines {
 MaxwellDMA::MaxwellDMA(VideoCore::RasterizerInterface& rasterizer, MemoryManager& memory_manager)
     : memory_manager(memory_manager), rasterizer{rasterizer} {}
 
-void MaxwellDMA::WriteReg(u32 method, u32 value) {
-    ASSERT_MSG(method < Regs::NUM_REGS,
+void MaxwellDMA::CallMethod(const GPU::MethodCall& method_call) {
+    ASSERT_MSG(method_call.method < Regs::NUM_REGS,
                "Invalid MaxwellDMA register, increase the size of the Regs structure");
 
-    regs.reg_array[method] = value;
+    regs.reg_array[method_call.method] = method_call.argument;
 
 #define MAXWELLDMA_REG_INDEX(field_name)                                                           \
     (offsetof(Tegra::Engines::MaxwellDMA::Regs, field_name) / sizeof(u32))
 
-    switch (method) {
+    switch (method_call.method) {
     case MAXWELLDMA_REG_INDEX(exec): {
         HandleCopy();
         break;
