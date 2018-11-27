@@ -30,6 +30,8 @@ add_library(video_core STATIC
     renderer_base.h
     renderer_opengl/gl_buffer_cache.cpp
     renderer_opengl/gl_buffer_cache.h
+    renderer_opengl/gl_global_cache.cpp
+    renderer_opengl/gl_global_cache.h
     renderer_opengl/gl_primitive_assembler.cpp
     renderer_opengl/gl_primitive_assembler.h
     renderer_opengl/gl_rasterizer.cpp
