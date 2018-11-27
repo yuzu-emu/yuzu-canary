@@ -9,6 +9,7 @@
 #include "common/bit_field.h"
 #include "common/common_funcs.h"
 #include "common/common_types.h"
+#include "video_core/gpu.h"
 
 namespace Tegra::Engines {
 
@@ -42,7 +43,7 @@ public:
                   "MaxwellCompute Regs has wrong size");
 
     /// Write the value to the register identified by method.
-    void WriteReg(u32 method, u32 value);
+    void CallMethod(const GPU::MethodCall& method_call);
 };
 
 #define ASSERT_REG_POSITION(field_name, position)                                                  \
