@@ -915,8 +915,15 @@ public:
 
                 u32 viewport_transform_enabled;
 
-                INSERT_PADDING_WORDS(0x25);
+                INSERT_PADDING_WORDS(0x3);
 
+                union {
+                    BitField<0, 1, u32> depth_range_0_1;
+                    BitField<3, 1, u32> depth_clamp_near;
+                    BitField<4, 1, u32> depth_clamp_far;
+                } view_volume_clip_control;
+
+                INSERT_PADDING_WORDS(0x21);
                 struct {
                     u32 enable;
                     LogicOperation operation;
@@ -1238,6 +1245,7 @@ ASSERT_REG_POSITION(instanced_arrays, 0x620);
 ASSERT_REG_POSITION(cull, 0x646);
 ASSERT_REG_POSITION(pixel_center_integer, 0x649);
 ASSERT_REG_POSITION(viewport_transform_enabled, 0x64B);
+ASSERT_REG_POSITION(view_volume_clip_control, 0x64F);
 ASSERT_REG_POSITION(logic_op, 0x671);
 ASSERT_REG_POSITION(clear_buffers, 0x674);
 ASSERT_REG_POSITION(color_mask, 0x680);
