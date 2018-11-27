@@ -10,6 +10,7 @@
 
 #include "common/common_types.h"
 #include "core/hle/kernel/object.h"
+#include "frontend/applets/profile_select.h"
 
 namespace Core::Frontend {
 class EmuWindow;
@@ -236,6 +237,10 @@ public:
     void SetFilesystem(std::shared_ptr<FileSys::VfsFilesystem> vfs);
 
     std::shared_ptr<FileSys::VfsFilesystem> GetFilesystem() const;
+
+    void SetProfileSelector(std::unique_ptr<Core::Frontend::ProfileSelectApplet> applet);
+
+    const Core::Frontend::ProfileSelectApplet& GetProfileSelector() const;
 
     void SetSoftwareKeyboard(std::unique_ptr<Core::Frontend::SoftwareKeyboardApplet> applet);
 
