@@ -97,71 +97,74 @@ void Maxwell3D::CallMacroMethod(u32 method, std::vector<u32> parameters) {
     macro_interpreter.Execute(search->second, std::move(parameters));
 }
 
-void Maxwell3D::WriteReg(u32 method, u32 value, u32 remaining_params) {
+void Maxwell3D::CallMethod(const GPU::MethodCall& method_call) {
     auto debug_context = Core::System::GetInstance().GetGPUDebugContext();
 
     // It is an error to write to a register other than the current macro's ARG register before it
     // has finished execution.
     if (executing_macro != 0) {
-        ASSERT(method == executing_macro + 1);
+        ASSERT(method_call.method == executing_macro + 1);
     }
 
     // Methods after 0xE00 are special, they're actually triggers for some microcode that was
     // uploaded to the GPU during initialization.
-    if (method >= MacroRegistersStart) {
+    if (method_call.method >= MacroRegistersStart) {
         // We're trying to execute a macro
         if (executing_macro == 0) {
             // A macro call must begin by writing the macro method's register, not its argument.
-            ASSERT_MSG((method % 2) == 0,
+            ASSERT_MSG((method_call.method % 2) == 0,
                        "Can't start macro execution by writing to the ARGS register");
-            executing_macro = method;
+            executing_macro = method_call.method;
         }
 
-        macro_params.push_back(value);
+        macro_params.push_back(method_call.argument);
 
         // Call the macro when there are no more parameters in the command buffer
-        if (remaining_params == 0) {
+        if (method_call.IsLastCall()) {
             CallMacroMethod(executing_macro, std::move(macro_params));
         }
         return;
     }
 
-    ASSERT_MSG(method < Regs::NUM_REGS,
+    ASSERT_MSG(method_call.method < Regs::NUM_REGS,
                "Invalid Maxwell3D register, increase the size of the Regs structure");
 
     if (debug_context) {
         debug_context->OnEvent(Tegra::DebugContext::Event::MaxwellCommandLoaded, nullptr);
     }
 
-    if (regs.reg_array[method] != value) {
-        regs.reg_array[method] = value;
+    if (regs.reg_array[method_call.method] != method_call.argument) {
+        regs.reg_array[method_call.method] = method_call.argument;
         // Vertex format
-        if (method >= MAXWELL3D_REG_INDEX(vertex_attrib_format) &&
-            method < MAXWELL3D_REG_INDEX(vertex_attrib_format) + regs.vertex_attrib_format.size()) {
+        if (method_call.method >= MAXWELL3D_REG_INDEX(vertex_attrib_format) &&
+            method_call.method <
+                MAXWELL3D_REG_INDEX(vertex_attrib_format) + regs.vertex_attrib_format.size()) {
             dirty_flags.vertex_attrib_format = true;
         }
 
         // Vertex buffer
-        if (method >= MAXWELL3D_REG_INDEX(vertex_array) &&
-            method < MAXWELL3D_REG_INDEX(vertex_array) + 4 * 32) {
-            dirty_flags.vertex_array |= 1u << ((method - MAXWELL3D_REG_INDEX(vertex_array)) >> 2);
-        } else if (method >= MAXWELL3D_REG_INDEX(vertex_array_limit) &&
-                   method < MAXWELL3D_REG_INDEX(vertex_array_limit) + 2 * 32) {
+        if (method_call.method >= MAXWELL3D_REG_INDEX(vertex_array) &&
+            method_call.method < MAXWELL3D_REG_INDEX(vertex_array) + 4 * 32) {
             dirty_flags.vertex_array |=
-                1u << ((method - MAXWELL3D_REG_INDEX(vertex_array_limit)) >> 1);
-        } else if (method >= MAXWELL3D_REG_INDEX(instanced_arrays) &&
-                   method < MAXWELL3D_REG_INDEX(instanced_arrays) + 32) {
-            dirty_flags.vertex_array |= 1u << (method - MAXWELL3D_REG_INDEX(instanced_arrays));
+                1u << ((method_call.method - MAXWELL3D_REG_INDEX(vertex_array)) >> 2);
+        } else if (method_call.method >= MAXWELL3D_REG_INDEX(vertex_array_limit) &&
+                   method_call.method < MAXWELL3D_REG_INDEX(vertex_array_limit) + 2 * 32) {
+            dirty_flags.vertex_array |=
+                1u << ((method_call.method - MAXWELL3D_REG_INDEX(vertex_array_limit)) >> 1);
+        } else if (method_call.method >= MAXWELL3D_REG_INDEX(instanced_arrays) &&
+                   method_call.method < MAXWELL3D_REG_INDEX(instanced_arrays) + 32) {
+            dirty_flags.vertex_array |=
+                1u << (method_call.method - MAXWELL3D_REG_INDEX(instanced_arrays));
         }
     }
 
-    switch (method) {
+    switch (method_call.method) {
     case MAXWELL3D_REG_INDEX(macros.data): {
-        ProcessMacroUpload(value);
+        ProcessMacroUpload(method_call.argument);
         break;
     }
     case MAXWELL3D_REG_INDEX(macros.bind): {
-        ProcessMacroBind(value);
+        ProcessMacroBind(method_call.argument);
         break;
     }
     case MAXWELL3D_REG_INDEX(const_buffer.cb_data[0]):
@@ -180,7 +183,7 @@ void Maxwell3D::WriteReg(u32 method, u32 value, u32 remaining_params) {
     case MAXWELL3D_REG_INDEX(const_buffer.cb_data[13]):
     case MAXWELL3D_REG_INDEX(const_buffer.cb_data[14]):
     case MAXWELL3D_REG_INDEX(const_buffer.cb_data[15]): {
-        ProcessCBData(value);
+        ProcessCBData(method_call.argument);
         break;
     }
     case MAXWELL3D_REG_INDEX(cb_bind[0].raw_config): {
