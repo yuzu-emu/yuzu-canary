@@ -63,6 +63,10 @@ add_library(core STATIC
     file_sys/sdmc_factory.h
     file_sys/submission_package.cpp
     file_sys/submission_package.h
+    file_sys/system_archive/ng_word.cpp
+    file_sys/system_archive/ng_word.h
+    file_sys/system_archive/system_archive.cpp
+    file_sys/system_archive/system_archive.h
     file_sys/vfs.cpp
     file_sys/vfs.h
     file_sys/vfs_concat.cpp
