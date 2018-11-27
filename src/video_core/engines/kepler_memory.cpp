@@ -17,19 +17,19 @@ KeplerMemory::KeplerMemory(VideoCore::RasterizerInterface& rasterizer,
 
 KeplerMemory::~KeplerMemory() = default;
 
-void KeplerMemory::WriteReg(u32 method, u32 value) {
-    ASSERT_MSG(method < Regs::NUM_REGS,
+void KeplerMemory::CallMethod(const GPU::MethodCall& method_call) {
+    ASSERT_MSG(method_call.method < Regs::NUM_REGS,
                "Invalid KeplerMemory register, increase the size of the Regs structure");
 
-    regs.reg_array[method] = value;
+    regs.reg_array[method_call.method] = method_call.argument;
 
-    switch (method) {
+    switch (method_call.method) {
     case KEPLERMEMORY_REG_INDEX(exec): {
         state.write_offset = 0;
         break;
     }
     case KEPLERMEMORY_REG_INDEX(data): {
-        ProcessData(value);
+        ProcessData(method_call.argument);
         break;
     }
     }
