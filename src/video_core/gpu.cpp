@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include "common/assert.h"
+#include "common/microprofile.h"
 #include "video_core/engines/fermi_2d.h"
 #include "video_core/engines/kepler_memory.h"
 #include "video_core/engines/maxwell_3d.h"
@@ -26,6 +27,7 @@ u32 FramebufferConfig::BytesPerPixel(PixelFormat format) {
 
 GPU::GPU(VideoCore::RasterizerInterface& rasterizer) {
     memory_manager = std::make_unique<Tegra::MemoryManager>();
+    dma_pusher = std::make_unique<Tegra::DmaPusher>(*this);
     maxwell_3d = std::make_unique<Engines::Maxwell3D>(rasterizer, *memory_manager);
     fermi_2d = std::make_unique<Engines::Fermi2D>(rasterizer, *memory_manager);
     maxwell_compute = std::make_unique<Engines::MaxwellCompute>();
@@ -49,6 +51,14 @@ MemoryManager& GPU::MemoryManager() {
 
 const MemoryManager& GPU::MemoryManager() const {
     return *memory_manager;
+}
+
+DmaPusher& GPU::DmaPusher() {
+    return *dma_pusher;
+}
+
+const DmaPusher& GPU::DmaPusher() const {
+    return *dma_pusher;
 }
 
 u32 RenderTargetBytesPerPixel(RenderTargetFormat format) {
@@ -110,6 +120,54 @@ u32 DepthFormatBytesPerPixel(DepthFormat format) {
         return 2;
     default:
         UNIMPLEMENTED_MSG("Unimplemented Depth format {}", static_cast<u32>(format));
+    }
+}
+
+enum class BufferMethods {
+    BindObject = 0,
+    CountBufferMethods = 0x40,
+};
+
+MICROPROFILE_DEFINE(ProcessCommandLists, "GPU", "Execute command buffer", MP_RGB(128, 128, 192));
+
+void GPU::CallMethod(const MethodCall& method_call) {
+    MICROPROFILE_SCOPE(ProcessCommandLists);
+
+    LOG_TRACE(HW_GPU,
+              "Processing method {:08X} on subchannel {} value "
+              "{:08X} remaining params {}",
+              MethCall.method, MethCall.subchannel, value, remaining_params);
+
+    ASSERT(method_call.subchannel < bound_engines.size());
+
+    if (method_call.method == static_cast<u32>(BufferMethods::BindObject)) {
+        // Bind the current subchannel to the desired engine id.
+        LOG_DEBUG(HW_GPU, "Binding subchannel {} to engine {}", method_call.subchannel,
+                  method_call.argument);
+        bound_engines[method_call.subchannel] = static_cast<EngineID>(method_call.argument);
+        return;
+    }
+
+    const EngineID engine = bound_engines[method_call.subchannel];
+
+    switch (engine) {
+    case EngineID::FERMI_TWOD_A:
+        fermi_2d->CallMethod(method_call);
+        break;
+    case EngineID::MAXWELL_B:
+        maxwell_3d->CallMethod(method_call);
+        break;
+    case EngineID::MAXWELL_COMPUTE_B:
+        maxwell_compute->CallMethod(method_call);
+        break;
+    case EngineID::MAXWELL_DMA_COPY_A:
+        maxwell_dma->CallMethod(method_call);
+        break;
+    case EngineID::KEPLER_INLINE_TO_MEMORY_B:
+        kepler_memory->CallMethod(method_call);
+        break;
+    default:
+        UNIMPLEMENTED_MSG("Unimplemented engine");
     }
 }
 

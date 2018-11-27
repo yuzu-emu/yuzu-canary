@@ -1080,7 +1080,7 @@ public:
     u32 GetRegisterValue(u32 method) const;
 
     /// Write the value to the register identified by method.
-    void WriteReg(u32 method, u32 value, u32 remaining_params);
+    void CallMethod(const GPU::MethodCall& method_call);
 
     /// Returns a list of enabled textures for the specified shader stage.
     std::vector<Texture::FullTextureInfo> GetStageTextures(Regs::ShaderStage stage) const;
