@@ -250,7 +250,7 @@ void MacroInterpreter::SetMethodAddress(u32 address) {
 }
 
 void MacroInterpreter::Send(u32 value) {
-    maxwell3d.WriteReg(method_address.address, value, 0);
+    maxwell3d.CallMethod({method_address.address, value});
     // Increment the method address by the method increment.
     method_address.address.Assign(method_address.address.Value() +
                                   method_address.increment.Value());
