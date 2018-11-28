@@ -744,7 +744,20 @@ public:
 
                 u32 vb_element_base;
 
-                INSERT_PADDING_WORDS(0x38);
+                INSERT_PADDING_WORDS(0x36);
+
+                union {
+                    BitField<0, 1, u32> c0;
+                    BitField<1, 1, u32> c1;
+                    BitField<2, 1, u32> c2;
+                    BitField<3, 1, u32> c3;
+                    BitField<4, 1, u32> c4;
+                    BitField<5, 1, u32> c5;
+                    BitField<6, 1, u32> c6;
+                    BitField<7, 1, u32> c7;
+                } clip_distance_enabled;
+
+                INSERT_PADDING_WORDS(0x1);
 
                 float point_size;
 
@@ -1201,6 +1214,7 @@ ASSERT_REG_POSITION(stencil_front_mask, 0x4E7);
 ASSERT_REG_POSITION(frag_color_clamp, 0x4EA);
 ASSERT_REG_POSITION(screen_y_control, 0x4EB);
 ASSERT_REG_POSITION(vb_element_base, 0x50D);
+ASSERT_REG_POSITION(clip_distance_enabled, 0x544);
 ASSERT_REG_POSITION(point_size, 0x546);
 ASSERT_REG_POSITION(zeta_enable, 0x54E);
 ASSERT_REG_POSITION(multisample_control, 0x54F);
