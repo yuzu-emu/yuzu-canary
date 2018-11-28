@@ -14,13 +14,13 @@ namespace Tegra::Engines {
 Fermi2D::Fermi2D(VideoCore::RasterizerInterface& rasterizer, MemoryManager& memory_manager)
     : memory_manager(memory_manager), rasterizer{rasterizer} {}
 
-void Fermi2D::WriteReg(u32 method, u32 value) {
-    ASSERT_MSG(method < Regs::NUM_REGS,
+void Fermi2D::CallMethod(const GPU::MethodCall& method_call) {
+    ASSERT_MSG(method_call.method < Regs::NUM_REGS,
                "Invalid Fermi2D register, increase the size of the Regs structure");
 
-    regs.reg_array[method] = value;
+    regs.reg_array[method_call.method] = method_call.argument;
 
-    switch (method) {
+    switch (method_call.method) {
     case FERMI2D_REG_INDEX(trigger): {
         HandleSurfaceCopy();
         break;
