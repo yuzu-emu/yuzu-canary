@@ -642,6 +642,7 @@ void RasterizerOpenGL::DrawArrays() {
     SyncCullMode();
     SyncPrimitiveRestart();
     SyncScissorTest(state);
+    SyncClipEnabled();
     // Alpha Testing is synced on shaders.
     SyncTransformFeedback();
     SyncPointState();
@@ -1006,18 +1007,11 @@ void RasterizerOpenGL::SyncViewport(OpenGLState& current_state) {
     for (std::size_t i = 0; i < viewport_count; i++) {
         auto& viewport = current_state.viewports[i];
         const auto& src = regs.viewports[i];
-        if (regs.viewport_transform_enabled) {
-            const MathUtil::Rectangle<s32> viewport_rect{regs.viewport_transform[i].GetRect()};
-            viewport.x = viewport_rect.left;
-            viewport.y = viewport_rect.bottom;
-            viewport.width = viewport_rect.GetWidth();
-            viewport.height = viewport_rect.GetHeight();
-        } else {
-            viewport.x = src.x;
-            viewport.y = src.y;
-            viewport.width = src.width;
-            viewport.height = src.height;
-        }
+        const MathUtil::Rectangle<s32> viewport_rect{regs.viewport_transform[i].GetRect()};
+        viewport.x = viewport_rect.left;
+        viewport.y = viewport_rect.bottom;
+        viewport.width = viewport_rect.GetWidth();
+        viewport.height = viewport_rect.GetHeight();
         viewport.depth_range_far = regs.viewports[i].depth_range_far;
         viewport.depth_range_near = regs.viewports[i].depth_range_near;
     }
@@ -1026,7 +1020,15 @@ void RasterizerOpenGL::SyncViewport(OpenGLState& current_state) {
 }
 
 void RasterizerOpenGL::SyncClipEnabled() {
-    UNREACHABLE();
+    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
+    state.clip_distance[0] = regs.clip_distance_enabled.c0 != 0;
+    state.clip_distance[1] = regs.clip_distance_enabled.c1 != 0;
+    state.clip_distance[2] = regs.clip_distance_enabled.c2 != 0;
+    state.clip_distance[3] = regs.clip_distance_enabled.c3 != 0;
+    state.clip_distance[4] = regs.clip_distance_enabled.c4 != 0;
+    state.clip_distance[5] = regs.clip_distance_enabled.c5 != 0;
+    state.clip_distance[6] = regs.clip_distance_enabled.c6 != 0;
+    state.clip_distance[7] = regs.clip_distance_enabled.c7 != 0;
 }
 
 void RasterizerOpenGL::SyncClipCoef() {
