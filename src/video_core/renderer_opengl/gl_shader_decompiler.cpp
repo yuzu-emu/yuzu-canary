@@ -525,6 +525,7 @@ public:
                 ((header.vtg.clip_distances >> index) & 1) == 0,
                 "Shader is setting gl_ClipDistance{} without enabling it in the header", index);
 
+            clip_distances[index] = true;
             fixed_pipeline_output_attributes_used.insert(attribute);
             shader.AddLine(dest + '[' + std::to_string(index) + "] = " + src + ';');
             break;
@@ -600,6 +601,11 @@ public:
     /// Returns a list of samplers used in the shader.
     const std::vector<SamplerEntry>& GetSamplers() const {
         return used_samplers;
+    }
+
+    /// Returns an array of the used clip distances.
+    const std::array<bool, Maxwell::NumClipDistances>& GetClipDistances() const {
+        return clip_distances;
     }
 
     /// Returns the GLSL sampler used for the input shader sampler, and creates a new one if
@@ -975,6 +981,7 @@ private:
     const std::string& suffix;
     const Tegra::Shader::Header& header;
     std::unordered_set<Attribute::Index> fixed_pipeline_output_attributes_used;
+    std::array<bool, Maxwell::NumClipDistances> clip_distances{};
     u64 local_memory_size;
 };
 
@@ -997,7 +1004,8 @@ public:
 
     /// Returns entries in the shader that are useful for external functions
     ShaderEntries GetEntries() const {
-        return {regs.GetConstBuffersDeclarations(), regs.GetSamplers(), shader_length};
+        return {regs.GetConstBuffersDeclarations(), regs.GetSamplers(), regs.GetClipDistances(),
+                shader_length};
     }
 
 private:
