@@ -40,6 +40,7 @@ namespace OpenGL {
 
 struct ScreenInfo;
 struct DrawParameters;
+struct FramebufferCacheKey;
 
 class RasterizerOpenGL : public VideoCore::RasterizerInterface {
 public:
@@ -211,11 +212,12 @@ private:
              OGLVertexArray>
         vertex_array_cache;
 
+    std::map<FramebufferCacheKey, OGLFramebuffer> framebuffer_cache;
+
     std::array<SamplerInfo, Tegra::Engines::Maxwell3D::Regs::NumTextureSamplers> texture_samplers;
 
     static constexpr std::size_t STREAM_BUFFER_SIZE = 128 * 1024 * 1024;
     OGLBufferCache buffer_cache;
-    OGLFramebuffer framebuffer;
     PrimitiveAssembler primitive_assembler{buffer_cache};
     GLint uniform_buffer_alignment;
 
@@ -229,6 +231,8 @@ private:
     DrawParameters SetupDraw();
 
     void SetupShaders(GLenum primitive_mode);
+
+    void SetupCachedFramebuffer(const FramebufferCacheKey& fbkey, OpenGLState& current_state);
 
     enum class AccelDraw { Disabled, Arrays, Indexed };
     AccelDraw accelerate_draw = AccelDraw::Disabled;
