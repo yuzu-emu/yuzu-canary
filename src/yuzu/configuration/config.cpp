@@ -506,6 +506,7 @@ void Config::ReadValues() {
     UISettings::values.first_start = qt_config->value("firstStart", true).toBool();
     UISettings::values.callout_flags = qt_config->value("calloutFlags", 0).toUInt();
     UISettings::values.show_console = qt_config->value("showConsole", false).toBool();
+    UISettings::values.profile_index = qt_config->value("profileIndex", 0).toUInt();
 
     qt_config->endGroup();
 }
@@ -695,6 +696,7 @@ void Config::SaveValues() {
     qt_config->setValue("firstStart", UISettings::values.first_start);
     qt_config->setValue("calloutFlags", UISettings::values.callout_flags);
     qt_config->setValue("showConsole", UISettings::values.show_console);
+    qt_config->setValue("profileIndex", UISettings::values.profile_index);
     qt_config->endGroup();
 }
 
