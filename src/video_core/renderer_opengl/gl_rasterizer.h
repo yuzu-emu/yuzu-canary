@@ -142,7 +142,8 @@ private:
     void SyncViewport(OpenGLState& current_state);
 
     /// Syncs the clip enabled status to match the guest state
-    void SyncClipEnabled();
+    void SyncClipEnabled(
+        const std::array<bool, Tegra::Engines::Maxwell3D::Regs::NumClipDistances>& clip_mask);
 
     /// Syncs the clip coefficients to match the guest state
     void SyncClipCoef();
