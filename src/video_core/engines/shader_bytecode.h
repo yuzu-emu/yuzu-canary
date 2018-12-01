@@ -1,4 +1,4 @@
-﻿// Copyright 2018 yuzu Emulator Project
+// Copyright 2018 yuzu Emulator Project
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
@@ -208,6 +208,8 @@ enum class UniformType : u64 {
     SignedShort = 3,
     Single = 4,
     Double = 5,
+    Quad = 6,
+    UnsignedQuad = 7,
 };
 
 enum class StoreType : u64 {
@@ -778,6 +780,12 @@ union Instruction {
     union {
         BitField<44, 2, u64> unknown;
     } st_l;
+
+    union {
+        BitField<48, 3, UniformType> type;
+        BitField<46, 2, u64> cache_mode;
+        BitField<20, 24, s64> offset_immediate;
+    } ld_g;
 
     union {
         BitField<0, 3, u64> pred0;
