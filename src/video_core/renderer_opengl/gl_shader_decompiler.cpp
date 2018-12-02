@@ -13,6 +13,7 @@
 
 #include "common/assert.h"
 #include "common/common_types.h"
+#include "core/core.h"
 #include "video_core/engines/shader_bytecode.h"
 #include "video_core/engines/shader_header.h"
 #include "video_core/renderer_opengl/gl_rasterizer.h"
@@ -586,6 +587,7 @@ public:
         GenerateInputAttrs();
         GenerateOutputAttrs();
         GenerateConstBuffers();
+        GenerateGlobalRegions();
         GenerateSamplers();
         GenerateGeometry();
     }
@@ -706,6 +708,21 @@ private:
             declarations.AddLine('{');
             declarations.AddLine("    vec4 c" + std::to_string(entry.GetIndex()) +
                                  "[MAX_CONSTBUFFER_ELEMENTS];");
+            declarations.AddLine("};");
+            declarations.AddNewLine();
+        }
+        declarations.AddNewLine();
+    }
+
+    /// Generates declarations for global memory regions.
+    void GenerateGlobalRegions() {
+        const auto& regions{
+            Core::System::GetInstance().GPU().Maxwell3D().state.global_memory_uniforms};
+        for (std::size_t i = 0; i < regions.size(); ++i) {
+            declarations.AddLine("layout(std140) uniform " +
+                                 fmt::format("global_memory_region_declblock_{}", i));
+            declarations.AddLine('{');
+            declarations.AddLine("    vec4 global_memory_region_" + std::to_string(i) + "[0x400];");
             declarations.AddLine("};");
             declarations.AddNewLine();
         }
@@ -1997,6 +2014,11 @@ private:
                 } else {
                     op_b += regs.GetUniform(instr.cbuf34.index, instr.cbuf34.offset,
                                             GLSLRegister::Type::Integer);
+                    if (opcode->get().GetId() == OpCode::Id::IADD_C) {
+                        s_last_iadd = last_iadd;
+                        last_iadd = IADDReference{instr.gpr8.Value(), instr.cbuf34.index,
+                                                  instr.cbuf34.offset};
+                    }
                 }
             }
 
@@ -3031,6 +3053,72 @@ private:
                 shader.AddLine('}');
                 break;
             }
+            case OpCode::Id::LDG: {
+                // Determine number of GPRs to fill with data
+                u64 count = 1;
+
+                switch (instr.ld_g.type) {
+                case Tegra::Shader::UniformType::Single:
+                    count = 1;
+                    break;
+                case Tegra::Shader::UniformType::Double:
+                    count = 2;
+                    break;
+                case Tegra::Shader::UniformType::Quad:
+                case Tegra::Shader::UniformType::UnsignedQuad:
+                    count = 4;
+                    break;
+                default:
+                    UNREACHABLE_MSG("Unimplemented LDG size!");
+                }
+
+                auto [gpr_index, index, offset] = last_iadd;
+
+                // The last IADD might be the upper u32 of address, so instead take the one before
+                // that.
+                if (gpr_index == Register::ZeroIndex) {
+                    gpr_index = s_last_iadd.out;
+                    index = s_last_iadd.cbuf_index;
+                    offset = s_last_iadd.cbuf_offset;
+                }
+
+                const auto gpr = regs.GetRegisterAsInteger(gpr_index);
+                const auto constbuffer =
+                    regs.GetUniform(index, offset, GLSLRegister::Type::UnsignedInteger);
+
+                Core::System::GetInstance().GPU().Maxwell3D().state.global_memory_uniforms.insert(
+                    {index, offset * 4});
+                const auto memory = fmt::format("global_memory_region_{}",
+                                                Core::System::GetInstance()
+                                                        .GPU()
+                                                        .Maxwell3D()
+                                                        .state.global_memory_uniforms.size() -
+                                                    1);
+
+                const auto immediate = std::to_string(instr.ld_g.offset_immediate.Value());
+                const auto o_register = regs.GetRegisterAsInteger(instr.gpr8, 0, false);
+                const auto address = "( " + immediate + " + " + o_register + " )";
+                const auto base_sub = address + " - " + constbuffer;
+
+                // New scope to prevent potential conflicts
+                shader.AddLine('{');
+                ++shader.scope;
+
+                shader.AddLine("uint final_offset = " + base_sub + ";");
+                for (std::size_t out = 0; out < count; ++out) {
+                    const u64 reg_id = instr.gpr0.Value() + out;
+                    const auto this_memory =
+                        fmt::format("{}[(final_offset + {}) / 16][((final_offset + {}) / 4) % 4]",
+                                    memory, out * 4, out * 4);
+
+                    regs.SetRegisterToFloat(reg_id, 0, this_memory, 1, 1);
+                }
+
+                --shader.scope;
+                shader.AddLine('}');
+
+                break;
+            }
             default: {
                 UNIMPLEMENTED_MSG("Unhandled memory instruction: {}", opcode->get().GetName());
             }
@@ -3843,9 +3931,18 @@ private:
     ShaderWriter declarations;
     GLSLRegisterManager regs{shader, declarations, stage, suffix, header};
 
+    struct IADDReference {
+        Register out;
+        u64 cbuf_index;
+        u64 cbuf_offset;
+    };
+
+    IADDReference last_iadd{};
+    IADDReference s_last_iadd{};
+
     // Declarations
     std::set<std::string> declr_predicates;
-}; // namespace OpenGL::GLShader::Decompiler
+};
 
 std::string GetCommonDeclarations() {
     return fmt::format("#define MAX_CONSTBUFFER_ELEMENTS {}\n",
