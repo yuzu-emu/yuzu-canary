@@ -30,6 +30,8 @@ public:
     explicit PatchManager(u64 title_id);
     ~PatchManager();
 
+    u64 GetTitleID() const;
+
     // Currently tracked ExeFS patches:
     // - Game Updates
     VirtualDir PatchExeFS(VirtualDir exefs) const;
@@ -63,6 +65,9 @@ public:
     std::pair<std::unique_ptr<NACP>, VirtualFile> ParseControlNCA(const NCA& nca) const;
 
 private:
+    std::vector<VirtualFile> CollectPatches(const std::vector<VirtualDir>& patch_dirs,
+                                            const std::string& build_id) const;
+
     u64 title_id;
 };
 

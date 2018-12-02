@@ -333,6 +333,8 @@ void GameList::PopupContextMenu(const QPoint& menu_location) {
     QAction* dump_romfs = context_menu.addAction(tr("Dump RomFS"));
     QAction* copy_tid = context_menu.addAction(tr("Copy Title ID to Clipboard"));
     QAction* navigate_to_gamedb_entry = context_menu.addAction(tr("Navigate to GameDB entry"));
+    context_menu.addSeparator();
+    QAction* properties = context_menu.addAction(tr("Properties"));
 
     open_save_location->setEnabled(program_id != 0);
     auto it = FindMatchingCompatibilityEntry(compatibility_list, program_id);
@@ -346,6 +348,7 @@ void GameList::PopupContextMenu(const QPoint& menu_location) {
     connect(copy_tid, &QAction::triggered, [&]() { emit CopyTIDRequested(program_id); });
     connect(navigate_to_gamedb_entry, &QAction::triggered,
             [&]() { emit NavigateToGamedbEntryRequested(program_id, compatibility_list); });
+    connect(properties, &QAction::triggered, [&]() { emit OpenPerGameGeneralRequested(path); });
 
     context_menu.exec(tree_view->viewport()->mapToGlobal(menu_location));
 }

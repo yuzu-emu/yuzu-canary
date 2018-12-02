@@ -8,6 +8,7 @@
 #include <thread>
 #include <utility>
 
+#include "common/file_util.h"
 #include "common/logging/log.h"
 #include "common/string_util.h"
 #include "core/arm/exclusive_monitor.h"
@@ -40,7 +41,6 @@ namespace Core {
 
 /*static*/ System System::s_instance;
 
-namespace {
 FileSys::VirtualFile GetGameFileFromPath(const FileSys::VirtualFilesystem& vfs,
                                          const std::string& path) {
     // To account for split 00+01+etc files.
@@ -69,11 +69,13 @@ FileSys::VirtualFile GetGameFileFromPath(const FileSys::VirtualFilesystem& vfs,
         return FileSys::ConcatenatedVfsFile::MakeConcatenatedFile(concat, dir->GetName());
     }
 
+    if (FileUtil::IsDirectory(path))
+        return vfs->OpenFile(path + "/" + "main", FileSys::Mode::Read);
+
     return vfs->OpenFile(path, FileSys::Mode::Read);
 }
-} // Anonymous namespace
-
 struct System::Impl {
+
     Cpu& CurrentCpuCore() {
         return cpu_core_manager.GetCurrentCore();
     }
