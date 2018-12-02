@@ -295,6 +295,7 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
     // shaders. The constbuffer bindpoint starts after the shader stage configuration bind points.
     u32 current_constbuffer_bindpoint = Tegra::Engines::Maxwell3D::Regs::MaxShaderStage;
     u32 current_texture_bindpoint = 0;
+    std::array<bool, Maxwell::NumClipDistances> clip_distances{};
 
     for (std::size_t index = 0; index < Maxwell::MaxShaderProgram; ++index) {
         const auto& shader_config = gpu.regs.shader_config[index];
@@ -355,12 +356,22 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
         current_texture_bindpoint = SetupTextures(static_cast<Maxwell::ShaderStage>(stage), shader,
                                                   primitive_mode, current_texture_bindpoint);
 
+        // Workaround for Intel drivers.
+        // When a clip distance is enabled but not set in the shader it crops parts of the screen
+        // (sometimes it's half the screen, sometimes three quarters). To avoid this, enable the
+        // clip distances only when it's written by a shader stage.
+        for (std::size_t i = 0; i < Maxwell::NumClipDistances; ++i) {
+            clip_distances[i] |= shader->GetShaderEntries().clip_distances[i];
+        }
+
         // When VertexA is enabled, we have dual vertex shaders
         if (program == Maxwell::ShaderProgram::VertexA) {
             // VertexB was combined with VertexA, so we skip the VertexB iteration
             index++;
         }
     }
+
+    SyncClipEnabled(clip_distances);
 }
 
 std::size_t RasterizerOpenGL::CalculateVertexArraysSize() const {
@@ -642,7 +653,6 @@ void RasterizerOpenGL::DrawArrays() {
     SyncCullMode();
     SyncPrimitiveRestart();
     SyncScissorTest(state);
-    SyncClipEnabled();
     // Alpha Testing is synced on shaders.
     SyncTransformFeedback();
     SyncPointState();
@@ -1019,20 +1029,23 @@ void RasterizerOpenGL::SyncViewport(OpenGLState& current_state) {
     state.depth_clamp.near_plane = regs.view_volume_clip_control.depth_clamp_near != 0;
 }
 
-void RasterizerOpenGL::SyncClipEnabled() {
+void RasterizerOpenGL::SyncClipEnabled(
+    const std::array<bool, Maxwell::Regs::NumClipDistances>& clip_mask) {
+
     const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
-    state.clip_distance[0] = regs.clip_distance_enabled.c0 != 0;
-    state.clip_distance[1] = regs.clip_distance_enabled.c1 != 0;
-    state.clip_distance[2] = regs.clip_distance_enabled.c2 != 0;
-    state.clip_distance[3] = regs.clip_distance_enabled.c3 != 0;
-    state.clip_distance[4] = regs.clip_distance_enabled.c4 != 0;
-    state.clip_distance[5] = regs.clip_distance_enabled.c5 != 0;
-    state.clip_distance[6] = regs.clip_distance_enabled.c6 != 0;
-    state.clip_distance[7] = regs.clip_distance_enabled.c7 != 0;
+    const std::array<bool, Maxwell::Regs::NumClipDistances> reg_state{
+        regs.clip_distance_enabled.c0 != 0, regs.clip_distance_enabled.c1 != 0,
+        regs.clip_distance_enabled.c2 != 0, regs.clip_distance_enabled.c3 != 0,
+        regs.clip_distance_enabled.c4 != 0, regs.clip_distance_enabled.c5 != 0,
+        regs.clip_distance_enabled.c6 != 0, regs.clip_distance_enabled.c7 != 0};
+
+    for (std::size_t i = 0; i < Maxwell::Regs::NumClipDistances; ++i) {
+        state.clip_distance[i] = reg_state[i] && clip_mask[i];
+    }
 }
 
 void RasterizerOpenGL::SyncClipCoef() {
-    UNREACHABLE();
+    UNIMPLEMENTED();
 }
 
 void RasterizerOpenGL::SyncCullMode() {
