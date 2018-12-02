@@ -9,6 +9,7 @@
 
 // VFS includes must be before glad as they will conflict with Windows file api, which uses defines.
 #include "applets/software_keyboard.h"
+#include "configuration/configure_per_general.h"
 #include "core/file_sys/vfs.h"
 #include "core/file_sys/vfs_real.h"
 #include "core/hle/service/acc/profile_manager.h"
@@ -441,6 +442,8 @@ void GMainWindow::ConnectWidgetEvents() {
     connect(game_list, &GameList::CopyTIDRequested, this, &GMainWindow::OnGameListCopyTID);
     connect(game_list, &GameList::NavigateToGamedbEntryRequested, this,
             &GMainWindow::OnGameListNavigateToGamedbEntry);
+    connect(game_list, &GameList::OpenPerGameGeneralRequested, this,
+            &GMainWindow::OnGameListOpenPerGameProperties);
 
     connect(this, &GMainWindow::EmulationStarting, render_window,
             &GRenderWindow::OnEmulationStarting);
@@ -986,6 +989,32 @@ void GMainWindow::OnGameListNavigateToGamedbEntry(u64 program_id,
         directory = it->second.second;
 
     QDesktopServices::openUrl(QUrl("https://yuzu-emu.org/game/" + directory));
+}
+
+void GMainWindow::OnGameListOpenPerGameProperties(const std::string& file) {
+    u64 title_id{};
+    const auto v_file = Core::GetGameFileFromPath(vfs, file);
+    const auto loader = Loader::GetLoader(v_file);
+    if (loader == nullptr || loader->ReadProgramId(title_id) != Loader::ResultStatus::Success) {
+        QMessageBox::information(this, tr("Properties"),
+                                 tr("The game properties could not be loaded."));
+        return;
+    }
+
+    ConfigurePerGameGeneral dialog(this, title_id);
+    dialog.loadFromFile(v_file);
+    auto result = dialog.exec();
+    if (result == QDialog::Accepted) {
+        dialog.applyConfiguration();
+
+        const auto reload = UISettings::values.is_game_list_reload_pending.exchange(false);
+        if (reload) {
+            game_list->PopulateAsync(UISettings::values.gamedir,
+                                     UISettings::values.gamedir_deepscan);
+        }
+
+        config->Save();
+    }
 }
 
 void GMainWindow::OnMenuLoadFile() {

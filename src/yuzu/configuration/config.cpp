@@ -444,6 +444,21 @@ void Config::ReadValues() {
     Settings::values.yuzu_token = qt_config->value("yuzu_token").toString().toStdString();
     qt_config->endGroup();
 
+    const auto size = qt_config->beginReadArray("DisabledAddOns");
+    for (int i = 0; i < size; ++i) {
+        qt_config->setArrayIndex(i);
+        const auto title_id = qt_config->value("title_id", 0).toULongLong();
+        std::vector<std::string> out;
+        const auto d_size = qt_config->beginReadArray("disabled");
+        for (int j = 0; j < d_size; ++j) {
+            qt_config->setArrayIndex(j);
+            out.push_back(qt_config->value("d", "").toString().toStdString());
+        }
+        qt_config->endArray();
+        Settings::values.disabled_addons.insert_or_assign(title_id, out);
+    }
+    qt_config->endArray();
+
     qt_config->beginGroup("UI");
     UISettings::values.theme = qt_config->value("theme", UISettings::themes[0].second).toString();
     UISettings::values.enable_discord_presence =
@@ -649,6 +664,21 @@ void Config::SaveValues() {
     qt_config->setValue("yuzu_username", QString::fromStdString(Settings::values.yuzu_username));
     qt_config->setValue("yuzu_token", QString::fromStdString(Settings::values.yuzu_token));
     qt_config->endGroup();
+
+    qt_config->beginWriteArray("DisabledAddOns");
+    int i = 0;
+    for (const auto& elem : Settings::values.disabled_addons) {
+        qt_config->setArrayIndex(i);
+        qt_config->setValue("title_id", elem.first);
+        qt_config->beginWriteArray("disabled");
+        for (std::size_t j = 0; j < elem.second.size(); ++j) {
+            qt_config->setArrayIndex(j);
+            qt_config->setValue("d", QString::fromStdString(elem.second[j]));
+        }
+        qt_config->endArray();
+        ++i;
+    }
+    qt_config->endArray();
 
     qt_config->beginGroup("UI");
     qt_config->setValue("theme", UISettings::values.theme);

@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <memory>
+#include <sstream>
 #include <SDL.h>
 #include <inih/cpp/INIReader.h>
 #include "common/file_util.h"
@@ -368,6 +369,23 @@ void Config::ReadValues() {
     Settings::values.program_args = sdl2_config->Get("Debugging", "program_args", "");
     Settings::values.dump_exefs = sdl2_config->GetBoolean("Debugging", "dump_exefs", false);
     Settings::values.dump_nso = sdl2_config->GetBoolean("Debugging", "dump_nso", false);
+
+    const auto title_list = sdl2_config->Get("AddOns", "title_ids", "");
+    std::stringstream ss(title_list);
+    std::string line;
+    while (std::getline(ss, line, '|')) {
+        const auto title_id = std::stoul(line, nullptr, 16);
+        const auto disabled_list = sdl2_config->Get("AddOns", "disabled_" + line, "");
+
+        std::stringstream inner_ss(disabled_list);
+        std::string inner_line;
+        std::vector<std::string> out;
+        while (std::getline(inner_ss, inner_line, '|')) {
+            out.push_back(inner_line);
+        }
+
+        Settings::values.disabled_addons.insert_or_assign(title_id, out);
+    }
 
     // Web Service
     Settings::values.enable_telemetry =
