@@ -60,6 +60,17 @@ public:
     }
 
     void ApplyTo(OpenGLState& state) {
+        UpdatePipeline();
+        state.draw.shader_program = 0;
+        state.draw.program_pipeline = pipeline.handle;
+        state.geometry_shaders.enabled = (gs != 0);
+    }
+
+private:
+    void UpdatePipeline() {
+        // Avoid updating the pipeline when values have no changed
+        if (old_vs == vs && old_fs == fs && old_gs == gs)
+            return;
         // Workaround for AMD bug
         glUseProgramStages(pipeline.handle,
                            GL_VERTEX_SHADER_BIT | GL_GEOMETRY_SHADER_BIT | GL_FRAGMENT_SHADER_BIT,
@@ -68,14 +79,16 @@ public:
         glUseProgramStages(pipeline.handle, GL_VERTEX_SHADER_BIT, vs);
         glUseProgramStages(pipeline.handle, GL_GEOMETRY_SHADER_BIT, gs);
         glUseProgramStages(pipeline.handle, GL_FRAGMENT_SHADER_BIT, fs);
-        state.draw.shader_program = 0;
-        state.draw.program_pipeline = pipeline.handle;
-        state.geometry_shaders.enabled = (gs != 0);
+
+        // Update the old values
+        old_vs = vs;
+        old_fs = fs;
+        old_gs = gs;
     }
 
-private:
     OGLPipeline pipeline;
     GLuint vs{}, fs{}, gs{};
+    GLuint old_vs{}, old_fs{}, old_gs{};
 };
 
 } // namespace OpenGL::GLShader
