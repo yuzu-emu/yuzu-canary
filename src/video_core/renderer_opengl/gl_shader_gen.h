@@ -163,6 +163,7 @@ private:
 struct ShaderEntries {
     std::vector<ConstBufferEntry> const_buffer_entries;
     std::vector<SamplerEntry> texture_samplers;
+    std::array<bool, Tegra::Engines::Maxwell3D::Regs::NumClipDistances> clip_distances;
     std::size_t shader_length;
 };
 
