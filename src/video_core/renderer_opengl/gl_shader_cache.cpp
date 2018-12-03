@@ -2,7 +2,9 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <boost/functional/hash/hash.hpp>
 #include "common/assert.h"
+#include "common/hash.h"
 #include "core/core.h"
 #include "core/memory.h"
 #include "video_core/engines/maxwell_3d.h"
@@ -66,14 +68,17 @@ CachedShader::CachedShader(VAddr addr, Maxwell::ShaderProgram program_type)
         // stage here.
         setup.SetProgramB(GetShaderCode(GetShaderAddress(Maxwell::ShaderProgram::VertexB)));
     case Maxwell::ShaderProgram::VertexB:
+        CalculateProperties();
         program_result = GLShader::GenerateVertexShader(setup);
         gl_type = GL_VERTEX_SHADER;
         break;
     case Maxwell::ShaderProgram::Geometry:
+        CalculateProperties();
         program_result = GLShader::GenerateGeometryShader(setup);
         gl_type = GL_GEOMETRY_SHADER;
         break;
     case Maxwell::ShaderProgram::Fragment:
+        CalculateProperties();
         program_result = GLShader::GenerateFragmentShader(setup);
         gl_type = GL_FRAGMENT_SHADER;
         break;
@@ -139,6 +144,46 @@ GLuint CachedShader::LazyGeometryProgram(OGLProgram& target_program,
     LabelGLObject(GL_PROGRAM, target_program.handle, addr, debug_name);
     return target_program.handle;
 };
+
+static bool IsSchedInstruction(u32 offset, u32 main_offset) {
+    // sched instructions appear once every 4 instructions.
+    static constexpr std::size_t SchedPeriod = 4;
+    const std::size_t absolute_offset = offset - main_offset;
+    return (absolute_offset % SchedPeriod) == 0;
+}
+
+static std::size_t CalculateProgramSize(const GLShader::ProgramCode& program) {
+    const std::size_t start_offset = 10;
+    std::size_t offset = start_offset;
+    std::size_t size = start_offset * sizeof(u64);
+    while (offset < program.size()) {
+        const u64 inst = program[offset];
+        if (!IsSchedInstruction(offset, start_offset)) {
+            if (inst == 0 || (inst >> 52) == 0x50b) {
+                break;
+            }
+        }
+        size += 8;
+        offset++;
+    }
+    return size;
+}
+
+void CachedShader::CalculateProperties() {
+    setup.program.real_size = CalculateProgramSize(setup.program.code);
+    setup.program.real_size_b = 0;
+    setup.program.unique_identifier = Common::CityHash64(
+        reinterpret_cast<const char*>(setup.program.code.data()), setup.program.real_size);
+    if (program_type == Maxwell::ShaderProgram::VertexA) {
+        u64 seed = 0;
+        boost::hash_combine(seed, setup.program.unique_identifier);
+        setup.program.real_size_b = CalculateProgramSize(setup.program.code_b);
+        const u64 identifier_b = Common::CityHash64(
+            reinterpret_cast<const char*>(setup.program.code_b.data()), setup.program.real_size_b);
+        boost::hash_combine(seed, identifier_b);
+        setup.program.unique_identifier = seed;
+    }
+}
 
 ShaderCacheOpenGL::ShaderCacheOpenGL(RasterizerOpenGL& rasterizer) : RasterizerCache{rasterizer} {}
 
