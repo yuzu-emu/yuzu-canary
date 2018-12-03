@@ -62,7 +62,7 @@ QString FormatPatchNameVersions(const FileSys::PatchManager& patch_manager,
     FileSys::VirtualFile update_raw;
     loader.ReadUpdateRaw(update_raw);
     for (const auto& kv : patch_manager.GetPatchVersionNames(update_raw)) {
-        const bool is_update = kv.first == "Update";
+        const bool is_update = kv.first == "Update" || kv.first == "[D] Update";
         if (!updatable && is_update) {
             continue;
         }

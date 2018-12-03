@@ -20,6 +20,7 @@
 #include "core/hle/service/aoc/aoc_u.h"
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/loader/loader.h"
+#include "core/settings.h"
 
 namespace Service::AOC {
 
@@ -76,6 +77,13 @@ void AOC_U::CountAddOnContent(Kernel::HLERequestContext& ctx) {
     rb.Push(RESULT_SUCCESS);
 
     const auto current = Core::System::GetInstance().CurrentProcess()->GetTitleID();
+
+    const auto& disabled = Settings::values.disabled_addons[current];
+    if (std::find(disabled.begin(), disabled.end(), "DLC") != disabled.end()) {
+        rb.Push<u32>(0);
+        return;
+    }
+
     rb.Push<u32>(static_cast<u32>(
         std::count_if(add_on_content.begin(), add_on_content.end(),
                       [current](u64 tid) { return CheckAOCTitleIDMatchesBase(tid, current); })));
@@ -95,6 +103,10 @@ void AOC_U::ListAddOnContent(Kernel::HLERequestContext& ctx) {
         if ((add_on_content[i] & DLC_BASE_TITLE_ID_MASK) == current)
             out.push_back(static_cast<u32>(add_on_content[i] & 0x7FF));
     }
+
+    const auto& disabled = Settings::values.disabled_addons[current];
+    if (std::find(disabled.begin(), disabled.end(), "DLC") != disabled.end())
+        out = {};
 
     if (out.size() < offset) {
         IPC::ResponseBuilder rb{ctx, 2};
