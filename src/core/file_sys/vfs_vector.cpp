@@ -3,7 +3,6 @@
 // Refer to the license.txt file included.
 
 #include <algorithm>
-#include <cstring>
 #include <utility>
 #include "core/file_sys/vfs_vector.h"
 
