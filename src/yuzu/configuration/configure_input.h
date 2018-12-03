@@ -7,8 +7,8 @@
 #include <array>
 #include <memory>
 
+#include <QDialog>
 #include <QKeyEvent>
-#include <QWidget>
 
 #include "ui_configure_input.h"
 
@@ -20,7 +20,7 @@ namespace Ui {
 class ConfigureInput;
 }
 
-class ConfigureInput : public QWidget {
+class ConfigureInput : public QDialog {
     Q_OBJECT
 
 public:
