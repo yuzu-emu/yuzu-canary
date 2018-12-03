@@ -57,7 +57,8 @@ public:
     }
 
     u32 GetHash() const {
-        return (static_cast<u32>(stage) << 16) | index;
+        // This needs to be unique from CachedGlobalRegionUniform::GetHash
+        return (static_cast<u32>(stage) << 12) | index;
     }
 
 private:
@@ -138,7 +139,8 @@ public:
     }
 
     u32 GetHash() const {
-        return (static_cast<u32>(stage) << 16) | static_cast<u32>(sampler_index);
+        // This needs to be unique from CachedGlobalRegionUniform::GetHash
+        return (static_cast<u32>(stage) << 12) | static_cast<u32>(sampler_index);
     }
 
     static std::string GetArrayName(Maxwell::ShaderStage stage) {
