@@ -20,6 +20,7 @@
 #include "core/file_sys/nca_metadata.h"
 #include "core/file_sys/patch_manager.h"
 #include "core/file_sys/savedata_factory.h"
+#include "core/file_sys/system_archive/system_archive.h"
 #include "core/file_sys/vfs.h"
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/kernel/process.h"
@@ -831,6 +832,15 @@ void FSP_SRV::OpenDataStorageByDataId(Kernel::HLERequestContext& ctx) {
     auto data = OpenRomFS(title_id, storage_id, FileSys::ContentRecordType::Data);
 
     if (data.Failed()) {
+        const auto archive = FileSys::SystemArchive::SynthesizeSystemArchive(title_id);
+
+        if (archive != nullptr) {
+            IPC::ResponseBuilder rb{ctx, 2, 0, 1};
+            rb.Push(RESULT_SUCCESS);
+            rb.PushIpcInterface(std::make_shared<IStorage>(archive));
+            return;
+        }
+
         // TODO(DarkLordZach): Find the right error code to use here
         LOG_ERROR(Service_FS,
                   "could not open data storage with title_id={:016X}, storage_id={:02X}", title_id,
