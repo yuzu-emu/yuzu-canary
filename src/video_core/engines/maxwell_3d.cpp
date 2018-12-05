@@ -337,6 +337,11 @@ void Maxwell3D::DrawArrays() {
     }
 }
 
+bool operator<(const Maxwell3D::GlobalMemoryDescriptor& lhs,
+               const Maxwell3D::GlobalMemoryDescriptor& rhs) {
+    return std::tie(lhs.cbuf_index, lhs.cbuf_offset) < std::tie(rhs.cbuf_index, rhs.cbuf_offset);
+}
+
 void Maxwell3D::ProcessCBBind(Regs::ShaderStage stage) {
     // Bind the buffer currently in CB_ADDRESS to the specified index in the desired shader stage.
     auto& shader = state.shader_stages[static_cast<std::size_t>(stage)];
