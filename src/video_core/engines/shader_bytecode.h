@@ -1049,6 +1049,7 @@ union Instruction {
         BitField<49, 1, u64> nodep_flag;
         BitField<50, 3, u64> component_mask_selector;
         BitField<53, 4, u64> texture_info;
+        BitField<60, 1, u64> fp32_flag;
 
         TextureType GetTextureType() const {
             // The TEXS instruction has a weird encoding for the texture type.
@@ -1549,7 +1550,7 @@ private:
             INST("1110111011011---", Id::STG, Type::Memory, "STG"),
             INST("110000----111---", Id::TEX, Type::Memory, "TEX"),
             INST("1101111101001---", Id::TXQ, Type::Memory, "TXQ"),
-            INST("1101100---------", Id::TEXS, Type::Memory, "TEXS"),
+            INST("1101-00---------", Id::TEXS, Type::Memory, "TEXS"),
             INST("1101101---------", Id::TLDS, Type::Memory, "TLDS"),
             INST("110010----111---", Id::TLD4, Type::Memory, "TLD4"),
             INST("1101111100------", Id::TLD4S, Type::Memory, "TLD4S"),

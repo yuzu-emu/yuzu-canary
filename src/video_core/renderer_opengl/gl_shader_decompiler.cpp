@@ -50,6 +50,14 @@ public:
     using std::runtime_error::runtime_error;
 };
 
+/// Generates code to use for a swizzle operation.
+static std::string GetSwizzle(u64 elem) {
+    ASSERT(elem <= 3);
+    std::string swizzle = ".";
+    swizzle += "xyzw"[elem];
+    return swizzle;
+}
+
 /// Translate topology
 static std::string GetTopologyName(Tegra::Shader::OutputTopology topology) {
     switch (topology) {
@@ -1004,14 +1012,6 @@ private:
         }
     }
 
-    /// Generates code to use for a swizzle operation.
-    static std::string GetSwizzle(u64 elem) {
-        ASSERT(elem <= 3);
-        std::string swizzle = ".";
-        swizzle += "xyzw"[elem];
-        return swizzle;
-    }
-
     ShaderWriter& shader;
     ShaderWriter& declarations;
     std::vector<GLSLRegister> regs;
@@ -1343,7 +1343,7 @@ private:
         regs.SetRegisterToInteger(dest, true, 0, result, 1, 1);
     }
 
-    void WriteTexsInstruction(const Instruction& instr, const std::string& texture) {
+    void WriteTexsInstructionFloat(const Instruction& instr, const std::string& texture) {
         // TEXS has two destination registers and a swizzle. The first two elements in the swizzle
         // go into gpr0+0 and gpr0+1, and the rest goes into gpr28+0 and gpr28+1
 
@@ -1365,6 +1365,38 @@ private:
             }
 
             ++written_components;
+        }
+    }
+
+    void WriteTexsInstructionHalfFloat(const Instruction& instr, const std::string& texture) {
+        // TEXS.F16 destionation registers are packed in two registers in pairs (just like any half
+        // float instruction).
+
+        std::array<std::string, 4> components;
+        u32 written_components = 0;
+
+        for (u32 component = 0; component < 4; ++component) {
+            if (!instr.texs.IsComponentEnabled(component))
+                continue;
+            components[written_components++] = texture + GetSwizzle(component);
+        }
+        if (written_components == 0)
+            return;
+
+        const auto BuildComponent = [&](std::string low, std::string high, bool high_enabled) {
+            return "vec2(" + low + ", " + (high_enabled ? high : "0") + ')';
+        };
+
+        regs.SetRegisterToHalfFloat(
+            instr.gpr0, 0, BuildComponent(components[0], components[1], written_components > 1),
+            Tegra::Shader::HalfMerge::H0_H1, 1, 1);
+
+        if (written_components > 2) {
+            ASSERT(instr.texs.HasTwoDestinations());
+            regs.SetRegisterToHalfFloat(
+                instr.gpr28, 0,
+                BuildComponent(components[2], components[3], written_components > 3),
+                Tegra::Shader::HalfMerge::H0_H1, 1, 1);
         }
     }
 
@@ -2766,24 +2798,27 @@ private:
                 const bool depth_compare =
                     instr.texs.UsesMiscMode(Tegra::Shader::TextureMiscMode::DC);
                 const auto process_mode = instr.texs.GetTextureProcessMode();
+
                 UNIMPLEMENTED_IF_MSG(instr.texs.UsesMiscMode(Tegra::Shader::TextureMiscMode::NODEP),
                                      "NODEP is not implemented");
 
                 const auto scope = shader.Scope();
 
-                const auto [coord, texture] =
+                auto [coord, texture] =
                     GetTEXSCode(instr, texture_type, process_mode, depth_compare, is_array);
 
                 shader.AddLine(coord);
 
-                if (!depth_compare) {
-                    shader.AddLine("vec4 texture_tmp = " + texture + ';');
-
-                } else {
-                    shader.AddLine("vec4 texture_tmp = vec4(" + texture + ");");
+                if (depth_compare) {
+                    texture = "vec4(" + texture + ')';
                 }
+                shader.AddLine("vec4 texture_tmp = " + texture + ';');
 
-                WriteTexsInstruction(instr, "texture_tmp");
+                if (instr.texs.fp32_flag) {
+                    WriteTexsInstructionFloat(instr, "texture_tmp");
+                } else {
+                    WriteTexsInstructionHalfFloat(instr, "texture_tmp");
+                }
                 break;
             }
             case OpCode::Id::TLDS: {
@@ -2842,7 +2877,7 @@ private:
                     }
                 }();
 
-                WriteTexsInstruction(instr, texture);
+                WriteTexsInstructionFloat(instr, texture);
                 break;
             }
             case OpCode::Id::TLD4: {
@@ -2940,7 +2975,8 @@ private:
                 if (depth_compare) {
                     texture = "vec4(" + texture + ')';
                 }
-                WriteTexsInstruction(instr, texture);
+
+                WriteTexsInstructionFloat(instr, texture);
                 break;
             }
             case OpCode::Id::TXQ: {
