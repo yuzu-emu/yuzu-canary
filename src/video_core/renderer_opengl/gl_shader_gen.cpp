@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <fmt/format.h>
 #include "common/assert.h"
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/renderer_opengl/gl_shader_decompiler.h"
@@ -16,6 +17,8 @@ static constexpr u32 PROGRAM_OFFSET{10};
 ProgramResult GenerateVertexShader(const ShaderSetup& setup) {
     std::string out = "#version 430 core\n";
     out += "#extension GL_ARB_separate_shader_objects : enable\n\n";
+    const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
+    out += "// Shader Unique Id: VS" + id + "\n\n";
     out += Decompiler::GetCommonDeclarations();
 
     out += R"(
@@ -84,6 +87,8 @@ void main() {
 ProgramResult GenerateGeometryShader(const ShaderSetup& setup) {
     // Version is intentionally skipped in shader generation, it's added by the lazy compilation.
     std::string out = "#extension GL_ARB_separate_shader_objects : enable\n\n";
+    const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
+    out += "// Shader Unique Id: GS" + id + "\n\n";
     out += Decompiler::GetCommonDeclarations();
     out += "bool exec_geometry();\n";
 
@@ -117,6 +122,8 @@ void main() {
 ProgramResult GenerateFragmentShader(const ShaderSetup& setup) {
     std::string out = "#version 430 core\n";
     out += "#extension GL_ARB_separate_shader_objects : enable\n\n";
+    const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
+    out += "// Shader Unique Id: FS" + id + "\n\n";
     out += Decompiler::GetCommonDeclarations();
     out += "bool exec_fragment();\n";
 
