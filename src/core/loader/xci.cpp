@@ -120,4 +120,11 @@ ResultStatus AppLoader_XCI::ReadTitle(std::string& title) {
     title = nacp_file->GetApplicationName();
     return ResultStatus::Success;
 }
+
+ResultStatus AppLoader_XCI::ReadDeveloper(std::string& developer) {
+    if (nacp_file == nullptr)
+        return ResultStatus::ErrorNoControl;
+    developer = nacp_file->GetDeveloperName();
+    return ResultStatus::Success;
+}
 } // namespace Loader
