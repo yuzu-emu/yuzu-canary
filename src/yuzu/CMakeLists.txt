@@ -35,6 +35,8 @@ add_executable(yuzu
     configuration/configure_mouse_advanced.h
     configuration/configure_system.cpp
     configuration/configure_system.h
+    configuration/configure_per_general.cpp
+    configuration/configure_per_general.h
     configuration/configure_touchscreen_advanced.cpp
     configuration/configure_touchscreen_advanced.h
     configuration/configure_web.cpp
@@ -86,6 +88,7 @@ set(UIS
     configuration/configure_input.ui
     configuration/configure_input_player.ui
     configuration/configure_mouse_advanced.ui
+    configuration/configure_per_general.ui
     configuration/configure_system.ui
     configuration/configure_touchscreen_advanced.ui
     configuration/configure_web.ui
