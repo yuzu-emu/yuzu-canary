@@ -1200,18 +1200,38 @@ static void ExitThread() {
 static void SleepThread(s64 nanoseconds) {
     LOG_TRACE(Kernel_SVC, "called nanoseconds={}", nanoseconds);
 
-    // Don't attempt to yield execution if there are no available threads to run,
-    // this way we avoid a useless reschedule to the idle thread.
-    if (nanoseconds == 0 && !Core::System::GetInstance().CurrentScheduler().HaveReadyThreads())
-        return;
+    enum class SleepType : s64 {
+        YieldWithoutLoadBalancing = 0,
+        YieldWithLoadBalancing = -1,
+        YieldAndWaitForLoadBalancing = -2,
+    };
 
-    // Sleep current thread and check for next thread to schedule
-    WaitCurrentThread_Sleep();
+    if (nanoseconds <= 0) {
+        auto& scheduler{Core::System::GetInstance().CurrentScheduler()};
+        switch (static_cast<SleepType>(nanoseconds)) {
+        case SleepType::YieldWithoutLoadBalancing:
+            scheduler.YieldWithoutLoadBalancing(GetCurrentThread());
+            break;
+        case SleepType::YieldWithLoadBalancing:
+            scheduler.YieldWithLoadBalancing(GetCurrentThread());
+            break;
+        case SleepType::YieldAndWaitForLoadBalancing:
+            scheduler.YieldAndWaitForLoadBalancing(GetCurrentThread());
+            break;
+        default:
+            UNREACHABLE_MSG("Unimplemented sleep yield type '{:016X}'!", nanoseconds);
+        }
+    } else {
+        // Sleep current thread and check for next thread to schedule
+        WaitCurrentThread_Sleep();
 
-    // Create an event to wake the thread up after the specified nanosecond delay has passed
-    GetCurrentThread()->WakeAfterDelay(nanoseconds);
+        // Create an event to wake the thread up after the specified nanosecond delay has passed
+        GetCurrentThread()->WakeAfterDelay(nanoseconds);
+    }
 
-    Core::System::GetInstance().PrepareReschedule();
+    // Reschedule all CPU cores
+    for (std::size_t i = 0; i < Core::NUM_CPU_CORES; ++i)
+        Core::System::GetInstance().CpuCore(i).PrepareReschedule();
 }
 
 /// Wait process wide key atomic
