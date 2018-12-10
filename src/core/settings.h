@@ -6,8 +6,10 @@
 
 #include <array>
 #include <atomic>
+#include <map>
 #include <optional>
 #include <string>
+#include <vector>
 #include "common/common_types.h"
 
 namespace Settings {
@@ -411,6 +413,9 @@ struct Values {
     std::string web_api_url;
     std::string yuzu_username;
     std::string yuzu_token;
+
+    // Add-Ons
+    std::map<u64, std::vector<std::string>> disabled_addons;
 } extern values;
 
 void Apply();
