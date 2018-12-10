@@ -928,7 +928,7 @@ private:
         case Attribute::Index::FrontFacing:
             // TODO(Subv): Find out what the values are for the other elements.
             ASSERT(stage == Maxwell3D::Regs::ShaderStage::Fragment);
-            return "vec4(0, 0, 0, uintBitsToFloat(gl_FrontFacing ? 1 : 0))";
+            return "vec4(0, 0, 0, intBitsToFloat(gl_FrontFacing ? -1 : 0))";
         default:
             const u32 index{static_cast<u32>(attribute) -
                             static_cast<u32>(Attribute::Index::Attribute_0)};
