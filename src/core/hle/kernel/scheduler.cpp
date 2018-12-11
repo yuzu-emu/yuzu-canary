@@ -9,6 +9,7 @@
 #include "common/logging/log.h"
 #include "core/arm/arm_interface.h"
 #include "core/core.h"
+#include "core/core_cpu.h"
 #include "core/core_timing.h"
 #include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/process.h"
@@ -177,6 +178,71 @@ void Scheduler::SetThreadPriority(Thread* thread, u32 priority) {
         ready_queue.move(thread, thread->GetPriority(), priority);
     else
         ready_queue.prepare(priority);
+}
+
+Thread* Scheduler::GetNextSuggestedThread(u32 core, u32 maximum_priority) const {
+    std::lock_guard<std::mutex> lock(scheduler_mutex);
+
+    const u32 mask = 1U << core;
+    return ready_queue.get_first_filter([mask, maximum_priority](Thread const* thread) {
+        return (thread->GetAffinityMask() & mask) != 0 && thread->GetPriority() < maximum_priority;
+    });
+}
+
+void Scheduler::YieldWithoutLoadBalancing(Thread* thread) {
+    ASSERT(thread != nullptr);
+    // Avoid yielding if the thread isn't even running.
+    ASSERT(thread->GetStatus() == ThreadStatus::Running);
+
+    // Sanity check that the priority is valid
+    ASSERT(thread->GetPriority() < THREADPRIO_COUNT);
+
+    // Yield this thread -- sleep for zero time and force reschedule to different thread
+    WaitCurrentThread_Sleep();
+    GetCurrentThread()->WakeAfterDelay(0);
+}
+
+void Scheduler::YieldWithLoadBalancing(Thread* thread) {
+    ASSERT(thread != nullptr);
+    const auto priority = thread->GetPriority();
+    const auto core = static_cast<u32>(thread->GetProcessorID());
+
+    // Avoid yielding if the thread isn't even running.
+    ASSERT(thread->GetStatus() == ThreadStatus::Running);
+
+    // Sanity check that the priority is valid
+    ASSERT(priority < THREADPRIO_COUNT);
+
+    // Sleep for zero time to be able to force reschedule to different thread
+    WaitCurrentThread_Sleep();
+    GetCurrentThread()->WakeAfterDelay(0);
+
+    Thread* suggested_thread = nullptr;
+
+    // Search through all of the cpu cores (except this one) for a suggested thread.
+    // Take the first non-nullptr one
+    for (unsigned cur_core = 0; cur_core < Core::NUM_CPU_CORES; ++cur_core) {
+        const auto res =
+            Core::System::GetInstance().CpuCore(cur_core).Scheduler().GetNextSuggestedThread(
+                core, priority);
+
+        // If scheduler provides a suggested thread
+        if (res != nullptr) {
+            // And its better than the current suggested thread (or is the first valid one)
+            if (suggested_thread == nullptr ||
+                suggested_thread->GetPriority() > res->GetPriority()) {
+                suggested_thread = res;
+            }
+        }
+    }
+
+    // If a suggested thread was found, queue that for this core
+    if (suggested_thread != nullptr)
+        suggested_thread->ChangeCore(core, suggested_thread->GetAffinityMask());
+}
+
+void Scheduler::YieldAndWaitForLoadBalancing(Thread* thread) {
+    UNIMPLEMENTED_MSG("Wait for load balancing thread yield type is not implemented!");
 }
 
 } // namespace Kernel
