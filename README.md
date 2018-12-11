@@ -1,3 +1,30 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 3b1043c58a743fa5efbd2d33f0080691114de964
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1890](https://github.com/yuzu-emu/yuzu/pull/1890)|[190cbc0](https://github.com/yuzu-emu/yuzu/pull/1890/files/)|Fix Process object leak on emulation stop|[jschmer](https://github.com/jschmer)|Yes|
+|[1888](https://github.com/yuzu-emu/yuzu/pull/1888)|[430e1f8](https://github.com/yuzu-emu/yuzu/pull/1888/files/)|gl_shader_decompiler: IPA fix FrontFacing.|[marcosvitali](https://github.com/marcosvitali)|Yes|
+|[1878](https://github.com/yuzu-emu/yuzu/pull/1878)|[b1bac99](https://github.com/yuzu-emu/yuzu/pull/1878/files/)|Workaround for BOTW (and others?) deadlock on boot|[heapo](https://github.com/heapo)|Yes|
+|[1877](https://github.com/yuzu-emu/yuzu/pull/1877)|[117b1f3](https://github.com/yuzu-emu/yuzu/pull/1877/files/)|Perf: Avoid (expensive) audio interpolation when sample rates already match|[heapo](https://github.com/heapo)|Yes|
+|[1809](https://github.com/yuzu-emu/yuzu/pull/1809)|[6dea93d](https://github.com/yuzu-emu/yuzu/pull/1809/files/)|Eliminate G8R8 conversion, native is actualy R8G8|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1781](https://github.com/yuzu-emu/yuzu/pull/1781)|[e11e65b](https://github.com/yuzu-emu/yuzu/pull/1781/files/)|am: Implement HLE profile selector applet|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1780](https://github.com/yuzu-emu/yuzu/pull/1780)|[c07059e](https://github.com/yuzu-emu/yuzu/pull/1780/files/)|configure_input: Add Controller Setup Profiles and simplify input UI|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1732](https://github.com/yuzu-emu/yuzu/pull/1732)|[e6f7825](https://github.com/yuzu-emu/yuzu/pull/1732/files/)|svc: Implement yield types 0 and -1|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1603](https://github.com/yuzu-emu/yuzu/pull/1603)|[fd98bf1](https://github.com/yuzu-emu/yuzu/pull/1603/files/)|Preliminary implementation of LDG (continuation)|[bunnei](https://github.com/bunnei)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
