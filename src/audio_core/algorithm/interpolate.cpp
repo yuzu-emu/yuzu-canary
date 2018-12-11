@@ -54,8 +54,9 @@ std::vector<s16> Interpolate(InterpolationState& state, std::vector<s16> input, 
             double l = 0.0;
             double r = 0.0;
             for (std::size_t j = 0; j < h.size(); j++) {
-                l += Lanczos(taps, pos + j - taps + 1) * h[j][0];
-                r += Lanczos(taps, pos + j - taps + 1) * h[j][1];
+                const double lanczos_calc = Lanczos(taps, pos + j - taps + 1);
+                l += lanczos_calc * h[j][0];
+                r += lanczos_calc * h[j][1];
             }
             output.emplace_back(static_cast<s16>(std::clamp(l, -32768.0, 32767.0)));
             output.emplace_back(static_cast<s16>(std::clamp(r, -32768.0, 32767.0)));
