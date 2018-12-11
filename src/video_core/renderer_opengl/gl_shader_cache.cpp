@@ -103,18 +103,6 @@ CachedShader::CachedShader(VAddr addr, Maxwell::ShaderProgram program_type)
     }
 }
 
-GLuint CachedShader::GetProgramResourceIndex(const GLShader::ConstBufferEntry& buffer) {
-    const auto search{resource_cache.find(buffer.GetHash())};
-    if (search == resource_cache.end()) {
-        const GLuint index{
-            glGetProgramResourceIndex(program.handle, GL_UNIFORM_BLOCK, buffer.GetName().c_str())};
-        resource_cache[buffer.GetHash()] = index;
-        return index;
-    }
-
-    return search->second;
-}
-
 GLint CachedShader::GetUniformLocation(const GLShader::SamplerEntry& sampler) {
     const auto search{uniform_cache.find(sampler.GetHash())};
     if (search == uniform_cache.end()) {
