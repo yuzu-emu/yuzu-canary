@@ -23,7 +23,7 @@ SharedPtr<SharedMemory> SharedMemory::Create(KernelCore& kernel, SharedPtr<Proce
                                              MemoryRegion region, std::string name) {
     SharedPtr<SharedMemory> shared_memory(new SharedMemory(kernel));
 
-    shared_memory->owner_process = std::move(owner_process);
+    shared_memory->owner_process = owner_process.get();
     shared_memory->name = std::move(name);
     shared_memory->size = size;
     shared_memory->permissions = permissions;
