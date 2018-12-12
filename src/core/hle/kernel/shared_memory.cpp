@@ -17,13 +17,13 @@ namespace Kernel {
 SharedMemory::SharedMemory(KernelCore& kernel) : Object{kernel} {}
 SharedMemory::~SharedMemory() = default;
 
-SharedPtr<SharedMemory> SharedMemory::Create(KernelCore& kernel, SharedPtr<Process> owner_process,
-                                             u64 size, MemoryPermission permissions,
+SharedPtr<SharedMemory> SharedMemory::Create(KernelCore& kernel, Process* owner_process, u64 size,
+                                             MemoryPermission permissions,
                                              MemoryPermission other_permissions, VAddr address,
                                              MemoryRegion region, std::string name) {
     SharedPtr<SharedMemory> shared_memory(new SharedMemory(kernel));
 
-    shared_memory->owner_process = std::move(owner_process);
+    shared_memory->owner_process = owner_process;
     shared_memory->name = std::move(name);
     shared_memory->size = size;
     shared_memory->permissions = permissions;

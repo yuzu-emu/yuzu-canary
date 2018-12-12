@@ -1488,8 +1488,8 @@ static ResultCode CreateTransferMemory(Handle* handle, VAddr addr, u64 size, u32
 
     auto& kernel = Core::System::GetInstance().Kernel();
     auto& handle_table = Core::CurrentProcess()->GetHandleTable();
-    const auto shared_mem_handle = SharedMemory::Create(
-        kernel, handle_table.Get<Process>(CurrentProcess), size, perms, perms, addr);
+    const auto& process = handle_table.Get<Process>(CurrentProcess);
+    const auto shared_mem_handle = SharedMemory::Create(kernel, process.get(), size, perms, perms, addr);
 
     CASCADE_RESULT(*handle, handle_table.Create(shared_mem_handle));
     return RESULT_SUCCESS;
@@ -1600,8 +1600,8 @@ static ResultCode CreateSharedMemory(Handle* handle, u64 size, u32 local_permiss
 
     auto& kernel = Core::System::GetInstance().Kernel();
     auto& handle_table = Core::CurrentProcess()->GetHandleTable();
-    auto shared_mem_handle =
-        SharedMemory::Create(kernel, handle_table.Get<Process>(KernelHandle::CurrentProcess), size,
+    const auto& process = handle_table.Get<Process>(KernelHandle::CurrentProcess);
+    auto shared_mem_handle = SharedMemory::Create(kernel, process.get(), size,
                              local_perms, remote_perms);
 
     CASCADE_RESULT(*handle, handle_table.Create(shared_mem_handle));

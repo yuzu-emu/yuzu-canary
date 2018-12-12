@@ -45,7 +45,7 @@ public:
      * linear heap.
      * @param name Optional object name, used for debugging purposes.
      */
-    static SharedPtr<SharedMemory> Create(KernelCore& kernel, SharedPtr<Process> owner_process,
+    static SharedPtr<SharedMemory> Create(KernelCore& kernel, Process* owner_process,
                                           u64 size, MemoryPermission permissions,
                                           MemoryPermission other_permissions, VAddr address = 0,
                                           MemoryRegion region = MemoryRegion::BASE,
@@ -139,7 +139,7 @@ private:
     /// Permission restrictions applied to other processes mapping the block.
     MemoryPermission other_permissions{};
     /// Process that created this shared memory block.
-    SharedPtr<Process> owner_process;
+    Process* owner_process;
     /// Address of shared memory block in the owner process if specified.
     VAddr base_address = 0;
     /// Name of shared memory object.
