@@ -45,8 +45,12 @@ public:
     explicit IStorage(FileSys::VirtualFile backend_)
         : ServiceFramework("IStorage"), backend(std::move(backend_)) {
         static const FunctionInfo functions[] = {
-            {0, &IStorage::Read, "Read"}, {1, nullptr, "Write"},   {2, nullptr, "Flush"},
-            {3, nullptr, "SetSize"},      {4, nullptr, "GetSize"}, {5, nullptr, "OperateRange"},
+            {0, &IStorage::Read, "Read"},
+            {1, nullptr, "Write"},
+            {2, nullptr, "Flush"},
+            {3, nullptr, "SetSize"},
+            {4, &IStorage::GetSize, "GetSize"},
+            {5, nullptr, "OperateRange"},
         };
         RegisterHandlers(functions);
     }
@@ -82,6 +86,15 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
+    }
+
+    void GetSize(Kernel::HLERequestContext& ctx) {
+        const u64 size = backend->GetSize();
+        LOG_DEBUG(Service_FS, "called, size={}", size);
+
+        IPC::ResponseBuilder rb{ctx, 4};
+        rb.Push(RESULT_SUCCESS);
+        rb.Push<u64>(size);
     }
 };
 
