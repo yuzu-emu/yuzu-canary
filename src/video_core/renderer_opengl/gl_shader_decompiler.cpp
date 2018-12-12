@@ -347,6 +347,15 @@ public:
         BuildInputList();
     }
 
+    void SetConditionalCodesFromExpression(const std::string& expresion) {
+        SetInternalFlag(InternalFlag::ZeroFlag, "(" + expresion + ") == 0");
+        LOG_WARNING(HW_GPU, "Condition codes implementation is incomplete.");
+    }
+
+    void SetConditionalCodesFromRegister(const Register& reg, u64 dest_elem = 0) {
+        SetConditionalCodesFromExpression(GetRegister(reg, static_cast<u32>(dest_elem)));
+    }
+
     /**
      * Returns code that does an integer size conversion for the specified size.
      * @param value Value to perform integer size conversion on.
@@ -404,10 +413,18 @@ public:
      */
     void SetRegisterToFloat(const Register& reg, u64 elem, const std::string& value,
                             u64 dest_num_components, u64 value_num_components,
-                            bool is_saturated = false, u64 dest_elem = 0, bool precise = false) {
+                            bool is_saturated = false, bool sets_cc = false, u64 dest_elem = 0,
+                            bool precise = false) {
 
         SetRegister(reg, elem, is_saturated ? "clamp(" + value + ", 0.0, 1.0)" : value,
                     dest_num_components, value_num_components, dest_elem, precise);
+        if (sets_cc) {
+            if (reg == Register::ZeroIndex) {
+                SetConditionalCodesFromExpression(value);
+            } else {
+                SetConditionalCodesFromRegister(reg, dest_elem);
+            }
+        }
     }
 
     /**
@@ -424,8 +441,8 @@ public:
     void SetRegisterToInteger(const Register& reg, bool is_signed, u64 elem,
                               const std::string& value, u64 dest_num_components,
                               u64 value_num_components, bool is_saturated = false,
-                              u64 dest_elem = 0, Register::Size size = Register::Size::Word,
-                              bool sets_cc = false) {
+                              bool sets_cc = false, u64 dest_elem = 0,
+                              Register::Size size = Register::Size::Word) {
         UNIMPLEMENTED_IF(is_saturated);
 
         const std::string func{is_signed ? "intBitsToFloat" : "uintBitsToFloat"};
@@ -434,9 +451,11 @@ public:
                     dest_num_components, value_num_components, dest_elem, false);
 
         if (sets_cc) {
-            const std::string zero_condition = "( " + ConvertIntegerSize(value, size) + " == 0 )";
-            SetInternalFlag(InternalFlag::ZeroFlag, zero_condition);
-            LOG_WARNING(HW_GPU, "Condition codes implementation is incomplete.");
+            if (reg == Register::ZeroIndex) {
+                SetConditionalCodesFromExpression(value);
+            } else {
+                SetConditionalCodesFromRegister(reg, dest_elem);
+            }
         }
     }
 
@@ -1273,7 +1292,7 @@ private:
     void WriteLogicOperation(Register dest, LogicOperation logic_op, const std::string& op_a,
                              const std::string& op_b,
                              Tegra::Shader::PredicateResultMode predicate_mode,
-                             Tegra::Shader::Pred predicate) {
+                             Tegra::Shader::Pred predicate, const bool set_cc) {
         std::string result{};
         switch (logic_op) {
         case LogicOperation::And: {
@@ -1297,7 +1316,7 @@ private:
         }
 
         if (dest != Tegra::Shader::Register::ZeroIndex) {
-            regs.SetRegisterToInteger(dest, true, 0, result, 1, 1);
+            regs.SetRegisterToInteger(dest, true, 0, result, 1, 1, false, set_cc);
         }
 
         using Tegra::Shader::PredicateResultMode;
@@ -1317,7 +1336,8 @@ private:
     }
 
     void WriteLop3Instruction(Register dest, const std::string& op_a, const std::string& op_b,
-                              const std::string& op_c, const std::string& imm_lut) {
+                              const std::string& op_c, const std::string& imm_lut,
+                              const bool set_cc) {
         if (dest == Tegra::Shader::Register::ZeroIndex) {
             return;
         }
@@ -1340,7 +1360,7 @@ private:
 
         result += ')';
 
-        regs.SetRegisterToInteger(dest, true, 0, result, 1, 1);
+        regs.SetRegisterToInteger(dest, true, 0, result, 1, 1, false, set_cc);
     }
 
     void WriteTexsInstructionFloat(const Instruction& instr, const std::string& texture) {
@@ -1355,12 +1375,12 @@ private:
 
             if (written_components < 2) {
                 // Write the first two swizzle components to gpr0 and gpr0+1
-                regs.SetRegisterToFloat(instr.gpr0, component, texture, 1, 4, false,
+                regs.SetRegisterToFloat(instr.gpr0, component, texture, 1, 4, false, false,
                                         written_components % 2);
             } else {
                 ASSERT(instr.texs.HasTwoDestinations());
                 // Write the rest of the swizzle components to gpr28 and gpr28+1
-                regs.SetRegisterToFloat(instr.gpr28, component, texture, 1, 4, false,
+                regs.SetRegisterToFloat(instr.gpr28, component, texture, 1, 4, false, false,
                                         written_components % 2);
             }
 
@@ -1874,26 +1894,21 @@ private:
                     instr.fmul.tab5c68_0 != 1, "FMUL tab5cb8_0({}) is not implemented",
                     instr.fmul.tab5c68_0
                         .Value()); // SMO typical sends 1 here which seems to be the default
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in FMUL is not implemented");
 
                 op_b = GetOperandAbsNeg(op_b, false, instr.fmul.negate_b);
 
                 regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " * " + op_b, 1, 1,
-                                        instr.alu.saturate_d, 0, true);
+                                        instr.alu.saturate_d, instr.generates_cc, 0, true);
                 break;
             }
             case OpCode::Id::FADD_C:
             case OpCode::Id::FADD_R:
             case OpCode::Id::FADD_IMM: {
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in FADD is not implemented");
-
                 op_a = GetOperandAbsNeg(op_a, instr.alu.abs_a, instr.alu.negate_a);
                 op_b = GetOperandAbsNeg(op_b, instr.alu.abs_b, instr.alu.negate_b);
 
                 regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " + " + op_b, 1, 1,
-                                        instr.alu.saturate_d, 0, true);
+                                        instr.alu.saturate_d, instr.generates_cc, 0, true);
                 break;
             }
             case OpCode::Id::MUFU: {
@@ -1901,31 +1916,31 @@ private:
                 switch (instr.sub_op) {
                 case SubOp::Cos:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "cos(" + op_a + ')', 1, 1,
-                                            instr.alu.saturate_d, 0, true);
+                                            instr.alu.saturate_d, false, 0, true);
                     break;
                 case SubOp::Sin:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "sin(" + op_a + ')', 1, 1,
-                                            instr.alu.saturate_d, 0, true);
+                                            instr.alu.saturate_d, false, 0, true);
                     break;
                 case SubOp::Ex2:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "exp2(" + op_a + ')', 1, 1,
-                                            instr.alu.saturate_d, 0, true);
+                                            instr.alu.saturate_d, false, 0, true);
                     break;
                 case SubOp::Lg2:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "log2(" + op_a + ')', 1, 1,
-                                            instr.alu.saturate_d, 0, true);
+                                            instr.alu.saturate_d, false, 0, true);
                     break;
                 case SubOp::Rcp:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "1.0 / " + op_a, 1, 1,
-                                            instr.alu.saturate_d, 0, true);
+                                            instr.alu.saturate_d, false, 0, true);
                     break;
                 case SubOp::Rsq:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "inversesqrt(" + op_a + ')', 1, 1,
-                                            instr.alu.saturate_d, 0, true);
+                                            instr.alu.saturate_d, false, 0, true);
                     break;
                 case SubOp::Sqrt:
                     regs.SetRegisterToFloat(instr.gpr0, 0, "sqrt(" + op_a + ')', 1, 1,
-                                            instr.alu.saturate_d, 0, true);
+                                            instr.alu.saturate_d, false, 0, true);
                     break;
                 default:
                     UNIMPLEMENTED_MSG("Unhandled MUFU sub op={0:x}",
@@ -1936,8 +1951,9 @@ private:
             case OpCode::Id::FMNMX_C:
             case OpCode::Id::FMNMX_R:
             case OpCode::Id::FMNMX_IMM: {
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in FMNMX is not implemented");
+                UNIMPLEMENTED_IF_MSG(
+                    instr.generates_cc,
+                    "Condition codes generation in FMNMX is partially implemented");
 
                 op_a = GetOperandAbsNeg(op_a, instr.alu.abs_a, instr.alu.negate_a);
                 op_b = GetOperandAbsNeg(op_b, instr.alu.abs_b, instr.alu.negate_b);
@@ -1948,7 +1964,7 @@ private:
                 regs.SetRegisterToFloat(instr.gpr0, 0,
                                         '(' + condition + ") ? min(" + parameters + ") : max(" +
                                             parameters + ')',
-                                        1, 1, false, 0, true);
+                                        1, 1, false, instr.generates_cc, 0, true);
                 break;
             }
             case OpCode::Id::RRO_C:
@@ -1973,18 +1989,16 @@ private:
                 break;
             }
             case OpCode::Id::FMUL32_IMM: {
-                UNIMPLEMENTED_IF_MSG(instr.op_32.generates_cc,
-                                     "Condition codes generation in FMUL32 is not implemented");
-
-                regs.SetRegisterToFloat(instr.gpr0, 0,
-                                        regs.GetRegisterAsFloat(instr.gpr8) + " * " +
-                                            GetImmediate32(instr),
-                                        1, 1, instr.fmul32.saturate, 0, true);
+                regs.SetRegisterToFloat(
+                    instr.gpr0, 0,
+                    regs.GetRegisterAsFloat(instr.gpr8) + " * " + GetImmediate32(instr), 1, 1,
+                    instr.fmul32.saturate, instr.op_32.generates_cc, 0, true);
                 break;
             }
             case OpCode::Id::FADD32I: {
-                UNIMPLEMENTED_IF_MSG(instr.op_32.generates_cc,
-                                     "Condition codes generation in FADD32I is not implemented");
+                UNIMPLEMENTED_IF_MSG(
+                    instr.op_32.generates_cc,
+                    "Condition codes generation in FADD32I is partially implemented");
 
                 std::string op_a = regs.GetRegisterAsFloat(instr.gpr8);
                 std::string op_b = GetImmediate32(instr);
@@ -2005,7 +2019,8 @@ private:
                     op_b = "-(" + op_b + ')';
                 }
 
-                regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " + " + op_b, 1, 1, false, 0, true);
+                regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " + " + op_b, 1, 1, false,
+                                        instr.op_32.generates_cc, 0, true);
                 break;
             }
             }
@@ -2019,16 +2034,14 @@ private:
 
             switch (opcode->get().GetId()) {
             case OpCode::Id::BFE_IMM: {
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in BFE is not implemented");
-
                 std::string inner_shift =
                     '(' + op_a + " << " + std::to_string(instr.bfe.GetLeftShiftValue()) + ')';
                 std::string outer_shift =
                     '(' + inner_shift + " >> " +
                     std::to_string(instr.bfe.GetLeftShiftValue() + instr.bfe.shift_position) + ')';
 
-                regs.SetRegisterToInteger(instr.gpr0, true, 0, outer_shift, 1, 1);
+                regs.SetRegisterToInteger(instr.gpr0, true, 0, outer_shift, 1, 1, false,
+                                          instr.generates_cc);
                 break;
             }
             default: {
@@ -2039,8 +2052,6 @@ private:
             break;
         }
         case OpCode::Type::Bfi: {
-            UNIMPLEMENTED_IF(instr.generates_cc);
-
             const auto [base, packed_shift] = [&]() -> std::tuple<std::string, std::string> {
                 switch (opcode->get().GetId()) {
                 case OpCode::Id::BFI_IMM_R:
@@ -2053,9 +2064,10 @@ private:
             const std::string offset = '(' + packed_shift + " & 0xff)";
             const std::string bits = "((" + packed_shift + " >> 8) & 0xff)";
             const std::string insert = regs.GetRegisterAsInteger(instr.gpr8, 0, false);
-            regs.SetRegisterToInteger(
-                instr.gpr0, false, 0,
-                "bitfieldInsert(" + base + ", " + insert + ", " + offset + ", " + bits + ')', 1, 1);
+            regs.SetRegisterToInteger(instr.gpr0, false, 0,
+                                      "bitfieldInsert(" + base + ", " + insert + ", " + offset +
+                                          ", " + bits + ')',
+                                      1, 1, false, instr.generates_cc);
             break;
         }
         case OpCode::Type::Shift: {
@@ -2077,9 +2089,6 @@ private:
             case OpCode::Id::SHR_C:
             case OpCode::Id::SHR_R:
             case OpCode::Id::SHR_IMM: {
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in SHR is not implemented");
-
                 if (!instr.shift.is_signed) {
                     // Logical shift right
                     op_a = "uint(" + op_a + ')';
@@ -2087,7 +2096,7 @@ private:
 
                 // Cast to int is superfluous for arithmetic shift, it's only for a logical shift
                 regs.SetRegisterToInteger(instr.gpr0, true, 0, "int(" + op_a + " >> " + op_b + ')',
-                                          1, 1);
+                                          1, 1, false, instr.generates_cc);
                 break;
             }
             case OpCode::Id::SHL_C:
@@ -2095,7 +2104,8 @@ private:
             case OpCode::Id::SHL_IMM:
                 UNIMPLEMENTED_IF_MSG(instr.generates_cc,
                                      "Condition codes generation in SHL is not implemented");
-                regs.SetRegisterToInteger(instr.gpr0, true, 0, op_a + " << " + op_b, 1, 1);
+                regs.SetRegisterToInteger(instr.gpr0, true, 0, op_a + " << " + op_b, 1, 1, false,
+                                          instr.generates_cc);
                 break;
             default: {
                 UNIMPLEMENTED_MSG("Unhandled shift instruction: {}", opcode->get().GetName());
@@ -2109,18 +2119,17 @@ private:
 
             switch (opcode->get().GetId()) {
             case OpCode::Id::IADD32I:
-                UNIMPLEMENTED_IF_MSG(instr.op_32.generates_cc,
-                                     "Condition codes generation in IADD32I is not implemented");
+                UNIMPLEMENTED_IF_MSG(
+                    instr.op_32.generates_cc,
+                    "Condition codes generation in IADD32I is partially implemented");
 
                 if (instr.iadd32i.negate_a)
                     op_a = "-(" + op_a + ')';
 
                 regs.SetRegisterToInteger(instr.gpr0, true, 0, op_a + " + " + op_b, 1, 1,
-                                          instr.iadd32i.saturate != 0);
+                                          instr.iadd32i.saturate, instr.op_32.generates_cc);
                 break;
             case OpCode::Id::LOP32I: {
-                UNIMPLEMENTED_IF_MSG(instr.op_32.generates_cc,
-                                     "Condition codes generation in LOP32I is not implemented");
 
                 if (instr.alu.lop32i.invert_a)
                     op_a = "~(" + op_a + ')';
@@ -2130,7 +2139,7 @@ private:
 
                 WriteLogicOperation(instr.gpr0, instr.alu.lop32i.operation, op_a, op_b,
                                     Tegra::Shader::PredicateResultMode::None,
-                                    Tegra::Shader::Pred::UnusedIndex);
+                                    Tegra::Shader::Pred::UnusedIndex, instr.op_32.generates_cc);
                 break;
             }
             default: {
@@ -2159,7 +2168,7 @@ private:
             case OpCode::Id::IADD_R:
             case OpCode::Id::IADD_IMM: {
                 UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in IADD is not implemented");
+                                     "Condition codes generation in IADD is partially implemented");
 
                 if (instr.alu_integer.negate_a)
                     op_a = "-(" + op_a + ')';
@@ -2168,14 +2177,15 @@ private:
                     op_b = "-(" + op_b + ')';
 
                 regs.SetRegisterToInteger(instr.gpr0, true, 0, op_a + " + " + op_b, 1, 1,
-                                          instr.alu.saturate_d);
+                                          instr.alu.saturate_d, instr.generates_cc);
                 break;
             }
             case OpCode::Id::IADD3_C:
             case OpCode::Id::IADD3_R:
             case OpCode::Id::IADD3_IMM: {
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in IADD3 is not implemented");
+                UNIMPLEMENTED_IF_MSG(
+                    instr.generates_cc,
+                    "Condition codes generation in IADD3 is partially implemented");
 
                 std::string op_c = regs.GetRegisterAsInteger(instr.gpr39);
 
@@ -2231,14 +2241,16 @@ private:
                     result = '(' + op_a + " + " + op_b + " + " + op_c + ')';
                 }
 
-                regs.SetRegisterToInteger(instr.gpr0, true, 0, result, 1, 1);
+                regs.SetRegisterToInteger(instr.gpr0, true, 0, result, 1, 1, false,
+                                          instr.generates_cc);
                 break;
             }
             case OpCode::Id::ISCADD_C:
             case OpCode::Id::ISCADD_R:
             case OpCode::Id::ISCADD_IMM: {
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in ISCADD is not implemented");
+                UNIMPLEMENTED_IF_MSG(
+                    instr.generates_cc,
+                    "Condition codes generation in ISCADD is partially implemented");
 
                 if (instr.alu_integer.negate_a)
                     op_a = "-(" + op_a + ')';
@@ -2249,7 +2261,8 @@ private:
                 const std::string shift = std::to_string(instr.alu_integer.shift_amount.Value());
 
                 regs.SetRegisterToInteger(instr.gpr0, true, 0,
-                                          "((" + op_a + " << " + shift + ") + " + op_b + ')', 1, 1);
+                                          "((" + op_a + " << " + shift + ") + " + op_b + ')', 1, 1,
+                                          false, instr.generates_cc);
                 break;
             }
             case OpCode::Id::POPC_C:
@@ -2273,8 +2286,6 @@ private:
             case OpCode::Id::LOP_C:
             case OpCode::Id::LOP_R:
             case OpCode::Id::LOP_IMM: {
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in LOP is not implemented");
 
                 if (instr.alu.lop.invert_a)
                     op_a = "~(" + op_a + ')';
@@ -2283,15 +2294,13 @@ private:
                     op_b = "~(" + op_b + ')';
 
                 WriteLogicOperation(instr.gpr0, instr.alu.lop.operation, op_a, op_b,
-                                    instr.alu.lop.pred_result_mode, instr.alu.lop.pred48);
+                                    instr.alu.lop.pred_result_mode, instr.alu.lop.pred48,
+                                    instr.generates_cc);
                 break;
             }
             case OpCode::Id::LOP3_C:
             case OpCode::Id::LOP3_R:
             case OpCode::Id::LOP3_IMM: {
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in LOP3 is not implemented");
-
                 const std::string op_c = regs.GetRegisterAsInteger(instr.gpr39);
                 std::string lut;
 
@@ -2301,15 +2310,16 @@ private:
                     lut = '(' + std::to_string(instr.alu.lop3.GetImmLut48()) + ')';
                 }
 
-                WriteLop3Instruction(instr.gpr0, op_a, op_b, op_c, lut);
+                WriteLop3Instruction(instr.gpr0, op_a, op_b, op_c, lut, instr.generates_cc);
                 break;
             }
             case OpCode::Id::IMNMX_C:
             case OpCode::Id::IMNMX_R:
             case OpCode::Id::IMNMX_IMM: {
                 UNIMPLEMENTED_IF(instr.imnmx.exchange != Tegra::Shader::IMinMaxExchange::None);
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in IMNMX is not implemented");
+                UNIMPLEMENTED_IF_MSG(
+                    instr.generates_cc,
+                    "Condition codes generation in IMNMX is partially implemented");
 
                 const std::string condition =
                     GetPredicateCondition(instr.imnmx.pred, instr.imnmx.negate_pred != 0);
@@ -2317,7 +2327,7 @@ private:
                 regs.SetRegisterToInteger(instr.gpr0, instr.imnmx.is_signed, 0,
                                           '(' + condition + ") ? min(" + parameters + ") : max(" +
                                               parameters + ')',
-                                          1, 1);
+                                          1, 1, false, instr.generates_cc);
                 break;
             }
             case OpCode::Id::LEA_R2:
@@ -2378,7 +2388,8 @@ private:
                 UNIMPLEMENTED_IF_MSG(instr.lea.pred48 != static_cast<u64>(Pred::UnusedIndex),
                                      "Unhandled LEA Predicate");
                 const std::string value = '(' + op_a + " + (" + op_b + "*(1 << " + op_c + ")))";
-                regs.SetRegisterToInteger(instr.gpr0, true, 0, value, 1, 1);
+                regs.SetRegisterToInteger(instr.gpr0, true, 0, value, 1, 1, false,
+                                          instr.generates_cc);
 
                 break;
             }
@@ -2483,7 +2494,7 @@ private:
             UNIMPLEMENTED_IF_MSG(instr.ffma.tab5980_1 != 0, "FFMA tab5980_1({}) not implemented",
                                  instr.ffma.tab5980_1.Value());
             UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                 "Condition codes generation in FFMA is not implemented");
+                                 "Condition codes generation in FFMA is partially implemented");
 
             switch (opcode->get().GetId()) {
             case OpCode::Id::FFMA_CR: {
@@ -2514,7 +2525,7 @@ private:
             }
 
             regs.SetRegisterToFloat(instr.gpr0, 0, "fma(" + op_a + ", " + op_b + ", " + op_c + ')',
-                                    1, 1, instr.alu.saturate_d, 0, true);
+                                    1, 1, instr.alu.saturate_d, instr.generates_cc, 0, true);
             break;
         }
         case OpCode::Type::Hfma2: {
@@ -2585,16 +2596,14 @@ private:
                 }
 
                 regs.SetRegisterToInteger(instr.gpr0, instr.conversion.is_output_signed, 0, op_a, 1,
-                                          1, instr.alu.saturate_d, 0, instr.conversion.dest_size,
-                                          instr.generates_cc.Value() != 0);
+                                          1, instr.alu.saturate_d, instr.generates_cc, 0,
+                                          instr.conversion.dest_size);
                 break;
             }
             case OpCode::Id::I2F_R:
             case OpCode::Id::I2F_C: {
                 UNIMPLEMENTED_IF(instr.conversion.dest_size != Register::Size::Word);
                 UNIMPLEMENTED_IF(instr.conversion.selector);
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in I2F is not implemented");
                 std::string op_a;
 
                 if (instr.is_b_gpr) {
@@ -2617,14 +2626,12 @@ private:
                     op_a = "-(" + op_a + ')';
                 }
 
-                regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1);
+                regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1, false, instr.generates_cc);
                 break;
             }
             case OpCode::Id::F2F_R: {
                 UNIMPLEMENTED_IF(instr.conversion.dest_size != Register::Size::Word);
                 UNIMPLEMENTED_IF(instr.conversion.src_size != Register::Size::Word);
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in F2F is not implemented");
                 std::string op_a = regs.GetRegisterAsFloat(instr.gpr20);
 
                 if (instr.conversion.abs_a) {
@@ -2656,14 +2663,13 @@ private:
                     break;
                 }
 
-                regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1, instr.alu.saturate_d);
+                regs.SetRegisterToFloat(instr.gpr0, 0, op_a, 1, 1, instr.alu.saturate_d,
+                                        instr.generates_cc);
                 break;
             }
             case OpCode::Id::F2I_R:
             case OpCode::Id::F2I_C: {
                 UNIMPLEMENTED_IF(instr.conversion.src_size != Register::Size::Word);
-                UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                     "Condition codes generation in F2I is not implemented");
                 std::string op_a{};
 
                 if (instr.is_b_gpr) {
@@ -2706,7 +2712,8 @@ private:
                 }
 
                 regs.SetRegisterToInteger(instr.gpr0, instr.conversion.is_output_signed, 0, op_a, 1,
-                                          1, false, 0, instr.conversion.dest_size);
+                                          1, false, instr.generates_cc, 0,
+                                          instr.conversion.dest_size);
                 break;
             }
             default: {
@@ -2869,7 +2876,7 @@ private:
                 shader.AddLine(coord);
 
                 if (depth_compare) {
-                    regs.SetRegisterToFloat(instr.gpr0, 0, texture, 1, 1, false);
+                    regs.SetRegisterToFloat(instr.gpr0, 0, texture, 1, 1);
                 } else {
                     shader.AddLine("vec4 texture_tmp = " + texture + ';');
                     std::size_t dest_elem{};
@@ -2878,7 +2885,7 @@ private:
                             // Skip disabled components
                             continue;
                         }
-                        regs.SetRegisterToFloat(instr.gpr0, elem, "texture_tmp", 1, 4, false,
+                        regs.SetRegisterToFloat(instr.gpr0, elem, "texture_tmp", 1, 4, false, false,
                                                 dest_elem);
                         ++dest_elem;
                     }
@@ -2964,7 +2971,7 @@ private:
                         // Skip disabled components
                         continue;
                     }
-                    regs.SetRegisterToFloat(instr.gpr0, elem, "texture_tmp", 1, 4, false,
+                    regs.SetRegisterToFloat(instr.gpr0, elem, "texture_tmp", 1, 4, false, false,
                                             dest_elem);
                     ++dest_elem;
                 }
@@ -3213,7 +3220,7 @@ private:
         }
         case OpCode::Type::PredicateSetRegister: {
             UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                 "Condition codes generation in PSET is not implemented");
+                                 "Condition codes generation in PSET is partially implemented");
 
             const std::string op_a =
                 GetPredicateCondition(instr.pset.pred12, instr.pset.neg_pred12 != 0);
@@ -3230,10 +3237,11 @@ private:
             const std::string result = '(' + predicate + ") " + combiner + " (" + second_pred + ')';
             if (instr.pset.bf == 0) {
                 const std::string value = '(' + result + ") ? 0xFFFFFFFF : 0";
-                regs.SetRegisterToInteger(instr.gpr0, false, 0, value, 1, 1);
+                regs.SetRegisterToInteger(instr.gpr0, false, 0, value, 1, 1, false,
+                                          instr.generates_cc);
             } else {
                 const std::string value = '(' + result + ") ? 1.0 : 0.0";
-                regs.SetRegisterToFloat(instr.gpr0, 0, value, 1, 1);
+                regs.SetRegisterToFloat(instr.gpr0, 0, value, 1, 1, false, instr.generates_cc);
             }
             break;
         }
@@ -3349,14 +3357,11 @@ private:
                                           ") " + combiner + " (" + second_pred + "))";
 
             if (instr.fset.bf) {
-                regs.SetRegisterToFloat(instr.gpr0, 0, predicate + " ? 1.0 : 0.0", 1, 1);
+                regs.SetRegisterToFloat(instr.gpr0, 0, predicate + " ? 1.0 : 0.0", 1, 1, false,
+                                        instr.generates_cc);
             } else {
                 regs.SetRegisterToInteger(instr.gpr0, false, 0, predicate + " ? 0xFFFFFFFF : 0", 1,
-                                          1);
-            }
-            if (instr.generates_cc.Value() != 0) {
-                regs.SetInternalFlag(InternalFlag::ZeroFlag, predicate);
-                LOG_WARNING(HW_GPU, "FSET Condition Code is incomplete");
+                                          1, false, instr.generates_cc);
             }
             break;
         }
@@ -3443,7 +3448,7 @@ private:
             UNIMPLEMENTED_IF(instr.xmad.sign_a);
             UNIMPLEMENTED_IF(instr.xmad.sign_b);
             UNIMPLEMENTED_IF_MSG(instr.generates_cc,
-                                 "Condition codes generation in XMAD is not implemented");
+                                 "Condition codes generation in XMAD is partially implemented");
 
             std::string op_a{regs.GetRegisterAsInteger(instr.gpr8, 0, instr.xmad.sign_a)};
             std::string op_b;
@@ -3529,7 +3534,8 @@ private:
                 sum = "((" + sum + " & 0xFFFF) | (" + src2 + "<< 16))";
             }
 
-            regs.SetRegisterToInteger(instr.gpr0, is_signed, 0, sum, 1, 1);
+            regs.SetRegisterToInteger(instr.gpr0, is_signed, 0, sum, 1, 1, false,
+                                      instr.generates_cc);
             break;
         }
         default: {
@@ -3733,8 +3739,7 @@ private:
                 }
 
                 regs.SetRegisterToInteger(instr.gpr0, result_signed, 1, result, 1, 1,
-                                          instr.vmad.saturate == 1, 0, Register::Size::Word,
-                                          instr.vmad.cc);
+                                          instr.vmad.saturate, instr.vmad.cc);
                 break;
             }
             case OpCode::Id::VSETP: {
