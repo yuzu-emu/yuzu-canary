@@ -138,8 +138,10 @@ u32 nvhost_gpu::AllocateObjectContext(const std::vector<u8>& input, std::vector<
 
 static void PushGPUEntries(Tegra::CommandList&& entries) {
     auto& dma_pusher{Core::System::GetInstance().GPU().DmaPusher()};
-    dma_pusher.Push(std::move(entries));
-    dma_pusher.DispatchCalls();
+    if (!entries.empty()) {
+        dma_pusher.Push(std::move(entries));
+        dma_pusher.DispatchCalls();
+    }
 }
 
 u32 nvhost_gpu::SubmitGPFIFO(const std::vector<u8>& input, std::vector<u8>& output) {
