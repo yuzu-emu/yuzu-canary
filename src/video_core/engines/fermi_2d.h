@@ -94,12 +94,22 @@ public:
 
                 Operation operation;
 
-                INSERT_PADDING_WORDS(0x9);
+                INSERT_PADDING_WORDS(0x177);
 
-                // TODO(Subv): This is only a guess.
-                u32 trigger;
+                u32 blit_control;
 
-                INSERT_PADDING_WORDS(0x1A3);
+                INSERT_PADDING_WORDS(0x8);
+
+                u32 blit_dst_x;
+                u32 blit_dst_y;
+                u32 blit_dst_width;
+                u32 blit_dst_height;
+                u64 blit_dud_x;
+                u64 blit_dvd_y;
+                u64 blit_src_x;
+                u64 blit_src_y;
+
+                INSERT_PADDING_WORDS(0x21);
             };
             std::array<u32, NUM_REGS> reg_array;
         };
@@ -122,7 +132,16 @@ private:
 ASSERT_REG_POSITION(dst, 0x80);
 ASSERT_REG_POSITION(src, 0x8C);
 ASSERT_REG_POSITION(operation, 0xAB);
-ASSERT_REG_POSITION(trigger, 0xB5);
+ASSERT_REG_POSITION(blit_control, 0x223);
+ASSERT_REG_POSITION(blit_dst_x, 0x22c);
+ASSERT_REG_POSITION(blit_dst_y, 0x22d);
+ASSERT_REG_POSITION(blit_dst_width, 0x22e);
+ASSERT_REG_POSITION(blit_dst_height, 0x22f);
+ASSERT_REG_POSITION(blit_dud_x, 0x230);
+ASSERT_REG_POSITION(blit_dvd_y, 0x232);
+ASSERT_REG_POSITION(blit_src_x, 0x234);
+ASSERT_REG_POSITION(blit_src_y, 0x236);
+
 #undef ASSERT_REG_POSITION
 
 } // namespace Tegra::Engines
