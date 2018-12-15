@@ -1867,9 +1867,6 @@ private:
                 UNIMPLEMENTED_IF_MSG(instr.fmul.tab5cb8_2 != 0,
                                      "FMUL tab5cb8_2({}) is not implemented",
                                      instr.fmul.tab5cb8_2.Value());
-                UNIMPLEMENTED_IF_MSG(instr.fmul.tab5c68_1 != 0,
-                                     "FMUL tab5cb8_1({}) is not implemented",
-                                     instr.fmul.tab5c68_1.Value());
                 UNIMPLEMENTED_IF_MSG(
                     instr.fmul.tab5c68_0 != 1, "FMUL tab5cb8_0({}) is not implemented",
                     instr.fmul.tab5c68_0
@@ -1879,7 +1876,26 @@ private:
 
                 op_b = GetOperandAbsNeg(op_b, false, instr.fmul.negate_b);
 
-                regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " * " + op_b, 1, 1,
+                std::string postfactor_op;
+                if (instr.fmul.postfactor != 0) {
+                    s8 postfactor = static_cast<s8>(instr.fmul.postfactor);
+
+                    // postfactor encoded as 3-bit 1's complement in instruction,
+                    // interpreted with below logic.
+                    if (postfactor >= 4) {
+                        postfactor = 7 - postfactor;
+                    } else {
+                        postfactor = 0 - postfactor;
+                    }
+
+                    if (postfactor > 0) {
+                        postfactor_op = " * " + std::to_string(1 << postfactor);
+                    } else {
+                        postfactor_op = " / " + std::to_string(1 << -postfactor);
+                    }
+                }
+
+                regs.SetRegisterToFloat(instr.gpr0, 0, op_a + " * " + op_b + postfactor_op, 1, 1,
                                         instr.alu.saturate_d, 0, true);
                 break;
             }
