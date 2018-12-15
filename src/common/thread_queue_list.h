@@ -49,6 +49,22 @@ struct ThreadQueueList {
         return T();
     }
 
+    template <typename UnaryPredicate>
+    T get_first_filter(UnaryPredicate filter) const {
+        const Queue* cur = first;
+        while (cur != nullptr) {
+            if (!cur->data.empty()) {
+                for (const auto& item : cur->data) {
+                    if (filter(item))
+                        return item;
+                }
+            }
+            cur = cur->next_nonempty;
+        }
+
+        return T();
+    }
+
     T pop_first() {
         Queue* cur = first;
         while (cur != nullptr) {
