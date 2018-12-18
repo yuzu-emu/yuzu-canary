@@ -16,6 +16,10 @@ namespace Core::Frontend {
 class EmuWindow;
 }
 
+namespace Layout {
+class FramebufferLayout;
+}
+
 namespace OpenGL {
 
 /// Structure used for storing information about the textures for the Switch screen
@@ -66,9 +70,11 @@ private:
 
     void ConfigureFramebufferTexture(TextureInfo& texture,
                                      const Tegra::FramebufferConfig& framebuffer);
-    void DrawScreen();
+    void DrawScreen(const Layout::FramebufferLayout& layout);
     void DrawScreenTriangles(const ScreenInfo& screen_info, float x, float y, float w, float h);
     void UpdateFramerate();
+
+    void CaptureScreenshot();
 
     // Loads framebuffer from emulated memory into the display information structure
     void LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuffer);
@@ -82,6 +88,7 @@ private:
     OGLVertexArray vertex_array;
     OGLBuffer vertex_buffer;
     OGLProgram shader;
+    OGLFramebuffer screenshot_framebuffer;
 
     /// Display information for Switch screen
     ScreenInfo screen_info;
