@@ -22,4 +22,6 @@ class RendererBase;
  */
 std::unique_ptr<RendererBase> CreateRenderer(Core::Frontend::EmuWindow& emu_window);
 
+u16 GetResolutionScaleFactor(RendererBase& renderer);
+
 } // namespace VideoCore

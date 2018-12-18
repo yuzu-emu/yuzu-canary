@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "common/common_types.h"
+#include "core/frontend/emu_window.h"
 #include "video_core/gpu.h"
 #include "video_core/rasterizer_interface.h"
 
@@ -21,6 +22,12 @@ namespace VideoCore {
 struct RendererSettings {
     std::atomic_bool use_framelimiter{false};
     std::atomic_bool set_background_color{false};
+
+    // Screenshot
+    std::atomic<bool> screenshot_requested{false};
+    void* screenshot_bits;
+    std::function<void()> screenshot_complete_callback;
+    Layout::FramebufferLayout screenshot_framebuffer_layout;
 };
 
 class RendererBase : NonCopyable {
@@ -57,8 +64,24 @@ public:
         return *rasterizer;
     }
 
+    Core::Frontend::EmuWindow& GetRenderWindow() const {
+        return render_window;
+    }
+
+    RendererSettings& Settings() {
+        return renderer_settings;
+    }
+
+    const RendererSettings& Settings() const {
+        return renderer_settings;
+    }
+
     /// Refreshes the settings common to all renderers
     void RefreshBaseSettings();
+
+    /// Request a screenshot of the next frame
+    void RequestScreenshot(void* data, std::function<void()> callback,
+                           const Layout::FramebufferLayout& layout);
 
 protected:
     Core::Frontend::EmuWindow& render_window; ///< Reference to the render window handle.

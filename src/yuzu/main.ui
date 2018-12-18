@@ -101,11 +101,13 @@
     <addaction name="action_Show_Status_Bar"/>
     <addaction name="menu_View_Debugging"/>
    </widget>
-   <widget class ="QMenu" name="menu_Tools">
+   <widget class="QMenu" name="menu_Tools">
     <property name="title">
      <string>Tools</string>
     </property>
-    <addaction name="action_Rederive" />
+    <addaction name="action_Rederive"/>
+    <addaction name="separator"/>
+    <addaction name="action_Capture_Screenshot"/>
    </widget>
    <widget class="QMenu" name="menu_Help">
     <property name="title">
@@ -118,7 +120,7 @@
    <addaction name="menu_File"/>
    <addaction name="menu_Emulation"/>
    <addaction name="menu_View"/>
-   <addaction name="menu_Tools" />
+   <addaction name="menu_Tools"/>
    <addaction name="menu_Help"/>
   </widget>
   <action name="action_Install_File_NAND">
@@ -173,11 +175,11 @@
     <string>&amp;Stop</string>
    </property>
   </action>
-   <action name="action_Rederive">
-     <property name="text">
-       <string>Reinitialize keys...</string>
-     </property>
-   </action>
+  <action name="action_Rederive">
+   <property name="text">
+    <string>Reinitialize keys...</string>
+   </property>
+  </action>
   <action name="action_About">
    <property name="text">
     <string>About yuzu</string>
@@ -252,39 +254,47 @@
     <string>Fullscreen</string>
    </property>
   </action>
-   <action name="action_Restart">
-     <property name="enabled">
-       <bool>false</bool>
-     </property>
-     <property name="text">
-       <string>Restart</string>
-     </property>
-   </action>
-  <action name="action_Load_Amiibo">
-    <property name="enabled">
-      <bool>false</bool>
-    </property>
-    <property name="text">
-      <string>Load Amiibo...</string>
-    </property>
+  <action name="action_Restart">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Restart</string>
+   </property>
   </action>
-   <action name="action_Report_Compatibility">
-     <property name="enabled">
-       <bool>false</bool>
-     </property>
-     <property name="text">
-       <string>Report Compatibility</string>
-     </property>
-     <property name="visible">
-       <bool>false</bool>
-     </property>
-   </action>
-   <action name="action_Open_yuzu_Folder">
-     <property name="text">
-       <string>Open yuzu Folder</string>
-     </property>
-   </action>
-  </widget>
+  <action name="action_Load_Amiibo">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Load Amiibo...</string>
+   </property>
+  </action>
+  <action name="action_Report_Compatibility">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Report Compatibility</string>
+   </property>
+   <property name="visible">
+    <bool>false</bool>
+   </property>
+  </action>
+  <action name="action_Open_yuzu_Folder">
+   <property name="text">
+    <string>Open yuzu Folder</string>
+   </property>
+  </action>
+  <action name="action_Capture_Screenshot">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Capture Screenshot</string>
+   </property>
+  </action>
+ </widget>
  <resources/>
  <connections/>
 </ui>
