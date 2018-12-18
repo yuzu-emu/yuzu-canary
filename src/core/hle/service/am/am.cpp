@@ -71,10 +71,13 @@ IWindowController::IWindowController() : ServiceFramework("IWindowController") {
 IWindowController::~IWindowController() = default;
 
 void IWindowController::GetAppletResourceUserId(Kernel::HLERequestContext& ctx) {
-    LOG_WARNING(Service_AM, "(STUBBED) called");
+    const u64 process_id = Core::System::GetInstance().Kernel().CurrentProcess()->GetProcessID();
+
+    LOG_DEBUG(Service_AM, "called. Process ID=0x{:016X}", process_id);
+
     IPC::ResponseBuilder rb{ctx, 4};
     rb.Push(RESULT_SUCCESS);
-    rb.Push<u64>(0);
+    rb.Push<u64>(process_id);
 }
 
 void IWindowController::AcquireForegroundRights(Kernel::HLERequestContext& ctx) {
