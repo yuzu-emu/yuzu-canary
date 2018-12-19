@@ -151,7 +151,7 @@ public:
      * Gets the thread's thread ID
      * @return The thread's ID
      */
-    u32 GetThreadID() const {
+    u64 GetThreadID() const {
         return thread_id;
     }
 
@@ -379,7 +379,7 @@ private:
 
     Core::ARM_Interface::ThreadContext context{};
 
-    u32 thread_id = 0;
+    u64 thread_id = 0;
 
     ThreadStatus status = ThreadStatus::Dormant;
 
