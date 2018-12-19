@@ -6,6 +6,7 @@
 
 #include "common/assert.h"
 #include "core/frontend/framebuffer_layout.h"
+#include "core/settings.h"
 
 namespace Layout {
 
@@ -40,6 +41,20 @@ FramebufferLayout DefaultFrameLayout(unsigned width, unsigned height) {
     }
     res.screen = screen;
     return res;
+}
+
+FramebufferLayout FrameLayoutFromResolutionScale(u16 res_scale) {
+    int width, height;
+
+    if (Settings::values.use_docked_mode) {
+        width = ScreenDocked::WidthDocked * res_scale;
+        height = ScreenDocked::HeightDocked * res_scale;
+    } else {
+        width = ScreenUndocked::Width * res_scale;
+        height = ScreenUndocked::Height * res_scale;
+    }
+
+    return DefaultFrameLayout(width, height);
 }
 
 } // namespace Layout
