@@ -138,7 +138,12 @@ void RendererOpenGL::SwapBuffers(
 
         // Load the framebuffer from memory, draw it to the screen, and swap buffers
         LoadFBToScreenInfo(*framebuffer);
-        DrawScreen();
+
+        if (renderer_settings.screenshot_requested)
+            CaptureScreenshot();
+
+        DrawScreen(render_window.GetFramebufferLayout());
+
         render_window.SwapBuffers();
     }
 
@@ -383,14 +388,13 @@ void RendererOpenGL::DrawScreenTriangles(const ScreenInfo& screen_info, float x,
 /**
  * Draws the emulated screens to the emulator window.
  */
-void RendererOpenGL::DrawScreen() {
+void RendererOpenGL::DrawScreen(const Layout::FramebufferLayout& layout) {
     if (renderer_settings.set_background_color) {
         // Update background color before drawing
         glClearColor(Settings::values.bg_red, Settings::values.bg_green, Settings::values.bg_blue,
                      0.0f);
     }
 
-    const auto& layout = render_window.GetFramebufferLayout();
     const auto& screen = layout.screen;
 
     glViewport(0, 0, layout.width, layout.height);
@@ -413,6 +417,37 @@ void RendererOpenGL::DrawScreen() {
 
 /// Updates the framerate
 void RendererOpenGL::UpdateFramerate() {}
+
+void RendererOpenGL::CaptureScreenshot() {
+    // Draw the current frame to the screenshot framebuffer
+    screenshot_framebuffer.Create();
+    GLuint old_read_fb = state.draw.read_framebuffer;
+    GLuint old_draw_fb = state.draw.draw_framebuffer;
+    state.draw.read_framebuffer = state.draw.draw_framebuffer = screenshot_framebuffer.handle;
+    state.Apply();
+
+    Layout::FramebufferLayout layout{renderer_settings.screenshot_framebuffer_layout};
+
+    GLuint renderbuffer;
+    glGenRenderbuffers(1, &renderbuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGB8, layout.width, layout.height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, renderbuffer);
+
+    DrawScreen(layout);
+
+    glReadPixels(0, 0, layout.width, layout.height, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV,
+                 renderer_settings.screenshot_bits);
+
+    screenshot_framebuffer.Release();
+    state.draw.read_framebuffer = old_read_fb;
+    state.draw.draw_framebuffer = old_draw_fb;
+    state.Apply();
+    glDeleteRenderbuffers(1, &renderbuffer);
+
+    renderer_settings.screenshot_complete_callback();
+    renderer_settings.screenshot_requested = false;
+}
 
 static const char* GetSource(GLenum source) {
 #define RET(s)                                                                                     \
