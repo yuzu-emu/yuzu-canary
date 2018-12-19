@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <tuple>
 #include <vector>
 #include "common/common_types.h"
 #include "core/hle/result.h"
@@ -42,6 +43,88 @@ enum class VMAPermission : u8 {
     WriteExecute = Write | Execute,
     ReadWriteExecute = Read | Write | Execute,
 };
+
+constexpr VMAPermission operator|(VMAPermission lhs, VMAPermission rhs) {
+    return static_cast<VMAPermission>(u32(lhs) | u32(rhs));
+}
+
+constexpr VMAPermission operator&(VMAPermission lhs, VMAPermission rhs) {
+    return static_cast<VMAPermission>(u32(lhs) & u32(rhs));
+}
+
+constexpr VMAPermission operator^(VMAPermission lhs, VMAPermission rhs) {
+    return static_cast<VMAPermission>(u32(lhs) ^ u32(rhs));
+}
+
+constexpr VMAPermission operator~(VMAPermission permission) {
+    return static_cast<VMAPermission>(~u32(permission));
+}
+
+constexpr VMAPermission& operator|=(VMAPermission& lhs, VMAPermission rhs) {
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+constexpr VMAPermission& operator&=(VMAPermission& lhs, VMAPermission rhs) {
+    lhs = lhs & rhs;
+    return lhs;
+}
+
+constexpr VMAPermission& operator^=(VMAPermission& lhs, VMAPermission rhs) {
+    lhs = lhs ^ rhs;
+    return lhs;
+}
+
+/// Attribute flags that can be applied to a VMA
+enum class MemoryAttribute : u32 {
+    Mask = 0xFF,
+
+    /// No particular qualities
+    None = 0,
+    /// Memory locked/borrowed for use. e.g. This would be used by transfer memory.
+    Locked = 1,
+    /// Memory locked for use by IPC-related internals.
+    LockedForIPC = 2,
+    /// Mapped as part of the device address space.
+    DeviceMapped = 4,
+    /// Uncached memory
+    Uncached = 8,
+};
+
+constexpr MemoryAttribute operator|(MemoryAttribute lhs, MemoryAttribute rhs) {
+    return static_cast<MemoryAttribute>(u32(lhs) | u32(rhs));
+}
+
+constexpr MemoryAttribute operator&(MemoryAttribute lhs, MemoryAttribute rhs) {
+    return static_cast<MemoryAttribute>(u32(lhs) & u32(rhs));
+}
+
+constexpr MemoryAttribute operator^(MemoryAttribute lhs, MemoryAttribute rhs) {
+    return static_cast<MemoryAttribute>(u32(lhs) ^ u32(rhs));
+}
+
+constexpr MemoryAttribute operator~(MemoryAttribute attribute) {
+    return static_cast<MemoryAttribute>(~u32(attribute));
+}
+
+constexpr MemoryAttribute& operator|=(MemoryAttribute& lhs, MemoryAttribute rhs) {
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+constexpr MemoryAttribute& operator&=(MemoryAttribute& lhs, MemoryAttribute rhs) {
+    lhs = lhs & rhs;
+    return lhs;
+}
+
+constexpr MemoryAttribute& operator^=(MemoryAttribute& lhs, MemoryAttribute rhs) {
+    lhs = lhs ^ rhs;
+    return lhs;
+}
+
+constexpr u32 ToSvcMemoryAttribute(MemoryAttribute attribute) {
+    return static_cast<u32>(attribute & MemoryAttribute::Mask);
+}
 
 // clang-format off
 /// Represents memory states and any relevant flags, as used by the kernel.
@@ -174,6 +257,16 @@ struct PageInfo {
  * also backed by a single host memory allocation.
  */
 struct VirtualMemoryArea {
+    /// Gets the starting (base) address of this VMA.
+    VAddr StartAddress() const {
+        return base;
+    }
+
+    /// Gets the ending address of this VMA.
+    VAddr EndAddress() const {
+        return base + size - 1;
+    }
+
     /// Virtual base address of the region.
     VAddr base = 0;
     /// Size of the region.
@@ -181,8 +274,8 @@ struct VirtualMemoryArea {
 
     VMAType type = VMAType::Free;
     VMAPermission permissions = VMAPermission::None;
-    /// Tag returned by svcQueryMemory. Not otherwise used.
-    MemoryState meminfo_state = MemoryState::Unmapped;
+    MemoryState state = MemoryState::Unmapped;
+    MemoryAttribute attribute = MemoryAttribute::None;
 
     // Settings for type = AllocatedMemoryBlock
     /// Memory block backing this VMA.
@@ -298,6 +391,19 @@ public:
     /// @return A MemoryInfo instance containing information about the given address.
     ///
     MemoryInfo QueryMemory(VAddr address) const;
+
+    /// Sets an attribute across the given address range.
+    ///
+    /// @param address   The starting address
+    /// @param size      The size of the range to set the attribute on.
+    /// @param mask      The attribute mask
+    /// @param attribute The attribute to set across the given address range
+    ///
+    /// @returns RESULT_SUCCESS if successful
+    /// @returns ERR_INVALID_ADDRESS_STATE if the attribute could not be set.
+    ///
+    ResultCode SetMemoryAttribute(VAddr address, u64 size, MemoryAttribute mask,
+                                  MemoryAttribute attribute);
 
     /**
      * Scans all VMAs and updates the page table range of any that use the given vector as backing
@@ -434,6 +540,36 @@ private:
 
     /// Clears out the page table
     void ClearPageTable();
+
+    using CheckResults = ResultVal<std::tuple<MemoryState, VMAPermission, MemoryAttribute>>;
+
+    /// Checks if an address range adheres to the specified states provided.
+    ///
+    /// @param address         The starting address of the address range.
+    /// @param size            The size of the address range.
+    /// @param state_mask      The memory state mask.
+    /// @param state           The state to compare the individual VMA states against,
+    ///                        which is done in the form of: (vma.state & state_mask) != state.
+    /// @param permission_mask The memory permissions mask.
+    /// @param permissions     The permission to compare the individual VMA permissions against,
+    ///                        which is done in the form of:
+    ///                        (vma.permission & permission_mask) != permission.
+    /// @param attribute_mask  The memory attribute mask.
+    /// @param attribute       The memory attributes to compare the individual VMA attributes
+    ///                        against, which is done in the form of:
+    ///                        (vma.attributes & attribute_mask) != attribute.
+    /// @param ignore_mask     The memory attributes to ignore during the check.
+    ///
+    /// @return If successful, returns a tuple containing the memory attributes
+    ///         (with ignored bits specified by ignore_mask unset), memory permissions, and
+    ///         memory state across the memory range.
+    ///         @p
+    ///         If not successful, returns ERR_INVALID_ADDRESS_STATE.
+    ///
+    CheckResults CheckRangeState(VAddr address, u64 size, MemoryState state_mask, MemoryState state,
+                                 VMAPermission permission_mask, VMAPermission permissions,
+                                 MemoryAttribute attribute_mask, MemoryAttribute attribute,
+                                 MemoryAttribute ignore_mask) const;
 
     /**
      * A map covering the entirety of the managed address space, keyed by the `base` field of each

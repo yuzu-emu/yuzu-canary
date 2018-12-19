@@ -37,7 +37,7 @@ static const char* GetMemoryStateName(MemoryState state) {
 
 bool VirtualMemoryArea::CanBeMergedWith(const VirtualMemoryArea& next) const {
     ASSERT(base + size == next.base);
-    if (permissions != next.permissions || meminfo_state != next.meminfo_state ||
+    if (permissions != next.permissions || state != next.state || attribute != next.attribute ||
         type != next.type) {
         return false;
     }
@@ -115,7 +115,7 @@ ResultVal<VMManager::VMAHandle> VMManager::MapMemoryBlock(VAddr target,
 
     final_vma.type = VMAType::AllocatedMemoryBlock;
     final_vma.permissions = VMAPermission::ReadWrite;
-    final_vma.meminfo_state = state;
+    final_vma.state = state;
     final_vma.backing_block = std::move(block);
     final_vma.offset = offset;
     UpdatePageTableForVMA(final_vma);
@@ -140,7 +140,7 @@ ResultVal<VMManager::VMAHandle> VMManager::MapBackingMemory(VAddr target, u8* me
 
     final_vma.type = VMAType::BackingMemory;
     final_vma.permissions = VMAPermission::ReadWrite;
-    final_vma.meminfo_state = state;
+    final_vma.state = state;
     final_vma.backing_memory = memory;
     UpdatePageTableForVMA(final_vma);
 
@@ -177,7 +177,7 @@ ResultVal<VMManager::VMAHandle> VMManager::MapMMIO(VAddr target, PAddr paddr, u6
 
     final_vma.type = VMAType::MMIO;
     final_vma.permissions = VMAPermission::ReadWrite;
-    final_vma.meminfo_state = state;
+    final_vma.state = state;
     final_vma.paddr = paddr;
     final_vma.mmio_handler = std::move(mmio_handler);
     UpdatePageTableForVMA(final_vma);
@@ -189,7 +189,7 @@ VMManager::VMAIter VMManager::Unmap(VMAIter vma_handle) {
     VirtualMemoryArea& vma = vma_handle->second;
     vma.type = VMAType::Free;
     vma.permissions = VMAPermission::None;
-    vma.meminfo_state = MemoryState::Unmapped;
+    vma.state = MemoryState::Unmapped;
 
     vma.backing_block = nullptr;
     vma.offset = 0;
@@ -308,9 +308,10 @@ MemoryInfo VMManager::QueryMemory(VAddr address) const {
 
     if (IsValidHandle(vma)) {
         memory_info.base_address = vma->second.base;
+        memory_info.attributes = ToSvcMemoryAttribute(vma->second.attribute);
         memory_info.permission = static_cast<u32>(vma->second.permissions);
         memory_info.size = vma->second.size;
-        memory_info.state = ToSvcMemoryState(vma->second.meminfo_state);
+        memory_info.state = ToSvcMemoryState(vma->second.state);
     } else {
         memory_info.base_address = address_space_end;
         memory_info.permission = static_cast<u32>(VMAPermission::None);
@@ -319,6 +320,34 @@ MemoryInfo VMManager::QueryMemory(VAddr address) const {
     }
 
     return memory_info;
+}
+
+ResultCode VMManager::SetMemoryAttribute(VAddr address, u64 size, MemoryAttribute mask,
+                                         MemoryAttribute attribute) {
+    constexpr auto ignore_mask = MemoryAttribute::Uncached | MemoryAttribute::DeviceMapped;
+    constexpr auto attribute_mask = ~ignore_mask;
+
+    const auto result = CheckRangeState(
+        address, size, MemoryState::FlagUncached, MemoryState::FlagUncached, VMAPermission::None,
+        VMAPermission::None, attribute_mask, MemoryAttribute::None, ignore_mask);
+
+    if (result.Failed()) {
+        return result.Code();
+    }
+
+    const auto [prev_state, prev_permissions, prev_attributes] = *result;
+    const auto new_attribute = (prev_attributes & ~mask) | (mask & attribute);
+
+    const auto carve_result = CarveVMARange(address, size);
+    if (carve_result.Failed()) {
+        return carve_result.Code();
+    }
+
+    auto vma_iter = *carve_result;
+    vma_iter->second.attribute = new_attribute;
+
+    MergeAdjacent(vma_iter);
+    return RESULT_SUCCESS;
 }
 
 ResultCode VMManager::MirrorMemory(VAddr dst_addr, VAddr src_addr, u64 size, MemoryState state) {
@@ -364,7 +393,7 @@ void VMManager::LogLayout() const {
                   (u8)vma.permissions & (u8)VMAPermission::Read ? 'R' : '-',
                   (u8)vma.permissions & (u8)VMAPermission::Write ? 'W' : '-',
                   (u8)vma.permissions & (u8)VMAPermission::Execute ? 'X' : '-',
-                  GetMemoryStateName(vma.meminfo_state));
+                  GetMemoryStateName(vma.state));
     }
 }
 
@@ -589,6 +618,66 @@ void VMManager::ClearPageTable() {
     page_table.special_regions.clear();
     std::fill(page_table.attributes.begin(), page_table.attributes.end(),
               Memory::PageType::Unmapped);
+}
+
+VMManager::CheckResults VMManager::CheckRangeState(VAddr address, u64 size, MemoryState state_mask,
+                                                   MemoryState state, VMAPermission permission_mask,
+                                                   VMAPermission permissions,
+                                                   MemoryAttribute attribute_mask,
+                                                   MemoryAttribute attribute,
+                                                   MemoryAttribute ignore_mask) const {
+    auto iter = FindVMA(address);
+
+    // If we don't have a valid VMA handle at this point, then it means this is
+    // being called with an address outside of the address space, which is definitely
+    // indicative of a bug, as this function only operates on mapped memory regions.
+    DEBUG_ASSERT(IsValidHandle(iter));
+
+    const VAddr end_address = address + size - 1;
+    const MemoryAttribute initial_attributes = iter->second.attribute;
+    const VMAPermission initial_permissions = iter->second.permissions;
+    const MemoryState initial_state = iter->second.state;
+
+    while (true) {
+        // The iterator should be valid throughout the traversal. Hitting the end of
+        // the mapped VMA regions is unquestionably indicative of a bug.
+        DEBUG_ASSERT(IsValidHandle(iter));
+
+        const auto& vma = iter->second;
+
+        if (vma.state != initial_state) {
+            return ERR_INVALID_ADDRESS_STATE;
+        }
+
+        if ((vma.state & state_mask) != state) {
+            return ERR_INVALID_ADDRESS_STATE;
+        }
+
+        if (vma.permissions != initial_permissions) {
+            return ERR_INVALID_ADDRESS_STATE;
+        }
+
+        if ((vma.permissions & permission_mask) != permissions) {
+            return ERR_INVALID_ADDRESS_STATE;
+        }
+
+        if ((vma.attribute | ignore_mask) != (initial_attributes | ignore_mask)) {
+            return ERR_INVALID_ADDRESS_STATE;
+        }
+
+        if ((vma.attribute & attribute_mask) != attribute) {
+            return ERR_INVALID_ADDRESS_STATE;
+        }
+
+        if (end_address <= vma.EndAddress()) {
+            break;
+        }
+
+        ++iter;
+    }
+
+    return MakeResult(
+        std::make_tuple(initial_state, initial_permissions, initial_attributes & ~ignore_mask));
 }
 
 u64 VMManager::GetTotalMemoryUsage() const {

@@ -254,11 +254,52 @@ static ResultCode SetMemoryPermission(VAddr addr, u64 size, u32 prot) {
     return vm_manager.ReprotectRange(addr, size, converted_permissions);
 }
 
-static ResultCode SetMemoryAttribute(VAddr addr, u64 size, u32 state0, u32 state1) {
-    LOG_WARNING(Kernel_SVC,
-                "(STUBBED) called, addr=0x{:X}, size=0x{:X}, state0=0x{:X}, state1=0x{:X}", addr,
-                size, state0, state1);
-    return RESULT_SUCCESS;
+static ResultCode SetMemoryAttribute(VAddr address, u64 size, u32 mask, u32 attribute) {
+    LOG_DEBUG(Kernel_SVC,
+              "called, address=0x{:016X}, size=0x{:X}, mask=0x{:08X}, attribute=0x{:08X}", address,
+              size, mask, attribute);
+
+    if (!Common::Is4KBAligned(address)) {
+        LOG_ERROR(Kernel_SVC, "Address not page aligned (0x{:016X})", address);
+        return ERR_INVALID_ADDRESS;
+    }
+
+    if (size == 0 || !Common::Is4KBAligned(size)) {
+        LOG_ERROR(Kernel_SVC, "Invalid size (0x{:X}). Size must be non-zero and page aligned.",
+                  size);
+        return ERR_INVALID_ADDRESS;
+    }
+
+    if (!IsValidAddressRange(address, size)) {
+        LOG_ERROR(Kernel_SVC, "Address range overflowed (Address: 0x{:016X}, Size: 0x{:016X})",
+                  address, size);
+        return ERR_INVALID_ADDRESS_STATE;
+    }
+
+    const auto mem_attribute = static_cast<MemoryAttribute>(attribute);
+    const auto mem_mask = static_cast<MemoryAttribute>(mask);
+    const auto attribute_with_mask = mem_attribute | mem_mask;
+
+    if (attribute_with_mask != mem_mask) {
+        LOG_ERROR(Kernel_SVC,
+                  "Memory attribute doesn't match the given mask (Attribute: 0x{:X}, Mask: {:X}",
+                  attribute, mask);
+        return ERR_INVALID_COMBINATION;
+    }
+
+    if ((attribute_with_mask | MemoryAttribute::Uncached) != MemoryAttribute::Uncached) {
+        LOG_ERROR(Kernel_SVC, "Specified attribute isn't equal to MemoryAttributeUncached (8).");
+        return ERR_INVALID_COMBINATION;
+    }
+
+    auto& vm_manager = Core::CurrentProcess()->VMManager();
+    if (!IsInsideAddressSpace(vm_manager, address, size)) {
+        LOG_ERROR(Kernel_SVC,
+                  "Given address (0x{:016X}) is outside the bounds of the address space.", address);
+        return ERR_INVALID_ADDRESS_STATE;
+    }
+
+    return vm_manager.SetMemoryAttribute(address, size, mem_mask, mem_attribute);
 }
 
 /// Maps a memory range into a different range.
