@@ -335,6 +335,9 @@ void GMainWindow::InitializeHotkeys() {
                                    Qt::ApplicationShortcut);
     hotkey_registry.RegisterHotkey("Main Window", "Load Amiibo", QKeySequence(Qt::Key_F2),
                                    Qt::ApplicationShortcut);
+    hotkey_registry.RegisterHotkey("Main Window", "Capture Screenshot",
+                                   QKeySequence(QKeySequence::Print));
+
     hotkey_registry.LoadHotkeys();
 
     connect(hotkey_registry.GetHotkey("Main Window", "Load File", this), &QShortcut::activated,
@@ -392,6 +395,12 @@ void GMainWindow::InitializeHotkeys() {
             this, [&] {
                 if (ui.action_Load_Amiibo->isEnabled()) {
                     OnLoadAmiibo();
+                }
+            });
+    connect(hotkey_registry.GetHotkey("Main Window", "Capture Screenshot", this),
+            &QShortcut::activated, this, [&] {
+                if (emu_thread->IsRunning()) {
+                    OnCaptureScreenshot();
                 }
             });
 }
@@ -490,6 +499,10 @@ void GMainWindow::ConnectMenuEvents() {
     ui.action_Fullscreen->setShortcut(
         hotkey_registry.GetHotkey("Main Window", "Fullscreen", this)->key());
     connect(ui.action_Fullscreen, &QAction::triggered, this, &GMainWindow::ToggleFullscreen);
+
+    // Movie
+    connect(ui.action_Capture_Screenshot, &QAction::triggered, this,
+            &GMainWindow::OnCaptureScreenshot);
 
     // Help
     connect(ui.action_Open_yuzu_Folder, &QAction::triggered, this, &GMainWindow::OnOpenYuzuFolder);
@@ -727,6 +740,7 @@ void GMainWindow::ShutdownGame() {
     ui.action_Restart->setEnabled(false);
     ui.action_Report_Compatibility->setEnabled(false);
     ui.action_Load_Amiibo->setEnabled(false);
+    ui.action_Capture_Screenshot->setEnabled(false);
     render_window->hide();
     game_list->show();
     game_list->setFilterFocus();
@@ -1290,6 +1304,7 @@ void GMainWindow::OnStartGame() {
 
     discord_rpc->Update();
     ui.action_Load_Amiibo->setEnabled(true);
+    ui.action_Capture_Screenshot->setEnabled(true);
 }
 
 void GMainWindow::OnPauseGame() {
@@ -1298,6 +1313,7 @@ void GMainWindow::OnPauseGame() {
     ui.action_Start->setEnabled(true);
     ui.action_Pause->setEnabled(false);
     ui.action_Stop->setEnabled(true);
+    ui.action_Capture_Screenshot->setEnabled(false);
 }
 
 void GMainWindow::OnStopGame() {
@@ -1458,6 +1474,18 @@ void GMainWindow::OnToggleFilterBar() {
     } else {
         game_list->clearFilter();
     }
+}
+
+void GMainWindow::OnCaptureScreenshot() {
+    OnPauseGame();
+    const QString path =
+        QFileDialog::getSaveFileName(this, tr("Capture Screenshot"),
+                                     UISettings::values.screenshot_path, tr("PNG Image (*.png)"));
+    if (!path.isEmpty()) {
+        UISettings::values.screenshot_path = QFileInfo(path).path();
+        render_window->CaptureScreenshot(UISettings::values.screenshot_resolution_factor, path);
+    }
+    OnStartGame();
 }
 
 void GMainWindow::UpdateStatusBar() {

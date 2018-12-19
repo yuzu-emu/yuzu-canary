@@ -10,6 +10,7 @@
 #include <QByteArray>
 #include <QString>
 #include <QStringList>
+#include "common/common_types.h"
 
 namespace UISettings {
 
@@ -42,8 +43,11 @@ struct Values {
     // Discord RPC
     bool enable_discord_presence;
 
+    u16 screenshot_resolution_factor;
+
     QString roms_path;
     QString symbols_path;
+    QString screenshot_path;
     QString gamedir;
     bool gamedir_deepscan;
     QStringList recent_files;
