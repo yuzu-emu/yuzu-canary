@@ -101,8 +101,18 @@ std::size_t SurfaceParams::InnerMemorySize(bool force_gl, bool layer_only,
     params.srgb_conversion = config.tic.IsSrgbConversionEnabled();
     params.pixel_format = PixelFormatFromTextureFormat(config.tic.format, config.tic.r_type.Value(),
                                                        params.srgb_conversion);
+
+    if (params.pixel_format == PixelFormat::R16U && config.tsc.depth_compare_enabled) {
+        // Some titles create a 'R16U' (normalized 16-bit) texture with depth_compare enabled,
+        // then attempt to sample from it via a shadow sampler. Convert format to Z16 (which also
+        // causes GetFormatType to properly return 'Depth' below).
+        params.pixel_format = PixelFormat::Z16;
+    }
+
     params.component_type = ComponentTypeFromTexture(config.tic.r_type.Value());
     params.type = GetFormatType(params.pixel_format);
+    UNIMPLEMENTED_IF(params.type == SurfaceType::ColorTexture && config.tsc.depth_compare_enabled);
+
     params.width = Common::AlignUp(config.tic.Width(), GetCompressionFactor(params.pixel_format));
     params.height = Common::AlignUp(config.tic.Height(), GetCompressionFactor(params.pixel_format));
     params.unaligned_height = config.tic.Height();
@@ -257,7 +267,7 @@ static constexpr std::array<FormatTuple, VideoCore::Surface::MaxPixelFormat> tex
     {GL_R8UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE, ComponentType::UInt, false},           // R8UI
     {GL_RGBA16F, GL_RGBA, GL_HALF_FLOAT, ComponentType::Float, false},                 // RGBA16F
     {GL_RGBA16, GL_RGBA, GL_UNSIGNED_SHORT, ComponentType::UNorm, false},              // RGBA16U
-    {GL_RGBA16UI, GL_RGBA, GL_UNSIGNED_SHORT, ComponentType::UInt, false},             // RGBA16UI
+    {GL_RGBA16UI, GL_RGBA_INTEGER, GL_UNSIGNED_SHORT, ComponentType::UInt, false},     // RGBA16UI
     {GL_R11F_G11F_B10F, GL_RGB, GL_UNSIGNED_INT_10F_11F_11F_REV, ComponentType::Float,
      false},                                                                     // R11FG11FB10F
     {GL_RGBA32UI, GL_RGBA_INTEGER, GL_UNSIGNED_INT, ComponentType::UInt, false}, // RGBA32UI
