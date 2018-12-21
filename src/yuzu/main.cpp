@@ -8,6 +8,7 @@
 #include <thread>
 
 // VFS includes must be before glad as they will conflict with Windows file api, which uses defines.
+#include "applets/profile_select.h"
 #include "applets/software_keyboard.h"
 #include "configuration/configure_per_general.h"
 #include "core/file_sys/vfs.h"
@@ -206,6 +207,28 @@ GMainWindow::~GMainWindow() {
     // will get automatically deleted otherwise
     if (render_window->parent() == nullptr)
         delete render_window;
+}
+
+void GMainWindow::ProfileSelectorSelectProfile() {
+    QtProfileSelectionDialog dialog(this);
+    dialog.setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint |
+                          Qt::WindowSystemMenuHint | Qt::WindowCloseButtonHint);
+    dialog.setWindowModality(Qt::WindowModal);
+    dialog.exec();
+
+    if (!dialog.GetStatus()) {
+        emit ProfileSelectorFinishedSelection(std::nullopt);
+        return;
+    }
+
+    Service::Account::ProfileManager manager;
+    const auto uuid = manager.GetUser(dialog.GetIndex());
+    if (!uuid.has_value()) {
+        emit ProfileSelectorFinishedSelection(std::nullopt);
+        return;
+    }
+
+    emit ProfileSelectorFinishedSelection(uuid);
 }
 
 void GMainWindow::SoftwareKeyboardGetText(
@@ -587,6 +610,7 @@ bool GMainWindow::LoadROM(const QString& filename) {
 
     system.SetGPUDebugContext(debug_context);
 
+    system.SetProfileSelector(std::make_unique<QtProfileSelector>(*this));
     system.SetSoftwareKeyboard(std::make_unique<QtSoftwareKeyboard>(*this));
 
     const Core::System::ResultStatus result{system.Load(*render_window, filename.toStdString())};
