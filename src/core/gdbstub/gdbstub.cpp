@@ -201,11 +201,11 @@ void RegisterModule(std::string name, VAddr beg, VAddr end, bool add_elf_ext) {
     modules.push_back(std::move(module));
 }
 
-static Kernel::Thread* FindThreadById(int id) {
+static Kernel::Thread* FindThreadById(s64 id) {
     for (u32 core = 0; core < Core::NUM_CPU_CORES; core++) {
         const auto& threads = Core::System::GetInstance().Scheduler(core).GetThreadList();
         for (auto& thread : threads) {
-            if (thread->GetThreadID() == static_cast<u32>(id)) {
+            if (thread->GetThreadID() == static_cast<u64>(id)) {
                 current_core = core;
                 return thread.get();
             }
