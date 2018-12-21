@@ -120,6 +120,18 @@ struct CodeSet final {
 
 class Process final : public WaitObject {
 public:
+    enum : u64 {
+        /// Lowest allowed process ID for a kernel initial process.
+        InitialKIPIDMin = 1,
+        /// Highest allowed process ID for a kernel initial process.
+        InitialKIPIDMax = 80,
+
+        /// Lowest allowed process ID for a userland process.
+        ProcessIDMin = 81,
+        /// Highest allowed process ID for a userland process.
+        ProcessIDMax = 0xFFFFFFFFFFFFFFFF,
+    };
+
     static constexpr std::size_t RANDOM_ENTROPY_SIZE = 4;
 
     static SharedPtr<Process> Create(KernelCore& kernel, std::string&& name);
@@ -162,7 +174,7 @@ public:
     }
 
     /// Gets the unique ID that identifies this particular process.
-    u32 GetProcessID() const {
+    u64 GetProcessID() const {
         return process_id;
     }
 
@@ -288,10 +300,10 @@ private:
     ProcessStatus status;
 
     /// The ID of this process
-    u32 process_id = 0;
+    u64 process_id = 0;
 
     /// Title ID corresponding to the process
-    u64 program_id;
+    u64 program_id = 0;
 
     /// Resource limit descriptor for this process
     SharedPtr<ResourceLimit> resource_limit;
