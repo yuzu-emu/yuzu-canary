@@ -54,7 +54,9 @@ public:
     void InvalidateRegion(VAddr addr, u64 size) override;
     void FlushAndInvalidateRegion(VAddr addr, u64 size) override;
     bool AccelerateSurfaceCopy(const Tegra::Engines::Fermi2D::Regs::Surface& src,
-                               const Tegra::Engines::Fermi2D::Regs::Surface& dst) override;
+                               const Tegra::Engines::Fermi2D::Regs::Surface& dst,
+                               const MathUtil::Rectangle<u32>& src_rect,
+                               const MathUtil::Rectangle<u32>& dst_rect) override;
     bool AccelerateFill(const void* config) override;
     bool AccelerateDisplay(const Tegra::FramebufferConfig& config, VAddr framebuffer_addr,
                            u32 pixel_stride) override;
