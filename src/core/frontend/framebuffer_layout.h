@@ -9,6 +9,7 @@
 namespace Layout {
 
 enum ScreenUndocked : unsigned { Width = 1280, Height = 720 };
+enum ScreenDocked : unsigned { WidthDocked = 1920, HeightDocked = 1080 };
 
 /// Describes the layout of the window framebuffer
 struct FramebufferLayout {
@@ -33,5 +34,11 @@ struct FramebufferLayout {
  * @return Newly created FramebufferLayout object with default screen regions initialized
  */
 FramebufferLayout DefaultFrameLayout(unsigned width, unsigned height);
+
+/**
+ * Convenience method to get frame layout by resolution scale
+ * @param res_scale resolution scale factor
+ */
+FramebufferLayout FrameLayoutFromResolutionScale(u16 res_scale);
 
 } // namespace Layout
