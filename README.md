@@ -1,3 +1,32 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 4923df10ccb2afab3a3ccc136b1422d8657f5e0b
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1929](https://github.com/yuzu-emu/yuzu/pull/1929)|[1120e0b](https://github.com/yuzu-emu/yuzu/pull/1929/files/)|hid: Fix SetNpadJoyHoldType and improve logging.|[bunnei](https://github.com/bunnei)|Yes|
+|[1925](https://github.com/yuzu-emu/yuzu/pull/1925)|[b74eb88](https://github.com/yuzu-emu/yuzu/pull/1925/files/)|kernel/{process, thread}: Amend behavior related to IDs|[lioncash](https://github.com/lioncash)|Yes|
+|[1920](https://github.com/yuzu-emu/yuzu/pull/1920)|[37280cf](https://github.com/yuzu-emu/yuzu/pull/1920/files/)|Texture format fixes for RGBA16UI for copies and R16U when used as depth|[heapo](https://github.com/heapo)|Yes|
+|[1914](https://github.com/yuzu-emu/yuzu/pull/1914)|[dd27229](https://github.com/yuzu-emu/yuzu/pull/1914/files/)|service/am: Unstub GetAppletResourceUserId|[lioncash](https://github.com/lioncash)|Yes|
+|[1904](https://github.com/yuzu-emu/yuzu/pull/1904)|[3702a67](https://github.com/yuzu-emu/yuzu/pull/1904/files/)|gl_rasterizer: Implement a more accurate fermi 2D copy.|[bunnei](https://github.com/bunnei)|Yes|
+|[1886](https://github.com/yuzu-emu/yuzu/pull/1886)|[a2be493](https://github.com/yuzu-emu/yuzu/pull/1886/files/)|Port citra-emu/citra#4164: "citra_qt, video_core: Screenshot functionality"|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[1878](https://github.com/yuzu-emu/yuzu/pull/1878)|[b1bac99](https://github.com/yuzu-emu/yuzu/pull/1878/files/)|Workaround for BOTW (and others?) deadlock on boot|[heapo](https://github.com/heapo)|Yes|
+|[1809](https://github.com/yuzu-emu/yuzu/pull/1809)|[6dea93d](https://github.com/yuzu-emu/yuzu/pull/1809/files/)|Eliminate G8R8 conversion, native is actualy R8G8|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1781](https://github.com/yuzu-emu/yuzu/pull/1781)|[e11e65b](https://github.com/yuzu-emu/yuzu/pull/1781/files/)|am: Implement HLE profile selector applet|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1780](https://github.com/yuzu-emu/yuzu/pull/1780)|[c07059e](https://github.com/yuzu-emu/yuzu/pull/1780/files/)|configure_input: Add Controller Setup Profiles and simplify input UI|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1603](https://github.com/yuzu-emu/yuzu/pull/1603)|[fd98bf1](https://github.com/yuzu-emu/yuzu/pull/1603/files/)|Preliminary implementation of LDG (continuation)|[bunnei](https://github.com/bunnei)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
