@@ -62,6 +62,9 @@ struct Values {
     // logging
     bool show_console;
 
+    // Controllers
+    int profile_index;
+
     // Game List
     bool show_unknown;
     bool show_add_ons;
