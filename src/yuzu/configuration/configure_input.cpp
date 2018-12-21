@@ -20,6 +20,33 @@
 #include "yuzu/configuration/configure_input_player.h"
 #include "yuzu/configuration/configure_mouse_advanced.h"
 
+void OnDockedModeChanged(bool last_state, bool new_state) {
+    if (last_state == new_state) {
+        return;
+    }
+
+    Core::System& system{Core::System::GetInstance()};
+    if (!system.IsPoweredOn()) {
+        return;
+    }
+    Service::SM::ServiceManager& sm = system.ServiceManager();
+
+    // Message queue is shared between these services, we just need to signal an operation
+    // change to one and it will handle both automatically
+    auto applet_oe = sm.GetService<Service::AM::AppletOE>("appletOE");
+    auto applet_ae = sm.GetService<Service::AM::AppletAE>("appletAE");
+    bool has_signalled = false;
+
+    if (applet_oe != nullptr) {
+        applet_oe->GetMessageQueue()->OperationModeChanged();
+        has_signalled = true;
+    }
+
+    if (applet_ae != nullptr && !has_signalled) {
+        applet_ae->GetMessageQueue()->OperationModeChanged();
+    }
+}
+
 namespace {
 template <typename Dialog, typename... Args>
 void CallConfigureDialog(ConfigureInput& parent, Args&&... args) {
@@ -34,7 +61,7 @@ void CallConfigureDialog(ConfigureInput& parent, Args&&... args) {
 } // Anonymous namespace
 
 ConfigureInput::ConfigureInput(QWidget* parent)
-    : QWidget(parent), ui(std::make_unique<Ui::ConfigureInput>()) {
+    : QDialog(parent), ui(std::make_unique<Ui::ConfigureInput>()) {
     ui->setupUi(this);
 
     players_controller = {
@@ -89,37 +116,6 @@ ConfigureInput::ConfigureInput(QWidget* parent)
 }
 
 ConfigureInput::~ConfigureInput() = default;
-
-void ConfigureInput::OnDockedModeChanged(bool last_state, bool new_state) {
-    if (ui->use_docked_mode->isChecked() && ui->handheld_connected->isChecked()) {
-        ui->handheld_connected->setChecked(false);
-    }
-
-    if (last_state == new_state) {
-        return;
-    }
-
-    Core::System& system{Core::System::GetInstance()};
-    if (!system.IsPoweredOn()) {
-        return;
-    }
-    Service::SM::ServiceManager& sm = system.ServiceManager();
-
-    // Message queue is shared between these services, we just need to signal an operation
-    // change to one and it will handle both automatically
-    auto applet_oe = sm.GetService<Service::AM::AppletOE>("appletOE");
-    auto applet_ae = sm.GetService<Service::AM::AppletAE>("appletAE");
-    bool has_signalled = false;
-
-    if (applet_oe != nullptr) {
-        applet_oe->GetMessageQueue()->OperationModeChanged();
-        has_signalled = true;
-    }
-
-    if (applet_ae != nullptr && !has_signalled) {
-        applet_ae->GetMessageQueue()->OperationModeChanged();
-    }
-}
 
 void ConfigureInput::applyConfiguration() {
     for (std::size_t i = 0; i < players_controller.size(); ++i) {
