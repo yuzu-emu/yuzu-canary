@@ -468,6 +468,8 @@ void Config::ReadValues() {
     UISettings::values.theme = qt_config->value("theme", UISettings::themes[0].second).toString();
     UISettings::values.enable_discord_presence =
         qt_config->value("enable_discord_presence", true).toBool();
+    UISettings::values.screenshot_resolution_factor =
+        static_cast<u16>(qt_config->value("screenshot_resolution_factor", 0).toUInt());
 
     qt_config->beginGroup("UIGameList");
     UISettings::values.show_unknown = qt_config->value("show_unknown", true).toBool();
@@ -689,6 +691,8 @@ void Config::SaveValues() {
     qt_config->beginGroup("UI");
     qt_config->setValue("theme", UISettings::values.theme);
     qt_config->setValue("enable_discord_presence", UISettings::values.enable_discord_presence);
+    qt_config->setValue("screenshot_resolution_factor",
+                        UISettings::values.screenshot_resolution_factor);
 
     qt_config->beginGroup("UIGameList");
     qt_config->setValue("show_unknown", UISettings::values.show_unknown);
@@ -710,6 +714,7 @@ void Config::SaveValues() {
     qt_config->beginGroup("Paths");
     qt_config->setValue("romsPath", UISettings::values.roms_path);
     qt_config->setValue("symbolsPath", UISettings::values.symbols_path);
+    qt_config->setValue("screenshotPath", UISettings::values.screenshot_path);
     qt_config->setValue("gameListRootDir", UISettings::values.gamedir);
     qt_config->setValue("gameListDeepScan", UISettings::values.gamedir_deepscan);
     qt_config->setValue("recentFiles", UISettings::values.recent_files);
