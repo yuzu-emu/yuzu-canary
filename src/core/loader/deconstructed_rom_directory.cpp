@@ -129,7 +129,10 @@ ResultStatus AppLoader_DeconstructedRomDirectory::Load(Kernel::Process& process)
         return ResultStatus::Error32BitISA;
     }
 
-    process.LoadFromMetadata(metadata);
+    if (process.LoadFromMetadata(metadata).IsError()) {
+        return ResultStatus::ErrorUnableToParseKernelMetadata;
+    }
+
     const FileSys::PatchManager pm(metadata.GetTitleID());
 
     // Load NSO modules
