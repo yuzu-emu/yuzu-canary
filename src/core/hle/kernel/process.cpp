@@ -28,13 +28,11 @@ SharedPtr<Process> Process::Create(KernelCore& kernel, std::string&& name) {
     SharedPtr<Process> process(new Process(kernel));
 
     process->name = std::move(name);
-    process->flags.raw = 0;
-    process->flags.memory_region.Assign(MemoryRegion::APPLICATION);
     process->resource_limit = kernel.GetSystemResourceLimit();
     process->status = ProcessStatus::Created;
     process->program_id = 0;
     process->process_id = kernel.CreateNewProcessID();
-    process->svc_access_mask.set();
+    process->capabilities.InitializeForMetadatalessProcess();
 
     std::mt19937 rng(Settings::values.rng_seed.value_or(0));
     std::uniform_int_distribution<u64> distribution;
@@ -64,83 +62,15 @@ ResultCode Process::ClearSignalState() {
     return RESULT_SUCCESS;
 }
 
-void Process::LoadFromMetadata(const FileSys::ProgramMetadata& metadata) {
+ResultCode Process::LoadFromMetadata(const FileSys::ProgramMetadata& metadata) {
     program_id = metadata.GetTitleID();
     ideal_processor = metadata.GetMainThreadCore();
     is_64bit_process = metadata.Is64BitProgram();
+
     vm_manager.Reset(metadata.GetAddressSpaceType());
-}
 
-void Process::ParseKernelCaps(const u32* kernel_caps, std::size_t len) {
-    for (std::size_t i = 0; i < len; ++i) {
-        u32 descriptor = kernel_caps[i];
-        u32 type = descriptor >> 20;
-
-        if (descriptor == 0xFFFFFFFF) {
-            // Unused descriptor entry
-            continue;
-        } else if ((type & 0xF00) == 0xE00) { // 0x0FFF
-            // Allowed interrupts list
-            LOG_WARNING(Loader, "ExHeader allowed interrupts list ignored");
-        } else if ((type & 0xF80) == 0xF00) { // 0x07FF
-            // Allowed syscalls mask
-            unsigned int index = ((descriptor >> 24) & 7) * 24;
-            u32 bits = descriptor & 0xFFFFFF;
-
-            while (bits && index < svc_access_mask.size()) {
-                svc_access_mask.set(index, bits & 1);
-                ++index;
-                bits >>= 1;
-            }
-        } else if ((type & 0xFF0) == 0xFE0) { // 0x00FF
-            // Handle table size
-            handle_table_size = descriptor & 0x3FF;
-        } else if ((type & 0xFF8) == 0xFF0) { // 0x007F
-            // Misc. flags
-            flags.raw = descriptor & 0xFFFF;
-        } else if ((type & 0xFFE) == 0xFF8) { // 0x001F
-            // Mapped memory range
-            if (i + 1 >= len || ((kernel_caps[i + 1] >> 20) & 0xFFE) != 0xFF8) {
-                LOG_WARNING(Loader, "Incomplete exheader memory range descriptor ignored.");
-                continue;
-            }
-            u32 end_desc = kernel_caps[i + 1];
-            ++i; // Skip over the second descriptor on the next iteration
-
-            AddressMapping mapping;
-            mapping.address = descriptor << 12;
-            VAddr end_address = end_desc << 12;
-
-            if (mapping.address < end_address) {
-                mapping.size = end_address - mapping.address;
-            } else {
-                mapping.size = 0;
-            }
-
-            mapping.read_only = (descriptor & (1 << 20)) != 0;
-            mapping.unk_flag = (end_desc & (1 << 20)) != 0;
-
-            address_mappings.push_back(mapping);
-        } else if ((type & 0xFFF) == 0xFFE) { // 0x000F
-            // Mapped memory page
-            AddressMapping mapping;
-            mapping.address = descriptor << 12;
-            mapping.size = Memory::PAGE_SIZE;
-            mapping.read_only = false;
-            mapping.unk_flag = false;
-
-            address_mappings.push_back(mapping);
-        } else if ((type & 0xFE0) == 0xFC0) { // 0x01FF
-            // Kernel version
-            kernel_version = descriptor & 0xFFFF;
-
-            int minor = kernel_version & 0xFF;
-            int major = (kernel_version >> 8) & 0xFF;
-            LOG_INFO(Loader, "ExHeader kernel version: {}.{}", major, minor);
-        } else {
-            LOG_ERROR(Loader, "Unhandled kernel caps descriptor: 0x{:08X}", descriptor);
-        }
-    }
+    const auto& caps = metadata.GetKernelCapabilities();
+    return capabilities.InitializeForUserProcess(caps.data(), caps.size(), vm_manager);
 }
 
 void Process::Run(VAddr entry_point, s32 main_thread_priority, u32 stack_size) {
