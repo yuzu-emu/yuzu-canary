@@ -620,18 +620,6 @@ static void ConvertS8Z24ToZ24S8(std::vector<u8>& data, u32 width, u32 height, bo
     }
 }
 
-static void ConvertG8R8ToR8G8(std::vector<u8>& data, u32 width, u32 height) {
-    constexpr auto bpp{GetBytesPerPixel(PixelFormat::G8R8U)};
-    for (std::size_t y = 0; y < height; ++y) {
-        for (std::size_t x = 0; x < width; ++x) {
-            const std::size_t offset{bpp * (y * width + x)};
-            const u8 temp{data[offset]};
-            data[offset] = data[offset + 1];
-            data[offset + 1] = temp;
-        }
-    }
-}
-
 /**
  * Helper function to perform software conversion (as needed) when loading a buffer from Switch
  * memory. This is for Maxwell pixel formats that cannot be represented as-is in OpenGL or with
@@ -663,12 +651,6 @@ static void ConvertFormatAsNeeded_LoadGLBuffer(std::vector<u8>& data, PixelForma
     case PixelFormat::S8Z24:
         // Convert the S8Z24 depth format to Z24S8, as OpenGL does not support S8Z24.
         ConvertS8Z24ToZ24S8(data, width, height, false);
-        break;
-
-    case PixelFormat::G8R8U:
-    case PixelFormat::G8R8S:
-        // Convert the G8R8 color format to R8G8, as OpenGL does not support G8R8.
-        ConvertG8R8ToR8G8(data, width, height);
         break;
     }
 }
