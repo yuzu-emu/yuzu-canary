@@ -339,52 +339,6 @@ void Controller_NPad::OnUpdate(u8* data, std::size_t data_len) {
             npad.pokeball_states.npad[npad.pokeball_states.common.last_entry_index];
         auto& libnx_entry = npad.libnx.npad[npad.libnx.common.last_entry_index];
 
-        if (hold_type == NpadHoldType::Horizontal) {
-            ControllerPadState state{};
-            AnalogPosition temp_lstick_entry{};
-            AnalogPosition temp_rstick_entry{};
-            if (controller_type == NPadControllerType::JoyLeft) {
-                state.d_down.Assign(pad_state.pad_states.d_left.Value());
-                state.d_left.Assign(pad_state.pad_states.d_up.Value());
-                state.d_right.Assign(pad_state.pad_states.d_down.Value());
-                state.d_up.Assign(pad_state.pad_states.d_right.Value());
-                state.l.Assign(pad_state.pad_states.l.Value() |
-                               pad_state.pad_states.left_sl.Value());
-                state.r.Assign(pad_state.pad_states.r.Value() |
-                               pad_state.pad_states.left_sr.Value());
-
-                state.zl.Assign(pad_state.pad_states.zl.Value());
-                state.plus.Assign(pad_state.pad_states.minus.Value());
-
-                temp_lstick_entry = pad_state.l_stick;
-                temp_rstick_entry = pad_state.r_stick;
-                std::swap(temp_lstick_entry.x, temp_lstick_entry.y);
-                std::swap(temp_rstick_entry.x, temp_rstick_entry.y);
-                temp_lstick_entry.y *= -1;
-            } else if (controller_type == NPadControllerType::JoyRight) {
-                state.x.Assign(pad_state.pad_states.a.Value());
-                state.a.Assign(pad_state.pad_states.b.Value());
-                state.b.Assign(pad_state.pad_states.y.Value());
-                state.y.Assign(pad_state.pad_states.b.Value());
-
-                state.l.Assign(pad_state.pad_states.l.Value() |
-                               pad_state.pad_states.right_sl.Value());
-                state.r.Assign(pad_state.pad_states.r.Value() |
-                               pad_state.pad_states.right_sr.Value());
-                state.zr.Assign(pad_state.pad_states.zr.Value());
-                state.plus.Assign(pad_state.pad_states.plus.Value());
-
-                temp_lstick_entry = pad_state.l_stick;
-                temp_rstick_entry = pad_state.r_stick;
-                std::swap(temp_lstick_entry.x, temp_lstick_entry.y);
-                std::swap(temp_rstick_entry.x, temp_rstick_entry.y);
-                temp_rstick_entry.x *= -1;
-            }
-            pad_state.pad_states.raw = state.raw;
-            pad_state.l_stick = temp_lstick_entry;
-            pad_state.r_stick = temp_rstick_entry;
-        }
-
         libnx_entry.connection_status.raw = 0;
 
         switch (controller_type) {
