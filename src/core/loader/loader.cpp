@@ -93,7 +93,7 @@ std::string GetFileTypeString(FileType type) {
     return "unknown";
 }
 
-constexpr std::array<const char*, 60> RESULT_MESSAGES{
+constexpr std::array<const char*, 62> RESULT_MESSAGES{
     "The operation completed successfully.",
     "The loader requested to load is already loaded.",
     "The operation is not implemented.",
@@ -103,6 +103,7 @@ constexpr std::array<const char*, 60> RESULT_MESSAGES{
     "The NPDM has a bad ACI header,",
     "The NPDM file has a bad file access control.",
     "The NPDM has a bad file access header.",
+    "The NPDM has bad kernel capability descriptors.",
     "The PFS/HFS partition has a bad header.",
     "The PFS/HFS partition has incorrect size as determined by the header.",
     "The NCA file has a bad header.",
@@ -125,6 +126,7 @@ constexpr std::array<const char*, 60> RESULT_MESSAGES{
     "The file could not be found or does not exist.",
     "The game is missing a program metadata file (main.npdm).",
     "The game uses the currently-unimplemented 32-bit architecture.",
+    "Unable to completely parse the kernel metadata when loading the emulated process",
     "The RomFS could not be found.",
     "The ELF file has incorrect size as determined by the header.",
     "There was a general error loading the NRO into emulated memory.",
