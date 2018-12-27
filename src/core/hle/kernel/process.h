@@ -11,9 +11,9 @@
 #include <string>
 #include <vector>
 #include <boost/container/static_vector.hpp>
-#include "common/bit_field.h"
 #include "common/common_types.h"
 #include "core/hle/kernel/handle_table.h"
+#include "core/hle/kernel/process_capability.h"
 #include "core/hle/kernel/thread.h"
 #include "core/hle/kernel/vm_manager.h"
 #include "core/hle/kernel/wait_object.h"
@@ -40,24 +40,6 @@ enum class MemoryRegion : u16 {
     APPLICATION = 1,
     SYSTEM = 2,
     BASE = 3,
-};
-
-union ProcessFlags {
-    u16 raw;
-
-    BitField<0, 1, u16>
-        allow_debug; ///< Allows other processes to attach to and debug this process.
-    BitField<1, 1, u16> force_debug; ///< Allows this process to attach to processes even if they
-                                     /// don't have allow_debug set.
-    BitField<2, 1, u16> allow_nonalphanum;
-    BitField<3, 1, u16> shared_page_writable; ///< Shared page is mapped with write permissions.
-    BitField<4, 1, u16> privileged_priority;  ///< Can use priority levels higher than 24.
-    BitField<5, 1, u16> allow_main_args;
-    BitField<6, 1, u16> shared_device_mem;
-    BitField<7, 1, u16> runnable_on_sleep;
-    BitField<8, 4, MemoryRegion>
-        memory_region;                ///< Default region for memory allocations for this process
-    BitField<12, 1, u16> loaded_high; ///< Application loaded high (not at 0x00100000).
 };
 
 /**
@@ -192,13 +174,13 @@ public:
     }
 
     /// Gets the bitmask of allowed CPUs that this process' threads can run on.
-    u32 GetAllowedProcessorMask() const {
-        return allowed_processor_mask;
+    u64 GetAllowedProcessorMask() const {
+        return capabilities.GetCoreMask();
     }
 
     /// Gets the bitmask of allowed thread priorities.
-    u32 GetAllowedThreadPriorityMask() const {
-        return allowed_thread_priority_mask;
+    u64 GetAllowedThreadPriorityMask() const {
+        return capabilities.GetPriorityMask();
     }
 
     u32 IsVirtualMemoryEnabled() const {
@@ -239,15 +221,12 @@ public:
      * Loads process-specifics configuration info with metadata provided
      * by an executable.
      *
-     * @param metadata The provided metadata to load process specific info.
+     * @param metadata The provided metadata to load process specific info from.
+     *
+     * @returns RESULT_SUCCESS if all relevant metadata was able to be
+     *          loaded and parsed. Otherwise, an error code is returned.
      */
-    void LoadFromMetadata(const FileSys::ProgramMetadata& metadata);
-
-    /**
-     * Parses a list of kernel capability descriptors (as found in the ExHeader) and applies them
-     * to this process.
-     */
-    void ParseKernelCaps(const u32* kernel_caps, std::size_t len);
+    ResultCode LoadFromMetadata(const FileSys::ProgramMetadata& metadata);
 
     /**
      * Applies address space changes and launches the process main thread.
@@ -308,22 +287,8 @@ private:
     /// Resource limit descriptor for this process
     SharedPtr<ResourceLimit> resource_limit;
 
-    /// The process may only call SVCs which have the corresponding bit set.
-    std::bitset<0x80> svc_access_mask;
-    /// Maximum size of the handle table for the process.
-    u32 handle_table_size = 0x200;
-    /// Special memory ranges mapped into this processes address space. This is used to give
-    /// processes access to specific I/O regions and device memory.
-    boost::container::static_vector<AddressMapping, 8> address_mappings;
-    ProcessFlags flags;
-    /// Kernel compatibility version for this process
-    u16 kernel_version = 0;
     /// The default CPU for this process, threads are scheduled on this cpu by default.
     u8 ideal_processor = 0;
-    /// Bitmask of allowed CPUs that this process' threads can run on. TODO(Subv): Actually parse
-    /// this value from the process header.
-    u32 allowed_processor_mask = THREADPROCESSORID_DEFAULT_MASK;
-    u32 allowed_thread_priority_mask = 0xFFFFFFFF;
     u32 is_virtual_address_memory_enabled = 0;
 
     /// The Thread Local Storage area is allocated as processes create threads,
@@ -332,6 +297,9 @@ private:
     /// page as a bitmask.
     /// This vector will grow as more pages are allocated for new threads.
     std::vector<std::bitset<8>> tls_slots;
+
+    /// Contains the parsed process capability descriptors.
+    ProcessCapabilities capabilities;
 
     /// Whether or not this process is AArch64, or AArch32.
     /// By default, we currently assume this is true, unless otherwise
