@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <vector>
 #include "common/bit_field.h"
 #include "common/common_types.h"
 #include "common/swap.h"
@@ -38,6 +39,8 @@ enum class ProgramFilePermission : u64 {
  */
 class ProgramMetadata {
 public:
+    using KernelCapabilityDescriptors = std::vector<u32>;
+
     ProgramMetadata();
     ~ProgramMetadata();
 
@@ -50,6 +53,7 @@ public:
     u32 GetMainThreadStackSize() const;
     u64 GetTitleID() const;
     u64 GetFilesystemPermissions() const;
+    const KernelCapabilityDescriptors& GetKernelCapabilities() const;
 
     void Print() const;
 
@@ -154,6 +158,8 @@ private:
 
     FileAccessControl acid_file_access;
     FileAccessHeader aci_file_access;
+
+    KernelCapabilityDescriptors aci_kernel_capabilities;
 };
 
 } // namespace FileSys
