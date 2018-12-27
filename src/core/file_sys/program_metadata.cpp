@@ -40,6 +40,13 @@ Loader::ResultStatus ProgramMetadata::Load(VirtualFile file) {
     if (sizeof(FileAccessHeader) != file->ReadObject(&aci_file_access, aci_header.fah_offset))
         return Loader::ResultStatus::ErrorBadFileAccessHeader;
 
+    aci_kernel_capabilities.resize(aci_header.kac_size / sizeof(u32));
+    const u64 read_size = aci_header.kac_size;
+    const u64 read_offset = npdm_header.aci_offset + aci_header.kac_offset;
+    if (file->ReadBytes(aci_kernel_capabilities.data(), read_size, read_offset) != read_size) {
+        return Loader::ResultStatus::ErrorBadKernelCapabilityDescriptors;
+    }
+
     return Loader::ResultStatus::Success;
 }
 
@@ -69,6 +76,10 @@ u64 ProgramMetadata::GetTitleID() const {
 
 u64 ProgramMetadata::GetFilesystemPermissions() const {
     return aci_file_access.permissions;
+}
+
+const ProgramMetadata::KernelCapabilityDescriptors& ProgramMetadata::GetKernelCapabilities() const {
+    return aci_kernel_capabilities;
 }
 
 void ProgramMetadata::Print() const {

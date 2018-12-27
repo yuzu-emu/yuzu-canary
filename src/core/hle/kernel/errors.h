@@ -11,6 +11,7 @@ namespace Kernel {
 // Confirmed Switch kernel error codes
 
 constexpr ResultCode ERR_MAX_CONNECTIONS_REACHED{ErrorModule::Kernel, 7};
+constexpr ResultCode ERR_INVALID_CAPABILITY_DESCRIPTOR{ErrorModule::Kernel, 14};
 constexpr ResultCode ERR_INVALID_SIZE{ErrorModule::Kernel, 101};
 constexpr ResultCode ERR_INVALID_ADDRESS{ErrorModule::Kernel, 102};
 constexpr ResultCode ERR_HANDLE_TABLE_FULL{ErrorModule::Kernel, 105};
@@ -30,6 +31,7 @@ constexpr ResultCode ERR_NOT_FOUND{ErrorModule::Kernel, 121};
 constexpr ResultCode ERR_BUSY{ErrorModule::Kernel, 122};
 constexpr ResultCode ERR_SESSION_CLOSED_BY_REMOTE{ErrorModule::Kernel, 123};
 constexpr ResultCode ERR_INVALID_STATE{ErrorModule::Kernel, 125};
+constexpr ResultCode ERR_RESERVED_VALUE{ErrorModule::Kernel, 126};
 constexpr ResultCode ERR_RESOURCE_LIMIT_EXCEEDED{ErrorModule::Kernel, 132};
 
 } // namespace Kernel
