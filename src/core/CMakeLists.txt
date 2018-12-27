@@ -115,6 +115,8 @@ add_library(core STATIC
     hle/kernel/object.h
     hle/kernel/process.cpp
     hle/kernel/process.h
+    hle/kernel/process_capability.cpp
+    hle/kernel/process_capability.h
     hle/kernel/readable_event.cpp
     hle/kernel/readable_event.h
     hle/kernel/resource_limit.cpp
