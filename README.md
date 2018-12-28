@@ -1,3 +1,28 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: af9336df57ea58cd9ce82294f0b02f72a25759ea
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[1956](https://github.com/yuzu-emu/yuzu/pull/1956)|[a81ff6f](https://github.com/yuzu-emu/yuzu/pull/1956/files/)|kernel/process: Start the main thread using the specified ideal core|[lioncash](https://github.com/lioncash)|Yes|
+|[1955](https://github.com/yuzu-emu/yuzu/pull/1955)|[2020ba0](https://github.com/yuzu-emu/yuzu/pull/1955/files/)|gpu: Remove PixelFormat G8R8U and G8R8S, as they do not seem to exist.|[bunnei](https://github.com/bunnei)|Yes|
+|[1944](https://github.com/yuzu-emu/yuzu/pull/1944)|[c6da772](https://github.com/yuzu-emu/yuzu/pull/1944/files/)|Port citra-emu/citra#4187: "Qt/Configure: Use sidebar to divide tabs into smaller groups"|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[1908](https://github.com/yuzu-emu/yuzu/pull/1908)|[624f21f](https://github.com/yuzu-emu/yuzu/pull/1908/files/)|video_core/GPU   Implemented the GPU PFIFO puller semaphore operations.|[kmather73](https://github.com/kmather73)|Yes|
+|[1904](https://github.com/yuzu-emu/yuzu/pull/1904)|[3702a67](https://github.com/yuzu-emu/yuzu/pull/1904/files/)|gl_rasterizer: Implement a more accurate fermi 2D copy.|[bunnei](https://github.com/bunnei)|Yes|
+|[1878](https://github.com/yuzu-emu/yuzu/pull/1878)|[b1bac99](https://github.com/yuzu-emu/yuzu/pull/1878/files/)|Workaround for BOTW (and others?) deadlock on boot|[heapo](https://github.com/heapo)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1603](https://github.com/yuzu-emu/yuzu/pull/1603)|[fd98bf1](https://github.com/yuzu-emu/yuzu/pull/1603/files/)|Preliminary implementation of LDG (continuation)|[bunnei](https://github.com/bunnei)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
