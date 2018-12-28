@@ -198,9 +198,9 @@ PixelFormat PixelFormatFromTextureFormat(Tegra::Texture::TextureFormat format,
     case Tegra::Texture::TextureFormat::G8R8:
         switch (component_type) {
         case Tegra::Texture::ComponentType::UNORM:
-            return PixelFormat::G8R8U;
+            return PixelFormat::RG8U;
         case Tegra::Texture::ComponentType::SNORM:
-            return PixelFormat::G8R8S;
+            return PixelFormat::RG8S;
         }
         LOG_CRITICAL(HW_GPU, "Unimplemented component_type={}", static_cast<u32>(component_type));
         UNREACHABLE();
