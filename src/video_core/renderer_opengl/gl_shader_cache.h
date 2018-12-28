@@ -72,7 +72,18 @@ public:
     }
 
     /// Gets the GL program resource location for the specified resource, caching as needed
-    GLuint GetProgramResourceIndex(const GLShader::ConstBufferEntry& buffer);
+    template <typename T>
+    GLuint GetProgramResourceIndex(const T& buffer) {
+        const auto& search{resource_cache.find(buffer.GetHash())};
+        if (search == resource_cache.end()) {
+            const GLuint index{glGetProgramResourceIndex(program.handle, GL_UNIFORM_BLOCK,
+                                                         buffer.GetName().c_str())};
+            resource_cache[buffer.GetHash()] = index;
+            return index;
+        }
+
+        return search->second;
+    }
 
     /// Gets the GL uniform location for the specified resource, caching as needed
     GLint GetUniformLocation(const GLShader::SamplerEntry& sampler);
