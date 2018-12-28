@@ -66,8 +66,6 @@ static constexpr ConversionArray morton_to_linear_fns = {
         MortonCopy<true, PixelFormat::BC6H_UF16>,
         MortonCopy<true, PixelFormat::BC6H_SF16>,
         MortonCopy<true, PixelFormat::ASTC_2D_4X4>,
-        MortonCopy<true, PixelFormat::G8R8U>,
-        MortonCopy<true, PixelFormat::G8R8S>,
         MortonCopy<true, PixelFormat::BGRA8>,
         MortonCopy<true, PixelFormat::RGBA32F>,
         MortonCopy<true, PixelFormat::RG32F>,
@@ -138,8 +136,6 @@ static constexpr ConversionArray linear_to_morton_fns = {
         MortonCopy<false, PixelFormat::BC6H_SF16>,
         // TODO(Subv): Swizzling ASTC formats are not supported
         nullptr,
-        MortonCopy<false, PixelFormat::G8R8U>,
-        MortonCopy<false, PixelFormat::G8R8S>,
         MortonCopy<false, PixelFormat::BGRA8>,
         MortonCopy<false, PixelFormat::RGBA32F>,
         MortonCopy<false, PixelFormat::RG32F>,
