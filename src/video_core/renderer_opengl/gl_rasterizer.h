@@ -23,6 +23,7 @@
 #include "video_core/rasterizer_cache.h"
 #include "video_core/rasterizer_interface.h"
 #include "video_core/renderer_opengl/gl_buffer_cache.h"
+#include "video_core/renderer_opengl/gl_global_cache.h"
 #include "video_core/renderer_opengl/gl_primitive_assembler.h"
 #include "video_core/renderer_opengl/gl_rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
@@ -107,7 +108,7 @@ private:
                                bool using_depth_fb = true, bool preserve_contents = true,
                                std::optional<std::size_t> single_color_target = {});
 
-    /*
+    /**
      * Configures the current constbuffers to use for the draw command.
      * @param stage The shader stage to configure buffers for.
      * @param shader The shader object that contains the specified stage.
@@ -117,7 +118,17 @@ private:
     u32 SetupConstBuffers(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage, Shader& shader,
                           GLenum primitive_mode, u32 current_bindpoint);
 
-    /*
+    /**
+     * Configures the current global memory regions to use for the draw command.
+     * @param stage The shader stage to configure buffers for.
+     * @param shader The shader object that contains the specified stage.
+     * @param current_bindpoint The offset at which to start counting new buffer bindpoints.
+     * @returns The next available bindpoint for use in the next shader stage.
+     */
+    u32 SetupGlobalRegions(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage, Shader& shader,
+                           GLenum primitive_mode, u32 current_bindpoint);
+
+    /**
      * Configures the current textures to use for the draw command.
      * @param stage The shader stage to configure textures for.
      * @param shader The shader object that contains the specified stage.
@@ -187,6 +198,7 @@ private:
 
     RasterizerCacheOpenGL res_cache;
     ShaderCacheOpenGL shader_cache;
+    GlobalRegionCacheOpenGL global_cache;
 
     Core::Frontend::EmuWindow& emu_window;
 
