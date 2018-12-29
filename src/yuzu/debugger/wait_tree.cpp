@@ -293,8 +293,8 @@ std::vector<std::unique_ptr<WaitTreeItem>> WaitTreeThread::GetChildren() const {
 
     QString processor;
     switch (thread.GetProcessorID()) {
-    case Kernel::ThreadProcessorId::THREADPROCESSORID_DEFAULT:
-        processor = tr("default");
+    case Kernel::ThreadProcessorId::THREADPROCESSORID_IDEAL:
+        processor = tr("ideal");
         break;
     case Kernel::ThreadProcessorId::THREADPROCESSORID_0:
     case Kernel::ThreadProcessorId::THREADPROCESSORID_1:
