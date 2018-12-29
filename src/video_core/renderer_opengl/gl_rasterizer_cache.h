@@ -357,7 +357,9 @@ public:
 
     /// Copies the contents of one surface to another
     void FermiCopySurface(const Tegra::Engines::Fermi2D::Regs::Surface& src_config,
-                          const Tegra::Engines::Fermi2D::Regs::Surface& dst_config);
+                          const Tegra::Engines::Fermi2D::Regs::Surface& dst_config,
+                          const MathUtil::Rectangle<u32>& src_rect,
+                          const MathUtil::Rectangle<u32>& dst_rect);
 
 private:
     void LoadSurface(const Surface& surface);
