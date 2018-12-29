@@ -196,11 +196,14 @@ PixelFormat PixelFormatFromTextureFormat(Tegra::Texture::TextureFormat format,
         LOG_CRITICAL(HW_GPU, "Unimplemented component_type={}", static_cast<u32>(component_type));
         UNREACHABLE();
     case Tegra::Texture::TextureFormat::G8R8:
+        // TextureFormat::G8R8 is actually ordered red then green, as such we can use
+        // PixelFormat::RG8U and PixelFormat::RG8S. This was tested with The Legend of Zelda: Breath
+        // of the Wild, which uses this format to render the hearts on the UI.
         switch (component_type) {
         case Tegra::Texture::ComponentType::UNORM:
-            return PixelFormat::G8R8U;
+            return PixelFormat::RG8U;
         case Tegra::Texture::ComponentType::SNORM:
-            return PixelFormat::G8R8S;
+            return PixelFormat::RG8S;
         }
         LOG_CRITICAL(HW_GPU, "Unimplemented component_type={}", static_cast<u32>(component_type));
         UNREACHABLE();
