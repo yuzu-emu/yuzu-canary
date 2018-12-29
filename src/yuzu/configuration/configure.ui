@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>461</width>
-    <height>659</height>
+    <width>382</width>
+    <height>241</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,51 +15,71 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QTabWidget" name="tabWidget">
-     <property name="currentIndex">
-      <number>0</number>
-     </property>
-     <widget class="ConfigureGeneral" name="generalTab">
-      <attribute name="title">
-       <string>General</string>
-      </attribute>
-     </widget>
-     <widget class="ConfigureGameList" name="gameListTab">
-      <attribute name="title">
-       <string>Game List</string>
-      </attribute>
-     </widget>
-     <widget class="ConfigureSystem" name="systemTab">
-      <attribute name="title">
-       <string>System</string>
-      </attribute>
-     </widget>
-     <widget class="ConfigureInputSimple" name="inputTab">
-      <attribute name="title">
-       <string>Input</string>
-      </attribute>
-     </widget>
-     <widget class="ConfigureGraphics" name="graphicsTab">
-      <attribute name="title">
-       <string>Graphics</string>
-      </attribute>
-     </widget>
-     <widget class="ConfigureAudio" name="audioTab">
-      <attribute name="title">
-       <string>Audio</string>
-      </attribute>
-     </widget>
-     <widget class="ConfigureDebug" name="debugTab">
-      <attribute name="title">
-       <string>Debug</string>
-      </attribute>
-     </widget>
-     <widget class="ConfigureWeb" name="webTab">
-      <attribute name="title">
-       <string>Web</string>
-      </attribute>
-     </widget>
-    </widget>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QListWidget" name="selectorList">
+       <property name="minimumSize">
+        <size>
+         <width>150</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>150</width>
+         <height>16777215</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QTabWidget" name="tabWidget">
+       <property name="currentIndex">
+        <number>0</number>
+       </property>
+       <widget class="ConfigureGeneral" name="generalTab">
+        <attribute name="title">
+         <string>General</string>
+        </attribute>
+       </widget>
+       <widget class="ConfigureGameList" name="gameListTab">
+        <attribute name="title">
+         <string>Game List</string>
+        </attribute>
+       </widget>
+       <widget class="ConfigureSystem" name="systemTab">
+        <attribute name="title">
+         <string>System</string>
+        </attribute>
+       </widget>
+       <widget class="ConfigureInputSimple" name="inputTab">
+        <attribute name="title">
+         <string>Input</string>
+        </attribute>
+       </widget>
+       <widget class="ConfigureGraphics" name="graphicsTab">
+        <attribute name="title">
+         <string>Graphics</string>
+        </attribute>
+       </widget>
+       <widget class="ConfigureAudio" name="audioTab">
+        <attribute name="title">
+         <string>Audio</string>
+        </attribute>
+       </widget>
+       <widget class="ConfigureDebug" name="debugTab">
+        <attribute name="title">
+         <string>Debug</string>
+        </attribute>
+       </widget>
+       <widget class="ConfigureWeb" name="webTab">
+        <attribute name="title">
+         <string>Web</string>
+        </attribute>
+       </widget>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">
@@ -75,12 +95,6 @@
    <class>ConfigureGeneral</class>
    <extends>QWidget</extends>
    <header>configuration/configure_general.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>ConfigureGameList</class>
-   <extends>QWidget</extends>
-   <header>configuration/configure_gamelist.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
@@ -102,12 +116,6 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>ConfigureInputSimple</class>
-   <extends>QWidget</extends>
-   <header>configuration/configure_input_simple.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>ConfigureGraphics</class>
    <extends>QWidget</extends>
    <header>configuration/configure_graphics.h</header>
@@ -117,6 +125,18 @@
    <class>ConfigureWeb</class>
    <extends>QWidget</extends>
    <header>configuration/configure_web.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ConfigureGameList</class>
+   <extends>QWidget</extends>
+   <header>configuration/configure_gamelist.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ConfigureInputSimple</class>
+   <extends>QWidget</extends>
+   <header>configuration/configure_input_simple.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
