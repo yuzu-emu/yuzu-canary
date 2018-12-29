@@ -530,6 +530,9 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
     glActiveTexture(GL_TEXTURE0);
 
     const auto& format_tuple = GetFormatTuple(params.pixel_format, params.component_type);
+    gl_internal_format = format_tuple.internal_format;
+    gl_is_compressed = format_tuple.compressed;
+
     if (!format_tuple.compressed) {
         // Only pre-create the texture for non-compressed textures.
         switch (params.target) {
@@ -862,6 +865,18 @@ void CachedSurface::UploadGLMipmapTexture(u32 mip_map, GLuint read_fb_handle,
     }
 
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+}
+
+void CachedSurface::EnsureTextureView() {
+    if (texture_view.handle != 0)
+        return;
+    ASSERT(!params.is_layered);
+    ASSERT(!gl_is_compressed);
+    ASSERT(params.target == SurfaceTarget::Texture2D);
+
+    texture_view.Create();
+    glTextureView(texture_view.handle, GL_TEXTURE_2D_ARRAY, texture.handle, gl_internal_format, 0,
+                  params.max_mip_level, 0, 1);
 }
 
 MICROPROFILE_DEFINE(OpenGL_TextureUL, "OpenGL", "Texture Upload", MP_RGB(128, 192, 64));

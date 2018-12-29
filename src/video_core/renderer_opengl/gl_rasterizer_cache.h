@@ -289,12 +289,27 @@ public:
         FlushGLBuffer();
     }
 
-    const OGLTexture& Texture() const {
+    const OGLTexture& Texture() {
         return texture;
+    }
+
+    const OGLTexture& TextureLayer() {
+        if (params.is_layered) {
+            return texture;
+        }
+        EnsureTextureView();
+        return texture_view;
     }
 
     GLenum Target() const {
         return gl_target;
+    }
+
+    GLenum TargetLayer() const {
+        if (params.target == VideoCore::Surface::SurfaceTarget::Texture2D) {
+            return GL_TEXTURE_2D_ARRAY;
+        }
+        return Target();
     }
 
     const SurfaceParams& GetSurfaceParams() const {
@@ -311,10 +326,15 @@ public:
 private:
     void UploadGLMipmapTexture(u32 mip_map, GLuint read_fb_handle, GLuint draw_fb_handle);
 
+    void EnsureTextureView();
+
     OGLTexture texture;
+    OGLTexture texture_view;
     std::vector<std::vector<u8>> gl_buffer;
     SurfaceParams params;
     GLenum gl_target;
+    GLenum gl_internal_format;
+    bool gl_is_compressed;
     std::size_t cached_size_in_bytes;
 };
 
