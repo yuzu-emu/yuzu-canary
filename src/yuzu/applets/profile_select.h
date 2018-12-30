@@ -8,6 +8,7 @@
 #include <QDialog>
 #include <QList>
 #include "core/frontend/applets/profile_select.h"
+#include "core/hle/service/acc/profile_manager.h"
 
 class GMainWindow;
 class QDialogButtonBox;
@@ -60,14 +61,13 @@ public:
     explicit QtProfileSelector(GMainWindow& parent);
     ~QtProfileSelector() override;
 
-    void SelectProfile(
-        std::function<void(std::optional<Service::Account::UUID>)> callback) const override;
+    void SelectProfile(std::function<void(std::optional<Common::UUID>)> callback) const override;
 
 signals:
     void MainWindowSelectProfile() const;
 
 private:
-    void MainWindowFinishedSelection(std::optional<Service::Account::UUID> uuid);
+    void MainWindowFinishedSelection(std::optional<Common::UUID> uuid);
 
-    mutable std::function<void(std::optional<Service::Account::UUID>)> callback;
+    mutable std::function<void(std::optional<Common::UUID>)> callback;
 };
