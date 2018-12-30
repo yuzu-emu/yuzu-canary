@@ -30,12 +30,12 @@ enum ThreadPriority : u32 {
 };
 
 enum ThreadProcessorId : s32 {
-    THREADPROCESSORID_DEFAULT = -2, ///< Run thread on default core specified by exheader
-    THREADPROCESSORID_0 = 0,        ///< Run thread on core 0
-    THREADPROCESSORID_1 = 1,        ///< Run thread on core 1
-    THREADPROCESSORID_2 = 2,        ///< Run thread on core 2
-    THREADPROCESSORID_3 = 3,        ///< Run thread on core 3
-    THREADPROCESSORID_MAX = 4,      ///< Processor ID must be less than this
+    THREADPROCESSORID_IDEAL = -2, ///< Run thread on the ideal core specified by the process.
+    THREADPROCESSORID_0 = 0,      ///< Run thread on core 0
+    THREADPROCESSORID_1 = 1,      ///< Run thread on core 1
+    THREADPROCESSORID_2 = 2,      ///< Run thread on core 2
+    THREADPROCESSORID_3 = 3,      ///< Run thread on core 3
+    THREADPROCESSORID_MAX = 4,    ///< Processor ID must be less than this
 
     /// Allowed CPU mask
     THREADPROCESSORID_DEFAULT_MASK = (1 << THREADPROCESSORID_0) | (1 << THREADPROCESSORID_1) |
@@ -454,17 +454,6 @@ private:
 
     ThreadActivity activity = ThreadActivity::Normal;
 };
-
-/**
- * Sets up the primary application thread
- * @param kernel The kernel instance to create the main thread under.
- * @param entry_point The address at which the thread should start execution
- * @param priority The priority to give the main thread
- * @param owner_process The parent process for the main thread
- * @return A shared pointer to the main thread
- */
-SharedPtr<Thread> SetupMainThread(KernelCore& kernel, VAddr entry_point, u32 priority,
-                                  Process& owner_process);
 
 /**
  * Gets the current thread

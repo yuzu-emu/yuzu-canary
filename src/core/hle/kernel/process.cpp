@@ -20,6 +20,35 @@
 #include "core/settings.h"
 
 namespace Kernel {
+namespace {
+/**
+ * Sets up the primary application thread
+ *
+ * @param owner_process The parent process for the main thread
+ * @param kernel The kernel instance to create the main thread under.
+ * @param entry_point The address at which the thread should start execution
+ * @param priority The priority to give the main thread
+ */
+void SetupMainThread(Process& owner_process, KernelCore& kernel, VAddr entry_point, u32 priority) {
+    // Setup page table so we can write to memory
+    SetCurrentPageTable(&owner_process.VMManager().page_table);
+
+    // Initialize new "main" thread
+    const VAddr stack_top = owner_process.VMManager().GetTLSIORegionEndAddress();
+    auto thread_res = Thread::Create(kernel, "main", entry_point, priority, 0,
+                                     owner_process.GetIdealCore(), stack_top, owner_process);
+
+    SharedPtr<Thread> thread = std::move(thread_res).Unwrap();
+
+    // Register 1 must be a handle to the main thread
+    const Handle guest_handle = owner_process.GetHandleTable().Create(thread).Unwrap();
+    thread->SetGuestHandle(guest_handle);
+    thread->GetContext().cpu_registers[1] = guest_handle;
+
+    // Threads by default are dormant, wake up the main thread so it runs when the scheduler fires
+    thread->ResumeFromWait();
+}
+} // Anonymous namespace
 
 CodeSet::CodeSet() = default;
 CodeSet::~CodeSet() = default;
@@ -64,7 +93,7 @@ ResultCode Process::ClearSignalState() {
 
 ResultCode Process::LoadFromMetadata(const FileSys::ProgramMetadata& metadata) {
     program_id = metadata.GetTitleID();
-    ideal_processor = metadata.GetMainThreadCore();
+    ideal_core = metadata.GetMainThreadCore();
     is_64bit_process = metadata.Is64BitProgram();
 
     vm_manager.Reset(metadata.GetAddressSpaceType());
@@ -86,7 +115,7 @@ void Process::Run(VAddr entry_point, s32 main_thread_priority, u32 stack_size) {
     vm_manager.LogLayout();
     ChangeStatus(ProcessStatus::Running);
 
-    Kernel::SetupMainThread(kernel, entry_point, main_thread_priority, *this);
+    SetupMainThread(*this, kernel, entry_point, main_thread_priority);
 }
 
 void Process::PrepareForTermination() {
