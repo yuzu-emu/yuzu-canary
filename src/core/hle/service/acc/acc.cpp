@@ -34,7 +34,7 @@ constexpr std::array<u8, backup_jpeg_size> backup_jpeg{{
     0x01, 0x01, 0x00, 0x00, 0x3f, 0x00, 0xd2, 0xcf, 0x20, 0xff, 0xd9,
 }};
 
-static std::string GetImagePath(UUID uuid) {
+static std::string GetImagePath(Common::UUID uuid) {
     return FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) +
            "/system/save/8000000000000010/su/avators/" + uuid.FormatSwitch() + ".jpg";
 }
@@ -46,7 +46,7 @@ static constexpr u32 SanitizeJPEGSize(std::size_t size) {
 
 class IProfile final : public ServiceFramework<IProfile> {
 public:
-    explicit IProfile(UUID user_id, ProfileManager& profile_manager)
+    explicit IProfile(Common::UUID user_id, ProfileManager& profile_manager)
         : ServiceFramework("IProfile"), profile_manager(profile_manager), user_id(user_id) {
         static const FunctionInfo functions[] = {
             {0, &IProfile::Get, "Get"},
@@ -131,7 +131,7 @@ private:
     }
 
     const ProfileManager& profile_manager;
-    UUID user_id; ///< The user id this profile refers to.
+    Common::UUID user_id; ///< The user id this profile refers to.
 };
 
 class IManagerForApplication final : public ServiceFramework<IManagerForApplication> {
@@ -175,7 +175,7 @@ void Module::Interface::GetUserCount(Kernel::HLERequestContext& ctx) {
 
 void Module::Interface::GetUserExistence(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp{ctx};
-    UUID user_id = rp.PopRaw<UUID>();
+    Common::UUID user_id = rp.PopRaw<Common::UUID>();
     LOG_INFO(Service_ACC, "called user_id={}", user_id.Format());
 
     IPC::ResponseBuilder rb{ctx, 3};
@@ -201,12 +201,12 @@ void Module::Interface::GetLastOpenedUser(Kernel::HLERequestContext& ctx) {
     LOG_INFO(Service_ACC, "called");
     IPC::ResponseBuilder rb{ctx, 6};
     rb.Push(RESULT_SUCCESS);
-    rb.PushRaw<UUID>(profile_manager->GetLastOpenedUser());
+    rb.PushRaw<Common::UUID>(profile_manager->GetLastOpenedUser());
 }
 
 void Module::Interface::GetProfile(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp{ctx};
-    UUID user_id = rp.PopRaw<UUID>();
+    Common::UUID user_id = rp.PopRaw<Common::UUID>();
     LOG_DEBUG(Service_ACC, "called user_id={}", user_id.Format());
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
@@ -241,15 +241,15 @@ void Module::Interface::TrySelectUserWithoutInteraction(Kernel::HLERequestContex
     IPC::ResponseBuilder rb{ctx, 6};
     if (profile_manager->GetUserCount() != 1) {
         rb.Push(RESULT_SUCCESS);
-        rb.PushRaw<u128>(INVALID_UUID);
+        rb.PushRaw<u128>(Common::INVALID_UUID);
         return;
     }
 
     const auto user_list = profile_manager->GetAllUsers();
     if (std::all_of(user_list.begin(), user_list.end(),
-                    [](const auto& user) { return user.uuid == INVALID_UUID; })) {
+                    [](const auto& user) { return user.uuid == Common::INVALID_UUID; })) {
         rb.Push(ResultCode(-1)); // TODO(ogniK): Find the correct error code
-        rb.PushRaw<u128>(INVALID_UUID);
+        rb.PushRaw<u128>(Common::INVALID_UUID);
         return;
     }
 

@@ -290,6 +290,8 @@ add_library(core STATIC
     hle/service/mig/mig.h
     hle/service/mii/mii.cpp
     hle/service/mii/mii.h
+    hle/service/mii/mii_manager.cpp
+    hle/service/mii/mii_manager.h
     hle/service/mm/mm_u.cpp
     hle/service/mm/mm_u.h
     hle/service/ncm/ncm.cpp
