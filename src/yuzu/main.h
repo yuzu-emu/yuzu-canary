@@ -99,7 +99,7 @@ signals:
     // Signal that tells widgets to update icons to use the current theme
     void UpdateThemedIcons();
 
-    void ProfileSelectorFinishedSelection(std::optional<Service::Account::UUID> uuid);
+    void ProfileSelectorFinishedSelection(std::optional<Common::UUID> uuid);
     void SoftwareKeyboardFinishedText(std::optional<std::u16string> text);
     void SoftwareKeyboardFinishedCheckDialog();
 

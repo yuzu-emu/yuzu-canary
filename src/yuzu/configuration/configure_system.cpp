@@ -48,14 +48,13 @@ constexpr std::array<u8, 107> backup_jpeg{
     0x01, 0x01, 0x00, 0x00, 0x3f, 0x00, 0xd2, 0xcf, 0x20, 0xff, 0xd9,
 };
 
-QString GetImagePath(Service::Account::UUID uuid) {
+QString GetImagePath(Common::UUID uuid) {
     const auto path = FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) +
                       "/system/save/8000000000000010/su/avators/" + uuid.FormatSwitch() + ".jpg";
     return QString::fromStdString(path);
 }
 
-QString GetAccountUsername(const Service::Account::ProfileManager& manager,
-                           Service::Account::UUID uuid) {
+QString GetAccountUsername(const Service::Account::ProfileManager& manager, Common::UUID uuid) {
     Service::Account::ProfileBase profile;
     if (!manager.GetProfileBase(uuid, profile)) {
         return {};
@@ -66,14 +65,14 @@ QString GetAccountUsername(const Service::Account::ProfileManager& manager,
     return QString::fromStdString(text);
 }
 
-QString FormatUserEntryText(const QString& username, Service::Account::UUID uuid) {
+QString FormatUserEntryText(const QString& username, Common::UUID uuid) {
     return ConfigureSystem::tr("%1\n%2",
                                "%1 is the profile username, %2 is the formatted UUID (e.g. "
                                "00112233-4455-6677-8899-AABBCCDDEEFF))")
         .arg(username, QString::fromStdString(uuid.FormatSwitch()));
 }
 
-QPixmap GetIcon(Service::Account::UUID uuid) {
+QPixmap GetIcon(Common::UUID uuid) {
     QPixmap icon{GetImagePath(uuid)};
 
     if (!icon) {
@@ -275,7 +274,7 @@ void ConfigureSystem::AddUser() {
         return;
     }
 
-    const auto uuid = Service::Account::UUID::Generate();
+    const auto uuid = Common::UUID::Generate();
     profile_manager->CreateNewUser(uuid, username.toStdString());
 
     item_model->appendRow(new QStandardItem{GetIcon(uuid), FormatUserEntryText(username, uuid)});
