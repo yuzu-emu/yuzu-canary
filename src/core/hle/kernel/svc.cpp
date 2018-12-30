@@ -1224,10 +1224,10 @@ static ResultCode CreateThread(Handle* out_handle, VAddr entry_point, u64 arg, V
 
     auto* const current_process = Core::CurrentProcess();
 
-    if (processor_id == THREADPROCESSORID_DEFAULT) {
-        // Set the target CPU to the one specified in the process' exheader.
-        processor_id = current_process->GetDefaultProcessorID();
-        ASSERT(processor_id != THREADPROCESSORID_DEFAULT);
+    if (processor_id == THREADPROCESSORID_IDEAL) {
+        // Set the target CPU to the one specified by the process.
+        processor_id = current_process->GetIdealCore();
+        ASSERT(processor_id != THREADPROCESSORID_IDEAL);
     }
 
     switch (processor_id) {
@@ -1636,13 +1636,13 @@ static ResultCode SetThreadCoreMask(Handle thread_handle, u32 core, u64 mask) {
         return ERR_INVALID_HANDLE;
     }
 
-    if (core == static_cast<u32>(THREADPROCESSORID_DEFAULT)) {
-        const u8 default_processor_id = thread->GetOwnerProcess()->GetDefaultProcessorID();
+    if (core == static_cast<u32>(THREADPROCESSORID_IDEAL)) {
+        const u8 ideal_cpu_core = thread->GetOwnerProcess()->GetIdealCore();
 
-        ASSERT(default_processor_id != static_cast<u8>(THREADPROCESSORID_DEFAULT));
+        ASSERT(ideal_cpu_core != static_cast<u8>(THREADPROCESSORID_IDEAL));
 
-        // Set the target CPU to the one specified in the process' exheader.
-        core = default_processor_id;
+        // Set the target CPU to the ideal core specified by the process.
+        core = ideal_cpu_core;
         mask = 1ULL << core;
     }
 
