@@ -44,6 +44,17 @@ struct FormatTuple {
     bool compressed;
 };
 
+static void ApplyTextureDefaults(GLenum target, u32 max_mip_level) {
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(target, GL_TEXTURE_MAX_LEVEL, max_mip_level - 1);
+    if (max_mip_level == 1) {
+        glTexParameterf(target, GL_TEXTURE_LOD_BIAS, 1000.0);
+    }
+}
+
 void SurfaceParams::InitCacheParameters(Tegra::GPUVAddr gpu_addr_) {
     auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
     const auto cpu_addr{memory_manager.GpuToCpuAddress(gpu_addr_)};
@@ -530,6 +541,9 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
     glActiveTexture(GL_TEXTURE0);
 
     const auto& format_tuple = GetFormatTuple(params.pixel_format, params.component_type);
+    gl_internal_format = format_tuple.internal_format;
+    gl_is_compressed = format_tuple.compressed;
+
     if (!format_tuple.compressed) {
         // Only pre-create the texture for non-compressed textures.
         switch (params.target) {
@@ -558,15 +572,7 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
         }
     }
 
-    glTexParameteri(SurfaceTargetToGL(params.target), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(SurfaceTargetToGL(params.target), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(SurfaceTargetToGL(params.target), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(SurfaceTargetToGL(params.target), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(SurfaceTargetToGL(params.target), GL_TEXTURE_MAX_LEVEL,
-                    params.max_mip_level - 1);
-    if (params.max_mip_level == 1) {
-        glTexParameterf(SurfaceTargetToGL(params.target), GL_TEXTURE_LOD_BIAS, 1000.0);
-    }
+    ApplyTextureDefaults(SurfaceTargetToGL(params.target), params.max_mip_level);
 
     LabelGLObject(GL_TEXTURE, texture.handle, params.addr,
                   SurfaceParams::SurfaceTargetName(params.target));
@@ -862,6 +868,31 @@ void CachedSurface::UploadGLMipmapTexture(u32 mip_map, GLuint read_fb_handle,
     }
 
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+}
+
+void CachedSurface::EnsureTextureView() {
+    if (texture_view.handle != 0)
+        return;
+    // Compressed texture are not being created with immutable storage
+    UNIMPLEMENTED_IF(gl_is_compressed);
+
+    const GLenum target{TargetLayer()};
+
+    texture_view.Create();
+    glTextureView(texture_view.handle, target, texture.handle, gl_internal_format, 0,
+                  params.max_mip_level, 0, 1);
+
+    OpenGLState cur_state = OpenGLState::GetCurState();
+    const auto& old_tex = cur_state.texture_units[0];
+    SCOPE_EXIT({
+        cur_state.texture_units[0] = old_tex;
+        cur_state.Apply();
+    });
+    cur_state.texture_units[0].texture = texture_view.handle;
+    cur_state.texture_units[0].target = target;
+    cur_state.Apply();
+
+    ApplyTextureDefaults(target, params.max_mip_level);
 }
 
 MICROPROFILE_DEFINE(OpenGL_TextureUL, "OpenGL", "Texture Upload", MP_RGB(128, 192, 64));
