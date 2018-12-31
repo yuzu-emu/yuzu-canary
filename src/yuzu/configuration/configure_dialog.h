@@ -24,6 +24,8 @@ public:
 
 private:
     void setConfiguration();
+    void UpdateVisibleTabs();
+    void PopulateSelectionList();
 
     std::unique_ptr<Ui::ConfigureDialog> ui;
 };
