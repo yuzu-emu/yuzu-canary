@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "common/common_funcs.h"
-#include "core/hle/service/acc/profile_manager.h"
+#include "common/uuid.h"
 #include "core/hle/service/am/applets/applets.h"
 
 namespace Service::AM::Applets {
@@ -38,7 +38,7 @@ public:
     void ExecuteInteractive() override;
     void Execute() override;
 
-    void SelectionComplete(std::optional<Account::UUID> uuid);
+    void SelectionComplete(std::optional<Common::UUID> uuid);
 
 private:
     UserSelectionConfig config;
