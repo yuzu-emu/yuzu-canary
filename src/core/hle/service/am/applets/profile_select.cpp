@@ -53,19 +53,19 @@ void ProfileSelect::Execute() {
 
     const auto& frontend{Core::System::GetInstance().GetProfileSelector()};
 
-    frontend.SelectProfile([this](std::optional<Account::UUID> uuid) { SelectionComplete(uuid); });
+    frontend.SelectProfile([this](std::optional<Common::UUID> uuid) { SelectionComplete(uuid); });
 }
 
-void ProfileSelect::SelectionComplete(std::optional<Account::UUID> uuid) {
+void ProfileSelect::SelectionComplete(std::optional<Common::UUID> uuid) {
     UserSelectionOutput output{};
 
-    if (uuid.has_value() && uuid->uuid != Account::INVALID_UUID) {
+    if (uuid.has_value() && uuid->uuid != Common::INVALID_UUID) {
         output.result = 0;
         output.uuid_selected = uuid->uuid;
     } else {
         status = ERR_USER_CANCELLED_SELECTION;
         output.result = ERR_USER_CANCELLED_SELECTION.raw;
-        output.uuid_selected = Account::INVALID_UUID;
+        output.uuid_selected = Common::INVALID_UUID;
     }
 
     final_data = std::vector<u8>(sizeof(UserSelectionOutput));

@@ -26,20 +26,20 @@ constexpr std::array<u8, 107> backup_jpeg{
     0x01, 0x01, 0x00, 0x00, 0x3f, 0x00, 0xd2, 0xcf, 0x20, 0xff, 0xd9,
 };
 
-QString FormatUserEntryText(const QString& username, Service::Account::UUID uuid) {
+QString FormatUserEntryText(const QString& username, Common::UUID uuid) {
     return QtProfileSelectionDialog::tr(
                "%1\n%2", "%1 is the profile username, %2 is the formatted UUID (e.g. "
                          "00112233-4455-6677-8899-AABBCCDDEEFF))")
         .arg(username, QString::fromStdString(uuid.FormatSwitch()));
 }
 
-QString GetImagePath(Service::Account::UUID uuid) {
+QString GetImagePath(Common::UUID uuid) {
     const auto path = FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) +
                       "/system/save/8000000000000010/su/avators/" + uuid.FormatSwitch() + ".jpg";
     return QString::fromStdString(path);
 }
 
-QPixmap GetIcon(Service::Account::UUID uuid) {
+QPixmap GetIcon(Common::UUID uuid) {
     QPixmap icon{GetImagePath(uuid)};
 
     if (!icon) {
@@ -156,12 +156,12 @@ QtProfileSelector::QtProfileSelector(GMainWindow& parent) {
 QtProfileSelector::~QtProfileSelector() = default;
 
 void QtProfileSelector::SelectProfile(
-    std::function<void(std::optional<Service::Account::UUID>)> callback) const {
+    std::function<void(std::optional<Common::UUID>)> callback) const {
     this->callback = std::move(callback);
     emit MainWindowSelectProfile();
 }
 
-void QtProfileSelector::MainWindowFinishedSelection(std::optional<Service::Account::UUID> uuid) {
+void QtProfileSelector::MainWindowFinishedSelection(std::optional<Common::UUID> uuid) {
     // Acquire the HLE mutex
     std::lock_guard<std::recursive_mutex> lock(HLE::g_hle_lock);
     callback(uuid);

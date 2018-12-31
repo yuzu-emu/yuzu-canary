@@ -831,7 +831,7 @@ void GMainWindow::OnGameListOpenFolder(u64 program_id, GameListOpenTarget target
         const auto user_ids = manager.GetAllUsers();
         QStringList list;
         for (const auto& user_id : user_ids) {
-            if (user_id == Service::Account::UUID{})
+            if (!user_id)
                 continue;
             Service::Account::ProfileBase base;
             if (!manager.GetProfileBase(user_id, base))
