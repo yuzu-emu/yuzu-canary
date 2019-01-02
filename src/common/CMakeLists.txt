@@ -86,6 +86,8 @@ add_library(common STATIC
     threadsafe_queue.h
     timer.cpp
     timer.h
+    uuid.cpp
+    uuid.h
     vector_math.h
     web_result.h
 )
