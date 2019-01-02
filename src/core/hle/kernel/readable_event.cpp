@@ -36,7 +36,8 @@ void ReadableEvent::Clear() {
 
 ResultCode ReadableEvent::Reset() {
     if (!signaled) {
-        return ERR_INVALID_STATE;
+        // Returning ERR_INVALID_STATE here causes downstream deadlocks, unclear why.
+        return RESULT_SUCCESS;
     }
 
     Clear();
