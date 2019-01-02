@@ -1014,8 +1014,11 @@ u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, Shader& shader,
         texture_samplers[current_bindpoint].SyncWithConfig(texture.tsc);
         Surface surface = res_cache.GetTextureSurface(texture, entry);
         if (surface != nullptr) {
-            state.texture_units[current_bindpoint].texture = surface->Texture().handle;
-            state.texture_units[current_bindpoint].target = surface->Target();
+            const GLuint handle =
+                entry.IsArray() ? surface->TextureLayer().handle : surface->Texture().handle;
+            const GLenum target = entry.IsArray() ? surface->TargetLayer() : surface->Target();
+            state.texture_units[current_bindpoint].texture = handle;
+            state.texture_units[current_bindpoint].target = target;
             state.texture_units[current_bindpoint].swizzle.r =
                 MaxwellToGL::SwizzleSource(texture.tic.x_source);
             state.texture_units[current_bindpoint].swizzle.g =
