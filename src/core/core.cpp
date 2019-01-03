@@ -32,7 +32,9 @@
 #include "core/perf_stats.h"
 #include "core/settings.h"
 #include "core/telemetry_session.h"
+#include "frontend/applets/profile_select.h"
 #include "frontend/applets/software_keyboard.h"
+#include "frontend/applets/web_browser.h"
 #include "video_core/debug_utils/debug_utils.h"
 #include "video_core/gpu.h"
 #include "video_core/renderer_base.h"
@@ -109,6 +111,8 @@ struct System::Impl {
             profile_selector = std::make_unique<Core::Frontend::DefaultProfileSelectApplet>();
         if (software_keyboard == nullptr)
             software_keyboard = std::make_unique<Core::Frontend::DefaultSoftwareKeyboardApplet>();
+        if (web_browser == nullptr)
+            web_browser = std::make_unique<Core::Frontend::DefaultWebBrowserApplet>();
 
         auto main_process = Kernel::Process::Create(kernel, "main");
         kernel.MakeCurrentProcess(main_process.get());
@@ -205,6 +209,11 @@ struct System::Impl {
         // Close app loader
         app_loader.reset();
 
+        // Clear all applets
+        profile_selector.reset();
+        software_keyboard.reset();
+        web_browser.reset();
+
         LOG_DEBUG(Core, "Shutdown OK");
     }
 
@@ -239,6 +248,7 @@ struct System::Impl {
     /// Frontend applets
     std::unique_ptr<Core::Frontend::ProfileSelectApplet> profile_selector;
     std::unique_ptr<Core::Frontend::SoftwareKeyboardApplet> software_keyboard;
+    std::unique_ptr<Core::Frontend::WebBrowserApplet> web_browser;
 
     /// Service manager
     std::shared_ptr<Service::SM::ServiceManager> service_manager;
@@ -447,6 +457,14 @@ void System::SetSoftwareKeyboard(std::unique_ptr<Core::Frontend::SoftwareKeyboar
 
 const Core::Frontend::SoftwareKeyboardApplet& System::GetSoftwareKeyboard() const {
     return *impl->software_keyboard;
+}
+
+void System::SetWebBrowser(std::unique_ptr<Core::Frontend::WebBrowserApplet> applet) {
+    impl->web_browser = std::move(applet);
+}
+
+const Core::Frontend::WebBrowserApplet& System::GetWebBrowser() const {
+    return *impl->web_browser;
 }
 
 System::ResultStatus System::Init(Frontend::EmuWindow& emu_window) {
