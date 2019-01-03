@@ -11,6 +11,7 @@
 #include "common/common_types.h"
 #include "video_core/rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
+#include "video_core/renderer_opengl/gl_shader_decompiler.h"
 #include "video_core/renderer_opengl/gl_shader_gen.h"
 
 namespace OpenGL {
@@ -74,6 +75,9 @@ public:
     /// Gets the GL program resource location for the specified resource, caching as needed
     GLuint GetProgramResourceIndex(const GLShader::ConstBufferEntry& buffer);
 
+    /// Gets the GL program resource location for the specified resource, caching as needed
+    GLuint GetProgramResourceIndex(const GLShader::GlobalMemoryEntry& global_mem);
+
     /// Gets the GL uniform location for the specified resource, caching as needed
     GLint GetUniformLocation(const GLShader::SamplerEntry& sampler);
 
@@ -105,7 +109,8 @@ private:
         OGLProgram triangles_adjacency;
     } geometry_programs;
 
-    std::map<u32, GLuint> resource_cache;
+    std::map<u32, GLuint> cbuf_resource_cache;
+    std::map<u32, GLuint> gmem_resource_cache;
     std::map<u32, GLint> uniform_cache;
 };
 
