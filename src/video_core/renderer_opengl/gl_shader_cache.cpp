@@ -10,10 +10,14 @@
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/renderer_opengl/gl_rasterizer.h"
 #include "video_core/renderer_opengl/gl_shader_cache.h"
+#include "video_core/renderer_opengl/gl_shader_decompiler.h"
 #include "video_core/renderer_opengl/gl_shader_manager.h"
 #include "video_core/renderer_opengl/utils.h"
+#include "video_core/shader/shader_ir.h"
 
 namespace OpenGL {
+
+using VideoCommon::Shader::ProgramCode;
 
 /// Gets the address for the specified shader stage program
 static VAddr GetShaderAddress(Maxwell::ShaderProgram program) {
@@ -24,8 +28,8 @@ static VAddr GetShaderAddress(Maxwell::ShaderProgram program) {
 }
 
 /// Gets the shader program code from memory for the specified address
-static GLShader::ProgramCode GetShaderCode(VAddr addr) {
-    GLShader::ProgramCode program_code(GLShader::MAX_PROGRAM_CODE_LENGTH);
+static ProgramCode GetShaderCode(VAddr addr) {
+    ProgramCode program_code(VideoCommon::Shader::MAX_PROGRAM_LENGTH);
     Memory::ReadBlock(addr, program_code.data(), program_code.size() * sizeof(u64));
     return program_code;
 }
@@ -104,11 +108,23 @@ CachedShader::CachedShader(VAddr addr, Maxwell::ShaderProgram program_type)
 }
 
 GLuint CachedShader::GetProgramResourceIndex(const GLShader::ConstBufferEntry& buffer) {
-    const auto search{resource_cache.find(buffer.GetHash())};
-    if (search == resource_cache.end()) {
+    const auto search{cbuf_resource_cache.find(buffer.GetHash())};
+    if (search == cbuf_resource_cache.end()) {
         const GLuint index{
             glGetProgramResourceIndex(program.handle, GL_UNIFORM_BLOCK, buffer.GetName().c_str())};
-        resource_cache[buffer.GetHash()] = index;
+        cbuf_resource_cache[buffer.GetHash()] = index;
+        return index;
+    }
+
+    return search->second;
+}
+
+GLuint CachedShader::GetProgramResourceIndex(const GLShader::GlobalMemoryEntry& global_mem) {
+    const auto search{gmem_resource_cache.find(global_mem.GetHash())};
+    if (search == gmem_resource_cache.end()) {
+        const GLuint index{glGetProgramResourceIndex(program.handle, GL_SHADER_STORAGE_BLOCK,
+                                                     global_mem.GetName().c_str())};
+        gmem_resource_cache[global_mem.GetHash()] = index;
         return index;
     }
 
