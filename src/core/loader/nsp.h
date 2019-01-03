@@ -44,6 +44,7 @@ public:
     ResultStatus ReadIcon(std::vector<u8>& buffer) override;
     ResultStatus ReadTitle(std::string& title) override;
     ResultStatus ReadControlData(FileSys::NACP& nacp) override;
+    ResultStatus ReadManualRomFS(FileSys::VirtualFile& file) override;
 
 private:
     std::unique_ptr<FileSys::NSP> nsp;
