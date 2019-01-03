@@ -166,7 +166,7 @@ Layer::~Layer() = default;
 
 Display::Display(u64 id, std::string name) : id(id), name(std::move(name)) {
     auto& kernel = Core::System::GetInstance().Kernel();
-    vsync_event = Kernel::WritableEvent::CreateEventPair(kernel, Kernel::ResetType::Pulse,
+    vsync_event = Kernel::WritableEvent::CreateEventPair(kernel, Kernel::ResetType::Sticky,
                                                          fmt::format("Display VSync Event {}", id));
 }
 
