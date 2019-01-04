@@ -33,11 +33,22 @@
 namespace Service::VI {
 
 struct DisplayInfo {
+    /// The name of this particular display.
     char display_name[0x40]{"Default"};
-    u64 unknown_1{1};
-    u64 unknown_2{1};
-    u64 width{1280};
-    u64 height{720};
+
+    /// Whether or not the display has a limited number of layers.
+    u8 has_limited_layers{1};
+    INSERT_PADDING_BYTES(7){};
+
+    /// Indicates the total amount of layers supported by the display.
+    /// @note This is only valid if has_limited_layers is set.
+    u64 max_layers{1};
+
+    /// Maximum width in pixels.
+    u64 width{1920};
+
+    /// Maximum height in pixels.
+    u64 height{1080};
 };
 static_assert(sizeof(DisplayInfo) == 0x60, "DisplayInfo has wrong size");
 
