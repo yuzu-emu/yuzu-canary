@@ -42,7 +42,7 @@ before_build:
         $COMPAT = if ($env:ENABLE_COMPATIBILITY_REPORTING -eq $null) {0} else {$env:ENABLE_COMPATIBILITY_REPORTING}
         if ($env:BUILD_TYPE -eq 'msvc') {
           # redirect stderr and change the exit code to prevent powershell from cancelling the build if cmake prints a warning
-          cmd /C 'cmake -G "Visual Studio 15 2017 Win64" -DYUZU_USE_BUNDLED_QT=1 -DYUZU_USE_BUNDLED_SDL2=1 -DYUZU_USE_BUNDLED_UNICORN=1 -DENABLE_COMPATIBILITY_LIST_DOWNLOAD=ON -DYUZU_ENABLE_COMPATIBILITY_REPORTING=${COMPAT} -DUSE_DISCORD_PRESENCE=ON .. 2>&1 && exit 0'
+          cmd /C 'cmake -G "Visual Studio 15 2017 Win64" -DYUZU_USE_BUNDLED_QT=1 -DYUZU_USE_BUNDLED_SDL2=1 -DYUZU_USE_BUNDLED_UNICORN=1 -DYUZU_USE_QT_WEB_ENGINE=ON -DENABLE_COMPATIBILITY_LIST_DOWNLOAD=ON -DYUZU_ENABLE_COMPATIBILITY_REPORTING=${COMPAT} -DUSE_DISCORD_PRESENCE=ON .. 2>&1 && exit 0'
         } else {
           C:\msys64\usr\bin\bash.exe -lc "cmake -G 'MSYS Makefiles' -DYUZU_BUILD_UNICORN=1 -DCMAKE_BUILD_TYPE=Release -DENABLE_COMPATIBILITY_LIST_DOWNLOAD=ON -DYUZU_ENABLE_COMPATIBILITY_REPORTING=${COMPAT} -DUSE_DISCORD_PRESENCE=ON .. 2>&1"
         }
@@ -94,6 +94,7 @@ after_build:
           Copy-Item "$BUILD_DIR\*" -Destination $RELEASE_DIST -Recurse
           rm "$RELEASE_DIST\*.exe"
           Get-ChildItem "$BUILD_DIR" -Recurse -Filter "yuzu*.exe" | Copy-Item -destination $RELEASE_DIST
+          Get-ChildItem "$BUILD_DIR" -Recurse -Filter "QtWebEngineProcess*.exe" | Copy-Item -destination $RELEASE_DIST
           Copy-Item .\license.txt -Destination $RELEASE_DIST
           Copy-Item .\README.md -Destination $RELEASE_DIST
           7z a -tzip $MSVC_BUILD_ZIP $RELEASE_DIST\*
