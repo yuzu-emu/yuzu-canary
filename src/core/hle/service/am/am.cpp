@@ -38,6 +38,7 @@
 namespace Service::AM {
 
 constexpr ResultCode ERR_NO_DATA_IN_CHANNEL{ErrorModule::AM, 0x2};
+constexpr ResultCode ERR_NO_MESSAGES{ErrorModule::AM, 0x3};
 constexpr ResultCode ERR_SIZE_OUT_OF_BOUNDS{ErrorModule::AM, 0x1F7};
 
 enum class AppletId : u32 {
@@ -460,9 +461,17 @@ void ICommonStateGetter::GetEventHandle(Kernel::HLERequestContext& ctx) {
 void ICommonStateGetter::ReceiveMessage(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service_AM, "called");
 
+    const auto message = msg_queue->PopMessage();
     IPC::ResponseBuilder rb{ctx, 3};
+
+    if (message == AppletMessageQueue::AppletMessage::NoMessage) {
+        LOG_ERROR(Service_AM, "Message queue is empty");
+        rb.Push(ERR_NO_MESSAGES);
+        rb.PushEnum<AppletMessageQueue::AppletMessage>(message);
+        return;
+    }
     rb.Push(RESULT_SUCCESS);
-    rb.PushEnum<AppletMessageQueue::AppletMessage>(msg_queue->PopMessage());
+    rb.PushEnum<AppletMessageQueue::AppletMessage>(message);
 }
 
 void ICommonStateGetter::GetCurrentFocusState(Kernel::HLERequestContext& ctx) {
