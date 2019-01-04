@@ -101,7 +101,7 @@ struct FramebufferCacheKey {
 
 RasterizerOpenGL::RasterizerOpenGL(Core::Frontend::EmuWindow& window, ScreenInfo& info)
     : res_cache{*this}, shader_cache{*this}, emu_window{window}, screen_info{info},
-      buffer_cache(*this, STREAM_BUFFER_SIZE) {
+      buffer_cache(*this, STREAM_BUFFER_SIZE), global_cache{*this} {
     // Create sampler objects
     for (std::size_t i = 0; i < texture_samplers.size(); ++i) {
         texture_samplers[i].Create();
@@ -298,6 +298,7 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
     // Next available bindpoints to use when uploading the const buffers and textures to the GLSL
     // shaders. The constbuffer bindpoint starts after the shader stage configuration bind points.
     u32 current_constbuffer_bindpoint = Tegra::Engines::Maxwell3D::Regs::MaxShaderStage;
+    u32 current_gmem_bindpoint = 0;
     u32 current_texture_bindpoint = 0;
     std::array<bool, Maxwell::NumClipDistances> clip_distances{};
 
@@ -355,6 +356,10 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
         current_constbuffer_bindpoint =
             SetupConstBuffers(static_cast<Maxwell::ShaderStage>(stage), shader, primitive_mode,
                               current_constbuffer_bindpoint);
+
+        // Configure global memory regions for this shader stage.
+        current_gmem_bindpoint = SetupGlobalRegions(static_cast<Maxwell::ShaderStage>(stage),
+                                                    shader, primitive_mode, current_gmem_bindpoint);
 
         // Configure the textures for this shader stage.
         current_texture_bindpoint = SetupTextures(static_cast<Maxwell::ShaderStage>(stage), shader,
@@ -761,6 +766,7 @@ void RasterizerOpenGL::InvalidateRegion(VAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.InvalidateRegion(addr, size);
     shader_cache.InvalidateRegion(addr, size);
+    global_cache.InvalidateRegion(addr, size);
     buffer_cache.InvalidateRegion(addr, size);
 }
 
@@ -922,7 +928,7 @@ u32 RasterizerOpenGL::SetupConstBuffers(Maxwell::ShaderStage stage, Shader& shad
     const auto& gpu = Core::System::GetInstance().GPU();
     const auto& maxwell3d = gpu.Maxwell3D();
     const auto& shader_stage = maxwell3d.state.shader_stages[static_cast<std::size_t>(stage)];
-    const auto& entries = shader->GetShaderEntries().const_buffer_entries;
+    const auto& entries = shader->GetShaderEntries().const_buffers;
 
     constexpr u64 max_binds = Tegra::Engines::Maxwell3D::Regs::MaxConstBuffers;
     std::array<GLuint, max_binds> bind_buffers;
@@ -985,12 +991,29 @@ u32 RasterizerOpenGL::SetupConstBuffers(Maxwell::ShaderStage stage, Shader& shad
     return current_bindpoint + static_cast<u32>(entries.size());
 }
 
+u32 RasterizerOpenGL::SetupGlobalRegions(Maxwell::ShaderStage stage, Shader& shader,
+                                         GLenum primitive_mode, u32 current_bindpoint) {
+    for (const auto& global_region : shader->GetShaderEntries().global_memory_entries) {
+        const auto& region =
+            global_cache.GetGlobalRegion(global_region, static_cast<Maxwell::ShaderStage>(stage));
+        const GLuint block_index{shader->GetProgramResourceIndex(global_region)};
+        ASSERT(block_index != GL_INVALID_INDEX);
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, current_bindpoint, region->GetBufferHandle());
+        glShaderStorageBlockBinding(shader->GetProgramHandle(primitive_mode), block_index,
+                                    current_bindpoint);
+        ++current_bindpoint;
+    }
+
+    return current_bindpoint;
+}
+
 u32 RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, Shader& shader,
                                     GLenum primitive_mode, u32 current_unit) {
     MICROPROFILE_SCOPE(OpenGL_Texture);
     const auto& gpu = Core::System::GetInstance().GPU();
     const auto& maxwell3d = gpu.Maxwell3D();
-    const auto& entries = shader->GetShaderEntries().texture_samplers;
+    const auto& entries = shader->GetShaderEntries().samplers;
 
     ASSERT_MSG(current_unit + entries.size() <= std::size(state.texture_units),
                "Exceeded the number of active textures.");
