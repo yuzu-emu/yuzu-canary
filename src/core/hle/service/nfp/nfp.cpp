@@ -20,7 +20,8 @@ namespace Service::NFP {
 namespace ErrCodes {
 constexpr ResultCode ERR_TAG_FAILED(ErrorModule::NFP,
                                     -1); // TODO(ogniK): Find the actual error code
-}
+constexpr ResultCode ERR_NO_APPLICATION_AREA(ErrorModule::NFP, 152);
+} // namespace ErrCodes
 
 Module::Interface::Interface(std::shared_ptr<Module> module, const char* name)
     : ServiceFramework(name), module(std::move(module)) {
@@ -292,10 +293,9 @@ private:
     }
 
     void OpenApplicationArea(Kernel::HLERequestContext& ctx) {
-        LOG_DEBUG(Service_NFP, "called");
-        // We don't need to worry about this since we can just open the file
+        LOG_WARNING(Service_NFP, "(STUBBED) called");
         IPC::ResponseBuilder rb{ctx, 2};
-        rb.Push(RESULT_SUCCESS);
+        rb.Push(ErrCodes::ERR_NO_APPLICATION_AREA);
     }
 
     void GetApplicationAreaSize(Kernel::HLERequestContext& ctx) {
