@@ -12,8 +12,15 @@
 #include "core/hle/kernel/client_session.h"
 #include "core/hle/service/time/interface.h"
 #include "core/hle/service/time/time.h"
+#include "core/settings.h"
 
 namespace Service::Time {
+
+static std::chrono::seconds GetSecondsSinceEpoch() {
+    return std::chrono::duration_cast<std::chrono::seconds>(
+               std::chrono::system_clock::now().time_since_epoch()) +
+           Settings::values.custom_rtc_differential;
+}
 
 static void PosixToCalendar(u64 posix_time, CalendarTime& calendar_time,
                             CalendarAdditionalInfo& additional_info,
@@ -68,9 +75,7 @@ public:
 
 private:
     void GetCurrentTime(Kernel::HLERequestContext& ctx) {
-        const s64 time_since_epoch{std::chrono::duration_cast<std::chrono::seconds>(
-                                       std::chrono::system_clock::now().time_since_epoch())
-                                       .count()};
+        const s64 time_since_epoch{GetSecondsSinceEpoch().count()};
         LOG_DEBUG(Service_Time, "called");
 
         IPC::ResponseBuilder rb{ctx, 4};
@@ -266,10 +271,7 @@ void Module::Interface::GetClockSnapshot(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp{ctx};
     const auto initial_type = rp.PopRaw<u8>();
 
-    const s64 time_since_epoch{std::chrono::duration_cast<std::chrono::seconds>(
-                                   std::chrono::system_clock::now().time_since_epoch())
-                                   .count()};
-
+    const s64 time_since_epoch{GetSecondsSinceEpoch().count()};
     const std::time_t time(time_since_epoch);
     const std::tm* tm = std::localtime(&time);
     if (tm == nullptr) {
