@@ -156,6 +156,46 @@ public:
     /// Returns a const reference to the GPU DMA pusher.
     const Tegra::DmaPusher& DmaPusher() const;
 
+    struct Regs {
+        static constexpr size_t NUM_REGS = 0x100;
+
+        union {
+            struct {
+                INSERT_PADDING_WORDS(0x4);
+                struct {
+                    u32 address_high;
+                    u32 address_low;
+
+                    GPUVAddr SmaphoreAddress() const {
+                        return static_cast<GPUVAddr>((static_cast<GPUVAddr>(address_high) << 32) |
+                                                     address_low);
+                    }
+                } smaphore_address;
+
+                u32 semaphore_sequence;
+                u32 semaphore_trigger;
+                INSERT_PADDING_WORDS(0xC);
+
+                // The puser and the puller share the reference counter, the pusher only has read
+                // access
+                u32 reference_count;
+                INSERT_PADDING_WORDS(0x5);
+
+                u32 semaphore_acquire;
+                u32 semaphore_release;
+                INSERT_PADDING_WORDS(0xE4);
+
+                // Puller state
+                u32 acquire_mode;
+                u32 acquire_source;
+                u32 acquire_active;
+                u32 acquire_timeout;
+                u32 acquire_value;
+            };
+            std::array<u32, NUM_REGS> reg_array;
+        };
+    } regs{};
+
 private:
     std::unique_ptr<Tegra::DmaPusher> dma_pusher;
     std::unique_ptr<Tegra::MemoryManager> memory_manager;
@@ -173,6 +213,37 @@ private:
     std::unique_ptr<Engines::MaxwellDMA> maxwell_dma;
     /// Inline memory engine
     std::unique_ptr<Engines::KeplerMemory> kepler_memory;
+
+    void ProcessBindMethod(const MethodCall& method_call);
+    void ProcessSemaphoreTriggerMethod();
+    void ProcessSemaphoreRelease();
+    void ProcessSemaphoreAcquire();
+
+    // Calls a GPU puller method.
+    void CallPullerMethod(const MethodCall& method_call);
+    // Calls a GPU engine method.
+    void CallEngineMethod(const MethodCall& method_call);
+    // Determines where the method should be executed.
+    bool ExecuteMethodOnEngine(const MethodCall& method_call);
 };
+
+#define ASSERT_REG_POSITION(field_name, position)                                                  \
+    static_assert(offsetof(GPU::Regs, field_name) == position * 4,                                 \
+                  "Field " #field_name " has invalid position")
+
+ASSERT_REG_POSITION(smaphore_address, 0x4);
+ASSERT_REG_POSITION(semaphore_sequence, 0x6);
+ASSERT_REG_POSITION(semaphore_trigger, 0x7);
+ASSERT_REG_POSITION(reference_count, 0x14);
+ASSERT_REG_POSITION(semaphore_acquire, 0x1A);
+ASSERT_REG_POSITION(semaphore_release, 0x1B);
+
+ASSERT_REG_POSITION(acquire_mode, 0x100);
+ASSERT_REG_POSITION(acquire_source, 0x101);
+ASSERT_REG_POSITION(acquire_active, 0x102);
+ASSERT_REG_POSITION(acquire_timeout, 0x103);
+ASSERT_REG_POSITION(acquire_value, 0x104);
+
+#undef ASSERT_REG_POSITION
 
 } // namespace Tegra
