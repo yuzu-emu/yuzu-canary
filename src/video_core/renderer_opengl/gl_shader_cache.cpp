@@ -10,10 +10,14 @@
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/renderer_opengl/gl_rasterizer.h"
 #include "video_core/renderer_opengl/gl_shader_cache.h"
+#include "video_core/renderer_opengl/gl_shader_decompiler.h"
 #include "video_core/renderer_opengl/gl_shader_manager.h"
 #include "video_core/renderer_opengl/utils.h"
+#include "video_core/shader/shader_ir.h"
 
 namespace OpenGL {
+
+using VideoCommon::Shader::ProgramCode;
 
 /// Gets the address for the specified shader stage program
 static VAddr GetShaderAddress(Maxwell::ShaderProgram program) {
@@ -24,42 +28,31 @@ static VAddr GetShaderAddress(Maxwell::ShaderProgram program) {
 }
 
 /// Gets the shader program code from memory for the specified address
-static GLShader::ProgramCode GetShaderCode(VAddr addr) {
-    GLShader::ProgramCode program_code(GLShader::MAX_PROGRAM_CODE_LENGTH);
+static ProgramCode GetShaderCode(VAddr addr) {
+    ProgramCode program_code(VideoCommon::Shader::MAX_PROGRAM_LENGTH);
     Memory::ReadBlock(addr, program_code.data(), program_code.size() * sizeof(u64));
     return program_code;
 }
 
-/// Helper function to set shader uniform block bindings for a single shader stage
-static void SetShaderUniformBlockBinding(GLuint shader, const char* name,
-                                         Maxwell::ShaderStage binding, std::size_t expected_size) {
-    const GLuint ub_index = glGetUniformBlockIndex(shader, name);
-    if (ub_index == GL_INVALID_INDEX) {
-        return;
+/// Gets the shader type from a Maxwell program type
+constexpr GLenum GetShaderType(Maxwell::ShaderProgram program_type) {
+    switch (program_type) {
+    case Maxwell::ShaderProgram::VertexA:
+    case Maxwell::ShaderProgram::VertexB:
+        return GL_VERTEX_SHADER;
+    case Maxwell::ShaderProgram::Geometry:
+        return GL_GEOMETRY_SHADER;
+    case Maxwell::ShaderProgram::Fragment:
+        return GL_FRAGMENT_SHADER;
+    default:
+        return GL_NONE;
     }
-
-    GLint ub_size = 0;
-    glGetActiveUniformBlockiv(shader, ub_index, GL_UNIFORM_BLOCK_DATA_SIZE, &ub_size);
-    ASSERT_MSG(static_cast<std::size_t>(ub_size) == expected_size,
-               "Uniform block size did not match! Got {}, expected {}", ub_size, expected_size);
-    glUniformBlockBinding(shader, ub_index, static_cast<GLuint>(binding));
-}
-
-/// Sets shader uniform block bindings for an entire shader program
-static void SetShaderUniformBlockBindings(GLuint shader) {
-    SetShaderUniformBlockBinding(shader, "vs_config", Maxwell::ShaderStage::Vertex,
-                                 sizeof(GLShader::MaxwellUniformData));
-    SetShaderUniformBlockBinding(shader, "gs_config", Maxwell::ShaderStage::Geometry,
-                                 sizeof(GLShader::MaxwellUniformData));
-    SetShaderUniformBlockBinding(shader, "fs_config", Maxwell::ShaderStage::Fragment,
-                                 sizeof(GLShader::MaxwellUniformData));
 }
 
 CachedShader::CachedShader(VAddr addr, Maxwell::ShaderProgram program_type)
     : addr{addr}, program_type{program_type}, setup{GetShaderCode(addr)} {
 
     GLShader::ProgramResult program_result;
-    GLenum gl_type{};
 
     switch (program_type) {
     case Maxwell::ShaderProgram::VertexA:
@@ -70,17 +63,14 @@ CachedShader::CachedShader(VAddr addr, Maxwell::ShaderProgram program_type)
     case Maxwell::ShaderProgram::VertexB:
         CalculateProperties();
         program_result = GLShader::GenerateVertexShader(setup);
-        gl_type = GL_VERTEX_SHADER;
         break;
     case Maxwell::ShaderProgram::Geometry:
         CalculateProperties();
         program_result = GLShader::GenerateGeometryShader(setup);
-        gl_type = GL_GEOMETRY_SHADER;
         break;
     case Maxwell::ShaderProgram::Fragment:
         CalculateProperties();
         program_result = GLShader::GenerateFragmentShader(setup);
-        gl_type = GL_FRAGMENT_SHADER;
         break;
     default:
         LOG_CRITICAL(HW_GPU, "Unimplemented program_type={}", static_cast<u32>(program_type));
@@ -88,59 +78,105 @@ CachedShader::CachedShader(VAddr addr, Maxwell::ShaderProgram program_type)
         return;
     }
 
+    code = program_result.first;
     entries = program_result.second;
     shader_length = entries.shader_length;
+}
 
-    if (program_type != Maxwell::ShaderProgram::Geometry) {
-        OGLShader shader;
-        shader.Create(program_result.first.c_str(), gl_type);
-        program.Create(true, shader.handle);
-        SetShaderUniformBlockBindings(program.handle);
-        LabelGLObject(GL_PROGRAM, program.handle, addr);
+std::tuple<GLuint, BaseBindings> CachedShader::GetProgramHandle(GLenum primitive_mode,
+                                                                BaseBindings base_bindings) {
+    GLuint handle{};
+    if (program_type == Maxwell::ShaderProgram::Geometry) {
+        handle = GetGeometryShader(primitive_mode, base_bindings);
     } else {
-        // Store shader's code to lazily build it on draw
-        geometry_programs.code = program_result.first;
+        const auto [entry, is_cache_miss] = programs.try_emplace(base_bindings);
+        auto& program = entry->second;
+        if (is_cache_miss) {
+            std::string source = AllocateBindings(base_bindings);
+            source += code;
+
+            OGLShader shader;
+            shader.Create(source.c_str(), GetShaderType(program_type));
+            program.Create(true, shader.handle);
+            LabelGLObject(GL_PROGRAM, program.handle, addr);
+        }
+
+        handle = program.handle;
+    }
+
+    // Add const buffer and samplers offset reserved by this shader. One UBO binding is reserved for
+    // emulation values
+    base_bindings.cbuf += static_cast<u32>(entries.const_buffers.size()) + 1;
+    base_bindings.gmem += static_cast<u32>(entries.global_memory_entries.size());
+    base_bindings.sampler += static_cast<u32>(entries.samplers.size());
+
+    return {handle, base_bindings};
+}
+
+std::string CachedShader::AllocateBindings(BaseBindings base_bindings) {
+    std::string code = "#version 430 core\n";
+    code += fmt::format("#define EMULATION_UBO_BINDING {}\n", base_bindings.cbuf++);
+
+    for (const auto& cbuf : entries.const_buffers) {
+        code += fmt::format("#define CBUF_BINDING_{} {}\n", cbuf.GetIndex(), base_bindings.cbuf++);
+    }
+
+    for (const auto& gmem : entries.global_memory_entries) {
+        code += fmt::format("#define GMEM_BINDING_{}_{} {}\n", gmem.GetCbufIndex(),
+                            gmem.GetCbufOffset(), base_bindings.gmem++);
+    }
+
+    for (const auto& sampler : entries.samplers) {
+        code += fmt::format("#define SAMPLER_BINDING_{} {}\n", sampler.GetIndex(),
+                            base_bindings.sampler++);
+    }
+
+    return code;
+}
+
+GLuint CachedShader::GetGeometryShader(GLenum primitive_mode, BaseBindings base_bindings) {
+    const auto [entry, is_cache_miss] = geometry_programs.try_emplace(base_bindings);
+    auto& programs = entry->second;
+
+    switch (primitive_mode) {
+    case GL_POINTS:
+        return LazyGeometryProgram(programs.points, base_bindings, "points", 1, "ShaderPoints");
+    case GL_LINES:
+    case GL_LINE_STRIP:
+        return LazyGeometryProgram(programs.lines, base_bindings, "lines", 2, "ShaderLines");
+    case GL_LINES_ADJACENCY:
+    case GL_LINE_STRIP_ADJACENCY:
+        return LazyGeometryProgram(programs.lines_adjacency, base_bindings, "lines_adjacency", 4,
+                                   "ShaderLinesAdjacency");
+    case GL_TRIANGLES:
+    case GL_TRIANGLE_STRIP:
+    case GL_TRIANGLE_FAN:
+        return LazyGeometryProgram(programs.triangles, base_bindings, "triangles", 3,
+                                   "ShaderTriangles");
+    case GL_TRIANGLES_ADJACENCY:
+    case GL_TRIANGLE_STRIP_ADJACENCY:
+        return LazyGeometryProgram(programs.triangles_adjacency, base_bindings,
+                                   "triangles_adjacency", 6, "ShaderTrianglesAdjacency");
+    default:
+        UNREACHABLE_MSG("Unknown primitive mode.");
+        return LazyGeometryProgram(programs.points, base_bindings, "points", 1, "ShaderPoints");
     }
 }
 
-GLuint CachedShader::GetProgramResourceIndex(const GLShader::ConstBufferEntry& buffer) {
-    const auto search{resource_cache.find(buffer.GetHash())};
-    if (search == resource_cache.end()) {
-        const GLuint index{
-            glGetProgramResourceIndex(program.handle, GL_UNIFORM_BLOCK, buffer.GetName().c_str())};
-        resource_cache[buffer.GetHash()] = index;
-        return index;
-    }
-
-    return search->second;
-}
-
-GLint CachedShader::GetUniformLocation(const GLShader::SamplerEntry& sampler) {
-    const auto search{uniform_cache.find(sampler.GetHash())};
-    if (search == uniform_cache.end()) {
-        const GLint index{glGetUniformLocation(program.handle, sampler.GetName().c_str())};
-        uniform_cache[sampler.GetHash()] = index;
-        return index;
-    }
-
-    return search->second;
-}
-
-GLuint CachedShader::LazyGeometryProgram(OGLProgram& target_program,
+GLuint CachedShader::LazyGeometryProgram(OGLProgram& target_program, BaseBindings base_bindings,
                                          const std::string& glsl_topology, u32 max_vertices,
                                          const std::string& debug_name) {
     if (target_program.handle != 0) {
         return target_program.handle;
     }
-    std::string source = "#version 430 core\n";
+    std::string source = AllocateBindings(base_bindings);
     source += "layout (" + glsl_topology + ") in;\n";
     source += "#define MAX_VERTEX_INPUT " + std::to_string(max_vertices) + '\n';
-    source += geometry_programs.code;
+    source += code;
 
     OGLShader shader;
     shader.Create(source.c_str(), GL_GEOMETRY_SHADER);
     target_program.Create(true, shader.handle);
-    SetShaderUniformBlockBindings(target_program.handle);
     LabelGLObject(GL_PROGRAM, target_program.handle, addr, debug_name);
     return target_program.handle;
 };
