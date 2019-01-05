@@ -11,11 +11,12 @@
 #include "common/common_types.h"
 #include "core/file_sys/vfs_types.h"
 #include "core/hle/kernel/object.h"
-#include "frontend/applets/profile_select.h"
 
 namespace Core::Frontend {
 class EmuWindow;
+class ProfileSelectApplet;
 class SoftwareKeyboardApplet;
+class WebBrowserApplet;
 } // namespace Core::Frontend
 
 namespace FileSys {
@@ -249,6 +250,10 @@ public:
     void SetSoftwareKeyboard(std::unique_ptr<Core::Frontend::SoftwareKeyboardApplet> applet);
 
     const Core::Frontend::SoftwareKeyboardApplet& GetSoftwareKeyboard() const;
+
+    void SetWebBrowser(std::unique_ptr<Core::Frontend::WebBrowserApplet> applet);
+
+    const Core::Frontend::WebBrowserApplet& GetWebBrowser() const;
 
 private:
     System();
