@@ -259,6 +259,15 @@ public:
         return ResultStatus::ErrorNotImplemented;
     }
 
+    /**
+     * Get the RomFS of the manual of the application
+     * @param file The raw manual RomFS of the game
+     * @return ResultStatus result of function
+     */
+    virtual ResultStatus ReadManualRomFS(FileSys::VirtualFile& file) {
+        return ResultStatus::ErrorNotImplemented;
+    }
+
 protected:
     FileSys::VirtualFile file;
     bool is_loaded = false;
