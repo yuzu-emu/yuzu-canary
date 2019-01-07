@@ -7,7 +7,7 @@
 #include "common/assert.h"
 #include "common/string_util.h"
 #include "core/core.h"
-#include "core/frontend/applets/software_keyboard.h"
+#include "core/frontend/applets/profile_select.h"
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/am/applets/profile_select.h"
 
