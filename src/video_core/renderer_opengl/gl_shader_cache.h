@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <map>
 #include <memory>
 
@@ -115,6 +116,9 @@ public:
 
     /// Gets the current specified shader stage program
     Shader GetStageProgram(Maxwell::ShaderProgram program);
+
+private:
+    std::array<Shader, Maxwell::MaxShaderProgram> last_shaders;
 };
 
 } // namespace OpenGL

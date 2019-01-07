@@ -1089,10 +1089,13 @@ public:
     MemoryManager& memory_manager;
 
     struct DirtyFlags {
+        bool shaders = true;
+
         bool vertex_attrib_format = true;
         u32 vertex_array = 0xFFFFFFFF;
 
         void OnMemoryWrite() {
+            shaders = true;
             vertex_array = 0xFFFFFFFF;
         }
     };
