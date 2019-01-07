@@ -188,6 +188,10 @@ void CachedShader::CalculateProperties() {
 ShaderCacheOpenGL::ShaderCacheOpenGL(RasterizerOpenGL& rasterizer) : RasterizerCache{rasterizer} {}
 
 Shader ShaderCacheOpenGL::GetStageProgram(Maxwell::ShaderProgram program) {
+    if (!Core::System::GetInstance().GPU().Maxwell3D().dirty_flags.shaders) {
+        return last_shaders[static_cast<u32>(program)];
+    }
+
     const VAddr program_addr{GetShaderAddress(program)};
 
     // Look up shader in the cache based on address
@@ -199,7 +203,7 @@ Shader ShaderCacheOpenGL::GetStageProgram(Maxwell::ShaderProgram program) {
         Register(shader);
     }
 
-    return shader;
+    return last_shaders[static_cast<u32>(program)] = shader;
 }
 
 } // namespace OpenGL
