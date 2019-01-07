@@ -289,7 +289,7 @@ DrawParameters RasterizerOpenGL::SetupDraw() {
 
 void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
     MICROPROFILE_SCOPE(OpenGL_Shader);
-    const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
+    auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
 
     // Next available bindpoints to use when uploading the const buffers and textures to the GLSL
     // shaders. The constbuffer bindpoint starts after the shader stage configuration bind points.
@@ -372,6 +372,8 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
     }
 
     SyncClipEnabled(clip_distances);
+
+    gpu.dirty_flags.shaders = false;
 }
 
 void RasterizerOpenGL::SetupCachedFramebuffer(const FramebufferCacheKey& fbkey,
