@@ -11,6 +11,8 @@ add_executable(yuzu
     applets/profile_select.h
     applets/software_keyboard.cpp
     applets/software_keyboard.h
+    applets/web_browser.cpp
+    applets/web_browser.h
     bootmanager.cpp
     bootmanager.h
     compatibility_list.cpp
@@ -156,6 +158,11 @@ if (USE_DISCORD_PRESENCE)
     target_link_libraries(yuzu PRIVATE discord-rpc)
     target_compile_definitions(yuzu PRIVATE -DUSE_DISCORD_PRESENCE)
 endif()
+
+if (YUZU_USE_QT_WEB_ENGINE)
+    target_link_libraries(yuzu PRIVATE Qt5::WebEngineCore Qt5::WebEngineWidgets)
+    target_compile_definitions(yuzu PRIVATE -DYUZU_USE_QT_WEB_ENGINE)
+endif ()
 
 if(UNIX AND NOT APPLE)
     install(TARGETS yuzu RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")

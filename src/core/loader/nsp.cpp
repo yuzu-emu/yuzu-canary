@@ -158,4 +158,12 @@ ResultStatus AppLoader_NSP::ReadControlData(FileSys::NACP& nacp) {
     nacp = *nacp_file;
     return ResultStatus::Success;
 }
+
+ResultStatus AppLoader_NSP::ReadManualRomFS(FileSys::VirtualFile& file) {
+    const auto nca = nsp->GetNCA(nsp->GetProgramTitleID(), FileSys::ContentRecordType::Manual);
+    if (nsp->GetStatus() != ResultStatus::Success || nca == nullptr)
+        return ResultStatus::ErrorNoRomFS;
+    file = nca->GetRomFS();
+    return file == nullptr ? ResultStatus::ErrorNoRomFS : ResultStatus::Success;
+}
 } // namespace Loader
