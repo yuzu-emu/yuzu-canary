@@ -919,9 +919,16 @@ Surface RasterizerCacheOpenGL::GetTextureSurface(const Tegra::Texture::FullTextu
 }
 
 Surface RasterizerCacheOpenGL::GetDepthBufferSurface(bool preserve_contents) {
-    const auto& regs{Core::System::GetInstance().GPU().Maxwell3D().regs};
+    auto& gpu{Core::System::GetInstance().GPU().Maxwell3D()};
+    const auto& regs{gpu.regs};
+
+    if (!gpu.dirty_flags.zeta_buffer) {
+        return last_depth_buffer;
+    }
+    gpu.dirty_flags.zeta_buffer = false;
+
     if (!regs.zeta.Address() || !regs.zeta_enable) {
-        return {};
+        return last_depth_buffer = {};
     }
 
     SurfaceParams depth_params{SurfaceParams::CreateForDepthBuffer(
@@ -929,25 +936,31 @@ Surface RasterizerCacheOpenGL::GetDepthBufferSurface(bool preserve_contents) {
         regs.zeta.memory_layout.block_width, regs.zeta.memory_layout.block_height,
         regs.zeta.memory_layout.block_depth, regs.zeta.memory_layout.type)};
 
-    return GetSurface(depth_params, preserve_contents);
+    return last_depth_buffer = GetSurface(depth_params, preserve_contents);
 }
 
 Surface RasterizerCacheOpenGL::GetColorBufferSurface(std::size_t index, bool preserve_contents) {
-    const auto& regs{Core::System::GetInstance().GPU().Maxwell3D().regs};
+    auto& gpu{Core::System::GetInstance().GPU().Maxwell3D()};
+    const auto& regs{gpu.regs};
+
+    if ((gpu.dirty_flags.color_buffer & (1u << static_cast<u32>(index))) == 0) {
+        return last_color_buffers[index];
+    }
+    gpu.dirty_flags.color_buffer &= ~(1u << static_cast<u32>(index));
 
     ASSERT(index < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets);
 
     if (index >= regs.rt_control.count) {
-        return {};
+        return last_color_buffers[index] = {};
     }
 
     if (regs.rt[index].Address() == 0 || regs.rt[index].format == Tegra::RenderTargetFormat::NONE) {
-        return {};
+        return last_color_buffers[index] = {};
     }
 
     const SurfaceParams color_params{SurfaceParams::CreateForFramebuffer(index)};
 
-    return GetSurface(color_params, preserve_contents);
+    return last_color_buffers[index] = GetSurface(color_params, preserve_contents);
 }
 
 void RasterizerCacheOpenGL::LoadSurface(const Surface& surface) {
