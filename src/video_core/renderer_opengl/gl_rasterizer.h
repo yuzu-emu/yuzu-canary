@@ -209,8 +209,10 @@ private:
 
     std::size_t CalculateIndexBufferSize() const;
 
-    void SetupVertexFormat();
-    void SetupVertexBuffer();
+    /// Updates and returns a vertex array object representing current vertex format
+    GLuint SetupVertexFormat();
+
+    void SetupVertexBuffer(GLuint vao);
 
     DrawParameters SetupDraw();
 
