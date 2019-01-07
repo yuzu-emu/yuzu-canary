@@ -33,8 +33,9 @@ struct IVFCHeader {
 static_assert(sizeof(IVFCHeader) == 0xE0, "IVFCHeader has incorrect size.");
 
 enum class RomFSExtractionType {
-    Full,      // Includes data directory
-    Truncated, // Traverses into data directory
+    Full,          // Includes data directory
+    Truncated,     // Traverses into data directory
+    SingleDiscard, // Traverses into the first subdirectory of root
 };
 
 // Converts a RomFS binary blob to VFS Filesystem
