@@ -245,20 +245,20 @@ void RendererOpenGL::InitOpenGLObjects() {
 
     // Generate VAO
     vertex_array.Create();
-
     state.draw.vertex_array = vertex_array.handle;
-    state.draw.vertex_buffer = vertex_buffer.handle;
-    state.draw.uniform_buffer = 0;
-    state.Apply();
 
     // Attach vertex data to VAO
-    glBufferData(GL_ARRAY_BUFFER, sizeof(ScreenRectVertex) * 4, nullptr, GL_STREAM_DRAW);
-    glVertexAttribPointer(attrib_position, 2, GL_FLOAT, GL_FALSE, sizeof(ScreenRectVertex),
-                          (GLvoid*)offsetof(ScreenRectVertex, position));
-    glVertexAttribPointer(attrib_tex_coord, 2, GL_FLOAT, GL_FALSE, sizeof(ScreenRectVertex),
-                          (GLvoid*)offsetof(ScreenRectVertex, tex_coord));
-    glEnableVertexAttribArray(attrib_position);
-    glEnableVertexAttribArray(attrib_tex_coord);
+    glNamedBufferData(vertex_buffer.handle, sizeof(ScreenRectVertex) * 4, nullptr, GL_STREAM_DRAW);
+    glVertexArrayAttribFormat(vertex_array.handle, attrib_position, 2, GL_FLOAT, GL_FALSE,
+                              offsetof(ScreenRectVertex, position));
+    glVertexArrayAttribFormat(vertex_array.handle, attrib_tex_coord, 2, GL_FLOAT, GL_FALSE,
+                              offsetof(ScreenRectVertex, tex_coord));
+    glVertexArrayAttribBinding(vertex_array.handle, attrib_position, 0);
+    glVertexArrayAttribBinding(vertex_array.handle, attrib_tex_coord, 0);
+    glEnableVertexArrayAttrib(vertex_array.handle, attrib_position);
+    glEnableVertexArrayAttrib(vertex_array.handle, attrib_tex_coord);
+    glVertexArrayVertexBuffer(vertex_array.handle, 0, vertex_buffer.handle, 0,
+                              sizeof(ScreenRectVertex));
 
     // Allocate textures for the screen
     screen_info.texture.resource.Create();
@@ -370,14 +370,12 @@ void RendererOpenGL::DrawScreenTriangles(const ScreenInfo& screen_info, float x,
     state.texture_units[0].texture = screen_info.display_texture;
     state.texture_units[0].swizzle = {GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA};
     // Workaround brigthness problems in SMO by enabling sRGB in the final output
-    // if it has been used in the frame
-    // Needed because of this bug in QT
-    // QTBUG-50987
+    // if it has been used in the frame. Needed because of this bug in QT: QTBUG-50987
     state.framebuffer_srgb.enabled = OpenGLState::GetsRGBUsed();
     state.Apply();
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices.data());
+    glNamedBufferSubData(vertex_buffer.handle, 0, sizeof(vertices), vertices.data());
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    // restore default state
+    // Restore default state
     state.framebuffer_srgb.enabled = false;
     state.texture_units[0].texture = 0;
     state.Apply();
