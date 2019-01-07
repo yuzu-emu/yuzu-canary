@@ -135,6 +135,15 @@ void Maxwell3D::CallMethod(const GPU::MethodCall& method_call) {
 
     if (regs.reg_array[method_call.method] != method_call.argument) {
         regs.reg_array[method_call.method] = method_call.argument;
+        // Shader
+        constexpr u32 shader_registers_count =
+            sizeof(regs.shader_config[0]) * Regs::MaxShaderProgram / sizeof(u32);
+        if (method_call.method >= MAXWELL3D_REG_INDEX(shader_config[0].enable) &&
+            method_call.method <
+                MAXWELL3D_REG_INDEX(shader_config[0].enable) + shader_registers_count) {
+            dirty_flags.shaders = true;
+        }
+
         // Vertex format
         if (method_call.method >= MAXWELL3D_REG_INDEX(vertex_attrib_format) &&
             method_call.method <
