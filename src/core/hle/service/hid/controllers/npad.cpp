@@ -410,6 +410,8 @@ void Controller_NPad::OnUpdate(u8* data, std::size_t data_len) {
         libnx_entry.pad.pad_states.raw = pad_state.pad_states.raw;
         libnx_entry.pad.l_stick = pad_state.l_stick;
         libnx_entry.pad.r_stick = pad_state.r_stick;
+
+        press_state |= static_cast<u32>(pad_state.pad_states.raw);
     }
     std::memcpy(data + NPAD_OFFSET, shared_memory_entries.data(),
                 shared_memory_entries.size() * sizeof(NPadEntry));
@@ -634,6 +636,10 @@ void Controller_NPad::ClearAllControllers() {
                       controller.type = NPadControllerType::None;
                       controller.is_connected = false;
                   });
+}
+
+u32 Controller_NPad::GetAndResetPressState() {
+    return std::exchange(press_state, 0);
 }
 
 bool Controller_NPad::IsControllerSupported(NPadControllerType controller) const {
