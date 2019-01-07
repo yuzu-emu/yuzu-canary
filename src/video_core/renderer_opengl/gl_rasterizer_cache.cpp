@@ -452,7 +452,7 @@ static void CopySurface(const Surface& src_surface, const Surface& dst_surface,
     const std::size_t buffer_size = std::max(src_params.size_in_bytes, dst_params.size_in_bytes);
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, copy_pbo_handle);
-    glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size, nullptr, GL_STREAM_DRAW);
+    glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size, nullptr, GL_STREAM_COPY);
     if (source_format.compressed) {
         glGetCompressedTextureImage(src_surface->Texture().handle, src_attachment,
                                     static_cast<GLsizei>(src_params.size_in_bytes), nullptr);
