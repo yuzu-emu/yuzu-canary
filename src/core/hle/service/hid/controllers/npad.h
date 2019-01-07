@@ -124,6 +124,10 @@ public:
     void ConnectAllDisconnectedControllers();
     void ClearAllControllers();
 
+    // Logical OR for all buttons presses on all controllers
+    // Specifically for cheat engine and other features.
+    u32 GetAndResetPressState();
+
     static std::size_t NPadIdToIndex(u32 npad_id);
     static u32 IndexToNPad(std::size_t index);
 
@@ -291,6 +295,8 @@ private:
         NPadControllerType type;
         bool is_connected;
     };
+
+    u32 press_state{};
 
     NPadType style{};
     std::array<NPadEntry, 10> shared_memory_entries{};
