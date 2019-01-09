@@ -21,7 +21,7 @@
 EmuThread::EmuThread(GRenderWindow* render_window) : render_window(render_window) {}
 
 void EmuThread::run() {
-    if (!Settings::values.use_multi_core) {
+    if (!Settings::values.use_asynchronous_gpu_emulation) {
         // Single core mode must acquire OpenGL context for entire emulation session
         render_window->MakeCurrent();
     }

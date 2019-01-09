@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <memory>
 #include <vector>
 #include "common/common_types.h"
@@ -13,8 +14,9 @@
 #include "video_core/memory_manager.h"
 
 namespace VideoCore {
-class RasterizerInterface;
-}
+class GPUThread;
+class RendererBase;
+} // namespace VideoCore
 
 namespace Tegra {
 
@@ -117,7 +119,7 @@ enum class EngineID {
 
 class GPU final {
 public:
-    explicit GPU(VideoCore::RasterizerInterface& rasterizer);
+    explicit GPU(VideoCore::RendererBase& renderer);
     ~GPU();
 
     struct MethodCall {
@@ -156,9 +158,20 @@ public:
     /// Returns a const reference to the GPU DMA pusher.
     const Tegra::DmaPusher& DmaPusher() const;
 
+    /// Push GPU command entries to be processed
+    void PushGPUEntries(Tegra::CommandList&& entries);
+
+    /// Swap buffers (render frame)
+    void SwapBuffers(
+        std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer);
+
+    /// Waits the caller until the thread is idle, and then calls the callback
+    void WaitUntilIdle(std::function<void()> callback);
+
 private:
     std::unique_ptr<Tegra::DmaPusher> dma_pusher;
     std::unique_ptr<Tegra::MemoryManager> memory_manager;
+    std::unique_ptr<VideoCore::GPUThread> gpu_thread;
 
     /// Mapping of command subchannels to their bound engine ids.
     std::array<EngineID, 8> bound_engines = {};
@@ -173,6 +186,8 @@ private:
     std::unique_ptr<Engines::MaxwellDMA> maxwell_dma;
     /// Inline memory engine
     std::unique_ptr<Engines::KeplerMemory> kepler_memory;
+
+    VideoCore::RendererBase& renderer;
 };
 
 } // namespace Tegra

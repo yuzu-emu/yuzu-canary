@@ -13,6 +13,7 @@
 #include "configuration/configure_per_general.h"
 #include "core/file_sys/vfs.h"
 #include "core/file_sys/vfs_real.h"
+#include "core/frontend/scope_acquire_window_context.h"
 #include "core/hle/service/acc/profile_manager.h"
 #include "core/hle/service/am/applets/applets.h"
 
@@ -586,13 +587,15 @@ bool GMainWindow::LoadROM(const QString& filename) {
         ShutdownGame();
 
     render_window->InitRenderTarget();
-    render_window->MakeCurrent();
 
-    if (!gladLoadGL()) {
-        QMessageBox::critical(this, tr("Error while initializing OpenGL 4.3 Core!"),
-                              tr("Your GPU may not support OpenGL 4.3, or you do not "
-                                 "have the latest graphics driver."));
-        return false;
+    {
+        Core::Frontend::ScopeAcquireWindowContext acquire_context{*render_window};
+        if (!gladLoadGL()) {
+            QMessageBox::critical(this, tr("Error while initializing OpenGL 4.3 Core!"),
+                                  tr("Your GPU may not support OpenGL 4.3, or you do not "
+                                     "have the latest graphics driver."));
+            return false;
+        }
     }
 
     QStringList unsupported_gl_extensions = GetUnsupportedGLExtensions();
@@ -631,8 +634,6 @@ bool GMainWindow::LoadROM(const QString& filename) {
                "href='https://yuzu-emu.org/wiki/overview-of-switch-game-formats'>check out our "
                "wiki</a>. This message will not be shown again."));
     }
-
-    render_window->DoneCurrent();
 
     if (result != Core::System::ResultStatus::Success) {
         switch (result) {

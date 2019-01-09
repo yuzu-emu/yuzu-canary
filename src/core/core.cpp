@@ -118,10 +118,12 @@ struct System::Impl {
             return ResultStatus::ErrorVideoCore;
         }
 
-        gpu_core = std::make_unique<Tegra::GPU>(renderer->Rasterizer());
+        is_powered_on = true;
+
+        gpu_core = std::make_unique<Tegra::GPU>(*renderer);
 
         cpu_core_manager.Initialize(system);
-        is_powered_on = true;
+
         LOG_DEBUG(Core, "Initialized OK");
 
         // Reset counters and set time origin to current frame
