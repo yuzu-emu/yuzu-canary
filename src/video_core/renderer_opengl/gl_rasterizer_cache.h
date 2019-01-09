@@ -396,6 +396,9 @@ private:
     /// Use a Pixel Buffer Object to download the previous texture and then upload it to the new one
     /// using the new format.
     OGLBuffer copy_pbo;
+
+    std::array<Surface, Tegra::Engines::Maxwell3D::Regs::NumRenderTargets> last_color_buffers;
+    Surface last_depth_buffer;
 };
 
 } // namespace OpenGL
