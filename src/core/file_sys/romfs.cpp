@@ -119,6 +119,9 @@ VirtualDir ExtractRomFS(VirtualFile file, RomFSExtractionType type) {
 
     VirtualDir out = std::move(root);
 
+    if (type == RomFSExtractionType::SingleDiscard)
+        return out->GetSubdirectories().front();
+
     while (out->GetSubdirectories().size() == 1 && out->GetFiles().empty()) {
         if (out->GetSubdirectories().front()->GetName() == "data" &&
             type == RomFSExtractionType::Truncated)
