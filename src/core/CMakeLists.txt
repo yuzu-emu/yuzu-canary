@@ -88,6 +88,8 @@ add_library(core STATIC
     frontend/applets/profile_select.h
     frontend/applets/software_keyboard.cpp
     frontend/applets/software_keyboard.h
+    frontend/applets/web_browser.cpp
+    frontend/applets/web_browser.h
     frontend/emu_window.cpp
     frontend/emu_window.h
     frontend/framebuffer_layout.cpp
@@ -175,6 +177,8 @@ add_library(core STATIC
     hle/service/am/applets/software_keyboard.h
     hle/service/am/applets/stub_applet.cpp
     hle/service/am/applets/stub_applet.h
+    hle/service/am/applets/web_browser.cpp
+    hle/service/am/applets/web_browser.h
     hle/service/am/idle.cpp
     hle/service/am/idle.h
     hle/service/am/omm.cpp
