@@ -344,6 +344,8 @@ void Config::ReadValues() {
         static_cast<u16>(sdl2_config->GetInteger("Renderer", "frame_limit", 100));
     Settings::values.use_accurate_gpu_emulation =
         sdl2_config->GetBoolean("Renderer", "use_accurate_gpu_emulation", false);
+    Settings::values.use_asynchronous_gpu_emulation =
+        sdl2_config->GetBoolean("Renderer", "use_asynchronous_gpu_emulation", true);
 
     Settings::values.bg_red = (float)sdl2_config->GetReal("Renderer", "bg_red", 0.0);
     Settings::values.bg_green = (float)sdl2_config->GetReal("Renderer", "bg_green", 0.0);

@@ -17,6 +17,8 @@ add_library(video_core STATIC
     engines/shader_header.h
     gpu.cpp
     gpu.h
+    gpu_thread.cpp
+    gpu_thread.h
     macro_interpreter.cpp
     macro_interpreter.h
     memory_manager.cpp

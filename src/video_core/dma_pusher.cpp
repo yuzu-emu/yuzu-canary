@@ -17,6 +17,13 @@ DmaPusher::~DmaPusher() = default;
 
 MICROPROFILE_DEFINE(DispatchCalls, "GPU", "Execute command buffer", MP_RGB(128, 128, 192));
 
+void DmaPusher::QueuePendingCalls() {
+    for (auto& entry : dma_writebuffer) {
+        dma_readbuffer.push(std::move(entry));
+    }
+    dma_writebuffer.clear();
+}
+
 void DmaPusher::DispatchCalls() {
     MICROPROFILE_SCOPE(DispatchCalls);
 
@@ -89,9 +96,9 @@ bool DmaPusher::Step() {
                 break;
             }
         }
-    } else if (ib_enable && !dma_pushbuffer.empty()) {
+    } else if (ib_enable && !dma_readbuffer.empty()) {
         // Current pushbuffer empty, but we have more IB entries to read
-        const CommandList& command_list{dma_pushbuffer.front()};
+        const CommandList& command_list{dma_readbuffer.front()};
         const CommandListHeader& command_list_header{command_list[dma_pushbuffer_subindex++]};
         dma_get = command_list_header.addr;
         dma_put = dma_get + command_list_header.size * sizeof(u32);
@@ -99,7 +106,7 @@ bool DmaPusher::Step() {
 
         if (dma_pushbuffer_subindex >= command_list.size()) {
             // We've gone through the current list, remove it from the queue
-            dma_pushbuffer.pop();
+            dma_readbuffer.pop();
             dma_pushbuffer_subindex = 0;
         }
     } else {
