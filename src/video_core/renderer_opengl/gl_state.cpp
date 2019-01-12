@@ -83,8 +83,6 @@ OpenGLState::OpenGLState() {
     draw.read_framebuffer = 0;
     draw.draw_framebuffer = 0;
     draw.vertex_array = 0;
-    draw.vertex_buffer = 0;
-    draw.uniform_buffer = 0;
     draw.shader_program = 0;
     draw.program_pipeline = 0;
 
@@ -505,7 +503,6 @@ void OpenGLState::ApplySamplers() const {
 }
 
 void OpenGLState::ApplyFramebufferState() const {
-    // Framebuffer
     if (draw.read_framebuffer != cur_state.draw.read_framebuffer) {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, draw.read_framebuffer);
     }
@@ -514,15 +511,9 @@ void OpenGLState::ApplyFramebufferState() const {
     }
 }
 
-void OpenGLState::ApplyVertexBufferState() const {
-    // Vertex array
+void OpenGLState::ApplyVertexArrayState() const {
     if (draw.vertex_array != cur_state.draw.vertex_array) {
         glBindVertexArray(draw.vertex_array);
-    }
-
-    // Vertex buffer
-    if (draw.vertex_buffer != cur_state.draw.vertex_buffer) {
-        glBindBuffer(GL_ARRAY_BUFFER, draw.vertex_buffer);
     }
 }
 
@@ -543,11 +534,7 @@ void OpenGLState::ApplyDepthClamp() const {
 
 void OpenGLState::Apply() const {
     ApplyFramebufferState();
-    ApplyVertexBufferState();
-    // Uniform buffer
-    if (draw.uniform_buffer != cur_state.draw.uniform_buffer) {
-        glBindBuffer(GL_UNIFORM_BUFFER, draw.uniform_buffer);
-    }
+    ApplyVertexArrayState();
 
     // Shader program
     if (draw.shader_program != cur_state.draw.shader_program) {
@@ -634,16 +621,6 @@ OpenGLState& OpenGLState::ResetProgram(GLuint handle) {
 OpenGLState& OpenGLState::ResetPipeline(GLuint handle) {
     if (draw.program_pipeline == handle) {
         draw.program_pipeline = 0;
-    }
-    return *this;
-}
-
-OpenGLState& OpenGLState::ResetBuffer(GLuint handle) {
-    if (draw.vertex_buffer == handle) {
-        draw.vertex_buffer = 0;
-    }
-    if (draw.uniform_buffer == handle) {
-        draw.uniform_buffer = 0;
     }
     return *this;
 }
