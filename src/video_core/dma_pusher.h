@@ -61,9 +61,10 @@ public:
     ~DmaPusher();
 
     void Push(CommandList&& entries) {
-        dma_pushbuffer.push(std::move(entries));
+        dma_writebuffer.push_back(std::move(entries));
     }
 
+    void QueuePendingCalls();
     void DispatchCalls();
 
 private:
@@ -75,8 +76,9 @@ private:
 
     GPU& gpu;
 
-    std::queue<CommandList> dma_pushbuffer; ///< Queue of command lists to be processed
-    std::size_t dma_pushbuffer_subindex{};  ///< Index within a command list within the pushbuffer
+    std::vector<CommandList> dma_writebuffer;
+    std::queue<CommandList> dma_readbuffer;
+    std::size_t dma_pushbuffer_subindex{}; ///< Index within a command list within the pushbuffer
 
     struct DmaState {
         u32 method;            ///< Current method
