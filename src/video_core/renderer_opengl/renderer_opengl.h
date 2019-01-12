@@ -39,16 +39,6 @@ struct ScreenInfo {
     TextureInfo texture;
 };
 
-/// Helper class to acquire/release OpenGL context within a given scope
-class ScopeAcquireGLContext : NonCopyable {
-public:
-    explicit ScopeAcquireGLContext(Core::Frontend::EmuWindow& window);
-    ~ScopeAcquireGLContext();
-
-private:
-    Core::Frontend::EmuWindow& emu_window;
-};
-
 class RendererOpenGL : public VideoCore::RendererBase {
 public:
     explicit RendererOpenGL(Core::Frontend::EmuWindow& window);

@@ -14,6 +14,7 @@
 #include "core/core.h"
 #include "core/core_timing.h"
 #include "core/frontend/emu_window.h"
+#include "core/frontend/scope_acquire_window_context.h"
 #include "core/memory.h"
 #include "core/perf_stats.h"
 #include "core/settings.h"
@@ -97,18 +98,6 @@ static std::array<GLfloat, 3 * 2> MakeOrthographicMatrix(const float width, cons
     return matrix;
 }
 
-ScopeAcquireGLContext::ScopeAcquireGLContext(Core::Frontend::EmuWindow& emu_window_)
-    : emu_window{emu_window_} {
-    if (Settings::values.use_multi_core) {
-        emu_window.MakeCurrent();
-    }
-}
-ScopeAcquireGLContext::~ScopeAcquireGLContext() {
-    if (Settings::values.use_multi_core) {
-        emu_window.DoneCurrent();
-    }
-}
-
 RendererOpenGL::RendererOpenGL(Core::Frontend::EmuWindow& window)
     : VideoCore::RendererBase{window} {}
 
@@ -117,7 +106,6 @@ RendererOpenGL::~RendererOpenGL() = default;
 /// Swap buffers (render frame)
 void RendererOpenGL::SwapBuffers(
     std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) {
-    ScopeAcquireGLContext acquire_context{render_window};
 
     Core::System::GetInstance().GetPerfStats().EndSystemFrame();
 
@@ -508,7 +496,7 @@ static void APIENTRY DebugHandler(GLenum source, GLenum type, GLuint id, GLenum 
 
 /// Initialize the renderer
 bool RendererOpenGL::Init() {
-    ScopeAcquireGLContext acquire_context{render_window};
+    Core::Frontend::ScopeAcquireWindowContext acquire_context{render_window};
 
     if (GLAD_GL_KHR_debug) {
         glEnable(GL_DEBUG_OUTPUT);

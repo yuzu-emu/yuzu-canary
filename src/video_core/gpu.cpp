@@ -3,13 +3,15 @@
 // Refer to the license.txt file included.
 
 #include "common/assert.h"
+#include "core/settings.h"
 #include "video_core/engines/fermi_2d.h"
 #include "video_core/engines/kepler_memory.h"
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/engines/maxwell_compute.h"
 #include "video_core/engines/maxwell_dma.h"
 #include "video_core/gpu.h"
-#include "video_core/rasterizer_interface.h"
+#include "video_core/gpu_thread.h"
+#include "video_core/renderer_base.h"
 
 namespace Tegra {
 
@@ -25,7 +27,8 @@ u32 FramebufferConfig::BytesPerPixel(PixelFormat format) {
     UNREACHABLE();
 }
 
-GPU::GPU(VideoCore::RasterizerInterface& rasterizer) {
+GPU::GPU(VideoCore::RendererBase& renderer) : renderer{renderer} {
+    auto& rasterizer{renderer.Rasterizer()};
     memory_manager = std::make_unique<Tegra::MemoryManager>();
     dma_pusher = std::make_unique<Tegra::DmaPusher>(*this);
     maxwell_3d = std::make_unique<Engines::Maxwell3D>(rasterizer, *memory_manager);
@@ -33,6 +36,10 @@ GPU::GPU(VideoCore::RasterizerInterface& rasterizer) {
     maxwell_compute = std::make_unique<Engines::MaxwellCompute>();
     maxwell_dma = std::make_unique<Engines::MaxwellDMA>(rasterizer, *memory_manager);
     kepler_memory = std::make_unique<Engines::KeplerMemory>(rasterizer, *memory_manager);
+
+    if (Settings::values.use_asynchronous_gpu_emulation) {
+        gpu_thread = std::make_unique<VideoCore::GPUThread>(renderer, *dma_pusher);
+    }
 }
 
 GPU::~GPU() = default;
@@ -59,6 +66,41 @@ DmaPusher& GPU::DmaPusher() {
 
 const DmaPusher& GPU::DmaPusher() const {
     return *dma_pusher;
+}
+
+void GPU::PushGPUEntries(Tegra::CommandList&& entries) {
+    if (Settings::values.use_asynchronous_gpu_emulation) {
+        gpu_thread->PushGPUEntries(std::move(entries));
+    } else {
+        dma_pusher->Push(std::move(entries));
+        dma_pusher->QueuePendingCalls();
+        dma_pusher->DispatchCalls();
+    }
+}
+
+void GPU::SwapBuffers(
+    std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) {
+    if (Settings::values.use_asynchronous_gpu_emulation) {
+        gpu_thread->SwapBuffers(std::move(framebuffer));
+    } else {
+        renderer.SwapBuffers(std::move(framebuffer));
+    }
+}
+
+void GPU::FlushRegion(VAddr addr, u64 size) {
+    if (Settings::values.use_asynchronous_gpu_emulation) {
+        gpu_thread->FlushRegion(addr, size);
+    } else {
+        renderer.Rasterizer().FlushRegion(addr, size);
+    }
+}
+
+void GPU::InvalidateRegion(VAddr addr, u64 size) {
+    if (Settings::values.use_asynchronous_gpu_emulation) {
+        gpu_thread->InvalidateRegion(addr, size);
+    } else {
+        renderer.Rasterizer().InvalidateRegion(addr, size);
+    }
 }
 
 u32 RenderTargetBytesPerPixel(RenderTargetFormat format) {
