@@ -632,8 +632,6 @@ void RasterizerOpenGL::Clear() {
         return;
     }
 
-    ScopeAcquireGLContext acquire_context{emu_window};
-
     ConfigureFramebuffers(clear_state, use_color, use_depth || use_stencil, false,
                           regs.clear_buffers.RT.Value());
     if (regs.clear_flags.scissor) {
@@ -666,8 +664,6 @@ void RasterizerOpenGL::DrawArrays() {
     MICROPROFILE_SCOPE(OpenGL_Drawing);
     auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
     const auto& regs = gpu.regs;
-
-    ScopeAcquireGLContext acquire_context{emu_window};
 
     ConfigureFramebuffers(state);
     SyncColorMask();
@@ -765,11 +761,6 @@ void RasterizerOpenGL::InvalidateRegion(VAddr addr, u64 size) {
     shader_cache.InvalidateRegion(addr, size);
     global_cache.InvalidateRegion(addr, size);
     buffer_cache.InvalidateRegion(addr, size);
-}
-
-void RasterizerOpenGL::FlushAndInvalidateRegion(VAddr addr, u64 size) {
-    FlushRegion(addr, size);
-    InvalidateRegion(addr, size);
 }
 
 bool RasterizerOpenGL::AccelerateSurfaceCopy(const Tegra::Engines::Fermi2D::Regs::Surface& src,
