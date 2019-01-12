@@ -135,27 +135,31 @@ void RasterizerOpenGL::CheckExtensions() {
     }
 }
 
-void RasterizerOpenGL::SetupVertexFormat() {
+GLuint RasterizerOpenGL::SetupVertexFormat() {
     auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
     const auto& regs = gpu.regs;
 
-    if (!gpu.dirty_flags.vertex_attrib_format)
-        return;
+    if (!gpu.dirty_flags.vertex_attrib_format) {
+        return state.draw.vertex_array;
+    }
     gpu.dirty_flags.vertex_attrib_format = false;
 
     MICROPROFILE_SCOPE(OpenGL_VAO);
 
     auto [iter, is_cache_miss] = vertex_array_cache.try_emplace(regs.vertex_attrib_format);
-    auto& VAO = iter->second;
+    auto& vao_entry = iter->second;
 
     if (is_cache_miss) {
-        VAO.Create();
-        state.draw.vertex_array = VAO.handle;
-        state.ApplyVertexBufferState();
+        vao_entry.Create();
+        const GLuint vao = vao_entry.handle;
 
-        // The index buffer binding is stored within the VAO. Stupid OpenGL, but easy to work
-        // around.
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer_cache.GetHandle());
+        // Eventhough we are using DSA to create this vertex array, there is a bug on Intel's blob
+        // that fails to properly create the vertex array if it's not bound even after creating it
+        // with glCreateVertexArrays
+        state.draw.vertex_array = vao;
+        state.ApplyVertexArrayState();
+
+        glVertexArrayElementBuffer(vao, buffer_cache.GetHandle());
 
         // Use the vertex array as-is, assumes that the data is formatted correctly for OpenGL.
         // Enables the first 16 vertex attributes always, as we don't know which ones are actually
@@ -163,7 +167,7 @@ void RasterizerOpenGL::SetupVertexFormat() {
         // for now to avoid OpenGL errors.
         // TODO(Subv): Analyze the shader to identify which attributes are actually used and don't
         // assume every shader uses them all.
-        for (unsigned index = 0; index < 16; ++index) {
+        for (u32 index = 0; index < 16; ++index) {
             const auto& attrib = regs.vertex_attrib_format[index];
 
             // Ignore invalid attributes.
@@ -178,28 +182,29 @@ void RasterizerOpenGL::SetupVertexFormat() {
 
             ASSERT(buffer.IsEnabled());
 
-            glEnableVertexAttribArray(index);
+            glEnableVertexArrayAttrib(vao, index);
             if (attrib.type == Tegra::Engines::Maxwell3D::Regs::VertexAttribute::Type::SignedInt ||
                 attrib.type ==
                     Tegra::Engines::Maxwell3D::Regs::VertexAttribute::Type::UnsignedInt) {
-                glVertexAttribIFormat(index, attrib.ComponentCount(),
-                                      MaxwellToGL::VertexType(attrib), attrib.offset);
+                glVertexArrayAttribIFormat(vao, index, attrib.ComponentCount(),
+                                           MaxwellToGL::VertexType(attrib), attrib.offset);
             } else {
-                glVertexAttribFormat(index, attrib.ComponentCount(),
-                                     MaxwellToGL::VertexType(attrib),
-                                     attrib.IsNormalized() ? GL_TRUE : GL_FALSE, attrib.offset);
+                glVertexArrayAttribFormat(
+                    vao, index, attrib.ComponentCount(), MaxwellToGL::VertexType(attrib),
+                    attrib.IsNormalized() ? GL_TRUE : GL_FALSE, attrib.offset);
             }
-            glVertexAttribBinding(index, attrib.buffer);
+            glVertexArrayAttribBinding(vao, index, attrib.buffer);
         }
     }
-    state.draw.vertex_array = VAO.handle;
-    state.ApplyVertexBufferState();
 
     // Rebinding the VAO invalidates the vertex buffer bindings.
     gpu.dirty_flags.vertex_array = 0xFFFFFFFF;
+
+    state.draw.vertex_array = vao_entry.handle;
+    return vao_entry.handle;
 }
 
-void RasterizerOpenGL::SetupVertexBuffer() {
+void RasterizerOpenGL::SetupVertexBuffer(GLuint vao) {
     auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
     const auto& regs = gpu.regs;
 
@@ -217,7 +222,7 @@ void RasterizerOpenGL::SetupVertexBuffer() {
         if (!vertex_array.IsEnabled())
             continue;
 
-        Tegra::GPUVAddr start = vertex_array.StartAddress();
+        const Tegra::GPUVAddr start = vertex_array.StartAddress();
         const Tegra::GPUVAddr end = regs.vertex_array_limit[index].LimitAddress();
 
         ASSERT(end > start);
@@ -225,20 +230,17 @@ void RasterizerOpenGL::SetupVertexBuffer() {
         const GLintptr vertex_buffer_offset = buffer_cache.UploadMemory(start, size);
 
         // Bind the vertex array to the buffer at the current offset.
-        glBindVertexBuffer(index, buffer_cache.GetHandle(), vertex_buffer_offset,
-                           vertex_array.stride);
+        glVertexArrayVertexBuffer(vao, index, buffer_cache.GetHandle(), vertex_buffer_offset,
+                                  vertex_array.stride);
 
         if (regs.instanced_arrays.IsInstancingEnabled(index) && vertex_array.divisor != 0) {
             // Enable vertex buffer instancing with the specified divisor.
-            glVertexBindingDivisor(index, vertex_array.divisor);
+            glVertexArrayBindingDivisor(vao, index, vertex_array.divisor);
         } else {
             // Disable the vertex buffer instancing.
-            glVertexBindingDivisor(index, 0);
+            glVertexArrayBindingDivisor(vao, index, 0);
         }
     }
-
-    // Implicit set by glBindVertexBuffer. Stupid glstate handling...
-    state.draw.vertex_buffer = buffer_cache.GetHandle();
 
     gpu.dirty_flags.vertex_array = 0;
 }
@@ -699,9 +701,6 @@ void RasterizerOpenGL::DrawArrays() {
     // Draw the vertex batch
     const bool is_indexed = accelerate_draw == AccelDraw::Indexed;
 
-    state.draw.vertex_buffer = buffer_cache.GetHandle();
-    state.ApplyVertexBufferState();
-
     std::size_t buffer_size = CalculateVertexArraysSize();
 
     // Add space for index buffer (keeping in mind non-core primitives)
@@ -731,8 +730,9 @@ void RasterizerOpenGL::DrawArrays() {
         gpu.dirty_flags.vertex_array = 0xFFFFFFFF;
     }
 
-    SetupVertexFormat();
-    SetupVertexBuffer();
+    const GLuint vao = SetupVertexFormat();
+    SetupVertexBuffer(vao);
+
     DrawParameters params = SetupDraw();
     SetupShaders(params.primitive_mode);
 
