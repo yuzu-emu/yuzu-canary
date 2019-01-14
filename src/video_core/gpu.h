@@ -80,6 +80,8 @@ class DebugContext;
 struct FramebufferConfig {
     enum class PixelFormat : u32 {
         ABGR8 = 1,
+        RGB565 = 4,
+        BGRA8 = 5,
     };
 
     /**
