@@ -62,31 +62,32 @@ enum class PixelFormat {
     ASTC_2D_8X5 = 44,
     ASTC_2D_5X4 = 45,
     BGRA8_SRGB = 46,
-    DXT1_SRGB = 47,
-    DXT23_SRGB = 48,
-    DXT45_SRGB = 49,
-    BC7U_SRGB = 50,
-    ASTC_2D_4X4_SRGB = 51,
-    ASTC_2D_8X8_SRGB = 52,
-    ASTC_2D_8X5_SRGB = 53,
-    ASTC_2D_5X4_SRGB = 54,
-    ASTC_2D_5X5 = 55,
-    ASTC_2D_5X5_SRGB = 56,
-    ASTC_2D_10X8 = 57,
-    ASTC_2D_10X8_SRGB = 58,
+    RGB565U = 47,
+    DXT1_SRGB = 48,
+    DXT23_SRGB = 49,
+    DXT45_SRGB = 50,
+    BC7U_SRGB = 51,
+    ASTC_2D_4X4_SRGB = 52,
+    ASTC_2D_8X8_SRGB = 53,
+    ASTC_2D_8X5_SRGB = 54,
+    ASTC_2D_5X4_SRGB = 55,
+    ASTC_2D_5X5 = 56,
+    ASTC_2D_5X5_SRGB = 57,
+    ASTC_2D_10X8 = 58,
+    ASTC_2D_10X8_SRGB = 59,
 
     MaxColorFormat,
 
     // Depth formats
-    Z32F = 59,
-    Z16 = 60,
+    Z32F = 60,
+    Z16 = 61,
 
     MaxDepthFormat,
 
     // DepthStencil formats
-    Z24S8 = 61,
-    S8Z24 = 62,
-    Z32FS8 = 63,
+    Z24S8 = 62,
+    S8Z24 = 63,
+    Z32FS8 = 64,
 
     MaxDepthStencilFormat,
 
@@ -171,6 +172,7 @@ constexpr std::array<u32, MaxPixelFormat> compression_factor_table = {{
     4, // ASTC_2D_8X5
     4, // ASTC_2D_5X4
     1, // BGRA8_SRGB
+    1, // RGB565U
     4, // DXT1_SRGB
     4, // DXT23_SRGB
     4, // DXT45_SRGB
@@ -252,6 +254,7 @@ constexpr std::array<u32, MaxPixelFormat> block_width_table = {{
     8,  // ASTC_2D_8X5
     5,  // ASTC_2D_5X4
     1,  // BGRA8_SRGB
+    1,  // RGB565U
     4,  // DXT1_SRGB
     4,  // DXT23_SRGB
     4,  // DXT45_SRGB
@@ -327,6 +330,7 @@ constexpr std::array<u32, MaxPixelFormat> block_height_table = {{
     5, // ASTC_2D_8X5
     4, // ASTC_2D_5X4
     1, // BGRA8_SRGB
+    1, // RGB565U
     4, // DXT1_SRGB
     4, // DXT23_SRGB
     4, // DXT45_SRGB
@@ -402,6 +406,7 @@ constexpr std::array<u32, MaxPixelFormat> bpp_table = {{
     128, // ASTC_2D_8X5
     128, // ASTC_2D_5X4
     32,  // BGRA8_SRGB
+    16,  // RGB565U
     64,  // DXT1_SRGB
     128, // DXT23_SRGB
     128, // DXT45_SRGB
