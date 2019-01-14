@@ -98,6 +98,23 @@ private:
         float max_anisotropic = 1.0f;
     };
 
+    struct FramebufferConfigState {
+        bool using_color_fb{};
+        bool using_depth_fb{};
+        bool preserve_contents{};
+        std::optional<std::size_t> single_color_target;
+
+        bool operator==(const FramebufferConfigState& rhs) const {
+            return std::tie(using_color_fb, using_depth_fb, preserve_contents,
+                            single_color_target) == std::tie(rhs.using_color_fb, rhs.using_depth_fb,
+                                                             rhs.preserve_contents,
+                                                             rhs.single_color_target);
+        }
+        bool operator!=(const FramebufferConfigState& rhs) const {
+            return !operator==(rhs);
+        }
+    };
+
     /**
      * Configures the color and depth framebuffer states.
      * @param use_color_fb If true, configure color framebuffers.
@@ -202,6 +219,7 @@ private:
         vertex_array_cache;
 
     std::map<FramebufferCacheKey, OGLFramebuffer> framebuffer_cache;
+    FramebufferConfigState current_framebuffer_config_state;
 
     std::array<SamplerInfo, Tegra::Engines::Maxwell3D::Regs::NumTextureSamplers> texture_samplers;
 
