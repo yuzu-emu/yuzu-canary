@@ -160,6 +160,8 @@ TelemetrySession::TelemetrySession() {
     AddField(Telemetry::FieldType::UserConfig, "Renderer_FrameLimit", Settings::values.frame_limit);
     AddField(Telemetry::FieldType::UserConfig, "Renderer_UseAccurateGpuEmulation",
              Settings::values.use_accurate_gpu_emulation);
+    AddField(Telemetry::FieldType::UserConfig, "Renderer_UseAsynchronousGpuEmulation",
+             Settings::values.use_asynchronous_gpu_emulation);
     AddField(Telemetry::FieldType::UserConfig, "System_UseDockedMode",
              Settings::values.use_docked_mode);
 }
