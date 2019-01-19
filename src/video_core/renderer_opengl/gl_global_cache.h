@@ -5,9 +5,13 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
+
 #include <glad/glad.h>
 
+#include "common/assert.h"
 #include "common/common_types.h"
+#include "video_core/engines/maxwell_3d.h"
 #include "video_core/rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 
@@ -40,6 +44,9 @@ public:
         return buffer.handle;
     }
 
+    /// Reloads the global region from guest memory
+    void Reload(u32 size_);
+
     // TODO(Rodrigo): When global memory is written (STG), implement flushing
     void Flush() override {
         UNIMPLEMENTED();
@@ -55,6 +62,17 @@ private:
 class GlobalRegionCacheOpenGL final : public RasterizerCache<GlobalRegion> {
 public:
     explicit GlobalRegionCacheOpenGL(RasterizerOpenGL& rasterizer);
+
+    /// Gets the current specified shader stage program
+    GlobalRegion GetGlobalRegion(const GLShader::GlobalMemoryEntry& descriptor,
+                                 Tegra::Engines::Maxwell3D::Regs::ShaderStage stage);
+
+private:
+    GlobalRegion TryGetReservedGlobalRegion(VAddr addr, u32 size) const;
+    GlobalRegion GetUncachedGlobalRegion(VAddr addr, u32 size);
+    void ReserveGlobalRegion(const GlobalRegion& region);
+
+    std::unordered_map<VAddr, GlobalRegion> reserve;
 };
 
 } // namespace OpenGL
