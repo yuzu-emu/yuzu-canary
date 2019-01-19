@@ -117,7 +117,7 @@ void OGLBuffer::Create() {
         return;
 
     MICROPROFILE_SCOPE(OpenGL_ResourceCreation);
-    glGenBuffers(1, &handle);
+    glCreateBuffers(1, &handle);
 }
 
 void OGLBuffer::Release() {
@@ -126,7 +126,6 @@ void OGLBuffer::Release() {
 
     MICROPROFILE_SCOPE(OpenGL_ResourceDeletion);
     glDeleteBuffers(1, &handle);
-    OpenGLState::GetCurState().ResetBuffer(handle).Apply();
     handle = 0;
 }
 
@@ -152,7 +151,7 @@ void OGLVertexArray::Create() {
         return;
 
     MICROPROFILE_SCOPE(OpenGL_ResourceCreation);
-    glGenVertexArrays(1, &handle);
+    glCreateVertexArrays(1, &handle);
 }
 
 void OGLVertexArray::Release() {
