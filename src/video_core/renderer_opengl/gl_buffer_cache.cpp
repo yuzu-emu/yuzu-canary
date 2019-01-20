@@ -14,7 +14,7 @@
 namespace OpenGL {
 
 OGLBufferCache::OGLBufferCache(RasterizerOpenGL& rasterizer, std::size_t size)
-    : RasterizerCache{rasterizer}, stream_buffer(GL_ARRAY_BUFFER, size) {}
+    : RasterizerCache{rasterizer}, stream_buffer(size, true) {}
 
 GLintptr OGLBufferCache::UploadMemory(Tegra::GPUVAddr gpu_addr, std::size_t size,
                                       std::size_t alignment, bool cache) {
