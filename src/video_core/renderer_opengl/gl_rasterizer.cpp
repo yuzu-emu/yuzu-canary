@@ -490,7 +490,19 @@ void RasterizerOpenGL::ConfigureFramebuffers(OpenGLState& current_state, bool us
                                              bool using_depth_fb, bool preserve_contents,
                                              std::optional<std::size_t> single_color_target) {
     MICROPROFILE_SCOPE(OpenGL_Framebuffer);
-    const auto& regs = Core::System::GetInstance().GPU().Maxwell3D().regs;
+    const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
+    const auto& regs = gpu.regs;
+
+    const FramebufferConfigState fb_config_state{using_color_fb, using_depth_fb, preserve_contents,
+                                                 single_color_target};
+    if (fb_config_state == current_framebuffer_config_state && gpu.dirty_flags.color_buffer == 0 &&
+        !gpu.dirty_flags.zeta_buffer) {
+        // Only skip if the previous ConfigureFramebuffers call was from the same kind (multiple or
+        // single color targets). This is done because the guest registers may not change but the
+        // host framebuffer may contain different attachments
+        return;
+    }
+    current_framebuffer_config_state = fb_config_state;
 
     Surface depth_surface;
     if (using_depth_fb) {
