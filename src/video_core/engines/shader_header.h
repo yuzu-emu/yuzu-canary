@@ -106,7 +106,7 @@ struct Header {
         } ps;
     };
 
-    u64 GetLocalMemorySize() {
+    u64 GetLocalMemorySize() const {
         return (common1.shader_local_memory_low_size |
                 (common2.shader_local_memory_high_size << 24));
     }
