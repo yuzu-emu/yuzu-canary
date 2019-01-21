@@ -109,8 +109,8 @@ ScopeAcquireGLContext::~ScopeAcquireGLContext() {
     }
 }
 
-RendererOpenGL::RendererOpenGL(Core::Frontend::EmuWindow& window)
-    : VideoCore::RendererBase{window} {}
+RendererOpenGL::RendererOpenGL(Core::Frontend::EmuWindow& window, Core::System& system)
+    : VideoCore::RendererBase{window}, system{system} {}
 
 RendererOpenGL::~RendererOpenGL() = default;
 
@@ -291,7 +291,7 @@ void RendererOpenGL::CreateRasterizer() {
     }
     // Initialize sRGB Usage
     OpenGLState::ClearsRGBUsed();
-    rasterizer = std::make_unique<RasterizerOpenGL>(render_window, screen_info);
+    rasterizer = std::make_unique<RasterizerOpenGL>(render_window, system, screen_info);
 }
 
 void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,

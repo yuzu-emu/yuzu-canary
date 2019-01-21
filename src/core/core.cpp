@@ -123,7 +123,7 @@ struct System::Impl {
         Service::Init(service_manager, *virtual_filesystem);
         GDBStub::Init();
 
-        renderer = VideoCore::CreateRenderer(emu_window);
+        renderer = VideoCore::CreateRenderer(emu_window, system);
         if (!renderer->Init()) {
             return ResultStatus::ErrorVideoCore;
         }
@@ -175,6 +175,7 @@ struct System::Impl {
             return static_cast<ResultStatus>(static_cast<u32>(ResultStatus::ErrorLoader) +
                                              static_cast<u32>(load_result));
         }
+
         status = ResultStatus::Success;
         return status;
     }

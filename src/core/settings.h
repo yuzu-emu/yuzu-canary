@@ -391,6 +391,7 @@ struct Values {
     float resolution_factor;
     bool use_frame_limit;
     u16 frame_limit;
+    bool use_disk_shader_cache;
     bool use_accurate_gpu_emulation;
 
     float bg_red;

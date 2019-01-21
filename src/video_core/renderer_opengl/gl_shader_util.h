@@ -47,7 +47,7 @@ GLuint LoadShader(const char* source, GLenum type);
  * @returns Handle of the newly created OpenGL program object
  */
 template <typename... T>
-GLuint LoadProgram(bool separable_program, T... shaders) {
+GLuint LoadProgram(bool separable_program, bool hint_retrievable, T... shaders) {
     // Link the program
     LOG_DEBUG(Render_OpenGL, "Linking program...");
 
@@ -57,6 +57,9 @@ GLuint LoadProgram(bool separable_program, T... shaders) {
 
     if (separable_program) {
         glProgramParameteri(program_id, GL_PROGRAM_SEPARABLE, GL_TRUE);
+    }
+    if (hint_retrievable) {
+        glProgramParameteri(program_id, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
     }
 
     glLinkProgram(program_id);
