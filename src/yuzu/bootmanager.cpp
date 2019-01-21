@@ -29,6 +29,15 @@ void EmuThread::run() {
 
     stop_run = false;
 
+    emit LoadProgress(VideoCore::LoadCallbackStage::Prepare, 0, 0);
+
+    Core::System::GetInstance().Renderer().Rasterizer().LoadDiskResources(
+        stop_run, [this](VideoCore::LoadCallbackStage stage, std::size_t value, std::size_t total) {
+            emit LoadProgress(stage, value, total);
+        });
+
+    emit LoadProgress(VideoCore::LoadCallbackStage::Complete, 0, 0);
+
     // holds whether the cpu was running during the last iteration,
     // so that the DebugModeLeft signal can be emitted before the
     // next execution step

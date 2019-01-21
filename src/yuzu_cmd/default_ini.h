@@ -110,6 +110,10 @@ use_frame_limit =
 # 1 - 9999: Speed limit as a percentage of target game speed. 100 (default)
 frame_limit =
 
+# Whether to use disk based shader cache
+# 0 (default): Off, 1 : On
+use_disk_shader_cache =
+
 # Whether to use accurate GPU emulation
 # 0 (default): Off (fast), 1 : On (slow)
 use_accurate_gpu_emulation =
