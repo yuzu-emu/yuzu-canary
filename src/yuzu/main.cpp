@@ -886,6 +886,9 @@ void GMainWindow::BootGame(const QString& filename) {
     connect(emu_thread.get(), &EmuThread::DebugModeLeft, waitTreeWidget,
             &WaitTreeWidget::OnDebugModeLeft, Qt::BlockingQueuedConnection);
 
+    connect(emu_thread.get(), &EmuThread::LoadProgress, loading_screen,
+            &LoadingScreen::OnLoadProgress, Qt::QueuedConnection);
+
     // Update the GUI
     if (ui.action_Single_Window_Mode->isChecked()) {
         game_list->hide();
