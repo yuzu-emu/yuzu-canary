@@ -28,6 +28,7 @@
 #include "core/loader/loader.h"
 #include "core/settings.h"
 #include "core/telemetry_session.h"
+#include "video_core/renderer_base.h"
 #include "yuzu_cmd/config.h"
 #include "yuzu_cmd/emu_window/emu_window_sdl2.h"
 
@@ -216,6 +217,8 @@ int main(int argc, char** argv) {
     }
 
     Core::Telemetry().AddField(Telemetry::FieldType::App, "Frontend", "SDL");
+
+    system.Renderer().Rasterizer().LoadDiskResources();
 
     while (emu_window->IsOpen()) {
         system.RunLoop();

@@ -12,6 +12,10 @@
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_state.h"
 
+namespace Core {
+class System;
+}
+
 namespace Core::Frontend {
 class EmuWindow;
 }
@@ -51,7 +55,7 @@ private:
 
 class RendererOpenGL : public VideoCore::RendererBase {
 public:
-    explicit RendererOpenGL(Core::Frontend::EmuWindow& window);
+    explicit RendererOpenGL(Core::Frontend::EmuWindow& window, Core::System& system);
     ~RendererOpenGL() override;
 
     /// Swap buffers (render frame)
@@ -81,6 +85,8 @@ private:
     // Fills active OpenGL texture with the given RGBA color.
     void LoadColorToActiveGLTexture(u8 color_r, u8 color_g, u8 color_b, u8 color_a,
                                     const TextureInfo& texture);
+
+    Core::System& system;
 
     OpenGLState state;
 

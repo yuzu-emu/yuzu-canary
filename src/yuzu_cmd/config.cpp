@@ -350,6 +350,8 @@ void Config::ReadValues() {
     Settings::values.use_frame_limit = sdl2_config->GetBoolean("Renderer", "use_frame_limit", true);
     Settings::values.frame_limit =
         static_cast<u16>(sdl2_config->GetInteger("Renderer", "frame_limit", 100));
+    Settings::values.use_disk_shader_cache =
+        sdl2_config->GetBoolean("Renderer", "use_disk_shader_cache", false);
     Settings::values.use_accurate_gpu_emulation =
         sdl2_config->GetBoolean("Renderer", "use_accurate_gpu_emulation", false);
 
