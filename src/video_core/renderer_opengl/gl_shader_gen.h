@@ -10,164 +10,12 @@
 
 #include "common/common_types.h"
 #include "video_core/engines/shader_bytecode.h"
+#include "video_core/renderer_opengl/gl_shader_decompiler.h"
+#include "video_core/shader/shader_ir.h"
 
 namespace OpenGL::GLShader {
 
-constexpr std::size_t MAX_PROGRAM_CODE_LENGTH{0x1000};
-using ProgramCode = std::vector<u64>;
-
-enum : u32 { POSITION_VARYING_LOCATION = 0, GENERIC_VARYING_START_LOCATION = 1 };
-
-class ConstBufferEntry {
-    using Maxwell = Tegra::Engines::Maxwell3D::Regs;
-
-public:
-    void MarkAsUsed(u64 index, u64 offset, Maxwell::ShaderStage stage) {
-        is_used = true;
-        this->index = static_cast<unsigned>(index);
-        this->stage = stage;
-        max_offset = std::max(max_offset, static_cast<unsigned>(offset));
-    }
-
-    void MarkAsUsedIndirect(u64 index, Maxwell::ShaderStage stage) {
-        is_used = true;
-        is_indirect = true;
-        this->index = static_cast<unsigned>(index);
-        this->stage = stage;
-    }
-
-    bool IsUsed() const {
-        return is_used;
-    }
-
-    bool IsIndirect() const {
-        return is_indirect;
-    }
-
-    unsigned GetIndex() const {
-        return index;
-    }
-
-    unsigned GetSize() const {
-        return max_offset + 1;
-    }
-
-    std::string GetName() const {
-        return BufferBaseNames[static_cast<std::size_t>(stage)] + std::to_string(index);
-    }
-
-    u32 GetHash() const {
-        return (static_cast<u32>(stage) << 16) | index;
-    }
-
-private:
-    static constexpr std::array<const char*, Maxwell::MaxShaderStage> BufferBaseNames = {
-        "buffer_vs_c", "buffer_tessc_c", "buffer_tesse_c", "buffer_gs_c", "buffer_fs_c",
-    };
-
-    bool is_used{};
-    bool is_indirect{};
-    unsigned index{};
-    unsigned max_offset{};
-    Maxwell::ShaderStage stage;
-};
-
-class SamplerEntry {
-    using Maxwell = Tegra::Engines::Maxwell3D::Regs;
-
-public:
-    SamplerEntry(Maxwell::ShaderStage stage, std::size_t offset, std::size_t index,
-                 Tegra::Shader::TextureType type, bool is_array, bool is_shadow)
-        : offset(offset), stage(stage), sampler_index(index), type(type), is_array(is_array),
-          is_shadow(is_shadow) {}
-
-    std::size_t GetOffset() const {
-        return offset;
-    }
-
-    std::size_t GetIndex() const {
-        return sampler_index;
-    }
-
-    Maxwell::ShaderStage GetStage() const {
-        return stage;
-    }
-
-    std::string GetName() const {
-        return std::string(TextureSamplerNames[static_cast<std::size_t>(stage)]) + '_' +
-               std::to_string(sampler_index);
-    }
-
-    std::string GetTypeString() const {
-        using Tegra::Shader::TextureType;
-        std::string glsl_type;
-
-        switch (type) {
-        case TextureType::Texture1D:
-            glsl_type = "sampler1D";
-            break;
-        case TextureType::Texture2D:
-            glsl_type = "sampler2D";
-            break;
-        case TextureType::Texture3D:
-            glsl_type = "sampler3D";
-            break;
-        case TextureType::TextureCube:
-            glsl_type = "samplerCube";
-            break;
-        default:
-            UNIMPLEMENTED();
-        }
-        if (is_array)
-            glsl_type += "Array";
-        if (is_shadow)
-            glsl_type += "Shadow";
-        return glsl_type;
-    }
-
-    Tegra::Shader::TextureType GetType() const {
-        return type;
-    }
-
-    bool IsArray() const {
-        return is_array;
-    }
-
-    bool IsShadow() const {
-        return is_shadow;
-    }
-
-    u32 GetHash() const {
-        return (static_cast<u32>(stage) << 16) | static_cast<u32>(sampler_index);
-    }
-
-    static std::string GetArrayName(Maxwell::ShaderStage stage) {
-        return TextureSamplerNames[static_cast<std::size_t>(stage)];
-    }
-
-private:
-    static constexpr std::array<const char*, Maxwell::MaxShaderStage> TextureSamplerNames = {
-        "tex_vs", "tex_tessc", "tex_tesse", "tex_gs", "tex_fs",
-    };
-
-    /// Offset in TSC memory from which to read the sampler object, as specified by the sampling
-    /// instruction.
-    std::size_t offset;
-    Maxwell::ShaderStage stage;      ///< Shader stage where this sampler was used.
-    std::size_t sampler_index;       ///< Value used to index into the generated GLSL sampler array.
-    Tegra::Shader::TextureType type; ///< The type used to sample this texture (Texture2D, etc)
-    bool is_array;  ///< Whether the texture is being sampled as an array texture or not.
-    bool is_shadow; ///< Whether the texture is being sampled as a depth texture or not.
-};
-
-struct ShaderEntries {
-    std::vector<ConstBufferEntry> const_buffer_entries;
-    std::vector<SamplerEntry> texture_samplers;
-    std::array<bool, Tegra::Engines::Maxwell3D::Regs::NumClipDistances> clip_distances;
-    std::size_t shader_length;
-};
-
-using ProgramResult = std::pair<std::string, ShaderEntries>;
+using VideoCommon::Shader::ProgramCode;
 
 struct ShaderSetup {
     explicit ShaderSetup(ProgramCode program_code) {
@@ -178,8 +26,6 @@ struct ShaderSetup {
         ProgramCode code;
         ProgramCode code_b; // Used for dual vertex shaders
         u64 unique_identifier;
-        std::size_t real_size;
-        std::size_t real_size_b;
     } program;
 
     /// Used in scenarios where we have a dual vertex shaders

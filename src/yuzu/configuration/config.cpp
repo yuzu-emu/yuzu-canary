@@ -370,6 +370,8 @@ void Config::ReadValues() {
     Settings::values.resolution_factor = qt_config->value("resolution_factor", 1.0).toFloat();
     Settings::values.use_frame_limit = qt_config->value("use_frame_limit", true).toBool();
     Settings::values.frame_limit = qt_config->value("frame_limit", 100).toInt();
+    Settings::values.use_disk_shader_cache =
+        qt_config->value("use_disk_shader_cache", false).toBool();
     Settings::values.use_accurate_gpu_emulation =
         qt_config->value("use_accurate_gpu_emulation", false).toBool();
 
@@ -629,6 +631,7 @@ void Config::SaveValues() {
     qt_config->setValue("resolution_factor", (double)Settings::values.resolution_factor);
     qt_config->setValue("use_frame_limit", Settings::values.use_frame_limit);
     qt_config->setValue("frame_limit", Settings::values.frame_limit);
+    qt_config->setValue("use_disk_shader_cache", Settings::values.use_disk_shader_cache);
     qt_config->setValue("use_accurate_gpu_emulation", Settings::values.use_accurate_gpu_emulation);
 
     // Cast to double because Qt's written float values are not human-readable
