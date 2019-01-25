@@ -123,15 +123,17 @@ struct System::Impl {
         Service::Init(service_manager, *virtual_filesystem);
         GDBStub::Init();
 
-        renderer = VideoCore::CreateRenderer(emu_window);
+        renderer = VideoCore::CreateRenderer(emu_window, system);
         if (!renderer->Init()) {
             return ResultStatus::ErrorVideoCore;
         }
 
-        gpu_core = std::make_unique<Tegra::GPU>(renderer->Rasterizer());
+        is_powered_on = true;
+
+        gpu_core = std::make_unique<Tegra::GPU>(*renderer);
 
         cpu_core_manager.Initialize(system);
-        is_powered_on = true;
+
         LOG_DEBUG(Core, "Initialized OK");
 
         // Reset counters and set time origin to current frame
@@ -175,6 +177,7 @@ struct System::Impl {
             return static_cast<ResultStatus>(static_cast<u32>(ResultStatus::ErrorLoader) +
                                              static_cast<u32>(load_result));
         }
+
         status = ResultStatus::Success;
         return status;
     }

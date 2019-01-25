@@ -419,19 +419,6 @@ function(create_target_directory_groups target_name)
     endforeach()
 endfunction()
 
-# Gets a UTC timstamp and sets the provided variable to it
-function(get_timestamp _var)
-    string(TIMESTAMP timestamp UTC)
-    set(${_var} "${timestamp}" PARENT_SCOPE)
-endfunction()
-
-# generate git/build information
-include(GetGitRevisionDescription)
-get_git_head_revision(GIT_REF_SPEC GIT_REV)
-git_describe(GIT_DESC --always --long --dirty)
-git_branch_name(GIT_BRANCH)
-get_timestamp(BUILD_DATE)
-
 enable_testing()
 add_subdirectory(externals)
 add_subdirectory(src)
