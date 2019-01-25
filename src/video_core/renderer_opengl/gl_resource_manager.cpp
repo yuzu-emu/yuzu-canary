@@ -71,7 +71,8 @@ void OGLShader::Release() {
 }
 
 void OGLProgram::CreateFromSource(const char* vert_shader, const char* geo_shader,
-                                  const char* frag_shader, bool separable_program) {
+                                  const char* frag_shader, bool separable_program,
+                                  bool hint_retrievable) {
     OGLShader vert, geo, frag;
     if (vert_shader)
         vert.Create(vert_shader, GL_VERTEX_SHADER);
@@ -81,7 +82,7 @@ void OGLProgram::CreateFromSource(const char* vert_shader, const char* geo_shade
         frag.Create(frag_shader, GL_FRAGMENT_SHADER);
 
     MICROPROFILE_SCOPE(OpenGL_ResourceCreation);
-    Create(separable_program, vert.handle, geo.handle, frag.handle);
+    Create(separable_program, hint_retrievable, vert.handle, geo.handle, frag.handle);
 }
 
 void OGLProgram::Release() {
