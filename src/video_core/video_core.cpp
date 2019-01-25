@@ -11,8 +11,9 @@
 
 namespace VideoCore {
 
-std::unique_ptr<RendererBase> CreateRenderer(Core::Frontend::EmuWindow& emu_window) {
-    return std::make_unique<OpenGL::RendererOpenGL>(emu_window);
+std::unique_ptr<RendererBase> CreateRenderer(Core::Frontend::EmuWindow& emu_window,
+                                             Core::System& system) {
+    return std::make_unique<OpenGL::RendererOpenGL>(emu_window, system);
 }
 
 u16 GetResolutionScaleFactor(const RendererBase& renderer) {
