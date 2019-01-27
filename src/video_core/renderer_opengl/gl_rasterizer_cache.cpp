@@ -128,6 +128,7 @@ std::size_t SurfaceParams::InnerMemorySize(bool force_gl, bool layer_only,
     params.height = Common::AlignUp(config.tic.Height(), GetCompressionFactor(params.pixel_format));
     params.unaligned_height = config.tic.Height();
     params.target = SurfaceTargetFromTextureType(config.tic.texture_type);
+    params.identity = SurfaceClass::Uploaded;
 
     switch (params.target) {
     case SurfaceTarget::Texture1D:
@@ -194,6 +195,7 @@ std::size_t SurfaceParams::InnerMemorySize(bool force_gl, bool layer_only,
     params.height = config.height;
     params.unaligned_height = config.height;
     params.target = SurfaceTarget::Texture2D;
+    params.identity = SurfaceClass::RenderTarget;
     params.depth = 1;
     params.max_mip_level = 1;
     params.is_layered = false;
@@ -229,6 +231,7 @@ std::size_t SurfaceParams::InnerMemorySize(bool force_gl, bool layer_only,
     params.height = zeta_height;
     params.unaligned_height = zeta_height;
     params.target = SurfaceTarget::Texture2D;
+    params.identity = SurfaceClass::DepthBuffer;
     params.depth = 1;
     params.max_mip_level = 1;
     params.is_layered = false;
@@ -257,6 +260,7 @@ std::size_t SurfaceParams::InnerMemorySize(bool force_gl, bool layer_only,
     params.height = config.height;
     params.unaligned_height = config.height;
     params.target = SurfaceTarget::Texture2D;
+    params.identity = SurfaceClass::Copy;
     params.depth = 1;
     params.max_mip_level = 1;
     params.rt = {};
@@ -574,8 +578,7 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
 
     ApplyTextureDefaults(SurfaceTargetToGL(params.target), params.max_mip_level);
 
-    LabelGLObject(GL_TEXTURE, texture.handle, params.addr,
-                  SurfaceParams::SurfaceTargetName(params.target));
+    OpenGL::LabelGLObject(GL_TEXTURE, texture.handle, params.addr, params.IdentityString());
 
     // Clamp size to mapped GPU memory region
     // TODO(bunnei): Super Mario Odyssey maps a 0x40000 byte region and then uses it for a 0x80000
