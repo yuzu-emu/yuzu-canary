@@ -236,6 +236,11 @@ private:
 
 class ConstBuffer {
 public:
+    explicit ConstBuffer(u32 max_offset, bool is_indirect)
+        : max_offset{max_offset}, is_indirect{is_indirect} {}
+
+    ConstBuffer() = default;
+
     void MarkAsUsed(u64 offset) {
         max_offset = std::max(max_offset, static_cast<u32>(offset));
     }
@@ -252,9 +257,22 @@ public:
         return max_offset + 1;
     }
 
+    u32 GetMaxOffset() const {
+        return max_offset;
+    }
+
 private:
     u32 max_offset{};
     bool is_indirect{};
+};
+
+struct GlobalMemoryBase {
+    u32 cbuf_index{};
+    u32 cbuf_offset{};
+
+    bool operator<(const GlobalMemoryBase& rhs) const {
+        return std::tie(cbuf_index, cbuf_offset) < std::tie(rhs.cbuf_index, rhs.cbuf_offset);
+    }
 };
 
 struct MetaArithmetic {
@@ -478,14 +496,26 @@ private:
 /// Global memory node
 class GmemNode final {
 public:
-    explicit constexpr GmemNode(Node address) : address{address} {}
+    explicit constexpr GmemNode(Node real_address, Node base_address,
+                                const GlobalMemoryBase& descriptor)
+        : real_address{real_address}, base_address{base_address}, descriptor{descriptor} {}
 
-    Node GetAddress() const {
-        return address;
+    Node GetRealAddress() const {
+        return real_address;
+    }
+
+    Node GetBaseAddress() const {
+        return base_address;
+    }
+
+    const GlobalMemoryBase& GetDescriptor() const {
+        return descriptor;
     }
 
 private:
-    const Node address;
+    const Node real_address;
+    const Node base_address;
+    const GlobalMemoryBase descriptor;
 };
 
 /// Commentary, can be dropped
@@ -541,6 +571,10 @@ public:
     const std::array<bool, Tegra::Engines::Maxwell3D::Regs::NumClipDistances>& GetClipDistances()
         const {
         return used_clip_distances;
+    }
+
+    const std::set<GlobalMemoryBase>& GetGlobalMemoryBases() const {
+        return used_global_memory_bases;
     }
 
     std::size_t GetLength() const {
@@ -734,6 +768,10 @@ private:
     void WriteLop3Instruction(BasicBlock& bb, Tegra::Shader::Register dest, Node op_a, Node op_b,
                               Node op_c, Node imm_lut, bool sets_cc);
 
+    Node TrackCbuf(Node tracked, const BasicBlock& code, s64 cursor);
+
+    std::pair<Node, s64> TrackRegister(const GprNode* tracked, const BasicBlock& code, s64 cursor);
+
     template <typename... T>
     Node Operation(OperationCode code, const T*... operands) {
         return StoreNode(OperationNode(code, operands...));
@@ -786,6 +824,7 @@ private:
     std::map<u32, ConstBuffer> used_cbufs;
     std::set<Sampler> used_samplers;
     std::array<bool, Tegra::Engines::Maxwell3D::Regs::NumClipDistances> used_clip_distances{};
+    std::set<GlobalMemoryBase> used_global_memory_bases;
 
     Tegra::Shader::Header header;
 };
