@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <vector>
+#include <fmt/format.h>
 
 #include "common/assert.h"
 #include "common/common_types.h"
@@ -116,6 +117,54 @@ u32 ShaderIR::DecodeMemory(BasicBlock& bb, const BasicBlock& code, u32 pc) {
         default:
             UNIMPLEMENTED_MSG("LD_L Unhandled type: {}",
                               static_cast<unsigned>(instr.ldst_sl.type.Value()));
+        }
+        break;
+    }
+    case OpCode::Id::LDG: {
+        const u32 count = [&]() {
+            switch (instr.ldg.type) {
+            case Tegra::Shader::UniformType::Single:
+                return 1;
+            case Tegra::Shader::UniformType::Double:
+                return 2;
+            case Tegra::Shader::UniformType::Quad:
+            case Tegra::Shader::UniformType::UnsignedQuad:
+                return 4;
+            default:
+                UNIMPLEMENTED_MSG("Unimplemented LDG size!");
+                return 1;
+            }
+        }();
+
+        const Node addr_register = GetRegister(instr.gpr8);
+        const Node base_address = TrackCbuf(addr_register, code, static_cast<s64>(code.size()));
+        const auto cbuf = std::get_if<CbufNode>(base_address);
+        ASSERT(cbuf != nullptr);
+        const auto cbuf_offset_imm = std::get_if<ImmediateNode>(cbuf->GetOffset());
+        ASSERT(cbuf_offset_imm != nullptr);
+        const auto cbuf_offset = cbuf_offset_imm->GetValue() * 4;
+
+        bb.push_back(Comment(
+            fmt::format("Base address is c[0x{:x}][0x{:x}]", cbuf->GetIndex(), cbuf_offset)));
+
+        const GlobalMemoryBase descriptor{cbuf->GetIndex(), cbuf_offset};
+        used_global_memory_bases.insert(descriptor);
+
+        const Node immediate_offset =
+            Immediate(static_cast<u32>(instr.ldg.immediate_offset.Value()));
+        const Node base_real_address =
+            Operation(OperationCode::UAdd, NO_PRECISE, immediate_offset, addr_register);
+
+        for (u32 i = 0; i < count; ++i) {
+            const Node it_offset = Immediate(i * 4);
+            const Node real_address =
+                Operation(OperationCode::UAdd, NO_PRECISE, base_real_address, it_offset);
+            const Node gmem = StoreNode(GmemNode(real_address, base_address, descriptor));
+
+            SetTemporal(bb, i, gmem);
+        }
+        for (u32 i = 0; i < count; ++i) {
+            SetRegister(bb, instr.gpr0.Value() + i, GetTemporal(i));
         }
         break;
     }
