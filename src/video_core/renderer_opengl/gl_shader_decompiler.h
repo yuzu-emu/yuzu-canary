@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -18,67 +19,50 @@ class ShaderIR;
 
 namespace OpenGL::GLShader {
 
+struct ShaderEntries;
+
 using Maxwell = Tegra::Engines::Maxwell3D::Regs;
+using ProgramResult = std::pair<std::string, ShaderEntries>;
+using SamplerEntry = VideoCommon::Shader::Sampler;
 
 class ConstBufferEntry : public VideoCommon::Shader::ConstBuffer {
 public:
-    explicit ConstBufferEntry(const VideoCommon::Shader::ConstBuffer& entry,
-                              Maxwell::ShaderStage stage, const std::string& name, u32 index)
-        : VideoCommon::Shader::ConstBuffer{entry}, stage{stage}, name{name}, index{index} {}
-
-    const std::string& GetName() const {
-        return name;
-    }
-
-    Maxwell::ShaderStage GetStage() const {
-        return stage;
-    }
+    explicit ConstBufferEntry(u32 max_offset, bool is_indirect, u32 index)
+        : VideoCommon::Shader::ConstBuffer{max_offset, is_indirect}, index{index} {}
 
     u32 GetIndex() const {
         return index;
     }
 
-    u32 GetHash() const {
-        return (static_cast<u32>(stage) << 16) | index;
-    }
-
 private:
-    std::string name;
-    Maxwell::ShaderStage stage{};
     u32 index{};
 };
 
-class SamplerEntry : public VideoCommon::Shader::Sampler {
+class GlobalMemoryEntry {
 public:
-    explicit SamplerEntry(const VideoCommon::Shader::Sampler& entry, Maxwell::ShaderStage stage,
-                          const std::string& name)
-        : VideoCommon::Shader::Sampler{entry}, stage{stage}, name{name} {}
+    explicit GlobalMemoryEntry(u32 cbuf_index, u32 cbuf_offset)
+        : cbuf_index{cbuf_index}, cbuf_offset{cbuf_offset} {}
 
-    const std::string& GetName() const {
-        return name;
+    u32 GetCbufIndex() const {
+        return cbuf_index;
     }
 
-    Maxwell::ShaderStage GetStage() const {
-        return stage;
-    }
-
-    u32 GetHash() const {
-        return (static_cast<u32>(stage) << 16) | static_cast<u32>(GetIndex());
+    u32 GetCbufOffset() const {
+        return cbuf_offset;
     }
 
 private:
-    std::string name;
-    Maxwell::ShaderStage stage{};
+    u32 cbuf_index{};
+    u32 cbuf_offset{};
 };
 
 struct ShaderEntries {
     std::vector<ConstBufferEntry> const_buffers;
     std::vector<SamplerEntry> samplers;
+    std::vector<GlobalMemoryEntry> global_memory_entries;
     std::array<bool, Maxwell::NumClipDistances> clip_distances{};
     std::size_t shader_length{};
 };
-
-using ProgramResult = std::pair<std::string, ShaderEntries>;
 
 std::string GetCommonDeclarations();
 
