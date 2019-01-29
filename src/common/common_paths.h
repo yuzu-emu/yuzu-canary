@@ -35,6 +35,7 @@
 #define KEYS_DIR "keys"
 #define LOAD_DIR "load"
 #define DUMP_DIR "dump"
+#define SHADER_DIR "shader"
 #define LOG_DIR "log"
 
 // Filenames
