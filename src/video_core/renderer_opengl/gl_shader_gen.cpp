@@ -20,15 +20,14 @@ static constexpr u32 PROGRAM_OFFSET{10};
 ProgramResult GenerateVertexShader(const ShaderSetup& setup) {
     const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
 
-    std::string out = "#version 430 core\n";
-    out += "#extension GL_ARB_separate_shader_objects : enable\n\n";
+    std::string out = "#extension GL_ARB_separate_shader_objects : enable\n\n";
     out += "// Shader Unique Id: VS" + id + "\n\n";
     out += GetCommonDeclarations();
 
     out += R"(
 layout (location = 0) out vec4 position;
 
-layout(std140) uniform vs_config {
+layout (std140, binding = EMULATION_UBO_BINDING) uniform vs_config {
     vec4 viewport_flip;
     uvec4 config_pack; // instance_id, flip_stage, y_direction, padding
     uvec4 alpha_test;
@@ -78,7 +77,6 @@ void main() {
 }
 
 ProgramResult GenerateGeometryShader(const ShaderSetup& setup) {
-    // Version is intentionally skipped in shader generation, it's added by the lazy compilation.
     const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
 
     std::string out = "#extension GL_ARB_separate_shader_objects : enable\n\n";
@@ -89,7 +87,7 @@ ProgramResult GenerateGeometryShader(const ShaderSetup& setup) {
 layout (location = 0) in vec4 gs_position[];
 layout (location = 0) out vec4 position;
 
-layout (std140) uniform gs_config {
+layout (std140, binding = EMULATION_UBO_BINDING) uniform gs_config {
     vec4 viewport_flip;
     uvec4 config_pack; // instance_id, flip_stage, y_direction, padding
     uvec4 alpha_test;
@@ -112,8 +110,7 @@ void main() {
 ProgramResult GenerateFragmentShader(const ShaderSetup& setup) {
     const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
 
-    std::string out = "#version 430 core\n";
-    out += "#extension GL_ARB_separate_shader_objects : enable\n\n";
+    std::string out = "#extension GL_ARB_separate_shader_objects : enable\n\n";
     out += "// Shader Unique Id: FS" + id + "\n\n";
     out += GetCommonDeclarations();
 
@@ -129,7 +126,7 @@ layout (location = 7) out vec4 FragColor7;
 
 layout (location = 0) in vec4 position;
 
-layout (std140) uniform fs_config {
+layout (std140, binding = EMULATION_UBO_BINDING) uniform fs_config {
     vec4 viewport_flip;
     uvec4 config_pack; // instance_id, flip_stage, y_direction, padding
     uvec4 alpha_test;
