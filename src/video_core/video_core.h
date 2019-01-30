@@ -6,6 +6,10 @@
 
 #include <memory>
 
+namespace Core {
+class System;
+}
+
 namespace Core::Frontend {
 class EmuWindow;
 }
@@ -20,7 +24,8 @@ class RendererBase;
  * @note The returned renderer instance is simply allocated. Its Init()
  *       function still needs to be called to fully complete its setup.
  */
-std::unique_ptr<RendererBase> CreateRenderer(Core::Frontend::EmuWindow& emu_window);
+std::unique_ptr<RendererBase> CreateRenderer(Core::Frontend::EmuWindow& emu_window,
+                                             Core::System& system);
 
 u16 GetResolutionScaleFactor(const RendererBase& renderer);
 

@@ -22,6 +22,10 @@ class GGLWidgetInternal;
 class GMainWindow;
 class GRenderWindow;
 
+namespace VideoCore {
+enum class LoadCallbackStage;
+}
+
 class EmuThread : public QThread {
     Q_OBJECT
 
@@ -75,7 +79,7 @@ public:
 private:
     bool exec_step = false;
     bool running = false;
-    std::atomic<bool> stop_run{false};
+    std::atomic_bool stop_run{false};
     std::mutex running_mutex;
     std::condition_variable running_cv;
 
@@ -101,6 +105,8 @@ signals:
     void DebugModeLeft();
 
     void ErrorThrown(Core::System::ResultStatus, std::string);
+
+    void LoadProgress(VideoCore::LoadCallbackStage stage, std::size_t value, std::size_t total);
 };
 
 class GRenderWindow : public QWidget, public Core::Frontend::EmuWindow {

@@ -236,6 +236,11 @@ private:
 
 class ConstBuffer {
 public:
+    explicit ConstBuffer(u32 max_offset, bool is_indirect)
+        : max_offset{max_offset}, is_indirect{is_indirect} {}
+
+    ConstBuffer() = default;
+
     void MarkAsUsed(u64 offset) {
         max_offset = std::max(max_offset, static_cast<u32>(offset));
     }
@@ -250,6 +255,10 @@ public:
 
     u32 GetSize() const {
         return max_offset + 1;
+    }
+
+    u32 GetMaxOffset() const {
+        return max_offset;
     }
 
 private:

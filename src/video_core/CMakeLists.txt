@@ -17,6 +17,8 @@ add_library(video_core STATIC
     engines/shader_header.h
     gpu.cpp
     gpu.h
+    gpu_thread.cpp
+    gpu_thread.h
     macro_interpreter.cpp
     macro_interpreter.h
     memory_manager.cpp
@@ -44,6 +46,8 @@ add_library(video_core STATIC
     renderer_opengl/gl_shader_cache.h
     renderer_opengl/gl_shader_decompiler.cpp
     renderer_opengl/gl_shader_decompiler.h
+    renderer_opengl/gl_shader_disk_cache.cpp
+    renderer_opengl/gl_shader_disk_cache.h
     renderer_opengl/gl_shader_gen.cpp
     renderer_opengl/gl_shader_gen.h
     renderer_opengl/gl_shader_manager.cpp
@@ -102,4 +106,4 @@ add_library(video_core STATIC
 create_target_directory_groups(video_core)
 
 target_link_libraries(video_core PUBLIC common core)
-target_link_libraries(video_core PRIVATE glad)
+target_link_libraries(video_core PRIVATE glad lz4_static)
