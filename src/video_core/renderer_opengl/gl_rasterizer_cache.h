@@ -35,6 +35,14 @@ using PixelFormat = VideoCore::Surface::PixelFormat;
 using ComponentType = VideoCore::Surface::ComponentType;
 
 struct SurfaceParams {
+
+    enum class SurfaceClass {
+        Uploaded,
+        RenderTarget,
+        DepthBuffer,
+        Copy,
+    };
+
     static std::string SurfaceTargetName(SurfaceTarget target) {
         switch (target) {
         case SurfaceTarget::Texture1D:
@@ -210,6 +218,48 @@ struct SurfaceParams {
     /// Initializes parameters for caching, should be called after everything has been initialized
     void InitCacheParameters(Tegra::GPUVAddr gpu_addr);
 
+    std::string TargetName() const {
+        switch (target) {
+        case SurfaceTarget::Texture1D:
+            return "1D";
+        case SurfaceTarget::Texture2D:
+            return "2D";
+        case SurfaceTarget::Texture3D:
+            return "3D";
+        case SurfaceTarget::Texture1DArray:
+            return "1DArray";
+        case SurfaceTarget::Texture2DArray:
+            return "2DArray";
+        case SurfaceTarget::TextureCubemap:
+            return "Cube";
+        default:
+            LOG_CRITICAL(HW_GPU, "Unimplemented surface_target={}", static_cast<u32>(target));
+            UNREACHABLE();
+            return fmt::format("TUK({})", static_cast<u32>(target));
+        }
+    }
+
+    std::string ClassName() const {
+        switch (identity) {
+        case SurfaceClass::Uploaded:
+            return "UP";
+        case SurfaceClass::RenderTarget:
+            return "RT";
+        case SurfaceClass::DepthBuffer:
+            return "DB";
+        case SurfaceClass::Copy:
+            return "CP";
+        default:
+            LOG_CRITICAL(HW_GPU, "Unimplemented surface_class={}", static_cast<u32>(identity));
+            UNREACHABLE();
+            return fmt::format("CUK({})", static_cast<u32>(identity));
+        }
+    }
+
+    std::string IdentityString() const {
+        return ClassName() + '_' + TargetName() + '_' + (is_tiled ? 'T' : 'L');
+    }
+
     bool is_tiled;
     u32 block_width;
     u32 block_height;
@@ -223,6 +273,7 @@ struct SurfaceParams {
     u32 depth;
     u32 unaligned_height;
     SurfaceTarget target;
+    SurfaceClass identity;
     u32 max_mip_level;
     bool is_layered;
     bool srgb_conversion;
@@ -255,6 +306,7 @@ struct SurfaceReserveKey : Common::HashableStruct<OpenGL::SurfaceParams> {
     static SurfaceReserveKey Create(const OpenGL::SurfaceParams& params) {
         SurfaceReserveKey res;
         res.state = params;
+        res.state.identity = {}; // Ignore the origin of the texture
         res.state.gpu_addr = {}; // Ignore GPU vaddr in caching
         res.state.rt = {};       // Ignore rt config in caching
         return res;
