@@ -28,7 +28,7 @@ public:
     }
 
     /// Creates a new internal OpenGL resource and stores the handle
-    void Create();
+    void Create(GLenum target);
 
     /// Deletes the internal OpenGL resource
     void Release();
