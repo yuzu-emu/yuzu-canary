@@ -7,6 +7,7 @@
 #include <array>
 #include <map>
 #include <memory>
+#include <set>
 #include <tuple>
 
 #include <glad/glad.h>
@@ -14,31 +15,39 @@
 #include "common/assert.h"
 #include "common/common_types.h"
 #include "video_core/rasterizer_cache.h"
+#include "video_core/renderer_base.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_shader_decompiler.h"
+#include "video_core/renderer_opengl/gl_shader_disk_cache.h"
 #include "video_core/renderer_opengl/gl_shader_gen.h"
+
+namespace Core {
+class System;
+} // namespace Core
 
 namespace OpenGL {
 
 class CachedShader;
 class RasterizerOpenGL;
+struct UnspecializedShader;
 
 using Shader = std::shared_ptr<CachedShader>;
+using CachedProgram = std::shared_ptr<OGLProgram>;
 using Maxwell = Tegra::Engines::Maxwell3D::Regs;
-
-struct BaseBindings {
-    u32 cbuf{};
-    u32 gmem{};
-    u32 sampler{};
-
-    bool operator<(const BaseBindings& rhs) const {
-        return std::tie(cbuf, gmem, sampler) < std::tie(rhs.cbuf, rhs.gmem, rhs.sampler);
-    }
-};
+using PrecompiledPrograms = std::map<ShaderDiskCacheUsage, CachedProgram>;
+using PrecompiledShaders = std::map<u64, GLShader::ProgramResult>;
 
 class CachedShader final : public RasterizerCacheObject {
 public:
-    CachedShader(VAddr addr, Maxwell::ShaderProgram program_type);
+    explicit CachedShader(VAddr addr, u64 unique_identifier, Maxwell::ShaderProgram program_type,
+                          ShaderDiskCacheOpenGL& disk_cache,
+                          const PrecompiledPrograms& precompiled_programs,
+                          ProgramCode&& program_code, ProgramCode&& program_code_b);
+
+    explicit CachedShader(VAddr addr, u64 unique_identifier, Maxwell::ShaderProgram program_type,
+                          ShaderDiskCacheOpenGL& disk_cache,
+                          const PrecompiledPrograms& precompiled_programs,
+                          GLShader::ProgramResult result);
 
     VAddr GetAddr() const override {
         return addr;
@@ -65,33 +74,35 @@ private:
     // declared by the hardware. Workaround this issue by generating a different shader per input
     // topology class.
     struct GeometryPrograms {
-        OGLProgram points;
-        OGLProgram lines;
-        OGLProgram lines_adjacency;
-        OGLProgram triangles;
-        OGLProgram triangles_adjacency;
+        CachedProgram points;
+        CachedProgram lines;
+        CachedProgram lines_adjacency;
+        CachedProgram triangles;
+        CachedProgram triangles_adjacency;
     };
-
-    std::string AllocateBindings(BaseBindings base_bindings);
 
     GLuint GetGeometryShader(GLenum primitive_mode, BaseBindings base_bindings);
 
     /// Generates a geometry shader or returns one that already exists.
-    GLuint LazyGeometryProgram(OGLProgram& target_program, BaseBindings base_bindings,
-                               const std::string& glsl_topology, u32 max_vertices,
-                               const std::string& debug_name);
+    GLuint LazyGeometryProgram(CachedProgram& target_program, BaseBindings base_bindings,
+                               GLenum primitive_mode);
 
-    void CalculateProperties();
+    CachedProgram TryLoadProgram(GLenum primitive_mode, BaseBindings base_bindings) const;
+
+    ShaderDiskCacheUsage GetUsage(GLenum primitive_mode, BaseBindings base_bindings) const;
 
     VAddr addr{};
-    std::size_t shader_length{};
+    u64 unique_identifier{};
     Maxwell::ShaderProgram program_type{};
-    GLShader::ShaderSetup setup;
+    ShaderDiskCacheOpenGL& disk_cache;
+    const PrecompiledPrograms& precompiled_programs;
+
+    std::size_t shader_length{};
     GLShader::ShaderEntries entries;
 
     std::string code;
 
-    std::map<BaseBindings, OGLProgram> programs;
+    std::map<BaseBindings, CachedProgram> programs;
     std::map<BaseBindings, GeometryPrograms> geometry_programs;
 
     std::map<u32, GLuint> cbuf_resource_cache;
@@ -101,13 +112,29 @@ private:
 
 class ShaderCacheOpenGL final : public RasterizerCache<Shader> {
 public:
-    explicit ShaderCacheOpenGL(RasterizerOpenGL& rasterizer);
+    explicit ShaderCacheOpenGL(RasterizerOpenGL& rasterizer, Core::System& system);
+
+    /// Loads disk cache for the current game
+    void LoadDiskCache(const std::atomic_bool& stop_loading,
+                       const VideoCore::DiskResourceLoadCallback& callback);
 
     /// Gets the current specified shader stage program
     Shader GetStageProgram(Maxwell::ShaderProgram program);
 
 private:
+    std::map<u64, UnspecializedShader> GenerateUnspecializedShaders(
+        const std::atomic_bool& stop_loading, const VideoCore::DiskResourceLoadCallback& callback,
+        const std::vector<ShaderDiskCacheRaw>& raws,
+        const std::map<u64, ShaderDiskCacheDecompiled>& decompiled);
+
+    CachedProgram GeneratePrecompiledProgram(const ShaderDiskCacheDump& dump,
+                                             const std::set<GLenum>& supported_formats);
+
     std::array<Shader, Maxwell::MaxShaderProgram> last_shaders;
+
+    ShaderDiskCacheOpenGL disk_cache;
+    PrecompiledShaders precompiled_shaders;
+    PrecompiledPrograms precompiled_programs;
 };
 
 } // namespace OpenGL
