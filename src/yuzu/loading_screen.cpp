@@ -43,6 +43,7 @@ QProgressBar {
 }
 QProgressBar::chunk {
   background-color: #0ab9e6;
+  width: 1px;
 })";
 
 constexpr const char PROGRESSBAR_STYLE_BUILD[] = R"(
@@ -53,7 +54,8 @@ QProgressBar {
   padding: 2px;
 }
 QProgressBar::chunk {
- background-color: #ff3c28;
+  background-color: #ff3c28;
+  width: 1px;
 })";
 
 constexpr const char PROGRESSBAR_STYLE_COMPLETE[] = R"(
