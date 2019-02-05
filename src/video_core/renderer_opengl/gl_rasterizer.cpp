@@ -1019,11 +1019,8 @@ void RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, const Shader& s
         if (surface != nullptr) {
             unit.texture =
                 entry.IsArray() ? surface->TextureLayer().handle : surface->Texture().handle;
-            unit.target = entry.IsArray() ? surface->TargetLayer() : surface->Target();
-            unit.swizzle.r = MaxwellToGL::SwizzleSource(texture.tic.x_source);
-            unit.swizzle.g = MaxwellToGL::SwizzleSource(texture.tic.y_source);
-            unit.swizzle.b = MaxwellToGL::SwizzleSource(texture.tic.z_source);
-            unit.swizzle.a = MaxwellToGL::SwizzleSource(texture.tic.w_source);
+            surface->UpdateSwizzle(texture.tic.x_source, texture.tic.y_source, texture.tic.z_source,
+                                   texture.tic.w_source);
         } else {
             // Can occur when texture addr is null or its memory is unmapped/invalid
             unit.texture = 0;
