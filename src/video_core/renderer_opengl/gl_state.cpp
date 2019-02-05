@@ -462,29 +462,35 @@ void OpenGLState::ApplyPolygonOffset() const {
 }
 
 void OpenGLState::ApplyTextures() const {
+    bool has_delta{};
+    std::size_t first{};
+    std::size_t last{};
+    std::array<GLuint, Tegra::Engines::Maxwell3D::Regs::NumTextureSamplers> textures;
+
     for (std::size_t i = 0; i < std::size(texture_units); ++i) {
         const auto& texture_unit = texture_units[i];
         const auto& cur_state_texture_unit = cur_state.texture_units[i];
+        textures[i] = texture_unit.texture;
 
-        if (texture_unit.texture != cur_state_texture_unit.texture) {
-            glActiveTexture(TextureUnits::MaxwellTexture(static_cast<int>(i)).Enum());
-            glBindTexture(texture_unit.target, texture_unit.texture);
+        if (textures[i] != cur_state_texture_unit.texture) {
+            if (!has_delta) {
+                first = i;
+                has_delta = true;
+            }
+            last = i;
         }
-        // Update the texture swizzle
-        if (texture_unit.swizzle.r != cur_state_texture_unit.swizzle.r ||
-            texture_unit.swizzle.g != cur_state_texture_unit.swizzle.g ||
-            texture_unit.swizzle.b != cur_state_texture_unit.swizzle.b ||
-            texture_unit.swizzle.a != cur_state_texture_unit.swizzle.a) {
-            std::array<GLint, 4> mask = {texture_unit.swizzle.r, texture_unit.swizzle.g,
-                                         texture_unit.swizzle.b, texture_unit.swizzle.a};
-            glTexParameteriv(texture_unit.target, GL_TEXTURE_SWIZZLE_RGBA, mask.data());
-        }
+    }
+
+    if (has_delta) {
+        glBindTextures(static_cast<GLuint>(first), static_cast<GLsizei>(last - first + 1),
+                       textures.data());
     }
 }
 
 void OpenGLState::ApplySamplers() const {
     bool has_delta{};
-    std::size_t first{}, last{};
+    std::size_t first{};
+    std::size_t last{};
     std::array<GLuint, Tegra::Engines::Maxwell3D::Regs::NumTextureSamplers> samplers;
     for (std::size_t i = 0; i < std::size(samplers); ++i) {
         samplers[i] = texture_units[i].sampler;
