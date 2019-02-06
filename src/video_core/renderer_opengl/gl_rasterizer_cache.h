@@ -382,6 +382,11 @@ public:
     // Upload data in gl_buffer to this surface's texture
     void UploadGLTexture(GLuint read_fb_handle, GLuint draw_fb_handle);
 
+    void UpdateSwizzle(Tegra::Texture::SwizzleSource swizzle_x,
+                       Tegra::Texture::SwizzleSource swizzle_y,
+                       Tegra::Texture::SwizzleSource swizzle_z,
+                       Tegra::Texture::SwizzleSource swizzle_w);
+
 private:
     void UploadGLMipmapTexture(u32 mip_map, GLuint read_fb_handle, GLuint draw_fb_handle);
 
@@ -393,8 +398,8 @@ private:
     SurfaceParams params{};
     GLenum gl_target{};
     GLenum gl_internal_format{};
-    bool gl_is_compressed{};
     std::size_t cached_size_in_bytes{};
+    std::array<GLenum, 4> swizzle{GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA};
 };
 
 class RasterizerCacheOpenGL final : public RasterizerCache<Surface> {
