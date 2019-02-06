@@ -101,15 +101,15 @@ public:
     }
 
     template <typename... T>
-    void Create(bool separable_program, T... shaders) {
+    void Create(bool separable_program, bool hint_retrievable, T... shaders) {
         if (handle != 0)
             return;
-        handle = GLShader::LoadProgram(separable_program, shaders...);
+        handle = GLShader::LoadProgram(separable_program, hint_retrievable, shaders...);
     }
 
     /// Creates a new internal OpenGL resource and stores the handle
     void CreateFromSource(const char* vert_shader, const char* geo_shader, const char* frag_shader,
-                          bool separable_program = false);
+                          bool separable_program = false, bool hint_retrievable = false);
 
     /// Deletes the internal OpenGL resource
     void Release();
