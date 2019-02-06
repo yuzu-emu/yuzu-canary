@@ -15,12 +15,12 @@ MICROPROFILE_DEFINE(OpenGL_ResourceDeletion, "OpenGL", "Resource Deletion", MP_R
 
 namespace OpenGL {
 
-void OGLTexture::Create() {
+void OGLTexture::Create(GLenum target) {
     if (handle != 0)
         return;
 
     MICROPROFILE_SCOPE(OpenGL_ResourceCreation);
-    glGenTextures(1, &handle);
+    glCreateTextures(target, 1, &handle);
 }
 
 void OGLTexture::Release() {
