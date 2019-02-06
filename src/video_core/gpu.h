@@ -13,8 +13,12 @@
 #include "video_core/memory_manager.h"
 
 namespace VideoCore {
-class RasterizerInterface;
-}
+class RendererBase;
+} // namespace VideoCore
+
+namespace VideoCommon::GPUThread {
+class ThreadManager;
+} // namespace VideoCommon::GPUThread
 
 namespace Tegra {
 
@@ -117,7 +121,7 @@ enum class EngineID {
 
 class GPU final {
 public:
-    explicit GPU(VideoCore::RasterizerInterface& rasterizer);
+    explicit GPU(VideoCore::RendererBase& renderer);
     ~GPU();
 
     struct MethodCall {
@@ -196,9 +200,43 @@ public:
         };
     } regs{};
 
+    /// Push GPU command entries to be processed
+    void PushGPUEntries(Tegra::CommandList&& entries);
+
+    /// Swap buffers (render frame)
+    void SwapBuffers(
+        std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer);
+
+    /// Notify rasterizer that any caches of the specified region should be flushed to Switch memory
+    void FlushRegion(VAddr addr, u64 size);
+
+    /// Notify rasterizer that any caches of the specified region should be invalidated
+    void InvalidateRegion(VAddr addr, u64 size);
+
+    /// Notify rasterizer that any caches of the specified region should be flushed and invalidated
+    void FlushAndInvalidateRegion(VAddr addr, u64 size);
+
+private:
+    void ProcessBindMethod(const MethodCall& method_call);
+    void ProcessSemaphoreTriggerMethod();
+    void ProcessSemaphoreRelease();
+    void ProcessSemaphoreAcquire();
+
+    /// Calls a GPU puller method.
+    void CallPullerMethod(const MethodCall& method_call);
+
+    /// Calls a GPU engine method.
+    void CallEngineMethod(const MethodCall& method_call);
+
+    /// Determines where the method should be executed.
+    bool ExecuteMethodOnEngine(const MethodCall& method_call);
+
 private:
     std::unique_ptr<Tegra::DmaPusher> dma_pusher;
     std::unique_ptr<Tegra::MemoryManager> memory_manager;
+    std::unique_ptr<VideoCommon::GPUThread::ThreadManager> gpu_thread;
+
+    VideoCore::RendererBase& renderer;
 
     /// Mapping of command subchannels to their bound engine ids.
     std::array<EngineID, 8> bound_engines = {};
@@ -213,18 +251,6 @@ private:
     std::unique_ptr<Engines::MaxwellDMA> maxwell_dma;
     /// Inline memory engine
     std::unique_ptr<Engines::KeplerMemory> kepler_memory;
-
-    void ProcessBindMethod(const MethodCall& method_call);
-    void ProcessSemaphoreTriggerMethod();
-    void ProcessSemaphoreRelease();
-    void ProcessSemaphoreAcquire();
-
-    // Calls a GPU puller method.
-    void CallPullerMethod(const MethodCall& method_call);
-    // Calls a GPU engine method.
-    void CallEngineMethod(const MethodCall& method_call);
-    // Determines where the method should be executed.
-    bool ExecuteMethodOnEngine(const MethodCall& method_call);
 };
 
 #define ASSERT_REG_POSITION(field_name, position)                                                  \
