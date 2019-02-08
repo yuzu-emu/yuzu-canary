@@ -306,7 +306,6 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
     case OpCode::Id::TLD4S: {
         UNIMPLEMENTED_IF_MSG(instr.tld4s.UsesMiscMode(TextureMiscMode::AOFFI),
                              "AOFFI is not implemented");
-
         if (instr.tld4s.UsesMiscMode(TextureMiscMode::NODEP)) {
             LOG_WARNING(HW_GPU, "TLD4S.NODEP implementation is incomplete");
         }
@@ -315,9 +314,8 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
         const Node op_a = GetRegister(instr.gpr8);
         const Node op_b = GetRegister(instr.gpr20);
 
-        std::vector<Node> coords;
-
         // TODO(Subv): Figure out how the sampler type is encoded in the TLD4S instruction.
+        std::vector<Node> coords;
         if (depth_compare) {
             // Note: TLD4S coordinate encoding works just like TEXS's
             const Node op_y = GetRegister(instr.gpr8.Value() + 1);
@@ -328,18 +326,17 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
             coords.push_back(op_a);
             coords.push_back(op_b);
         }
-        const auto num_coords = static_cast<u32>(coords.size());
-        coords.push_back(Immediate(static_cast<u32>(instr.tld4s.component)));
+        std::vector<Node> extras;
+        extras.push_back(Immediate(static_cast<u32>(instr.tld4s.component)));
 
         const auto& sampler =
             GetSampler(instr.sampler, TextureType::Texture2D, false, depth_compare);
 
         Node4 values;
         for (u32 element = 0; element < values.size(); ++element) {
-            auto params = coords;
-            MetaTexture meta{sampler, element, num_coords};
-            values[element] =
-                Operation(OperationCode::F4TextureGather, std::move(meta), std::move(params));
+            auto coords_copy = coords;
+            MetaTexture meta{sampler, {}, {}, extras, element};
+            values[element] = Operation(OperationCode::TextureGather, meta, std::move(coords_copy));
         }
 
         WriteTexsInstructionFloat(bb, instr, values);
@@ -360,12 +357,13 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
         switch (instr.txq.query_type) {
         case Tegra::Shader::TextureQueryType::Dimension: {
             for (u32 element = 0; element < 4; ++element) {
-                if (instr.txq.IsComponentEnabled(element)) {
-                    MetaTexture meta{sampler, element};
-                    const Node value = Operation(OperationCode::F4TextureQueryDimensions,
-                                                 std::move(meta), GetRegister(instr.gpr8));
-                    SetTemporal(bb, indexer++, value);
+                if (!instr.txq.IsComponentEnabled(element)) {
+                    continue;
                 }
+                MetaTexture meta{sampler, {}, {}, {}, element};
+                const Node value =
+                    Operation(OperationCode::TextureQueryDimensions, meta, GetRegister(instr.gpr8));
+                SetTemporal(bb, indexer++, value);
             }
             for (u32 i = 0; i < indexer; ++i) {
                 SetRegister(bb, instr.gpr0.Value() + i, GetTemporal(i));
@@ -412,9 +410,8 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
 
         for (u32 element = 0; element < 2; ++element) {
             auto params = coords;
-            MetaTexture meta_texture{sampler, element, static_cast<u32>(coords.size())};
-            const Node value =
-                Operation(OperationCode::F4TextureQueryLod, meta_texture, std::move(params));
+            MetaTexture meta{sampler, {}, {}, {}, element};
+            const Node value = Operation(OperationCode::TextureQueryLod, meta, std::move(params));
             SetTemporal(bb, element, value);
         }
         for (u32 element = 0; element < 2; ++element) {
@@ -535,15 +532,16 @@ void ShaderIR::WriteTexsInstructionHalfFloat(NodeBlock& bb, Instruction instr,
 }
 
 Node4 ShaderIR::GetTextureCode(Instruction instr, TextureType texture_type,
-                               TextureProcessMode process_mode, bool depth_compare, bool is_array,
-                               std::size_t array_offset, std::size_t bias_offset,
-                               std::vector<Node>&& coords) {
-    UNIMPLEMENTED_IF_MSG(
-        (texture_type == TextureType::Texture3D && (is_array || depth_compare)) ||
-            (texture_type == TextureType::TextureCube && is_array && depth_compare),
-        "This method is not supported.");
+                               TextureProcessMode process_mode, std::vector<Node> coords,
+                               Node array, Node depth_compare, u32 bias_offset) {
+    const bool is_array = array;
+    const bool is_shadow = depth_compare;
 
-    const auto& sampler = GetSampler(instr.sampler, texture_type, is_array, depth_compare);
+    UNIMPLEMENTED_IF_MSG((texture_type == TextureType::Texture3D && (is_array || is_shadow)) ||
+                             (texture_type == TextureType::TextureCube && is_array && is_shadow),
+                         "This method is not supported.");
+
+    const auto& sampler = GetSampler(instr.sampler, texture_type, is_array, is_shadow);
 
     const bool lod_needed = process_mode == TextureProcessMode::LZ ||
                             process_mode == TextureProcessMode::LL ||
@@ -552,35 +550,30 @@ Node4 ShaderIR::GetTextureCode(Instruction instr, TextureType texture_type,
     // LOD selection (either via bias or explicit textureLod) not supported in GL for
     // sampler2DArrayShadow and samplerCubeArrayShadow.
     const bool gl_lod_supported =
-        !((texture_type == Tegra::Shader::TextureType::Texture2D && is_array && depth_compare) ||
-          (texture_type == Tegra::Shader::TextureType::TextureCube && is_array && depth_compare));
+        !((texture_type == Tegra::Shader::TextureType::Texture2D && is_array && is_shadow) ||
+          (texture_type == Tegra::Shader::TextureType::TextureCube && is_array && is_shadow));
 
     const OperationCode read_method =
-        lod_needed && gl_lod_supported ? OperationCode::F4TextureLod : OperationCode::F4Texture;
+        lod_needed && gl_lod_supported ? OperationCode::TextureLod : OperationCode::Texture;
 
     UNIMPLEMENTED_IF(process_mode != TextureProcessMode::None && !gl_lod_supported);
 
-    std::optional<u32> array_offset_value;
-    if (is_array)
-        array_offset_value = static_cast<u32>(array_offset);
-
-    const auto coords_count = static_cast<u32>(coords.size());
-
+    std::vector<Node> extras;
     if (process_mode != TextureProcessMode::None && gl_lod_supported) {
         if (process_mode == TextureProcessMode::LZ) {
-            coords.push_back(Immediate(0.0f));
+            extras.push_back(Immediate(0.0f));
         } else {
             // If present, lod or bias are always stored in the register indexed by the gpr20
             // field with an offset depending on the usage of the other registers
-            coords.push_back(GetRegister(instr.gpr20.Value() + bias_offset));
+            extras.push_back(GetRegister(instr.gpr20.Value() + bias_offset));
         }
     }
 
     Node4 values;
     for (u32 element = 0; element < values.size(); ++element) {
-        auto params = coords;
-        MetaTexture meta{sampler, element, coords_count, array_offset_value};
-        values[element] = Operation(read_method, std::move(meta), std::move(params));
+        auto copy_coords = coords;
+        MetaTexture meta{sampler, array, depth_compare, extras, element};
+        values[element] = Operation(read_method, meta, std::move(copy_coords));
     }
 
     return values;
@@ -602,28 +595,22 @@ Node4 ShaderIR::GetTexCode(Instruction instr, TextureType texture_type,
     for (std::size_t i = 0; i < coord_count; ++i) {
         coords.push_back(GetRegister(coord_register + i));
     }
-    // 1D.DC in opengl the 2nd component is ignored.
+    // 1D.DC in OpenGL the 2nd component is ignored.
     if (depth_compare && !is_array && texture_type == TextureType::Texture1D) {
         coords.push_back(Immediate(0.0f));
     }
-    std::size_t array_offset{};
-    if (is_array) {
-        array_offset = coords.size();
-        coords.push_back(GetRegister(array_register));
-    }
+
+    const Node array = is_array ? GetRegister(array_register) : nullptr;
+
+    Node dc{};
     if (depth_compare) {
-        // Depth is always stored in the register signaled by gpr20
-        // or in the next register if lod or bias are used
+        // Depth is always stored in the register signaled by gpr20 or in the next register if lod
+        // or bias are used
         const u64 depth_register = instr.gpr20.Value() + (lod_bias_enabled ? 1 : 0);
-        coords.push_back(GetRegister(depth_register));
-    }
-    // Fill ignored coordinates
-    while (coords.size() < total_coord_count) {
-        coords.push_back(Immediate(0));
+        dc = GetRegister(depth_register);
     }
 
-    return GetTextureCode(instr, texture_type, process_mode, depth_compare, is_array, array_offset,
-                          0, std::move(coords));
+    return GetTextureCode(instr, texture_type, process_mode, coords, array, dc, 0);
 }
 
 Node4 ShaderIR::GetTexsCode(Instruction instr, TextureType texture_type,
@@ -641,6 +628,7 @@ Node4 ShaderIR::GetTexsCode(Instruction instr, TextureType texture_type,
         (is_array || !(lod_bias_enabled || depth_compare) || (coord_count > 2))
             ? static_cast<u64>(instr.gpr20.Value())
             : coord_register + 1;
+    const u32 bias_offset = coord_count > 2 ? 1 : 0;
 
     std::vector<Node> coords;
     for (std::size_t i = 0; i < coord_count; ++i) {
@@ -648,24 +636,17 @@ Node4 ShaderIR::GetTexsCode(Instruction instr, TextureType texture_type,
         coords.push_back(GetRegister(last ? last_coord_register : coord_register + i));
     }
 
-    std::size_t array_offset{};
-    if (is_array) {
-        array_offset = coords.size();
-        coords.push_back(GetRegister(array_register));
-    }
+    const Node array = is_array ? GetRegister(array_register) : nullptr;
+
+    Node dc{};
     if (depth_compare) {
-        // Depth is always stored in the register signaled by gpr20
-        // or in the next register if lod or bias are used
+        // Depth is always stored in the register signaled by gpr20 or in the next register if lod
+        // or bias are used
         const u64 depth_register = instr.gpr20.Value() + (lod_bias_enabled ? 1 : 0);
-        coords.push_back(GetRegister(depth_register));
-    }
-    // Fill ignored coordinates
-    while (coords.size() < total_coord_count) {
-        coords.push_back(Immediate(0));
+        dc = GetRegister(depth_register);
     }
 
-    return GetTextureCode(instr, texture_type, process_mode, depth_compare, is_array, array_offset,
-                          (coord_count > 2 ? 1 : 0), std::move(coords));
+    return GetTextureCode(instr, texture_type, process_mode, coords, array, dc, bias_offset);
 }
 
 Node4 ShaderIR::GetTld4Code(Instruction instr, TextureType texture_type, bool depth_compare,
@@ -680,24 +661,16 @@ Node4 ShaderIR::GetTld4Code(Instruction instr, TextureType texture_type, bool de
     const u64 coord_register = array_register + (is_array ? 1 : 0);
 
     std::vector<Node> coords;
-
-    for (size_t i = 0; i < coord_count; ++i) {
+    for (size_t i = 0; i < coord_count; ++i)
         coords.push_back(GetRegister(coord_register + i));
-    }
-    std::optional<u32> array_offset;
-    if (is_array) {
-        array_offset = static_cast<u32>(coords.size());
-        coords.push_back(GetRegister(array_register));
-    }
 
     const auto& sampler = GetSampler(instr.sampler, texture_type, is_array, depth_compare);
 
     Node4 values;
     for (u32 element = 0; element < values.size(); ++element) {
-        auto params = coords;
-        MetaTexture meta{sampler, element, static_cast<u32>(coords.size()), array_offset};
-        values[element] =
-            Operation(OperationCode::F4TextureGather, std::move(meta), std::move(params));
+        auto coords_copy = coords;
+        MetaTexture meta{sampler, GetRegister(array_register), {}, {}, element};
+        values[element] = Operation(OperationCode::TextureGather, meta, std::move(coords_copy));
     }
 
     return values;
@@ -705,7 +678,6 @@ Node4 ShaderIR::GetTld4Code(Instruction instr, TextureType texture_type, bool de
 
 Node4 ShaderIR::GetTldsCode(Instruction instr, TextureType texture_type, bool is_array) {
     const std::size_t type_coord_count = GetCoordCount(texture_type);
-    const std::size_t total_coord_count = type_coord_count + (is_array ? 1 : 0);
     const bool lod_enabled = instr.tlds.GetTextureProcessMode() == TextureProcessMode::LL;
 
     // If enabled arrays index is always stored in the gpr8 field
@@ -719,33 +691,22 @@ Node4 ShaderIR::GetTldsCode(Instruction instr, TextureType texture_type, bool is
             : coord_register + 1;
 
     std::vector<Node> coords;
-
     for (std::size_t i = 0; i < type_coord_count; ++i) {
         const bool last = (i == (type_coord_count - 1)) && (type_coord_count > 1);
         coords.push_back(GetRegister(last ? last_coord_register : coord_register + i));
     }
-    std::optional<u32> array_offset;
-    if (is_array) {
-        array_offset = static_cast<u32>(coords.size());
-        coords.push_back(GetRegister(array_register));
-    }
-    const auto coords_count = static_cast<u32>(coords.size());
 
-    if (lod_enabled) {
-        // When lod is used always is in grp20
-        coords.push_back(GetRegister(instr.gpr20));
-    } else {
-        coords.push_back(Immediate(0));
-    }
+    const Node array = is_array ? GetRegister(array_register) : nullptr;
+    // When lod is used always is in gpr20
+    const Node lod = lod_enabled ? GetRegister(instr.gpr20) : Immediate(0);
 
     const auto& sampler = GetSampler(instr.sampler, texture_type, is_array, false);
 
     Node4 values;
     for (u32 element = 0; element < values.size(); ++element) {
-        auto params = coords;
-        MetaTexture meta{sampler, element, coords_count, array_offset};
-        values[element] =
-            Operation(OperationCode::F4TexelFetch, std::move(meta), std::move(params));
+        auto coords_copy = coords;
+        MetaTexture meta{sampler, array, {}, {lod}, element};
+        values[element] = Operation(OperationCode::TexelFetch, meta, std::move(coords_copy));
     }
     return values;
 }
