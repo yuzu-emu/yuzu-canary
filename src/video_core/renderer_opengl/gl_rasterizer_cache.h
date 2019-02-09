@@ -423,7 +423,9 @@ public:
 
     /// Copies the contents of one surface to another
     void FermiCopySurface(const Tegra::Engines::Fermi2D::Regs::Surface& src_config,
-                          const Tegra::Engines::Fermi2D::Regs::Surface& dst_config);
+                          const Tegra::Engines::Fermi2D::Regs::Surface& dst_config,
+                          const MathUtil::Rectangle<u32>& src_rect,
+                          const MathUtil::Rectangle<u32>& dst_rect);
 
 private:
     void LoadSurface(const Surface& surface);
@@ -444,6 +446,10 @@ private:
     /// Performs a slow but accurate surface copy, flushing to RAM and reinterpreting the data
     void AccurateCopySurface(const Surface& src_surface, const Surface& dst_surface);
     void FastLayeredCopySurface(const Surface& src_surface, const Surface& dst_surface);
+    void FastCopySurface(const Surface& src_surface, const Surface& dst_surface);
+    void CopySurface(const Surface& src_surface, const Surface& dst_surface,
+                     const GLuint copy_pbo_handle, const GLenum src_attachment = 0,
+                     const GLenum dst_attachment = 0, const std::size_t cubemap_face = 0);
 
     /// The surface reserve is a "backup" cache, this is where we put unique surfaces that have
     /// previously been used. This is to prevent surfaces from being constantly created and
