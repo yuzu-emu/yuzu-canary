@@ -156,12 +156,12 @@ enum class OperationCode {
     Logical2HNotEqual,     /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
     Logical2HGreaterEqual, /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
 
-    F4Texture,                /// (MetaTexture, float[N] coords, float[M] params) -> float4
-    F4TextureLod,             /// (MetaTexture, float[N] coords, float[M] params) -> float4
-    F4TextureGather,          /// (MetaTexture, float[N] coords, float[M] params) -> float4
-    F4TextureQueryDimensions, /// (MetaTexture, float a) -> float4
-    F4TextureQueryLod,        /// (MetaTexture, float[N] coords) -> float4
-    F4TexelFetch,             /// (MetaTexture, int[N], int) -> float4
+    Texture,                /// (MetaTexture, float[N] coords) -> float4
+    TextureLod,             /// (MetaTexture, float[N] coords) -> float4
+    TextureGather,          /// (MetaTexture, float[N] coords) -> float4
+    TextureQueryDimensions, /// (MetaTexture, float a) -> float4
+    TextureQueryLod,        /// (MetaTexture, float[N] coords) -> float4
+    TexelFetch,             /// (MetaTexture, int[N], int) -> float4
 
     Branch,        /// (uint branch_target) -> void
     PushFlowStack, /// (uint branch_target) -> void
@@ -288,9 +288,10 @@ struct MetaHalfArithmetic {
 
 struct MetaTexture {
     const Sampler& sampler;
+    Node array{};
+    Node depth_compare{};
+    std::vector<Node> extras;
     u32 element{};
-    u32 coords_count{};
-    std::optional<u32> array_index;
 };
 
 constexpr MetaArithmetic PRECISE = {true};
@@ -754,9 +755,8 @@ private:
         bool lod_bias_enabled, std::size_t max_coords, std::size_t max_inputs);
 
     Node4 GetTextureCode(Tegra::Shader::Instruction instr, Tegra::Shader::TextureType texture_type,
-                         Tegra::Shader::TextureProcessMode process_mode, bool depth_compare,
-                         bool is_array, std::size_t array_offset, std::size_t bias_offset,
-                         std::vector<Node>&& coords);
+                         Tegra::Shader::TextureProcessMode process_mode, std::vector<Node> coords,
+                         Node array, Node depth_compare, u32 bias_offset);
 
     Node GetVideoOperand(Node op, bool is_chunk, bool is_signed, Tegra::Shader::VideoType type,
                          u64 byte_height);
