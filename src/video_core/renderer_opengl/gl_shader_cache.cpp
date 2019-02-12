@@ -361,6 +361,10 @@ void ShaderCacheOpenGL::LoadDiskCache(const std::atomic_bool& stop_loading,
     if (stop_loading)
         return;
 
+    // Track if precompiled cache was altered during loading to know if we have to serialize the
+    // virtual precompiled cache file back to the hard drive
+    bool precompiled_cache_altered = false;
+
     // Build shaders
     if (callback)
         callback(VideoCore::LoadCallbackStage::Build, 0, usages.size());
@@ -382,6 +386,7 @@ void ShaderCacheOpenGL::LoadDiskCache(const std::atomic_bool& stop_loading,
             if (!shader) {
                 // Invalidate the precompiled cache if a shader dumped shader was rejected
                 disk_cache.InvalidatePrecompiled();
+                precompiled_cache_altered = true;
                 dumps.clear();
             }
         }
@@ -403,7 +408,12 @@ void ShaderCacheOpenGL::LoadDiskCache(const std::atomic_bool& stop_loading,
         if (dumps.find(usage) == dumps.end()) {
             const auto& program = precompiled_programs.at(usage);
             disk_cache.SaveDump(usage, program->handle);
+            precompiled_cache_altered = true;
         }
+    }
+
+    if (precompiled_cache_altered) {
+        disk_cache.SaveVirtualPrecompiledFile();
     }
 }
 
