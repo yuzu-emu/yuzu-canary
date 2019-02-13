@@ -90,6 +90,8 @@ add_library(common STATIC
     logging/log.h
     logging/text_formatter.cpp
     logging/text_formatter.h
+    lz4_compression.cpp
+    lz4_compression.h
     math_util.h
     microprofile.cpp
     microprofile.h
@@ -114,7 +116,11 @@ add_library(common STATIC
     timer.cpp
     timer.h
     vector_math.h
+    virtual_file_util.cpp
+    virtual_file_util.h
     web_result.h
+    zstd_compression.cpp
+    zstd_compression.h
 )
 
 if(ARCHITECTURE_x86_64)
@@ -128,3 +134,4 @@ endif()
 create_target_directory_groups(common)
 
 target_link_libraries(common PUBLIC Boost::boost fmt microprofile)
+target_link_libraries(common PRIVATE lz4_static libzstd_static)
