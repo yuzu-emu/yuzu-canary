@@ -4,10 +4,11 @@
 
 #include <cinttypes>
 #include <vector>
-#include <lz4.h>
+
 #include "common/common_funcs.h"
 #include "common/file_util.h"
 #include "common/logging/log.h"
+#include "common/lz4_compression.h"
 #include "common/swap.h"
 #include "core/file_sys/patch_manager.h"
 #include "core/gdbstub/gdbstub.h"
@@ -75,15 +76,11 @@ FileType AppLoader_NSO::IdentifyType(const FileSys::VirtualFile& file) {
 
 static std::vector<u8> DecompressSegment(const std::vector<u8>& compressed_data,
                                          const NsoSegmentHeader& header) {
-    std::vector<u8> uncompressed_data(header.size);
-    const int bytes_uncompressed =
-        LZ4_decompress_safe(reinterpret_cast<const char*>(compressed_data.data()),
-                            reinterpret_cast<char*>(uncompressed_data.data()),
-                            static_cast<int>(compressed_data.size()), header.size);
+    const std::vector<u8> uncompressed_data =
+        Common::Compression::DecompressDataLZ4(compressed_data, header.size);
 
-    ASSERT_MSG(bytes_uncompressed == static_cast<int>(header.size) &&
-                   bytes_uncompressed == static_cast<int>(uncompressed_data.size()),
-               "{} != {} != {}", bytes_uncompressed, header.size, uncompressed_data.size());
+    ASSERT_MSG(uncompressed_data.size() == static_cast<int>(header.size), "{} != {}", header.size,
+               uncompressed_data.size());
 
     return uncompressed_data;
 }
