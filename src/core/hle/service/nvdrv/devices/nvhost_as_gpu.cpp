@@ -178,7 +178,7 @@ u32 nvhost_as_gpu::UnmapBuffer(const std::vector<u8>& input, std::vector<u8>& ou
     auto& gpu = system_instance.GPU();
     auto cpu_addr = gpu.MemoryManager().GpuToCpuAddress(params.offset);
     ASSERT(cpu_addr);
-    system_instance.Renderer().Rasterizer().FlushAndInvalidateRegion(*cpu_addr, itr->second.size);
+    gpu.FlushAndInvalidateRegion(*cpu_addr, itr->second.size);
 
     params.offset = gpu.MemoryManager().UnmapBuffer(params.offset, itr->second.size);
 
