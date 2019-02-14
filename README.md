@@ -1,3 +1,24 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: fcc3aa0bbf4a1343f90dfc7a93afc31e770c3a70
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2119](https://github.com/yuzu-emu/yuzu/pull/2119)|[bb41683](https://github.com/yuzu-emu/yuzu/pull/2119/files/)|rasterizer_cache_gl: Only do fast layered copy on the same format.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2111](https://github.com/yuzu-emu/yuzu/pull/2111)|[e60d4d7](https://github.com/yuzu-emu/yuzu/pull/2111/files/)|gl_shader_decompiler: Re-implement TLDS lod|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2055](https://github.com/yuzu-emu/yuzu/pull/2055)|[8ba6542](https://github.com/yuzu-emu/yuzu/pull/2055/files/)|Asynchronous GPU command processing|[bunnei](https://github.com/bunnei)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
