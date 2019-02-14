@@ -23,6 +23,8 @@ option(YUZU_USE_QT_WEB_ENGINE "Use QtWebEngine for web applet implementation" OF
 
 option(ENABLE_CUBEB "Enables the cubeb audio backend" ON)
 
+option(ENABLE_VULKAN "Enables Vulkan backend" ON)
+
 option(USE_DISCORD_PRESENCE "Enables Discord Rich Presence" OFF)
 
 if(NOT EXISTS ${PROJECT_SOURCE_DIR}/.git/hooks/pre-commit)
