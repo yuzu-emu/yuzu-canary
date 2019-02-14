@@ -616,17 +616,8 @@ private:
 
     std::string VisitOperand(Operation operation, std::size_t operand_index, Type type) {
         std::string value = VisitOperand(operation, operand_index);
-
         switch (type) {
-        case Type::Bool:
-        case Type::Bool2:
-        case Type::Float:
-            return value;
-        case Type::Int:
-            return "ftoi(" + value + ')';
-        case Type::Uint:
-            return "ftou(" + value + ')';
-        case Type::HalfFloat:
+        case Type::HalfFloat: {
             const auto half_meta = std::get_if<MetaHalfArithmetic>(&operation.GetMeta());
             if (!half_meta) {
                 value = "toHalf2(" + value + ')';
@@ -643,6 +634,26 @@ private:
                 return "vec2(toHalf2(" + value + ")[1])";
             }
         }
+        default:
+            return CastOperand(value, type);
+        }
+    }
+
+    std::string CastOperand(const std::string& value, Type type) const {
+        switch (type) {
+        case Type::Bool:
+        case Type::Bool2:
+        case Type::Float:
+            return value;
+        case Type::Int:
+            return "ftoi(" + value + ')';
+        case Type::Uint:
+            return "ftou(" + value + ')';
+        case Type::HalfFloat:
+            // Can't be handled as a stand-alone value
+            UNREACHABLE();
+            return value;
+        }
         UNREACHABLE();
         return value;
     }
@@ -650,6 +661,7 @@ private:
     std::string BitwiseCastResult(std::string value, Type type, bool needs_parenthesis = false) {
         switch (type) {
         case Type::Bool:
+        case Type::Bool2:
         case Type::Float:
             if (needs_parenthesis) {
                 return '(' + value + ')';
@@ -721,7 +733,7 @@ private:
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
 
-        const auto count = static_cast<u32>(operation.GetOperandsCount());
+        const std::size_t count = operation.GetOperandsCount();
         const bool has_array = meta->sampler.IsArray();
         const bool has_shadow = meta->sampler.IsShadow();
 
@@ -732,10 +744,10 @@ private:
 
         expr += coord_constructors.at(count + (has_array ? 1 : 0) + (has_shadow ? 1 : 0) - 1);
         expr += '(';
-        for (u32 i = 0; i < count; ++i) {
+        for (std::size_t i = 0; i < count; ++i) {
             expr += Visit(operation[i]);
 
-            const u32 next = i + 1;
+            const std::size_t next = i + 1;
             if (next < count || has_array || has_shadow)
                 expr += ", ";
         }
@@ -1206,24 +1218,25 @@ private:
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
         UNIMPLEMENTED_IF(meta->sampler.IsArray());
-        UNIMPLEMENTED_IF(!meta->extras.empty());
-
-        const auto count = static_cast<u32>(operation.GetOperandsCount());
+        const std::size_t count = operation.GetOperandsCount();
 
         std::string expr = "texelFetch(";
         expr += GetSampler(meta->sampler);
         expr += ", ";
 
-        expr += constructors.at(count - 1);
+        expr += constructors.at(operation.GetOperandsCount() - 1);
         expr += '(';
-        for (u32 i = 0; i < count; ++i) {
+        for (std::size_t i = 0; i < count; ++i) {
             expr += VisitOperand(operation, i, Type::Int);
-
-            const u32 next = i + 1;
+            const std::size_t next = i + 1;
             if (next == count)
                 expr += ')';
-            if (next < count)
+            else if (next < count)
                 expr += ", ";
+        }
+        for (std::size_t i = 0; i < meta->extras.size(); ++i) {
+            expr += ", ";
+            expr += CastOperand(Visit(meta->extras.at(i)), Type::Int);
         }
         expr += ')';
 

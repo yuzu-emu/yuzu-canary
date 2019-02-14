@@ -429,7 +429,7 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
         UNIMPLEMENTED_IF_MSG(instr.tlds.UsesMiscMode(TextureMiscMode::MZ), "MZ is not implemented");
 
         if (instr.tlds.UsesMiscMode(TextureMiscMode::NODEP)) {
-            LOG_WARNING(HW_GPU, "TMML.NODEP implementation is incomplete");
+            LOG_WARNING(HW_GPU, "TLDS.NODEP implementation is incomplete");
         }
 
         WriteTexsInstructionFloat(bb, instr, GetTldsCode(instr, texture_type, is_array));
