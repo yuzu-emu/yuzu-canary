@@ -27,7 +27,8 @@ void CpuCoreManager::Initialize(System& system) {
     exclusive_monitor = Cpu::MakeExclusiveMonitor(cores.size());
 
     for (std::size_t index = 0; index < cores.size(); ++index) {
-        cores[index] = std::make_unique<Cpu>(*exclusive_monitor, *barrier, index);
+        cores[index] =
+            std::make_unique<Cpu>(system.CoreTiming(), *exclusive_monitor, *barrier, index);
     }
 
     // Create threads for CPU cores 1-3, and build thread_to_cpu map

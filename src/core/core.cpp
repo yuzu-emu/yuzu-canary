@@ -94,8 +94,8 @@ struct System::Impl {
     ResultStatus Init(System& system, Frontend::EmuWindow& emu_window) {
         LOG_DEBUG(HW_Memory, "initialized OK");
 
-        Timing::Init();
-        kernel.Initialize();
+        core_timing.Initialize();
+        kernel.Initialize(core_timing);
 
         const auto current_time = std::chrono::duration_cast<std::chrono::seconds>(
             std::chrono::system_clock::now().time_since_epoch());
@@ -120,7 +120,7 @@ struct System::Impl {
         telemetry_session = std::make_unique<Core::TelemetrySession>();
         service_manager = std::make_shared<Service::SM::ServiceManager>();
 
-        Service::Init(service_manager, *virtual_filesystem);
+        Service::Init(service_manager, system, *virtual_filesystem);
         GDBStub::Init();
 
         renderer = VideoCore::CreateRenderer(emu_window, system);
@@ -205,7 +205,7 @@ struct System::Impl {
 
         // Shutdown kernel and core timing
         kernel.Shutdown();
-        Timing::Shutdown();
+        core_timing.Shutdown();
 
         // Close app loader
         app_loader.reset();
@@ -232,9 +232,10 @@ struct System::Impl {
     }
 
     PerfStatsResults GetAndResetPerfStats() {
-        return perf_stats.GetAndResetStats(Timing::GetGlobalTimeUs());
+        return perf_stats.GetAndResetStats(core_timing.GetGlobalTimeUs());
     }
 
+    Timing::CoreTiming core_timing;
     Kernel::KernelCore kernel;
     /// RealVfsFilesystem instance
     FileSys::VirtualFilesystem virtual_filesystem;
@@ -394,6 +395,14 @@ Kernel::KernelCore& System::Kernel() {
 
 const Kernel::KernelCore& System::Kernel() const {
     return impl->kernel;
+}
+
+Timing::CoreTiming& System::CoreTiming() {
+    return impl->core_timing;
+}
+
+const Timing::CoreTiming& System::CoreTiming() const {
+    return impl->core_timing;
 }
 
 Core::PerfStats& System::GetPerfStats() {

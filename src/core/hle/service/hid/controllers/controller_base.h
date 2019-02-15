@@ -7,6 +7,10 @@
 #include "common/common_types.h"
 #include "common/swap.h"
 
+namespace Core::Timing {
+class CoreTiming;
+}
+
 namespace Service::HID {
 class ControllerBase {
 public:
@@ -20,7 +24,8 @@ public:
     virtual void OnRelease() = 0;
 
     // When the controller is requesting an update for the shared memory
-    virtual void OnUpdate(u8* data, std::size_t size) = 0;
+    virtual void OnUpdate(const Core::Timing::CoreTiming& core_timing, u8* data,
+                          std::size_t size) = 0;
 
     // Called when input devices should be loaded
     virtual void OnLoadInputDevices() = 0;

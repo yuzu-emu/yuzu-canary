@@ -111,7 +111,7 @@ void Scheduler::SwitchContext(Thread* new_thread) {
 
 void Scheduler::UpdateLastContextSwitchTime(Thread* thread, Process* process) {
     const u64 prev_switch_ticks = last_context_switch_time;
-    const u64 most_recent_switch_ticks = Core::Timing::GetTicks();
+    const u64 most_recent_switch_ticks = Core::System::GetInstance().CoreTiming().GetTicks();
     const u64 update_ticks = most_recent_switch_ticks - prev_switch_ticks;
 
     if (thread != nullptr) {

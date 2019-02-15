@@ -12,8 +12,9 @@ template <typename T>
 class ResultVal;
 
 namespace Core::Timing {
+class CoreTiming;
 struct EventType;
-}
+} // namespace Core::Timing
 
 namespace Kernel {
 
@@ -39,7 +40,11 @@ public:
     KernelCore& operator=(KernelCore&&) = delete;
 
     /// Resets the kernel to a clean slate for use.
-    void Initialize();
+    ///
+    /// @param core_timing CoreTiming instance used to create any necessary
+    ///                    kernel-specific callback events.
+    ///
+    void Initialize(Core::Timing::CoreTiming& core_timing);
 
     /// Clears all resources in use by the kernel instance.
     void Shutdown();
