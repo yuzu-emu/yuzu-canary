@@ -49,17 +49,18 @@ bool CpuBarrier::Rendezvous() {
     return false;
 }
 
-Cpu::Cpu(ExclusiveMonitor& exclusive_monitor, CpuBarrier& cpu_barrier, std::size_t core_index)
-    : cpu_barrier{cpu_barrier}, core_index{core_index} {
+Cpu::Cpu(Timing::CoreTiming& core_timing, ExclusiveMonitor& exclusive_monitor,
+         CpuBarrier& cpu_barrier, std::size_t core_index)
+    : cpu_barrier{cpu_barrier}, core_timing{core_timing}, core_index{core_index} {
     if (Settings::values.use_cpu_jit) {
 #ifdef ARCHITECTURE_x86_64
-        arm_interface = std::make_unique<ARM_Dynarmic>(exclusive_monitor, core_index);
+        arm_interface = std::make_unique<ARM_Dynarmic>(core_timing, exclusive_monitor, core_index);
 #else
         arm_interface = std::make_unique<ARM_Unicorn>();
         LOG_WARNING(Core, "CPU JIT requested, but Dynarmic not available");
 #endif
     } else {
-        arm_interface = std::make_unique<ARM_Unicorn>();
+        arm_interface = std::make_unique<ARM_Unicorn>(core_timing);
     }
 
     scheduler = std::make_unique<Kernel::Scheduler>(*arm_interface);
@@ -93,14 +94,14 @@ void Cpu::RunLoop(bool tight_loop) {
 
         if (IsMainCore()) {
             // TODO(Subv): Only let CoreTiming idle if all 4 cores are idling.
-            Timing::Idle();
-            Timing::Advance();
+            core_timing.Idle();
+            core_timing.Advance();
         }
 
         PrepareReschedule();
     } else {
         if (IsMainCore()) {
-            Timing::Advance();
+            core_timing.Advance();
         }
 
         if (tight_loop) {

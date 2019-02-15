@@ -137,7 +137,7 @@ void RendererOpenGL::SwapBuffers(
 
     render_window.PollEvents();
 
-    system.FrameLimiter().DoFrameLimiting(Core::Timing::GetGlobalTimeUs());
+    system.FrameLimiter().DoFrameLimiting(system.CoreTiming().GetGlobalTimeUs());
     system.GetPerfStats().BeginSystemFrame();
 
     // Restore the rasterizer state

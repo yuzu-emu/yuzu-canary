@@ -288,7 +288,8 @@ void Controller_NPad::RequestPadStateUpdate(u32 npad_id) {
     rstick_entry.y = static_cast<s32>(stick_r_y_f * HID_JOYSTICK_MAX);
 }
 
-void Controller_NPad::OnUpdate(u8* data, std::size_t data_len) {
+void Controller_NPad::OnUpdate(const Core::Timing::CoreTiming& core_timing, u8* data,
+                               std::size_t data_len) {
     if (!IsControllerActivated())
         return;
     for (std::size_t i = 0; i < shared_memory_entries.size(); i++) {
@@ -308,7 +309,7 @@ void Controller_NPad::OnUpdate(u8* data, std::size_t data_len) {
             const auto& last_entry =
                 main_controller->npad[main_controller->common.last_entry_index];
 
-            main_controller->common.timestamp = Core::Timing::GetTicks();
+            main_controller->common.timestamp = core_timing.GetTicks();
             main_controller->common.last_entry_index =
                 (main_controller->common.last_entry_index + 1) % 17;
 

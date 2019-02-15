@@ -5,6 +5,7 @@
 #include <cstring>
 #include "common/assert.h"
 #include "common/logging/log.h"
+#include "core/core.h"
 #include "core/core_timing.h"
 #include "core/core_timing_util.h"
 #include "core/hle/service/nvdrv/devices/nvhost_ctrl_gpu.h"
@@ -184,7 +185,7 @@ u32 nvhost_ctrl_gpu::GetGpuTime(const std::vector<u8>& input, std::vector<u8>& o
 
     IoctlGetGpuTime params{};
     std::memcpy(&params, input.data(), input.size());
-    params.gpu_time = Core::Timing::cyclesToNs(Core::Timing::GetTicks());
+    params.gpu_time = Core::Timing::cyclesToNs(Core::System::GetInstance().CoreTiming().GetTicks());
     std::memcpy(output.data(), &params, output.size());
     return 0;
 }
