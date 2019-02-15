@@ -42,10 +42,11 @@ public:
         // clang-format on
         RegisterHandlers(functions);
 
-        auto& kernel = Core::System::GetInstance().Kernel();
-        system_event = Kernel::WritableEvent::CreateEventPair(kernel, Kernel::ResetType::Sticky,
-                                                              "IAudioRenderer:SystemEvent");
-        renderer = std::make_unique<AudioCore::AudioRenderer>(audren_params, system_event.writable);
+        auto& system = Core::System::GetInstance();
+        system_event = Kernel::WritableEvent::CreateEventPair(
+            system.Kernel(), Kernel::ResetType::Sticky, "IAudioRenderer:SystemEvent");
+        renderer = std::make_unique<AudioCore::AudioRenderer>(system, audren_params,
+                                                              system_event.writable);
     }
 
 private:

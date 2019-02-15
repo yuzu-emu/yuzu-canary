@@ -20,8 +20,9 @@ void Controller_Touchscreen::OnInit() {}
 
 void Controller_Touchscreen::OnRelease() {}
 
-void Controller_Touchscreen::OnUpdate(u8* data, std::size_t size) {
-    shared_memory.header.timestamp = Core::Timing::GetTicks();
+void Controller_Touchscreen::OnUpdate(const Core::Timing::CoreTiming& core_timing, u8* data,
+                                      std::size_t size) {
+    shared_memory.header.timestamp = core_timing.GetTicks();
     shared_memory.header.total_entry_count = 17;
 
     if (!IsControllerActivated()) {
@@ -48,7 +49,7 @@ void Controller_Touchscreen::OnUpdate(u8* data, std::size_t size) {
         touch_entry.diameter_x = Settings::values.touchscreen.diameter_x;
         touch_entry.diameter_y = Settings::values.touchscreen.diameter_y;
         touch_entry.rotation_angle = Settings::values.touchscreen.rotation_angle;
-        const u64 tick = Core::Timing::GetTicks();
+        const u64 tick = core_timing.GetTicks();
         touch_entry.delta_time = tick - last_touch;
         last_touch = tick;
         touch_entry.finger = Settings::values.touchscreen.finger;

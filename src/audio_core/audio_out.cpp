@@ -26,14 +26,15 @@ static Stream::Format ChannelsToStreamFormat(u32 num_channels) {
     return {};
 }
 
-StreamPtr AudioOut::OpenStream(u32 sample_rate, u32 num_channels, std::string&& name,
+StreamPtr AudioOut::OpenStream(Core::Timing::CoreTiming& core_timing, u32 sample_rate,
+                               u32 num_channels, std::string&& name,
                                Stream::ReleaseCallback&& release_callback) {
     if (!sink) {
         sink = CreateSinkFromID(Settings::values.sink_id, Settings::values.audio_device_id);
     }
 
     return std::make_shared<Stream>(
-        sample_rate, ChannelsToStreamFormat(num_channels), std::move(release_callback),
+        core_timing, sample_rate, ChannelsToStreamFormat(num_channels), std::move(release_callback),
         sink->AcquireSinkStream(sample_rate, num_channels, name), std::move(name));
 }
 
