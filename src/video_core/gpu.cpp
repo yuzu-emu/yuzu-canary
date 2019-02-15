@@ -12,7 +12,7 @@
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/engines/maxwell_dma.h"
 #include "video_core/gpu.h"
-#include "video_core/rasterizer_interface.h"
+#include "video_core/renderer_base.h"
 
 namespace Tegra {
 
@@ -28,7 +28,8 @@ u32 FramebufferConfig::BytesPerPixel(PixelFormat format) {
     UNREACHABLE();
 }
 
-GPU::GPU(VideoCore::RasterizerInterface& rasterizer) {
+GPU::GPU(VideoCore::RendererBase& renderer) : renderer{renderer} {
+    auto& rasterizer{renderer.Rasterizer()};
     memory_manager = std::make_unique<Tegra::MemoryManager>();
     dma_pusher = std::make_unique<Tegra::DmaPusher>(*this);
     maxwell_3d = std::make_unique<Engines::Maxwell3D>(rasterizer, *memory_manager);
