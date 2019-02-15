@@ -8,6 +8,7 @@
 #include "audio_core/codec.h"
 #include "common/assert.h"
 #include "common/logging/log.h"
+#include "core/core.h"
 #include "core/hle/kernel/writable_event.h"
 #include "core/memory.h"
 
@@ -71,14 +72,14 @@ private:
     EffectOutStatus out_status{};
     EffectInStatus info{};
 };
-AudioRenderer::AudioRenderer(AudioRendererParameter params,
+AudioRenderer::AudioRenderer(Core::System& system, AudioRendererParameter params,
                              Kernel::SharedPtr<Kernel::WritableEvent> buffer_event)
     : worker_params{params}, buffer_event{buffer_event}, voices(params.voice_count),
       effects(params.effect_count) {
 
     audio_out = std::make_unique<AudioCore::AudioOut>();
-    stream = audio_out->OpenStream(STREAM_SAMPLE_RATE, STREAM_NUM_CHANNELS, "AudioRenderer",
-                                   [=]() { buffer_event->Signal(); });
+    stream = audio_out->OpenStream(system.CoreTiming(), STREAM_SAMPLE_RATE, STREAM_NUM_CHANNELS,
+                                   "AudioRenderer", [=]() { buffer_event->Signal(); });
     audio_out->StartStream(stream);
 
     QueueMixedBuffer(0);

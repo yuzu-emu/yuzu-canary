@@ -14,8 +14,9 @@
 #include "common/common_types.h"
 
 namespace Core::Timing {
+class CoreTiming;
 struct EventType;
-}
+} // namespace Core::Timing
 
 namespace AudioCore {
 
@@ -42,8 +43,8 @@ public:
     /// Callback function type, used to change guest state on a buffer being released
     using ReleaseCallback = std::function<void()>;
 
-    Stream(u32 sample_rate, Format format, ReleaseCallback&& release_callback,
-           SinkStream& sink_stream, std::string&& name_);
+    Stream(Core::Timing::CoreTiming& core_timing, u32 sample_rate, Format format,
+           ReleaseCallback&& release_callback, SinkStream& sink_stream, std::string&& name_);
 
     /// Plays the audio stream
     void Play();
@@ -100,6 +101,7 @@ private:
     std::queue<BufferPtr> queued_buffers;     ///< Buffers queued to be played in the stream
     std::queue<BufferPtr> released_buffers;   ///< Buffers recently released from the stream
     SinkStream& sink_stream;                  ///< Output sink for the stream
+    Core::Timing::CoreTiming& core_timing;    ///< Core timing instance.
     std::string name;                         ///< Name of the stream, must be unique
 };
 

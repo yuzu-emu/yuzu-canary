@@ -14,6 +14,10 @@
 #include "common/swap.h"
 #include "core/hle/kernel/object.h"
 
+namespace Core {
+class System;
+}
+
 namespace Kernel {
 class WritableEvent;
 }
@@ -208,7 +212,7 @@ static_assert(sizeof(UpdateDataHeader) == 0x40, "UpdateDataHeader has wrong size
 
 class AudioRenderer {
 public:
-    AudioRenderer(AudioRendererParameter params,
+    AudioRenderer(Core::System& system, AudioRendererParameter params,
                   Kernel::SharedPtr<Kernel::WritableEvent> buffer_event);
     ~AudioRenderer();
 
