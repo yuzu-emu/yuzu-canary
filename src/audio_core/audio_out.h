@@ -13,6 +13,10 @@
 #include "audio_core/stream.h"
 #include "common/common_types.h"
 
+namespace Core::Timing {
+class CoreTiming;
+}
+
 namespace AudioCore {
 
 /**
@@ -21,8 +25,8 @@ namespace AudioCore {
 class AudioOut {
 public:
     /// Opens a new audio stream
-    StreamPtr OpenStream(u32 sample_rate, u32 num_channels, std::string&& name,
-                         Stream::ReleaseCallback&& release_callback);
+    StreamPtr OpenStream(Core::Timing::CoreTiming& core_timing, u32 sample_rate, u32 num_channels,
+                         std::string&& name, Stream::ReleaseCallback&& release_callback);
 
     /// Returns a vector of recently released buffers specified by tag for the specified stream
     std::vector<Buffer::Tag> GetTagsAndReleaseBuffers(StreamPtr stream, std::size_t max_count);

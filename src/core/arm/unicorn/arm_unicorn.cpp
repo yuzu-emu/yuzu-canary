@@ -72,7 +72,7 @@ static bool UnmappedMemoryHook(uc_engine* uc, uc_mem_type type, u64 addr, int si
     return {};
 }
 
-ARM_Unicorn::ARM_Unicorn() {
+ARM_Unicorn::ARM_Unicorn(Timing::CoreTiming& core_timing) : core_timing{core_timing} {
     CHECKED(uc_open(UC_ARCH_ARM64, UC_MODE_ARM, &uc));
 
     auto fpv = 3 << 20;
@@ -177,7 +177,7 @@ void ARM_Unicorn::Run() {
     if (GDBStub::IsServerEnabled()) {
         ExecuteInstructions(std::max(4000000, 0));
     } else {
-        ExecuteInstructions(std::max(Timing::GetDowncount(), 0));
+        ExecuteInstructions(std::max(core_timing.GetDowncount(), 0));
     }
 }
 
@@ -190,7 +190,7 @@ MICROPROFILE_DEFINE(ARM_Jit_Unicorn, "ARM JIT", "Unicorn", MP_RGB(255, 64, 64));
 void ARM_Unicorn::ExecuteInstructions(int num_instructions) {
     MICROPROFILE_SCOPE(ARM_Jit_Unicorn);
     CHECKED(uc_emu_start(uc, GetPC(), 1ULL << 63, 0, num_instructions));
-    Timing::AddTicks(num_instructions);
+    core_timing.AddTicks(num_instructions);
     if (GDBStub::IsServerEnabled()) {
         if (last_bkpt_hit) {
             uc_reg_write(uc, UC_ARM64_REG_PC, &last_bkpt.address);

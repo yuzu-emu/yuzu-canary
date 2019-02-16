@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include "common/assert.h"
+#include "core/core.h"
 #include "core/core_timing.h"
 #include "core/memory.h"
 #include "video_core/engines/fermi_2d.h"
@@ -283,7 +284,7 @@ void GPU::ProcessSemaphoreTriggerMethod() {
         block.sequence = regs.semaphore_sequence;
         // TODO(Kmather73): Generate a real GPU timestamp and write it here instead of
         // CoreTiming
-        block.timestamp = Core::Timing::GetTicks();
+        block.timestamp = Core::System::GetInstance().CoreTiming().GetTicks();
         Memory::WriteBlock(*address, &block, sizeof(block));
     } else {
         const auto address =

@@ -5,6 +5,7 @@
 #include <chrono>
 #include <ctime>
 #include "common/logging/log.h"
+#include "core/core.h"
 #include "core/core_timing.h"
 #include "core/core_timing_util.h"
 #include "core/hle/ipc_helpers.h"
@@ -106,8 +107,9 @@ private:
     void GetCurrentTimePoint(Kernel::HLERequestContext& ctx) {
         LOG_DEBUG(Service_Time, "called");
 
+        const auto& core_timing = Core::System::GetInstance().CoreTiming();
         const SteadyClockTimePoint steady_clock_time_point{
-            Core::Timing::cyclesToMs(Core::Timing::GetTicks()) / 1000};
+            Core::Timing::cyclesToMs(core_timing.GetTicks()) / 1000};
         IPC::ResponseBuilder rb{ctx, (sizeof(SteadyClockTimePoint) / 4) + 2};
         rb.Push(RESULT_SUCCESS);
         rb.PushRaw(steady_clock_time_point);
@@ -281,8 +283,9 @@ void Module::Interface::GetClockSnapshot(Kernel::HLERequestContext& ctx) {
         return;
     }
 
+    const auto& core_timing = Core::System::GetInstance().CoreTiming();
     const SteadyClockTimePoint steady_clock_time_point{
-        Core::Timing::cyclesToMs(Core::Timing::GetTicks()) / 1000, {}};
+        Core::Timing::cyclesToMs(core_timing.GetTicks()) / 1000, {}};
 
     CalendarTime calendar_time{};
     calendar_time.year = tm->tm_year + 1900;

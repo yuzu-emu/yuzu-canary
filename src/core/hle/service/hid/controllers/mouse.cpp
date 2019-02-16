@@ -17,8 +17,9 @@ Controller_Mouse::~Controller_Mouse() = default;
 void Controller_Mouse::OnInit() {}
 void Controller_Mouse::OnRelease() {}
 
-void Controller_Mouse::OnUpdate(u8* data, std::size_t size) {
-    shared_memory.header.timestamp = Core::Timing::GetTicks();
+void Controller_Mouse::OnUpdate(const Core::Timing::CoreTiming& core_timing, u8* data,
+                                std::size_t size) {
+    shared_memory.header.timestamp = core_timing.GetTicks();
     shared_memory.header.total_entry_count = 17;
 
     if (!IsControllerActivated()) {

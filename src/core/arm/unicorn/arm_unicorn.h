@@ -9,12 +9,17 @@
 #include "core/arm/arm_interface.h"
 #include "core/gdbstub/gdbstub.h"
 
+namespace Core::Timing {
+class CoreTiming;
+}
+
 namespace Core {
 
 class ARM_Unicorn final : public ARM_Interface {
 public:
-    ARM_Unicorn();
+    explicit ARM_Unicorn(Timing::CoreTiming& core_timing);
     ~ARM_Unicorn();
+
     void MapBackingMemory(VAddr address, std::size_t size, u8* memory,
                           Kernel::VMAPermission perms) override;
     void UnmapMemory(VAddr address, std::size_t size) override;
@@ -43,6 +48,7 @@ public:
 
 private:
     uc_engine* uc{};
+    Timing::CoreTiming& core_timing;
     GDBStub::BreakpointAddress last_bkpt{};
     bool last_bkpt_hit;
 };

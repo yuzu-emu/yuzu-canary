@@ -15,8 +15,9 @@
 #include "core/hle/kernel/object.h"
 
 namespace Core::Timing {
+class CoreTiming;
 struct EventType;
-}
+} // namespace Core::Timing
 
 namespace Kernel {
 class ReadableEvent;
@@ -52,7 +53,7 @@ struct Display {
 
 class NVFlinger final {
 public:
-    NVFlinger();
+    explicit NVFlinger(Core::Timing::CoreTiming& core_timing);
     ~NVFlinger();
 
     /// Sets the NVDrv module instance to use to send buffers to the GPU.
@@ -117,6 +118,9 @@ private:
 
     /// Event that handles screen composition.
     Core::Timing::EventType* composition_event;
+
+    /// Core timing instance for registering/unregistering the composition event.
+    Core::Timing::CoreTiming& core_timing;
 };
 
 } // namespace Service::NVFlinger

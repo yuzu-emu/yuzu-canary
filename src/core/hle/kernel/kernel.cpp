@@ -86,11 +86,11 @@ static void ThreadWakeupCallback(u64 thread_handle, [[maybe_unused]] int cycles_
 }
 
 struct KernelCore::Impl {
-    void Initialize(KernelCore& kernel) {
+    void Initialize(KernelCore& kernel, Core::Timing::CoreTiming& core_timing) {
         Shutdown();
 
         InitializeSystemResourceLimit(kernel);
-        InitializeThreads();
+        InitializeThreads(core_timing);
     }
 
     void Shutdown() {
@@ -122,9 +122,9 @@ struct KernelCore::Impl {
         ASSERT(system_resource_limit->SetLimitValue(ResourceType::Sessions, 900).IsSuccess());
     }
 
-    void InitializeThreads() {
+    void InitializeThreads(Core::Timing::CoreTiming& core_timing) {
         thread_wakeup_event_type =
-            Core::Timing::RegisterEvent("ThreadWakeupCallback", ThreadWakeupCallback);
+            core_timing.RegisterEvent("ThreadWakeupCallback", ThreadWakeupCallback);
     }
 
     std::atomic<u32> next_object_id{0};
@@ -152,8 +152,8 @@ KernelCore::~KernelCore() {
     Shutdown();
 }
 
-void KernelCore::Initialize() {
-    impl->Initialize(*this);
+void KernelCore::Initialize(Core::Timing::CoreTiming& core_timing) {
+    impl->Initialize(*this, core_timing);
 }
 
 void KernelCore::Shutdown() {

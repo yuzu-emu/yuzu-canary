@@ -73,13 +73,15 @@ IAppletResource::IAppletResource() : ServiceFramework("IAppletResource") {
     GetController<Controller_Stubbed>(HidController::Unknown3).SetCommonHeaderOffset(0x5000);
 
     // Register update callbacks
-    pad_update_event = Core::Timing::RegisterEvent(
-        "HID::UpdatePadCallback",
-        [this](u64 userdata, int cycles_late) { UpdateControllers(userdata, cycles_late); });
+    auto& core_timing = Core::System::GetInstance().CoreTiming();
+    pad_update_event =
+        core_timing.RegisterEvent("HID::UpdatePadCallback", [this](u64 userdata, int cycles_late) {
+            UpdateControllers(userdata, cycles_late);
+        });
 
     // TODO(shinyquagsire23): Other update callbacks? (accel, gyro?)
 
-    Core::Timing::ScheduleEvent(pad_update_ticks, pad_update_event);
+    core_timing.ScheduleEvent(pad_update_ticks, pad_update_event);
 
     ReloadInputDevices();
 }
@@ -93,7 +95,7 @@ void IAppletResource::DeactivateController(HidController controller) {
 }
 
 IAppletResource ::~IAppletResource() {
-    Core::Timing::UnscheduleEvent(pad_update_event, 0);
+    Core::System::GetInstance().CoreTiming().UnscheduleEvent(pad_update_event, 0);
 }
 
 void IAppletResource::GetSharedMemoryHandle(Kernel::HLERequestContext& ctx) {
@@ -105,15 +107,17 @@ void IAppletResource::GetSharedMemoryHandle(Kernel::HLERequestContext& ctx) {
 }
 
 void IAppletResource::UpdateControllers(u64 userdata, int cycles_late) {
+    auto& core_timing = Core::System::GetInstance().CoreTiming();
+
     const bool should_reload = Settings::values.is_device_reload_pending.exchange(false);
     for (const auto& controller : controllers) {
         if (should_reload) {
             controller->OnLoadInputDevices();
         }
-        controller->OnUpdate(shared_mem->GetPointer(), SHARED_MEMORY_SIZE);
+        controller->OnUpdate(core_timing, shared_mem->GetPointer(), SHARED_MEMORY_SIZE);
     }
 
-    Core::Timing::ScheduleEvent(pad_update_ticks - cycles_late, pad_update_event);
+    core_timing.ScheduleEvent(pad_update_ticks - cycles_late, pad_update_event);
 }
 
 class IActiveVibrationDeviceList final : public ServiceFramework<IActiveVibrationDeviceList> {
