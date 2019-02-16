@@ -1257,7 +1257,11 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& old_surface,
     case SurfaceTarget::TextureCubemap:
     case SurfaceTarget::Texture2DArray:
     case SurfaceTarget::TextureCubeArray:
-        FastLayeredCopySurface(old_surface, new_surface);
+        if (old_params.pixel_format == new_params.pixel_format)
+            FastLayeredCopySurface(old_surface, new_surface);
+        else {
+            AccurateCopySurface(old_surface, new_surface);
+        }
         break;
     default:
         LOG_CRITICAL(Render_OpenGL, "Unimplemented surface target={}",
