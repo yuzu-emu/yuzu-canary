@@ -104,7 +104,7 @@ protected:
     }
 
     /// Register an object into the cache
-    void Register(const T& object) {
+    virtual void Register(const T& object) {
         object->SetIsRegistered(true);
         interval_cache.add({GetInterval(object), ObjectSet{object}});
         map_cache.insert({object->GetAddr(), object});
@@ -112,7 +112,7 @@ protected:
     }
 
     /// Unregisters an object from the cache
-    void Unregister(const T& object) {
+    virtual void Unregister(const T& object) {
         object->SetIsRegistered(false);
         rasterizer.UpdatePagesCachedCount(object->GetAddr(), object->GetSizeInBytes(), -1);
         // Only flush if use_accurate_gpu_emulation is enabled, as it incurs a performance hit
@@ -127,6 +127,15 @@ protected:
     /// Returns a ticks counter used for tracking when cached objects were last modified
     u64 GetModifiedTicks() {
         return ++modified_ticks;
+    }
+
+    /// Flushes the specified object, updating appropriate cache state as needed
+    void FlushObject(const T& object) {
+        if (!object->IsDirty()) {
+            return;
+        }
+        object->Flush();
+        object->MarkAsModified(false, *this);
     }
 
 private:
@@ -152,15 +161,6 @@ private:
         });
 
         return objects;
-    }
-
-    /// Flushes the specified object, updating appropriate cache state as needed
-    void FlushObject(const T& object) {
-        if (!object->IsDirty()) {
-            return;
-        }
-        object->Flush();
-        object->MarkAsModified(false, *this);
     }
 
     using ObjectSet = std::set<T>;
