@@ -48,7 +48,7 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
         UNIMPLEMENTED_IF_MSG((instr.attribute.fmt20.immediate.Value() % sizeof(u32)) != 0,
                              "Unaligned attribute loads are not supported");
 
-        Tegra::Shader::IpaMode input_mode{Tegra::Shader::IpaInterpMode::Perspective,
+        Tegra::Shader::IpaMode input_mode{Tegra::Shader::IpaInterpMode::Pass,
                                           Tegra::Shader::IpaSampleMode::Default};
 
         u64 next_element = instr.attribute.fmt20.element;
