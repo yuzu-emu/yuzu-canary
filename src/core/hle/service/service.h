@@ -14,16 +14,20 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Namespace Service
 
+namespace Core {
+class System;
+}
+
+namespace FileSys {
+class VfsFilesystem;
+}
+
 namespace Kernel {
 class ClientPort;
 class ServerPort;
 class ServerSession;
 class HLERequestContext;
 } // namespace Kernel
-
-namespace FileSys {
-class VfsFilesystem;
-}
 
 namespace Service {
 
@@ -178,7 +182,8 @@ private:
 };
 
 /// Initialize ServiceManager
-void Init(std::shared_ptr<SM::ServiceManager>& sm, FileSys::VfsFilesystem& vfs);
+void Init(std::shared_ptr<SM::ServiceManager>& sm, Core::System& system,
+          FileSys::VfsFilesystem& vfs);
 
 /// Shutdown ServiceManager
 void Shutdown();

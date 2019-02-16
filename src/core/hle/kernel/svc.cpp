@@ -918,6 +918,7 @@ static ResultCode GetInfo(u64* result, u64 info_id, u64 handle, u64 info_sub_id)
         }
 
         const auto& system = Core::System::GetInstance();
+        const auto& core_timing = system.CoreTiming();
         const auto& scheduler = system.CurrentScheduler();
         const auto* const current_thread = scheduler.GetCurrentThread();
         const bool same_thread = current_thread == thread;
@@ -927,9 +928,9 @@ static ResultCode GetInfo(u64* result, u64 info_id, u64 handle, u64 info_sub_id)
         if (same_thread && info_sub_id == 0xFFFFFFFFFFFFFFFF) {
             const u64 thread_ticks = current_thread->GetTotalCPUTimeTicks();
 
-            out_ticks = thread_ticks + (Core::Timing::GetTicks() - prev_ctx_ticks);
+            out_ticks = thread_ticks + (core_timing.GetTicks() - prev_ctx_ticks);
         } else if (same_thread && info_sub_id == system.CurrentCoreIndex()) {
-            out_ticks = Core::Timing::GetTicks() - prev_ctx_ticks;
+            out_ticks = core_timing.GetTicks() - prev_ctx_ticks;
         }
 
         *result = out_ticks;
@@ -1546,10 +1547,11 @@ static ResultCode SignalToAddress(VAddr address, u32 type, s32 value, s32 num_to
 static u64 GetSystemTick() {
     LOG_TRACE(Kernel_SVC, "called");
 
-    const u64 result{Core::Timing::GetTicks()};
+    auto& core_timing = Core::System::GetInstance().CoreTiming();
+    const u64 result{core_timing.GetTicks()};
 
     // Advance time to defeat dumb games that busy-wait for the frame to end.
-    Core::Timing::AddTicks(400);
+    core_timing.AddTicks(400);
 
     return result;
 }

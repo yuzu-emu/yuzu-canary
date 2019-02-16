@@ -16,13 +16,14 @@ void Controller_Stubbed::OnInit() {}
 
 void Controller_Stubbed::OnRelease() {}
 
-void Controller_Stubbed::OnUpdate(u8* data, std::size_t size) {
+void Controller_Stubbed::OnUpdate(const Core::Timing::CoreTiming& core_timing, u8* data,
+                                  std::size_t size) {
     if (!smart_update) {
         return;
     }
 
     CommonHeader header{};
-    header.timestamp = Core::Timing::GetTicks();
+    header.timestamp = core_timing.GetTicks();
     header.total_entry_count = 17;
     header.entry_count = 0;
     header.last_entry_index = 0;

@@ -112,14 +112,14 @@ public:
         // Always execute at least one tick.
         amortized_ticks = std::max<u64>(amortized_ticks, 1);
 
-        Timing::AddTicks(amortized_ticks);
+        parent.core_timing.AddTicks(amortized_ticks);
         num_interpreted_instructions = 0;
     }
     u64 GetTicksRemaining() override {
-        return std::max(Timing::GetDowncount(), 0);
+        return std::max(parent.core_timing.GetDowncount(), 0);
     }
     u64 GetCNTPCT() override {
-        return Timing::GetTicks();
+        return parent.core_timing.GetTicks();
     }
 
     ARM_Dynarmic& parent;
@@ -172,8 +172,10 @@ void ARM_Dynarmic::Step() {
     cb->InterpreterFallback(jit->GetPC(), 1);
 }
 
-ARM_Dynarmic::ARM_Dynarmic(ExclusiveMonitor& exclusive_monitor, std::size_t core_index)
-    : cb(std::make_unique<ARM_Dynarmic_Callbacks>(*this)), core_index{core_index},
+ARM_Dynarmic::ARM_Dynarmic(Timing::CoreTiming& core_timing, ExclusiveMonitor& exclusive_monitor,
+                           std::size_t core_index)
+    : cb(std::make_unique<ARM_Dynarmic_Callbacks>(*this)), inner_unicorn{core_timing},
+      core_index{core_index}, core_timing{core_timing},
       exclusive_monitor{dynamic_cast<DynarmicExclusiveMonitor&>(exclusive_monitor)} {
     ThreadContext ctx{};
     inner_unicorn.SaveContext(ctx);
