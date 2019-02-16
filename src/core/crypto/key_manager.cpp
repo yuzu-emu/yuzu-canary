@@ -398,7 +398,8 @@ static bool ValidCryptoRevisionString(std::string_view base, size_t begin, size_
 }
 
 void KeyManager::LoadFromFile(const std::string& filename, bool is_title_keys) {
-    std::ifstream file(filename);
+    std::ifstream file;
+    OpenFStream(file, filename, std::ios_base::in);
     if (!file.is_open())
         return;
 
