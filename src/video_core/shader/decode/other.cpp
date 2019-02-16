@@ -135,7 +135,18 @@ u32 ShaderIR::DecodeOther(NodeBlock& bb, u32 pc) {
                                                 instr.ipa.sample_mode.Value()};
 
         const Node attr = GetInputAttribute(attribute.index, attribute.element, input_mode);
-        const Node value = GetSaturatedFloat(attr, instr.ipa.saturate);
+        Node value = attr;
+        const Tegra::Shader::Attribute::Index index = attribute.index.Value();
+        if (index >= Tegra::Shader::Attribute::Index::Attribute_0 &&
+            index <= Tegra::Shader::Attribute::Index::Attribute_31) {
+            // TODO(Blinkhawk): There are cases where a perspective attribute use PASS.
+            // In theory by setting them as perspective, OpenGL does the perspective correction.
+            // A way must figured to reverse the last step of it.
+            if (input_mode.interpolation_mode == Tegra::Shader::IpaInterpMode::Multiply) {
+                value = Operation(OperationCode::FMul, PRECISE, value, GetRegister(instr.gpr20));
+            }
+        }
+        value = GetSaturatedFloat(value, instr.ipa.saturate);
 
         SetRegister(bb, instr.gpr0, value);
         break;
