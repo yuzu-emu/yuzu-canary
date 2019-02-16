@@ -1,3 +1,28 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 4327f430f1a4bb33024c13592f229db27bc884b0
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2123](https://github.com/yuzu-emu/yuzu/pull/2123)|[f010f7c](https://github.com/yuzu-emu/yuzu/pull/2123/files/)|core_timing: De-globalize core_timing facilities|[lioncash](https://github.com/lioncash)|Yes|
+|[2122](https://github.com/yuzu-emu/yuzu/pull/2122)|[ae6c052](https://github.com/yuzu-emu/yuzu/pull/2122/files/)|vk_resource_manager: Implement fence and command buffer allocator|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2121](https://github.com/yuzu-emu/yuzu/pull/2121)|[e346597](https://github.com/yuzu-emu/yuzu/pull/2121/files/)|Improve the Accuracy of the Rasterizer Cache through a Texception Pass|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2120](https://github.com/yuzu-emu/yuzu/pull/2120)|[8fc8cdf](https://github.com/yuzu-emu/yuzu/pull/2120/files/)|Fixes Unicode Key File Directories|[Jungorend](https://github.com/Jungorend)|Yes|
+|[2119](https://github.com/yuzu-emu/yuzu/pull/2119)|[bb41683](https://github.com/yuzu-emu/yuzu/pull/2119/files/)|rasterizer_cache_gl: Only do fast layered copy on the same format.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2118](https://github.com/yuzu-emu/yuzu/pull/2118)|[10682ad](https://github.com/yuzu-emu/yuzu/pull/2118/files/)|shader_decompiler: Improve Accuracy of Attribute Interpolation.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2055](https://github.com/yuzu-emu/yuzu/pull/2055)|[8ba6542](https://github.com/yuzu-emu/yuzu/pull/2055/files/)|Asynchronous GPU command processing|[bunnei](https://github.com/bunnei)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
