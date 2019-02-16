@@ -36,7 +36,7 @@ void nvdisp_disp0::flip(u32 buffer_handle, u32 offset, u32 format, u32 width, u3
 
     auto& instance = Core::System::GetInstance();
     instance.GetPerfStats().EndGameFrame();
-    instance.Renderer().SwapBuffers(framebuffer);
+    instance.GPU().SwapBuffers(framebuffer);
 }
 
 } // namespace Service::Nvidia::Devices
