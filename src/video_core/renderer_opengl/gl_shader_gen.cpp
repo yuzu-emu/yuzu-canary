@@ -124,7 +124,7 @@ layout (location = 5) out vec4 FragColor5;
 layout (location = 6) out vec4 FragColor6;
 layout (location = 7) out vec4 FragColor7;
 
-layout (location = 0) in vec4 position;
+layout (location = 0) in noperspective vec4 position;
 
 layout (std140, binding = EMULATION_UBO_BINDING) uniform fs_config {
     vec4 viewport_flip;
