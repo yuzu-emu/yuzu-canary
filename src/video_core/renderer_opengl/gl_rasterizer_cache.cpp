@@ -1247,6 +1247,14 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& old_surface,
         return new_surface;
     }
 
+    if ((old_params.target == SurfaceTarget::Texture2DArray) &&
+        (new_params.target == SurfaceTarget::Texture2D) &&
+        GetFormatBpp(old_params.pixel_format) == GetFormatBpp(new_params.pixel_format) &&
+        old_params.type == new_params.type) {
+        FastCopySurface(old_surface, new_surface);
+        return new_surface;
+    }
+
     switch (new_params.target) {
     case SurfaceTarget::Texture2D:
         CopySurface(old_surface, new_surface, copy_pbo.handle);
