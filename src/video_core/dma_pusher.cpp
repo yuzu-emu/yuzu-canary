@@ -33,18 +33,36 @@ void DmaPusher::DispatchCalls() {
 }
 
 bool DmaPusher::Step() {
-    if (dma_get != dma_put) {
-        // Push buffer non-empty, read a word
-        const auto address = gpu.MemoryManager().GpuToCpuAddress(dma_get);
-        ASSERT_MSG(address, "Invalid GPU address");
+    if (!ib_enable || dma_pushbuffer.empty()) {
+        // pushbuffer empty and IB empty or nonexistent - nothing to do
+        return false;
+    }
 
-        const CommandHeader command_header{Memory::Read32(*address)};
+    const CommandList& command_list{dma_pushbuffer.front()};
+    const CommandListHeader& command_list_header{command_list[dma_pushbuffer_subindex++]};
+    GPUVAddr dma_get = command_list_header.addr;
+    GPUVAddr dma_put = dma_get + command_list_header.size * sizeof(u32);
+    bool non_main = command_list_header.is_non_main;
 
-        dma_get += sizeof(u32);
+    if (dma_pushbuffer_subindex >= command_list.size()) {
+        // We've gone through the current list, remove it from the queue
+        dma_pushbuffer.pop();
+        dma_pushbuffer_subindex = 0;
+    }
 
-        if (!non_main) {
-            dma_mget = dma_get;
-        }
+    if (command_list_header.size == 0) {
+        return true;
+    }
+
+    // Push buffer non-empty, read a word
+    const auto address = gpu.MemoryManager().GpuToCpuAddress(dma_get);
+    ASSERT_MSG(address, "Invalid GPU address");
+
+    command_headers.resize(command_list_header.size);
+
+    Memory::ReadBlock(*address, command_headers.data(), command_list_header.size * sizeof(u32));
+
+    for (const CommandHeader& command_header : command_headers) {
 
         // now, see if we're in the middle of a command
         if (dma_state.length_pending) {
@@ -91,22 +109,11 @@ bool DmaPusher::Step() {
                 break;
             }
         }
-    } else if (ib_enable && !dma_pushbuffer.empty()) {
-        // Current pushbuffer empty, but we have more IB entries to read
-        const CommandList& command_list{dma_pushbuffer.front()};
-        const CommandListHeader& command_list_header{command_list[dma_pushbuffer_subindex++]};
-        dma_get = command_list_header.addr;
-        dma_put = dma_get + command_list_header.size * sizeof(u32);
-        non_main = command_list_header.is_non_main;
+    }
 
-        if (dma_pushbuffer_subindex >= command_list.size()) {
-            // We've gone through the current list, remove it from the queue
-            dma_pushbuffer.pop();
-            dma_pushbuffer_subindex = 0;
-        }
-    } else {
-        // Otherwise, pushbuffer empty and IB empty or nonexistent - nothing to do
-        return {};
+    if (!non_main) {
+        // TODO (degasus): This is dead code, as dma_mget is never read.
+        dma_mget = dma_put;
     }
 
     return true;
