@@ -91,12 +91,12 @@ void MaxwellDMA::HandleCopy() {
     const auto FlushAndInvalidate = [&](u32 src_size, u64 dst_size) {
         // TODO(Subv): For now, manually flush the regions until we implement GPU-accelerated
         // copying.
-        rasterizer.FlushRegion(*source_cpu, src_size);
+        Core::System::GetInstance().GPU().FlushRegion(*source_cpu, src_size);
 
         // We have to invalidate the destination region to evict any outdated surfaces from the
         // cache. We do this before actually writing the new data because the destination address
         // might contain a dirty surface that will have to be written back to memory.
-        rasterizer.InvalidateRegion(*dest_cpu, dst_size);
+        Core::System::GetInstance().GPU().InvalidateRegion(*dest_cpu, dst_size);
     };
 
     if (regs.exec.is_dst_linear && !regs.exec.is_src_linear) {
