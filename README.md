@@ -1,3 +1,31 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: ef559f5741a447f4387b9dd3664c2cb61f61d9d4
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2141](https://github.com/yuzu-emu/yuzu/pull/2141)|[8207461](https://github.com/yuzu-emu/yuzu/pull/2141/files/)|speed up memory page mapping|[Annomatg](https://github.com/Annomatg)|Yes|
+|[2139](https://github.com/yuzu-emu/yuzu/pull/2139)|[6dd4097](https://github.com/yuzu-emu/yuzu/pull/2139/files/)|video_core/dma_pusher: The full list of headers at once.|[degasus](https://github.com/degasus)|Yes|
+|[2135](https://github.com/yuzu-emu/yuzu/pull/2135)|[2677cc8](https://github.com/yuzu-emu/yuzu/pull/2135/files/)|DO NOT MERGE Implemented a lil edge case on RecreateSurface.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2129](https://github.com/yuzu-emu/yuzu/pull/2129)|[a8d4927](https://github.com/yuzu-emu/yuzu/pull/2129/files/)|Correct CNTPCT from using CPU Cycles to using Clock Cycles|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2125](https://github.com/yuzu-emu/yuzu/pull/2125)|[8dfc812](https://github.com/yuzu-emu/yuzu/pull/2125/files/)|gl_state: Synchronize gl_state even when state is disabled|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2121](https://github.com/yuzu-emu/yuzu/pull/2121)|[ed2a3c7](https://github.com/yuzu-emu/yuzu/pull/2121/files/)|Improve the Accuracy of the Rasterizer Cache through a Texception Pass|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2120](https://github.com/yuzu-emu/yuzu/pull/2120)|[8fc8cdf](https://github.com/yuzu-emu/yuzu/pull/2120/files/)|Fixes Unicode Key File Directories|[Jungorend](https://github.com/Jungorend)|Yes|
+|[2119](https://github.com/yuzu-emu/yuzu/pull/2119)|[bb41683](https://github.com/yuzu-emu/yuzu/pull/2119/files/)|rasterizer_cache_gl: Only do fast layered copy on the same format.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2118](https://github.com/yuzu-emu/yuzu/pull/2118)|[10682ad](https://github.com/yuzu-emu/yuzu/pull/2118/files/)|shader_decompiler: Improve Accuracy of Attribute Interpolation.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2055](https://github.com/yuzu-emu/yuzu/pull/2055)|[5ed65ac](https://github.com/yuzu-emu/yuzu/pull/2055/files/)|Asynchronous GPU command processing|[bunnei](https://github.com/bunnei)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
