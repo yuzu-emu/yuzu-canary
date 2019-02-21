@@ -20,6 +20,7 @@
 namespace OpenGL::GLShader {
 
 using Tegra::Shader::Attribute;
+using Tegra::Shader::AttributeUse;
 using Tegra::Shader::Header;
 using Tegra::Shader::IpaInterpMode;
 using Tegra::Shader::IpaMode;
@@ -288,34 +289,22 @@ private:
         code.AddNewLine();
     }
 
-    std::string GetInputFlags(const IpaMode& input_mode) {
-        const IpaSampleMode sample_mode = input_mode.sampling_mode;
-        const IpaInterpMode interp_mode = input_mode.interpolation_mode;
+    std::string GetInputFlags(AttributeUse attribute) {
         std::string out;
 
-        switch (interp_mode) {
-        case IpaInterpMode::Flat:
+        switch (attribute) {
+        case AttributeUse::Constant:
             out += "flat ";
             break;
-        case IpaInterpMode::Linear:
+        case AttributeUse::ScreenLinear:
             out += "noperspective ";
             break;
-        case IpaInterpMode::Perspective:
+        case AttributeUse::Perspective:
             // Default, Smooth
             break;
         default:
-            UNIMPLEMENTED_MSG("Unhandled IPA interp mode: {}", static_cast<u32>(interp_mode));
-        }
-        switch (sample_mode) {
-        case IpaSampleMode::Centroid:
-            // It can be implemented with the "centroid " keyword in GLSL
-            UNIMPLEMENTED_MSG("Unimplemented IPA sampler mode centroid");
-            break;
-        case IpaSampleMode::Default:
-            // Default, n/a
-            break;
-        default:
-            UNIMPLEMENTED_MSG("Unimplemented IPA sampler mode: {}", static_cast<u32>(sample_mode));
+            LOG_CRITICAL(HW_GPU, "Unused attribute being fetched");
+            UNREACHABLE();
         }
         return out;
     }
@@ -324,15 +313,10 @@ private:
         const auto& attributes = ir.GetInputAttributes();
         for (const auto element : attributes) {
             const Attribute::Index index = element.first;
-            const IpaMode& input_mode = *element.second.begin();
             if (index < Attribute::Index::Attribute_0 || index > Attribute::Index::Attribute_31) {
                 // Skip when it's not a generic attribute
                 continue;
             }
-
-            ASSERT(element.second.size() > 0);
-            UNIMPLEMENTED_IF_MSG(element.second.size() > 1,
-                                 "Multiple input flag modes are not supported in GLSL");
 
             // TODO(bunnei): Use proper number of elements for these
             u32 idx = static_cast<u32>(index) - static_cast<u32>(Attribute::Index::Attribute_0);
@@ -345,8 +329,14 @@ private:
             if (stage == ShaderStage::Geometry) {
                 attr = "gs_" + attr + "[]";
             }
-            code.AddLine("layout (location = " + std::to_string(idx) + ") " +
-                         GetInputFlags(input_mode) + "in vec4 " + attr + ';');
+            std::string suffix;
+            if (stage == ShaderStage::Fragment) {
+                const auto input_mode =
+                    header.ps.GetAttributeUse(idx - GENERIC_VARYING_START_LOCATION);
+                suffix = GetInputFlags(input_mode);
+            }
+            code.AddLine("layout (location = " + std::to_string(idx) + ") " + suffix + "in vec4 " +
+                         attr + ';');
         }
         if (!attributes.empty())
             code.AddNewLine();
