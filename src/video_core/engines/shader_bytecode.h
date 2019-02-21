@@ -376,9 +376,9 @@ enum class R2pMode : u64 {
 };
 
 enum class IpaInterpMode : u64 {
-    Linear = 0,
-    Perspective = 1,
-    Flat = 2,
+    Pass = 0,
+    Multiply = 1,
+    Constant = 2,
     Sc = 3,
 };
 
