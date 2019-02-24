@@ -16,6 +16,13 @@ enum class OutputTopology : u32 {
     TriangleStrip = 7,
 };
 
+enum class AttributeUse : u8 {
+    Unused = 0,
+    Constant = 1,
+    Perspective = 2,
+    ScreenLinear = 3,
+};
+
 // Documentation in:
 // http://download.nvidia.com/open-gpu-doc/Shader-Program-Header/1/Shader-Program-Header.html#ImapTexture
 struct Header {
@@ -84,9 +91,15 @@ struct Header {
         } vtg;
 
         struct {
-            INSERT_PADDING_BYTES(3);  // ImapSystemValuesA
-            INSERT_PADDING_BYTES(1);  // ImapSystemValuesB
-            INSERT_PADDING_BYTES(32); // ImapGenericVector[32]
+            INSERT_PADDING_BYTES(3); // ImapSystemValuesA
+            INSERT_PADDING_BYTES(1); // ImapSystemValuesB
+            union {
+                BitField<0, 2, AttributeUse> x;
+                BitField<2, 2, AttributeUse> y;
+                BitField<4, 2, AttributeUse> w;
+                BitField<6, 2, AttributeUse> z;
+                u8 raw;
+            } imap_generic_vector[32];
             INSERT_PADDING_BYTES(2);  // ImapColor
             INSERT_PADDING_BYTES(2);  // ImapSystemValuesC
             INSERT_PADDING_BYTES(10); // ImapFixedFncTexture[10]
@@ -102,6 +115,28 @@ struct Header {
             bool IsColorComponentOutputEnabled(u32 render_target, u32 component) const {
                 const u32 bit = render_target * 4 + component;
                 return omap.target & (1 << bit);
+            }
+            AttributeUse GetAttributeIndexUse(u32 attribute, u32 index) const {
+                return static_cast<AttributeUse>(
+                    (imap_generic_vector[attribute].raw >> (index * 2)) & 0x03);
+            }
+            AttributeUse GetAttributeUse(u32 attribute) const {
+                AttributeUse result = AttributeUse::Unused;
+                for (u32 i = 0; i < 4; i++) {
+                    const auto index = GetAttributeIndexUse(attribute, i);
+                    if (index == AttributeUse::Unused) {
+                        continue;
+                    }
+                    if (result == AttributeUse::Unused || result == index) {
+                        result = index;
+                        continue;
+                    }
+                    LOG_CRITICAL(HW_GPU, "Generic Attribute Conflict in Interpolation Mode");
+                    if (index == AttributeUse::Perspective) {
+                        result = index;
+                    }
+                }
+                return result;
             }
         } ps;
     };
