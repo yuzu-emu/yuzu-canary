@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <algorithm>
+#include <optional>
 #include <glad/glad.h>
 
 #include "common/alignment.h"
@@ -570,6 +571,8 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
     // alternatives. This signals a bug on those functions.
     const auto width = static_cast<GLsizei>(params.MipWidth(0));
     const auto height = static_cast<GLsizei>(params.MipHeight(0));
+    memory_size = params.MemorySize();
+    reinterpreted = false;
 
     const auto& format_tuple = GetFormatTuple(params.pixel_format, params.component_type);
     gl_internal_format = format_tuple.internal_format;
@@ -986,29 +989,30 @@ Surface RasterizerCacheOpenGL::GetColorBufferSurface(std::size_t index, bool pre
     const auto& regs{gpu.regs};
 
     if ((gpu.dirty_flags.color_buffer & (1u << static_cast<u32>(index))) == 0) {
-        return last_color_buffers[index];
+        return current_color_buffers[index];
     }
     gpu.dirty_flags.color_buffer &= ~(1u << static_cast<u32>(index));
 
     ASSERT(index < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets);
 
     if (index >= regs.rt_control.count) {
-        return last_color_buffers[index] = {};
+        return current_color_buffers[index] = {};
     }
 
     if (regs.rt[index].Address() == 0 || regs.rt[index].format == Tegra::RenderTargetFormat::NONE) {
-        return last_color_buffers[index] = {};
+        return current_color_buffers[index] = {};
     }
 
     const SurfaceParams color_params{SurfaceParams::CreateForFramebuffer(index)};
 
-    return last_color_buffers[index] = GetSurface(color_params, preserve_contents);
+    return current_color_buffers[index] = GetSurface(color_params, preserve_contents);
 }
 
 void RasterizerCacheOpenGL::LoadSurface(const Surface& surface) {
     surface->LoadGLBuffer();
     surface->UploadGLTexture(read_framebuffer.handle, draw_framebuffer.handle);
     surface->MarkAsModified(false, *this);
+    surface->MarkForReload(false);
 }
 
 Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, bool preserve_contents) {
@@ -1020,7 +1024,9 @@ Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, bool pres
     Surface surface{TryGet(params.addr)};
     if (surface) {
         if (surface->GetSurfaceParams().IsCompatibleSurface(params)) {
-            // Use the cached surface as-is
+            // Use the cached surface as-is unless it's not synced with memory
+            if (surface->MustReload())
+                LoadSurface(surface);
             return surface;
         } else if (preserve_contents) {
             // If surface parameters changed and we care about keeping the previous data, recreate
@@ -1028,6 +1034,9 @@ Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, bool pres
             Surface new_surface{RecreateSurface(surface, params)};
             Unregister(surface);
             Register(new_surface);
+            if (new_surface->IsUploaded()) {
+                RegisterReinterpretSurface(new_surface);
+            }
             return new_surface;
         } else {
             // Delete the old surface before creating a new one to prevent collisions.
@@ -1307,6 +1316,109 @@ Surface RasterizerCacheOpenGL::TryGetReservedSurface(const SurfaceParams& params
         return search->second;
     }
     return {};
+}
+
+static std::optional<u32> TryFindBestMipMap(std::size_t memory, const SurfaceParams params,
+                                            u32 height) {
+    for (u32 i = 0; i < params.max_mip_level; i++) {
+        if (memory == params.GetMipmapSingleSize(i) && params.MipHeight(i) == height) {
+            return {i};
+        }
+    }
+    return {};
+}
+
+static std::optional<u32> TryFindBestLayer(VAddr addr, const SurfaceParams params, u32 mipmap) {
+    const std::size_t size = params.LayerMemorySize();
+    VAddr start = params.addr + params.GetMipmapLevelOffset(mipmap);
+    for (u32 i = 0; i < params.depth; i++) {
+        if (start == addr) {
+            return {i};
+        }
+        start += size;
+    }
+    return {};
+}
+
+static bool LayerFitReinterpretSurface(RasterizerCacheOpenGL& cache, const Surface render_surface,
+                                       const Surface blitted_surface) {
+    const auto& dst_params = blitted_surface->GetSurfaceParams();
+    const auto& src_params = render_surface->GetSurfaceParams();
+    const std::size_t src_memory_size = src_params.size_in_bytes;
+    const std::optional<u32> level =
+        TryFindBestMipMap(src_memory_size, dst_params, src_params.height);
+    if (level.has_value()) {
+        if (src_params.width == dst_params.MipWidthGobAligned(*level) &&
+            src_params.height == dst_params.MipHeight(*level) &&
+            src_params.block_height >= dst_params.MipBlockHeight(*level)) {
+            const std::optional<u32> slot =
+                TryFindBestLayer(render_surface->GetAddr(), dst_params, *level);
+            if (slot.has_value()) {
+                glCopyImageSubData(render_surface->Texture().handle,
+                                   SurfaceTargetToGL(src_params.target), 0, 0, 0, 0,
+                                   blitted_surface->Texture().handle,
+                                   SurfaceTargetToGL(dst_params.target), *level, 0, 0, *slot,
+                                   dst_params.MipWidth(*level), dst_params.MipHeight(*level), 1);
+                blitted_surface->MarkAsModified(true, cache);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static bool IsReinterpretInvalid(const Surface render_surface, const Surface blitted_surface) {
+    const VAddr bound1 = blitted_surface->GetAddr() + blitted_surface->GetMemorySize();
+    const VAddr bound2 = render_surface->GetAddr() + render_surface->GetMemorySize();
+    if (bound2 > bound1)
+        return true;
+    const auto& dst_params = blitted_surface->GetSurfaceParams();
+    const auto& src_params = render_surface->GetSurfaceParams();
+    return (dst_params.component_type != src_params.component_type);
+}
+
+static bool IsReinterpretInvalidSecond(const Surface render_surface,
+                                       const Surface blitted_surface) {
+    const auto& dst_params = blitted_surface->GetSurfaceParams();
+    const auto& src_params = render_surface->GetSurfaceParams();
+    return (dst_params.height > src_params.height && dst_params.width > src_params.width);
+}
+
+bool RasterizerCacheOpenGL::PartialReinterpretSurface(Surface triggering_surface,
+                                                      Surface intersect) {
+    if (IsReinterpretInvalid(triggering_surface, intersect)) {
+        Unregister(intersect);
+        return false;
+    }
+    if (!LayerFitReinterpretSurface(*this, triggering_surface, intersect)) {
+        if (IsReinterpretInvalidSecond(triggering_surface, intersect)) {
+            Unregister(intersect);
+            return false;
+        }
+        FlushObject(intersect);
+        FlushObject(triggering_surface);
+        intersect->MarkForReload(true);
+    }
+    return true;
+}
+
+void RasterizerCacheOpenGL::SignalPreDrawCall() {
+    if (texception && GLAD_GL_ARB_texture_barrier) {
+        glTextureBarrier();
+    }
+    texception = false;
+}
+
+void RasterizerCacheOpenGL::SignalPostDrawCall() {
+    for (u32 i = 0; i < Maxwell::NumRenderTargets; i++) {
+        if (current_color_buffers[i] != nullptr) {
+            Surface intersect = CollideOnReinterpretedSurface(current_color_buffers[i]->GetAddr());
+            if (intersect != nullptr) {
+                PartialReinterpretSurface(current_color_buffers[i], intersect);
+                texception = true;
+            }
+        }
+    }
 }
 
 } // namespace OpenGL

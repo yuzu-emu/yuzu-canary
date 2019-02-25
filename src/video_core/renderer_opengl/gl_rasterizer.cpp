@@ -738,8 +738,12 @@ void RasterizerOpenGL::DrawArrays() {
     shader_program_manager->ApplyTo(state);
     state.Apply();
 
+    res_cache.SignalPreDrawCall();
+
     // Execute draw call
     params.DispatchDraw();
+
+    res_cache.SignalPostDrawCall();
 
     // Disable scissor test
     state.viewports[0].scissor.enabled = false;
