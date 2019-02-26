@@ -1011,10 +1011,9 @@ void RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, const Shader& s
 
         texture_samplers[current_bindpoint].SyncWithConfig(texture.tsc);
 
-        Surface surface = res_cache.GetTextureSurface(texture, entry);
-        if (surface != nullptr) {
+        if (Surface surface = res_cache.GetTextureSurface(texture, entry); surface) {
             state.texture_units[current_bindpoint].texture =
-                entry.IsArray() ? surface->TextureLayer().handle : surface->Texture().handle;
+                surface->Texture(entry.IsArray()).handle;
             surface->UpdateSwizzle(texture.tic.x_source, texture.tic.y_source, texture.tic.z_source,
                                    texture.tic.w_source);
         } else {
