@@ -1,3 +1,27 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: c3471bf6185e6942bb76dee6408b10ea74e3f95d
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2165](https://github.com/yuzu-emu/yuzu/pull/2165)|[b9d139e](https://github.com/yuzu-emu/yuzu/pull/2165/files/)| gl_rasterizer: Unbind textures but don't apply the gl_state |[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2143](https://github.com/yuzu-emu/yuzu/pull/2143)|[e596885](https://github.com/yuzu-emu/yuzu/pull/2143/files/)|gl_rasterizer_cache: Create texture views for array discrepancies|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2141](https://github.com/yuzu-emu/yuzu/pull/2141)|[8207461](https://github.com/yuzu-emu/yuzu/pull/2141/files/)|speed up memory page mapping|[Annomatg](https://github.com/Annomatg)|Yes|
+|[2129](https://github.com/yuzu-emu/yuzu/pull/2129)|[a8d4927](https://github.com/yuzu-emu/yuzu/pull/2129/files/)|Correct CNTPCT from using CPU Cycles to using Clock Cycles|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2121](https://github.com/yuzu-emu/yuzu/pull/2121)|[ed2a3c7](https://github.com/yuzu-emu/yuzu/pull/2121/files/)|Improve the Accuracy of the Rasterizer Cache through a Texception Pass|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2055](https://github.com/yuzu-emu/yuzu/pull/2055)|[1642d6f](https://github.com/yuzu-emu/yuzu/pull/2055/files/)|Asynchronous GPU command processing|[bunnei](https://github.com/bunnei)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
