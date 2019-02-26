@@ -14,6 +14,7 @@ constexpr ResultCode ERR_MAX_CONNECTIONS_REACHED{ErrorModule::Kernel, 7};
 constexpr ResultCode ERR_INVALID_CAPABILITY_DESCRIPTOR{ErrorModule::Kernel, 14};
 constexpr ResultCode ERR_INVALID_SIZE{ErrorModule::Kernel, 101};
 constexpr ResultCode ERR_INVALID_ADDRESS{ErrorModule::Kernel, 102};
+constexpr ResultCode ERR_OUT_OF_MEMORY{ErrorModule::Kernel, 104};
 constexpr ResultCode ERR_HANDLE_TABLE_FULL{ErrorModule::Kernel, 105};
 constexpr ResultCode ERR_INVALID_ADDRESS_STATE{ErrorModule::Kernel, 106};
 constexpr ResultCode ERR_INVALID_MEMORY_PERMISSIONS{ErrorModule::Kernel, 108};

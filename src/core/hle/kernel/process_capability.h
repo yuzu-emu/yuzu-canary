@@ -156,7 +156,7 @@ public:
     }
 
     /// Gets the number of total allowable handles for the process' handle table.
-    u32 GetHandleTableSize() const {
+    s32 GetHandleTableSize() const {
         return handle_table_size;
     }
 
@@ -252,7 +252,7 @@ private:
     u64 core_mask = 0;
     u64 priority_mask = 0;
 
-    u32 handle_table_size = 0;
+    s32 handle_table_size = 0;
     u32 kernel_version = 0;
 
     ProgramType program_type = ProgramType::SysModule;
