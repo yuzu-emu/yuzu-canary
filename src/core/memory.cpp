@@ -171,9 +171,6 @@ T Read(const VAddr vaddr) {
         return value;
     }
 
-    // The memory access might do an MMIO or cached access, so we have to lock the HLE kernel state
-    std::lock_guard<std::recursive_mutex> lock(HLE::g_hle_lock);
-
     PageType type = current_page_table->attributes[vaddr >> PAGE_BITS];
     switch (type) {
     case PageType::Unmapped:
@@ -203,9 +200,6 @@ void Write(const VAddr vaddr, const T data) {
         std::memcpy(&page_pointer[vaddr & PAGE_MASK], &data, sizeof(T));
         return;
     }
-
-    // The memory access might do an MMIO or cached access, so we have to lock the HLE kernel state
-    std::lock_guard<std::recursive_mutex> lock(HLE::g_hle_lock);
 
     PageType type = current_page_table->attributes[vaddr >> PAGE_BITS];
     switch (type) {
@@ -362,16 +356,16 @@ void RasterizerFlushVirtualRegion(VAddr start, u64 size, FlushMode mode) {
         const VAddr overlap_end = std::min(end, region_end);
         const VAddr overlap_size = overlap_end - overlap_start;
 
-        auto& rasterizer = system_instance.Renderer().Rasterizer();
+        auto& gpu = system_instance.GPU();
         switch (mode) {
         case FlushMode::Flush:
-            rasterizer.FlushRegion(overlap_start, overlap_size);
+            gpu.FlushRegion(overlap_start, overlap_size);
             break;
         case FlushMode::Invalidate:
-            rasterizer.InvalidateRegion(overlap_start, overlap_size);
+            gpu.InvalidateRegion(overlap_start, overlap_size);
             break;
         case FlushMode::FlushAndInvalidate:
-            rasterizer.FlushAndInvalidateRegion(overlap_start, overlap_size);
+            gpu.FlushAndInvalidateRegion(overlap_start, overlap_size);
             break;
         }
     };
