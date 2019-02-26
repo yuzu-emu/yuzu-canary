@@ -96,7 +96,7 @@ void ProcessCapabilities::InitializeForMetadatalessProcess() {
     interrupt_capabilities.set();
 
     // Allow using the maximum possible amount of handles
-    handle_table_size = static_cast<u32>(HandleTable::MAX_COUNT);
+    handle_table_size = static_cast<s32>(HandleTable::MAX_COUNT);
 
     // Allow all debugging capabilities.
     is_debuggable = true;
@@ -337,7 +337,7 @@ ResultCode ProcessCapabilities::HandleHandleTableFlags(u32 flags) {
         return ERR_RESERVED_VALUE;
     }
 
-    handle_table_size = (flags >> 16) & 0x3FF;
+    handle_table_size = static_cast<s32>((flags >> 16) & 0x3FF);
     return RESULT_SUCCESS;
 }
 
