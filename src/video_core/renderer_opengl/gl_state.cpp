@@ -461,7 +461,7 @@ void OpenGLState::ApplyTextures() const {
 
     if (has_delta) {
         glBindTextures(static_cast<GLuint>(first), static_cast<GLsizei>(last - first + 1),
-                       textures.data());
+                       textures.data() + first);
     }
 }
 
@@ -482,7 +482,7 @@ void OpenGLState::ApplySamplers() const {
     }
     if (has_delta) {
         glBindSamplers(static_cast<GLuint>(first), static_cast<GLsizei>(last - first + 1),
-                       samplers.data());
+                       samplers.data() + first);
     }
 }
 

@@ -750,7 +750,6 @@ void RasterizerOpenGL::DrawArrays() {
     for (auto& texture_unit : state.texture_units) {
         texture_unit.Unbind();
     }
-    state.Apply();
 }
 
 void RasterizerOpenGL::FlushAll() {}
