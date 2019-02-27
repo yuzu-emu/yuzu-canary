@@ -186,7 +186,7 @@ void NVFlinger::Compose() {
 
             // There was no queued buffer to draw, render previous frame
             system_instance.GetPerfStats().EndGameFrame();
-            system_instance.Renderer().SwapBuffers({});
+            system_instance.GPU().SwapBuffers({});
             continue;
         }
 
