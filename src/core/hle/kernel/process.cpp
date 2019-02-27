@@ -99,7 +99,13 @@ ResultCode Process::LoadFromMetadata(const FileSys::ProgramMetadata& metadata) {
     vm_manager.Reset(metadata.GetAddressSpaceType());
 
     const auto& caps = metadata.GetKernelCapabilities();
-    return capabilities.InitializeForUserProcess(caps.data(), caps.size(), vm_manager);
+    const auto capability_init_result =
+        capabilities.InitializeForUserProcess(caps.data(), caps.size(), vm_manager);
+    if (capability_init_result.IsError()) {
+        return capability_init_result;
+    }
+
+    return handle_table.SetSize(capabilities.GetHandleTableSize());
 }
 
 void Process::Run(VAddr entry_point, s32 main_thread_priority, u32 stack_size) {
