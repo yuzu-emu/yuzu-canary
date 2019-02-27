@@ -354,29 +354,17 @@ public:
         return texture;
     }
 
-    const OGLTexture& TextureLayer() {
-        if (params.is_array) {
-            return Texture();
+    const OGLTexture& Texture(bool as_array) {
+        if (params.is_array == as_array) {
+            return texture;
+        } else {
+            EnsureTextureDiscrepantView();
+            return discrepant_view;
         }
-        EnsureTextureView();
-        return texture_view;
     }
 
     GLenum Target() const {
         return gl_target;
-    }
-
-    GLenum TargetLayer() const {
-        using VideoCore::Surface::SurfaceTarget;
-        switch (params.target) {
-        case SurfaceTarget::Texture1D:
-            return GL_TEXTURE_1D_ARRAY;
-        case SurfaceTarget::Texture2D:
-            return GL_TEXTURE_2D_ARRAY;
-        case SurfaceTarget::TextureCubemap:
-            return GL_TEXTURE_CUBE_MAP_ARRAY;
-        }
-        return Target();
     }
 
     const SurfaceParams& GetSurfaceParams() const {
@@ -398,10 +386,10 @@ public:
 private:
     void UploadGLMipmapTexture(u32 mip_map, GLuint read_fb_handle, GLuint draw_fb_handle);
 
-    void EnsureTextureView();
+    void EnsureTextureDiscrepantView();
 
     OGLTexture texture;
-    OGLTexture texture_view;
+    OGLTexture discrepant_view;
     std::vector<std::vector<u8>> gl_buffer;
     SurfaceParams params{};
     GLenum gl_target{};
