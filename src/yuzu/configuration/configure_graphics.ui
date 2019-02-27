@@ -64,6 +64,13 @@
          </widget>
         </item>
         <item>
+         <widget class="QCheckBox" name="use_asynchronous_gpu_emulation">
+          <property name="text">
+           <string>Use asynchronous GPU emulation</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <layout class="QHBoxLayout" name="horizontalLayout">
           <item>
            <widget class="QLabel" name="label">
