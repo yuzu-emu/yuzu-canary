@@ -71,15 +71,20 @@ static void MapPages(PageTable& page_table, VAddr base, u64 size, u8* memory, Pa
                                  FlushMode::FlushAndInvalidate);
 
     VAddr end = base + size;
-    while (base != end) {
-        ASSERT_MSG(base < page_table.pointers.size(), "out of range mapping at {:016X}", base);
+    ASSERT_MSG(end <= page_table.pointers.size(), "out of range mapping at {:016X}",
+               base + page_table.pointers.size());
 
-        page_table.attributes[base] = type;
-        page_table.pointers[base] = memory;
+    std::fill(page_table.attributes.begin() + base, page_table.attributes.begin() + end, type);
 
-        base += 1;
-        if (memory != nullptr)
+    if (memory == nullptr) {
+        std::fill(page_table.pointers.begin() + base, page_table.pointers.begin() + end, memory);
+    } else {
+        while (base != end) {
+            page_table.pointers[base] = memory;
+
+            base += 1;
             memory += PAGE_SIZE;
+        }
     }
 }
 
