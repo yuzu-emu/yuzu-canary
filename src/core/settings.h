@@ -393,6 +393,7 @@ struct Values {
     u16 frame_limit;
     bool use_disk_shader_cache;
     bool use_accurate_gpu_emulation;
+    bool use_asynchronous_gpu_emulation;
 
     float bg_red;
     float bg_green;
