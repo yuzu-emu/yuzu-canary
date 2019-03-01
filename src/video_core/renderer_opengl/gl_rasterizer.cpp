@@ -739,22 +739,10 @@ void RasterizerOpenGL::DrawArrays() {
     state.Apply();
 
     res_cache.SignalPreDrawCall();
-
-    // Execute draw call
     params.DispatchDraw();
-
     res_cache.SignalPostDrawCall();
 
-    // Disable scissor test
-    state.viewports[0].scissor.enabled = false;
-
     accelerate_draw = AccelDraw::Disabled;
-
-    // Unbind textures for potential future use as framebuffer attachments
-    for (auto& texture_unit : state.texture_units) {
-        texture_unit.Unbind();
-    }
-    state.Apply();
 }
 
 void RasterizerOpenGL::FlushAll() {}
