@@ -966,7 +966,7 @@ Surface RasterizerCacheOpenGL::GetColorBufferSurface(std::size_t index, bool pre
     const auto& regs{gpu.regs};
 
     if (!gpu.dirty_flags.color_buffer[index]) {
-        return last_color_buffers[index];
+        return current_color_buffers[index];
     }
     gpu.dirty_flags.color_buffer.reset(index);
 
