@@ -7,6 +7,7 @@
 #include <cinttypes>
 #include <limits>
 #include "common/logging/log.h"
+#include "common/uint128.h"
 
 namespace Core::Timing {
 
@@ -58,6 +59,11 @@ s64 nsToCycles(u64 ns) {
         return BASE_CLOCK_RATE * (static_cast<s64>(ns) / 1000000000);
     }
     return (BASE_CLOCK_RATE * static_cast<s64>(ns)) / 1000000000;
+}
+
+u64 CpuCyclesToClockCycles(u64 ticks) {
+    const u128 temporal = Common::Multiply64Into128(ticks, CNTFREQ);
+    return Common::Divide128On32(temporal, static_cast<u32>(BASE_CLOCK_RATE)).first;
 }
 
 } // namespace Core::Timing
