@@ -36,7 +36,8 @@
 #include "frontend/applets/software_keyboard.h"
 #include "frontend/applets/web_browser.h"
 #include "video_core/debug_utils/debug_utils.h"
-#include "video_core/gpu.h"
+#include "video_core/gpu_asynch.h"
+#include "video_core/gpu_synch.h"
 #include "video_core/renderer_base.h"
 #include "video_core/video_core.h"
 
@@ -129,10 +130,16 @@ struct System::Impl {
             return ResultStatus::ErrorVideoCore;
         }
 
-        gpu_core = std::make_unique<Tegra::GPU>(system, renderer->Rasterizer());
+        is_powered_on = true;
+
+        if (Settings::values.use_asynchronous_gpu_emulation) {
+            gpu_core = std::make_unique<VideoCommon::GPUAsynch>(system, *renderer);
+        } else {
+            gpu_core = std::make_unique<VideoCommon::GPUSynch>(system, *renderer);
+        }
 
         cpu_core_manager.Initialize(system);
-        is_powered_on = true;
+
         LOG_DEBUG(Core, "Initialized OK");
 
         // Reset counters and set time origin to current frame
