@@ -20,10 +20,7 @@
 EmuThread::EmuThread(GRenderWindow* render_window) : render_window(render_window) {}
 
 void EmuThread::run() {
-    if (!Settings::values.use_multi_core) {
-        // Single core mode must acquire OpenGL context for entire emulation session
-        render_window->MakeCurrent();
-    }
+    render_window->MakeCurrent();
 
     MicroProfileOnThreadCreate("EmuThread");
 
@@ -37,6 +34,11 @@ void EmuThread::run() {
         });
 
     emit LoadProgress(VideoCore::LoadCallbackStage::Complete, 0, 0);
+
+    if (Settings::values.use_asynchronous_gpu_emulation) {
+        // Release OpenGL context for the GPU thread
+        render_window->DoneCurrent();
+    }
 
     // holds whether the cpu was running during the last iteration,
     // so that the DebugModeLeft signal can be emitted before the
@@ -358,12 +360,13 @@ void GRenderWindow::CaptureScreenshot(u16 res_scale, const QString& screenshot_p
 
     const Layout::FramebufferLayout layout{Layout::FrameLayoutFromResolutionScale(res_scale)};
     screenshot_image = QImage(QSize(layout.width, layout.height), QImage::Format_RGB32);
-    renderer.RequestScreenshot(screenshot_image.bits(),
-                               [=] {
-                                   screenshot_image.mirrored(false, true).save(screenshot_path);
-                                   LOG_INFO(Frontend, "The screenshot is saved.");
-                               },
-                               layout);
+    renderer.RequestScreenshot(
+        screenshot_image.bits(),
+        [=] {
+            screenshot_image.mirrored(false, true).save(screenshot_path);
+            LOG_INFO(Frontend, "The screenshot is saved.");
+        },
+        layout);
 }
 
 void GRenderWindow::OnMinimalClientAreaChangeRequest(
