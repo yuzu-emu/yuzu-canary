@@ -114,6 +114,8 @@ add_library(common STATIC
     threadsafe_queue.h
     timer.cpp
     timer.h
+    uint128.cpp
+    uint128.h
     vector_math.h
     web_result.h
 )
