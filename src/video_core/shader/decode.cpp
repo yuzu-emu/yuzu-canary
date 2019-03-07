@@ -165,6 +165,7 @@ u32 ShaderIR::DecodeInstr(NodeBlock& bb, u32 pc) {
         {OpCode::Type::Hfma2, &ShaderIR::DecodeHfma2},
         {OpCode::Type::Conversion, &ShaderIR::DecodeConversion},
         {OpCode::Type::Memory, &ShaderIR::DecodeMemory},
+        {OpCode::Type::Texture, &ShaderIR::DecodeTexture},
         {OpCode::Type::FloatSetPredicate, &ShaderIR::DecodeFloatSetPredicate},
         {OpCode::Type::IntegerSetPredicate, &ShaderIR::DecodeIntegerSetPredicate},
         {OpCode::Type::HalfSetPredicate, &ShaderIR::DecodeHalfSetPredicate},
