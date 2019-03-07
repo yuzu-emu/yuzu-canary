@@ -73,6 +73,7 @@ set(HASH_FILES
     "${VIDEO_CORE}/shader/decode/integer_set.cpp"
     "${VIDEO_CORE}/shader/decode/integer_set_predicate.cpp"
     "${VIDEO_CORE}/shader/decode/memory.cpp"
+    "${VIDEO_CORE}/shader/decode/texture.cpp"
     "${VIDEO_CORE}/shader/decode/other.cpp"
     "${VIDEO_CORE}/shader/decode/predicate_set_predicate.cpp"
     "${VIDEO_CORE}/shader/decode/predicate_set_register.cpp"
