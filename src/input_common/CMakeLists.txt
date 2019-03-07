@@ -7,15 +7,18 @@ add_library(input_common STATIC
     main.h
     motion_emu.cpp
     motion_emu.h
-
-    $<$<BOOL:${SDL2_FOUND}>:sdl/sdl.cpp sdl/sdl.h>
+    sdl/sdl.cpp
+    sdl/sdl.h
 )
 
-create_target_directory_groups(input_common)
-
-target_link_libraries(input_common PUBLIC core PRIVATE common)
-
 if(SDL2_FOUND)
+    target_sources(input_common PRIVATE
+        sdl/sdl_impl.cpp
+        sdl/sdl_impl.h
+    )
     target_link_libraries(input_common PRIVATE SDL2)
     target_compile_definitions(input_common PRIVATE HAVE_SDL2)
 endif()
+
+create_target_directory_groups(input_common)
+target_link_libraries(input_common PUBLIC core PRIVATE common)
