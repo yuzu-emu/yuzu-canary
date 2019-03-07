@@ -11,6 +11,7 @@ namespace Core::Timing {
 // The below clock rate is based on Switch's clockspeed being widely known as 1.020GHz
 // The exact value used is of course unverified.
 constexpr u64 BASE_CLOCK_RATE = 1019215872; // Switch clock speed is 1020MHz un/docked
+constexpr u64 CNTFREQ = 19200000;           // Value from fusee.
 
 inline s64 msToCycles(int ms) {
     // since ms is int there is no way to overflow
@@ -60,5 +61,7 @@ inline s64 cyclesToUs(s64 cycles) {
 inline u64 cyclesToMs(s64 cycles) {
     return cycles * 1000 / BASE_CLOCK_RATE;
 }
+
+u64 CpuCyclesToClockCycles(u64 ticks);
 
 } // namespace Core::Timing
