@@ -400,6 +400,27 @@ static const FormatTuple& GetFormatTuple(PixelFormat pixel_format, ComponentType
     return format;
 }
 
+/// Returns the discrepant array target
+constexpr GLenum GetArrayDiscrepantTarget(SurfaceTarget target) {
+    switch (target) {
+    case SurfaceTarget::Texture1D:
+        return GL_TEXTURE_1D_ARRAY;
+    case SurfaceTarget::Texture2D:
+        return GL_TEXTURE_2D_ARRAY;
+    case SurfaceTarget::Texture3D:
+        return GL_NONE;
+    case SurfaceTarget::Texture1DArray:
+        return GL_TEXTURE_1D;
+    case SurfaceTarget::Texture2DArray:
+        return GL_TEXTURE_2D;
+    case SurfaceTarget::TextureCubemap:
+        return GL_TEXTURE_CUBE_MAP_ARRAY;
+    case SurfaceTarget::TextureCubeArray:
+        return GL_TEXTURE_CUBE_MAP;
+    }
+    return GL_NONE;
+}
+
 Common::Rectangle<u32> SurfaceParams::GetRect(u32 mip_level) const {
     u32 actual_height{std::max(1U, unaligned_height >> mip_level)};
     if (IsPixelFormatASTC(pixel_format)) {
@@ -884,20 +905,22 @@ void CachedSurface::UploadGLMipmapTexture(u32 mip_map, GLuint read_fb_handle,
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
 
-void CachedSurface::EnsureTextureView() {
-    if (texture_view.handle != 0)
+void CachedSurface::EnsureTextureDiscrepantView() {
+    if (discrepant_view.handle != 0)
         return;
 
-    const GLenum target{TargetLayer()};
+    const GLenum target{GetArrayDiscrepantTarget(params.target)};
+    ASSERT(target != GL_NONE);
+
     const GLuint num_layers{target == GL_TEXTURE_CUBE_MAP_ARRAY ? 6u : 1u};
     constexpr GLuint min_layer = 0;
     constexpr GLuint min_level = 0;
 
-    glGenTextures(1, &texture_view.handle);
-    glTextureView(texture_view.handle, target, texture.handle, gl_internal_format, min_level,
+    glGenTextures(1, &discrepant_view.handle);
+    glTextureView(discrepant_view.handle, target, texture.handle, gl_internal_format, min_level,
                   params.max_mip_level, min_layer, num_layers);
-    ApplyTextureDefaults(texture_view.handle, params.max_mip_level);
-    glTextureParameteriv(texture_view.handle, GL_TEXTURE_SWIZZLE_RGBA,
+    ApplyTextureDefaults(discrepant_view.handle, params.max_mip_level);
+    glTextureParameteriv(discrepant_view.handle, GL_TEXTURE_SWIZZLE_RGBA,
                          reinterpret_cast<const GLint*>(swizzle.data()));
 }
 
@@ -923,8 +946,8 @@ void CachedSurface::UpdateSwizzle(Tegra::Texture::SwizzleSource swizzle_x,
     swizzle = {new_x, new_y, new_z, new_w};
     const auto swizzle_data = reinterpret_cast<const GLint*>(swizzle.data());
     glTextureParameteriv(texture.handle, GL_TEXTURE_SWIZZLE_RGBA, swizzle_data);
-    if (texture_view.handle != 0) {
-        glTextureParameteriv(texture_view.handle, GL_TEXTURE_SWIZZLE_RGBA, swizzle_data);
+    if (discrepant_view.handle != 0) {
+        glTextureParameteriv(discrepant_view.handle, GL_TEXTURE_SWIZZLE_RGBA, swizzle_data);
     }
 }
 
