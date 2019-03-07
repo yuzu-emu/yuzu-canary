@@ -324,11 +324,11 @@ enum class TextureQueryType : u64 {
 
 enum class TextureProcessMode : u64 {
     None = 0,
-    LZ = 1,  // Unknown, appears to be the same as none.
+    LZ = 1,  // Load LOD of zero.
     LB = 2,  // Load Bias.
-    LL = 3,  // Load LOD (LevelOfDetail)
-    LBA = 6, // Load Bias. The A is unknown, does not appear to differ with LB
-    LLA = 7  // Load LOD. The A is unknown, does not appear to differ with LL
+    LL = 3,  // Load LOD.
+    LBA = 6, // Load Bias. The A is unknown, does not appear to differ with LB.
+    LLA = 7  // Load LOD. The A is unknown, does not appear to differ with LL.
 };
 
 enum class TextureMiscMode : u64 {
@@ -1445,6 +1445,7 @@ public:
         Flow,
         Synch,
         Memory,
+        Texture,
         FloatSet,
         FloatSetPredicate,
         IntegerSet,
@@ -1575,14 +1576,14 @@ private:
             INST("1110111101010---", Id::ST_L, Type::Memory, "ST_L"),
             INST("1110111011010---", Id::LDG, Type::Memory, "LDG"),
             INST("1110111011011---", Id::STG, Type::Memory, "STG"),
-            INST("110000----111---", Id::TEX, Type::Memory, "TEX"),
-            INST("1101111101001---", Id::TXQ, Type::Memory, "TXQ"),
-            INST("1101-00---------", Id::TEXS, Type::Memory, "TEXS"),
-            INST("1101101---------", Id::TLDS, Type::Memory, "TLDS"),
-            INST("110010----111---", Id::TLD4, Type::Memory, "TLD4"),
-            INST("1101111100------", Id::TLD4S, Type::Memory, "TLD4S"),
-            INST("110111110110----", Id::TMML_B, Type::Memory, "TMML_B"),
-            INST("1101111101011---", Id::TMML, Type::Memory, "TMML"),
+            INST("110000----111---", Id::TEX, Type::Texture, "TEX"),
+            INST("1101111101001---", Id::TXQ, Type::Texture, "TXQ"),
+            INST("1101-00---------", Id::TEXS, Type::Texture, "TEXS"),
+            INST("1101101---------", Id::TLDS, Type::Texture, "TLDS"),
+            INST("110010----111---", Id::TLD4, Type::Texture, "TLD4"),
+            INST("1101111100------", Id::TLD4S, Type::Texture, "TLD4S"),
+            INST("110111110110----", Id::TMML_B, Type::Texture, "TMML_B"),
+            INST("1101111101011---", Id::TMML, Type::Texture, "TMML"),
             INST("111000110000----", Id::EXIT, Type::Trivial, "EXIT"),
             INST("11100000--------", Id::IPA, Type::Trivial, "IPA"),
             INST("1111101111100---", Id::OUT_R, Type::Trivial, "OUT_R"),
