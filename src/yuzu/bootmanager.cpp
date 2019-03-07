@@ -123,7 +123,6 @@ GRenderWindow::GRenderWindow(QWidget* parent, EmuThread* emu_thread)
     setAttribute(Qt::WA_AcceptTouchEvents);
 
     InputCommon::Init();
-    InputCommon::StartJoystickEventHandler();
     connect(this, &GRenderWindow::FirstFrameDisplayed, static_cast<GMainWindow*>(parent),
             &GMainWindow::OnLoadComplete);
 }
