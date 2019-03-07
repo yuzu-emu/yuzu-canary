@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include "core/hle/service/hid/controllers/controller_base.h"
+#include "core/hle/service/service.h"
+
 #include "controllers/controller_base.h"
 #include "core/hle/service/service.h"
 
