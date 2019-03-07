@@ -136,16 +136,6 @@ u32 nvhost_gpu::AllocateObjectContext(const std::vector<u8>& input, std::vector<
     return 0;
 }
 
-static void PushGPUEntries(Tegra::CommandList&& entries) {
-    if (entries.empty()) {
-        return;
-    }
-
-    auto& dma_pusher{Core::System::GetInstance().GPU().DmaPusher()};
-    dma_pusher.Push(std::move(entries));
-    dma_pusher.DispatchCalls();
-}
-
 u32 nvhost_gpu::SubmitGPFIFO(const std::vector<u8>& input, std::vector<u8>& output) {
     if (input.size() < sizeof(IoctlSubmitGpfifo)) {
         UNIMPLEMENTED();
@@ -163,7 +153,7 @@ u32 nvhost_gpu::SubmitGPFIFO(const std::vector<u8>& input, std::vector<u8>& outp
     std::memcpy(entries.data(), &input[sizeof(IoctlSubmitGpfifo)],
                 params.num_entries * sizeof(Tegra::CommandListHeader));
 
-    PushGPUEntries(std::move(entries));
+    Core::System::GetInstance().GPU().PushGPUEntries(std::move(entries));
 
     params.fence_out.id = 0;
     params.fence_out.value = 0;
@@ -184,7 +174,7 @@ u32 nvhost_gpu::KickoffPB(const std::vector<u8>& input, std::vector<u8>& output)
     Memory::ReadBlock(params.address, entries.data(),
                       params.num_entries * sizeof(Tegra::CommandListHeader));
 
-    PushGPUEntries(std::move(entries));
+    Core::System::GetInstance().GPU().PushGPUEntries(std::move(entries));
 
     params.fence_out.id = 0;
     params.fence_out.value = 0;
