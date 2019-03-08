@@ -209,7 +209,7 @@ void Config::ReadPlayerValues() {
     for (std::size_t p = 0; p < Settings::values.players.size(); ++p) {
         auto& player = Settings::values.players[p];
 
-        player.connected = qt_config->value(QString("player_%1_connected").arg(p), false).toBool();
+        player.connected = ReadSetting(QString("player_%1_connected").arg(p), false).toBool();
 
         player.type = static_cast<Settings::ControllerType>(
             qt_config
@@ -269,7 +269,7 @@ void Config::ReadPlayerValues() {
 }
 
 void Config::ReadDebugValues() {
-    Settings::values.debug_pad_enabled = qt_config->value("debug_pad_enabled", false).toBool();
+    Settings::values.debug_pad_enabled = ReadSetting("debug_pad_enabled", false).toBool();
     for (int i = 0; i < Settings::NativeButton::NumButtons; ++i) {
         std::string default_param = InputCommon::GenerateKeyboardParam(default_buttons[i]);
         Settings::values.debug_pad_buttons[i] =
@@ -298,7 +298,7 @@ void Config::ReadDebugValues() {
 }
 
 void Config::ReadKeyboardValues() {
-    Settings::values.keyboard_enabled = qt_config->value("keyboard_enabled", false).toBool();
+    Settings::values.keyboard_enabled = ReadSetting("keyboard_enabled", false).toBool();
 
     std::transform(default_keyboard_keys.begin(), default_keyboard_keys.end(),
                    Settings::values.keyboard_keys.begin(), InputCommon::GenerateKeyboardParam);
@@ -311,7 +311,7 @@ void Config::ReadKeyboardValues() {
 }
 
 void Config::ReadMouseValues() {
-    Settings::values.mouse_enabled = qt_config->value("mouse_enabled", false).toBool();
+    Settings::values.mouse_enabled = ReadSetting("mouse_enabled", false).toBool();
 
     for (int i = 0; i < Settings::NativeMouseButton::NumMouseButtons; ++i) {
         std::string default_param = InputCommon::GenerateKeyboardParam(default_mouse_buttons[i]);
@@ -327,16 +327,14 @@ void Config::ReadMouseValues() {
 }
 
 void Config::ReadTouchscreenValues() {
-    Settings::values.touchscreen.enabled = qt_config->value("touchscreen_enabled", true).toBool();
+    Settings::values.touchscreen.enabled = ReadSetting("touchscreen_enabled", true).toBool();
     Settings::values.touchscreen.device =
-        qt_config->value("touchscreen_device", "engine:emu_window").toString().toStdString();
+        ReadSetting("touchscreen_device", "engine:emu_window").toString().toStdString();
 
-    Settings::values.touchscreen.finger = qt_config->value("touchscreen_finger", 0).toUInt();
-    Settings::values.touchscreen.rotation_angle = qt_config->value("touchscreen_angle", 0).toUInt();
-    Settings::values.touchscreen.diameter_x =
-        qt_config->value("touchscreen_diameter_x", 15).toUInt();
-    Settings::values.touchscreen.diameter_y =
-        qt_config->value("touchscreen_diameter_y", 15).toUInt();
+    Settings::values.touchscreen.finger = ReadSetting("touchscreen_finger", 0).toUInt();
+    Settings::values.touchscreen.rotation_angle = ReadSetting("touchscreen_angle", 0).toUInt();
+    Settings::values.touchscreen.diameter_x = ReadSetting("touchscreen_diameter_x", 15).toUInt();
+    Settings::values.touchscreen.diameter_y = ReadSetting("touchscreen_diameter_y", 15).toUInt();
     qt_config->endGroup();
 }
 
@@ -357,42 +355,41 @@ void Config::ReadValues() {
     ReadTouchscreenValues();
 
     Settings::values.motion_device =
-        qt_config->value("motion_device", "engine:motion_emu,update_period:100,sensitivity:0.01")
+        ReadSetting("motion_device", "engine:motion_emu,update_period:100,sensitivity:0.01")
             .toString()
             .toStdString();
 
     qt_config->beginGroup("Core");
-    Settings::values.use_cpu_jit = qt_config->value("use_cpu_jit", true).toBool();
-    Settings::values.use_multi_core = qt_config->value("use_multi_core", false).toBool();
+    Settings::values.use_cpu_jit = ReadSetting("use_cpu_jit", true).toBool();
+    Settings::values.use_multi_core = ReadSetting("use_multi_core", false).toBool();
     qt_config->endGroup();
 
     qt_config->beginGroup("Renderer");
-    Settings::values.resolution_factor = qt_config->value("resolution_factor", 1.0).toFloat();
-    Settings::values.use_frame_limit = qt_config->value("use_frame_limit", true).toBool();
-    Settings::values.frame_limit = qt_config->value("frame_limit", 100).toInt();
-    Settings::values.use_disk_shader_cache =
-        qt_config->value("use_disk_shader_cache", false).toBool();
+    Settings::values.resolution_factor = ReadSetting("resolution_factor", 1.0).toFloat();
+    Settings::values.use_frame_limit = ReadSetting("use_frame_limit", true).toBool();
+    Settings::values.frame_limit = ReadSetting("frame_limit", 100).toInt();
+    Settings::values.use_disk_shader_cache = ReadSetting("use_disk_shader_cache", true).toBool();
     Settings::values.use_accurate_gpu_emulation =
-        qt_config->value("use_accurate_gpu_emulation", false).toBool();
+        ReadSetting("use_accurate_gpu_emulation", false).toBool();
     Settings::values.use_asynchronous_gpu_emulation =
-        qt_config->value("use_asynchronous_gpu_emulation", false).toBool();
+        ReadSetting("use_asynchronous_gpu_emulation", false).toBool();
 
-    Settings::values.bg_red = qt_config->value("bg_red", 0.0).toFloat();
-    Settings::values.bg_green = qt_config->value("bg_green", 0.0).toFloat();
-    Settings::values.bg_blue = qt_config->value("bg_blue", 0.0).toFloat();
+    Settings::values.bg_red = ReadSetting("bg_red", 0.0).toFloat();
+    Settings::values.bg_green = ReadSetting("bg_green", 0.0).toFloat();
+    Settings::values.bg_blue = ReadSetting("bg_blue", 0.0).toFloat();
     qt_config->endGroup();
 
     qt_config->beginGroup("Audio");
-    Settings::values.sink_id = qt_config->value("output_engine", "auto").toString().toStdString();
+    Settings::values.sink_id = ReadSetting("output_engine", "auto").toString().toStdString();
     Settings::values.enable_audio_stretching =
-        qt_config->value("enable_audio_stretching", true).toBool();
+        ReadSetting("enable_audio_stretching", true).toBool();
     Settings::values.audio_device_id =
-        qt_config->value("output_device", "auto").toString().toStdString();
-    Settings::values.volume = qt_config->value("volume", 1).toFloat();
+        ReadSetting("output_device", "auto").toString().toStdString();
+    Settings::values.volume = ReadSetting("volume", 1).toFloat();
     qt_config->endGroup();
 
     qt_config->beginGroup("Data Storage");
-    Settings::values.use_virtual_sd = qt_config->value("use_virtual_sd", true).toBool();
+    Settings::values.use_virtual_sd = ReadSetting("use_virtual_sd", true).toBool();
     FileUtil::GetUserPath(
         FileUtil::UserPath::NANDDir,
         qt_config
@@ -410,30 +407,30 @@ void Config::ReadValues() {
     qt_config->endGroup();
 
     qt_config->beginGroup("Core");
-    Settings::values.use_cpu_jit = qt_config->value("use_cpu_jit", true).toBool();
-    Settings::values.use_multi_core = qt_config->value("use_multi_core", false).toBool();
+    Settings::values.use_cpu_jit = ReadSetting("use_cpu_jit", true).toBool();
+    Settings::values.use_multi_core = ReadSetting("use_multi_core", false).toBool();
     qt_config->endGroup();
 
     qt_config->beginGroup("System");
-    Settings::values.use_docked_mode = qt_config->value("use_docked_mode", false).toBool();
-    Settings::values.enable_nfc = qt_config->value("enable_nfc", true).toBool();
+    Settings::values.use_docked_mode = ReadSetting("use_docked_mode", false).toBool();
+    Settings::values.enable_nfc = ReadSetting("enable_nfc", true).toBool();
 
-    Settings::values.current_user = std::clamp<int>(qt_config->value("current_user", 0).toInt(), 0,
-                                                    Service::Account::MAX_USERS - 1);
+    Settings::values.current_user =
+        std::clamp<int>(ReadSetting("current_user", 0).toInt(), 0, Service::Account::MAX_USERS - 1);
 
-    Settings::values.language_index = qt_config->value("language_index", 1).toInt();
+    Settings::values.language_index = ReadSetting("language_index", 1).toInt();
 
-    const auto rng_seed_enabled = qt_config->value("rng_seed_enabled", false).toBool();
+    const auto rng_seed_enabled = ReadSetting("rng_seed_enabled", false).toBool();
     if (rng_seed_enabled) {
-        Settings::values.rng_seed = qt_config->value("rng_seed", 0).toULongLong();
+        Settings::values.rng_seed = ReadSetting("rng_seed", 0).toULongLong();
     } else {
         Settings::values.rng_seed = std::nullopt;
     }
 
-    const auto custom_rtc_enabled = qt_config->value("custom_rtc_enabled", false).toBool();
+    const auto custom_rtc_enabled = ReadSetting("custom_rtc_enabled", false).toBool();
     if (custom_rtc_enabled) {
         Settings::values.custom_rtc =
-            std::chrono::seconds(qt_config->value("custom_rtc", 0).toULongLong());
+            std::chrono::seconds(ReadSetting("custom_rtc", 0).toULongLong());
     } else {
         Settings::values.custom_rtc = std::nullopt;
     }
@@ -441,35 +438,35 @@ void Config::ReadValues() {
     qt_config->endGroup();
 
     qt_config->beginGroup("Miscellaneous");
-    Settings::values.log_filter = qt_config->value("log_filter", "*:Info").toString().toStdString();
-    Settings::values.use_dev_keys = qt_config->value("use_dev_keys", false).toBool();
+    Settings::values.log_filter = ReadSetting("log_filter", "*:Info").toString().toStdString();
+    Settings::values.use_dev_keys = ReadSetting("use_dev_keys", false).toBool();
     qt_config->endGroup();
 
     qt_config->beginGroup("Debugging");
-    Settings::values.use_gdbstub = qt_config->value("use_gdbstub", false).toBool();
-    Settings::values.gdbstub_port = qt_config->value("gdbstub_port", 24689).toInt();
-    Settings::values.program_args = qt_config->value("program_args", "").toString().toStdString();
-    Settings::values.dump_exefs = qt_config->value("dump_exefs", false).toBool();
-    Settings::values.dump_nso = qt_config->value("dump_nso", false).toBool();
+    Settings::values.use_gdbstub = ReadSetting("use_gdbstub", false).toBool();
+    Settings::values.gdbstub_port = ReadSetting("gdbstub_port", 24689).toInt();
+    Settings::values.program_args = ReadSetting("program_args", "").toString().toStdString();
+    Settings::values.dump_exefs = ReadSetting("dump_exefs", false).toBool();
+    Settings::values.dump_nso = ReadSetting("dump_nso", false).toBool();
     qt_config->endGroup();
 
     qt_config->beginGroup("WebService");
-    Settings::values.enable_telemetry = qt_config->value("enable_telemetry", true).toBool();
+    Settings::values.enable_telemetry = ReadSetting("enable_telemetry", true).toBool();
     Settings::values.web_api_url =
-        qt_config->value("web_api_url", "https://api.yuzu-emu.org").toString().toStdString();
-    Settings::values.yuzu_username = qt_config->value("yuzu_username").toString().toStdString();
-    Settings::values.yuzu_token = qt_config->value("yuzu_token").toString().toStdString();
+        ReadSetting("web_api_url", "https://api.yuzu-emu.org").toString().toStdString();
+    Settings::values.yuzu_username = ReadSetting("yuzu_username").toString().toStdString();
+    Settings::values.yuzu_token = ReadSetting("yuzu_token").toString().toStdString();
     qt_config->endGroup();
 
     const auto size = qt_config->beginReadArray("DisabledAddOns");
     for (int i = 0; i < size; ++i) {
         qt_config->setArrayIndex(i);
-        const auto title_id = qt_config->value("title_id", 0).toULongLong();
+        const auto title_id = ReadSetting("title_id", 0).toULongLong();
         std::vector<std::string> out;
         const auto d_size = qt_config->beginReadArray("disabled");
         for (int j = 0; j < d_size; ++j) {
             qt_config->setArrayIndex(j);
-            out.push_back(qt_config->value("d", "").toString().toStdString());
+            out.push_back(ReadSetting("d", "").toString().toStdString());
         }
         qt_config->endArray();
         Settings::values.disabled_addons.insert_or_assign(title_id, out);
@@ -477,41 +474,38 @@ void Config::ReadValues() {
     qt_config->endArray();
 
     qt_config->beginGroup("UI");
-    UISettings::values.theme = qt_config->value("theme", UISettings::themes[0].second).toString();
+    UISettings::values.theme = ReadSetting("theme", UISettings::themes[0].second).toString();
     UISettings::values.enable_discord_presence =
-        qt_config->value("enable_discord_presence", true).toBool();
+        ReadSetting("enable_discord_presence", true).toBool();
     UISettings::values.screenshot_resolution_factor =
-        static_cast<u16>(qt_config->value("screenshot_resolution_factor", 0).toUInt());
-    UISettings::values.select_user_on_boot =
-        qt_config->value("select_user_on_boot", false).toBool();
+        static_cast<u16>(ReadSetting("screenshot_resolution_factor", 0).toUInt());
+    UISettings::values.select_user_on_boot = ReadSetting("select_user_on_boot", false).toBool();
 
     qt_config->beginGroup("UIGameList");
-    UISettings::values.show_unknown = qt_config->value("show_unknown", true).toBool();
-    UISettings::values.show_add_ons = qt_config->value("show_add_ons", true).toBool();
-    UISettings::values.icon_size = qt_config->value("icon_size", 64).toUInt();
-    UISettings::values.row_1_text_id = qt_config->value("row_1_text_id", 3).toUInt();
-    UISettings::values.row_2_text_id = qt_config->value("row_2_text_id", 2).toUInt();
+    UISettings::values.show_unknown = ReadSetting("show_unknown", true).toBool();
+    UISettings::values.show_add_ons = ReadSetting("show_add_ons", true).toBool();
+    UISettings::values.icon_size = ReadSetting("icon_size", 64).toUInt();
+    UISettings::values.row_1_text_id = ReadSetting("row_1_text_id", 3).toUInt();
+    UISettings::values.row_2_text_id = ReadSetting("row_2_text_id", 2).toUInt();
     qt_config->endGroup();
 
     qt_config->beginGroup("UILayout");
-    UISettings::values.geometry = qt_config->value("geometry").toByteArray();
-    UISettings::values.state = qt_config->value("state").toByteArray();
-    UISettings::values.renderwindow_geometry =
-        qt_config->value("geometryRenderWindow").toByteArray();
-    UISettings::values.gamelist_header_state =
-        qt_config->value("gameListHeaderState").toByteArray();
+    UISettings::values.geometry = ReadSetting("geometry").toByteArray();
+    UISettings::values.state = ReadSetting("state").toByteArray();
+    UISettings::values.renderwindow_geometry = ReadSetting("geometryRenderWindow").toByteArray();
+    UISettings::values.gamelist_header_state = ReadSetting("gameListHeaderState").toByteArray();
     UISettings::values.microprofile_geometry =
-        qt_config->value("microProfileDialogGeometry").toByteArray();
+        ReadSetting("microProfileDialogGeometry").toByteArray();
     UISettings::values.microprofile_visible =
-        qt_config->value("microProfileDialogVisible", false).toBool();
+        ReadSetting("microProfileDialogVisible", false).toBool();
     qt_config->endGroup();
 
     qt_config->beginGroup("Paths");
-    UISettings::values.roms_path = qt_config->value("romsPath").toString();
-    UISettings::values.symbols_path = qt_config->value("symbolsPath").toString();
-    UISettings::values.gamedir = qt_config->value("gameListRootDir", ".").toString();
-    UISettings::values.gamedir_deepscan = qt_config->value("gameListDeepScan", false).toBool();
-    UISettings::values.recent_files = qt_config->value("recentFiles").toStringList();
+    UISettings::values.roms_path = ReadSetting("romsPath").toString();
+    UISettings::values.symbols_path = ReadSetting("symbolsPath").toString();
+    UISettings::values.gamedir = ReadSetting("gameListRootDir", ".").toString();
+    UISettings::values.gamedir_deepscan = ReadSetting("gameListDeepScan", false).toBool();
+    UISettings::values.recent_files = ReadSetting("recentFiles").toStringList();
     qt_config->endGroup();
 
     qt_config->beginGroup("Shortcuts");
@@ -524,8 +518,8 @@ void Config::ReadValues() {
             qt_config->beginGroup(hotkey);
             UISettings::values.shortcuts.emplace_back(UISettings::Shortcut(
                 group + "/" + hotkey,
-                UISettings::ContextualShortcut(qt_config->value("KeySeq").toString(),
-                                               qt_config->value("Context").toInt())));
+                UISettings::ContextualShortcut(ReadSetting("KeySeq").toString(),
+                                               ReadSetting("Context").toInt())));
             qt_config->endGroup();
         }
 
@@ -533,16 +527,16 @@ void Config::ReadValues() {
     }
     qt_config->endGroup();
 
-    UISettings::values.single_window_mode = qt_config->value("singleWindowMode", true).toBool();
-    UISettings::values.fullscreen = qt_config->value("fullscreen", false).toBool();
-    UISettings::values.display_titlebar = qt_config->value("displayTitleBars", true).toBool();
-    UISettings::values.show_filter_bar = qt_config->value("showFilterBar", true).toBool();
-    UISettings::values.show_status_bar = qt_config->value("showStatusBar", true).toBool();
-    UISettings::values.confirm_before_closing = qt_config->value("confirmClose", true).toBool();
-    UISettings::values.first_start = qt_config->value("firstStart", true).toBool();
-    UISettings::values.callout_flags = qt_config->value("calloutFlags", 0).toUInt();
-    UISettings::values.show_console = qt_config->value("showConsole", false).toBool();
-    UISettings::values.profile_index = qt_config->value("profileIndex", 0).toUInt();
+    UISettings::values.single_window_mode = ReadSetting("singleWindowMode", true).toBool();
+    UISettings::values.fullscreen = ReadSetting("fullscreen", false).toBool();
+    UISettings::values.display_titlebar = ReadSetting("displayTitleBars", true).toBool();
+    UISettings::values.show_filter_bar = ReadSetting("showFilterBar", true).toBool();
+    UISettings::values.show_status_bar = ReadSetting("showStatusBar", true).toBool();
+    UISettings::values.confirm_before_closing = ReadSetting("confirmClose", true).toBool();
+    UISettings::values.first_start = ReadSetting("firstStart", true).toBool();
+    UISettings::values.callout_flags = ReadSetting("calloutFlags", 0).toUInt();
+    UISettings::values.show_console = ReadSetting("showConsole", false).toBool();
+    UISettings::values.profile_index = ReadSetting("profileIndex", 0).toUInt();
 
     ApplyDefaultProfileIfInputInvalid();
 
@@ -553,62 +547,79 @@ void Config::SavePlayerValues() {
     for (std::size_t p = 0; p < Settings::values.players.size(); ++p) {
         const auto& player = Settings::values.players[p];
 
-        qt_config->setValue(QString("player_%1_connected").arg(p), player.connected);
-        qt_config->setValue(QString("player_%1_type").arg(p), static_cast<u8>(player.type));
+        WriteSetting(QString("player_%1_connected").arg(p), player.connected, false);
+        WriteSetting(QString("player_%1_type").arg(p), static_cast<u8>(player.type),
+                     static_cast<u8>(Settings::ControllerType::DualJoycon));
 
-        qt_config->setValue(QString("player_%1_body_color_left").arg(p), player.body_color_left);
-        qt_config->setValue(QString("player_%1_body_color_right").arg(p), player.body_color_right);
-        qt_config->setValue(QString("player_%1_button_color_left").arg(p),
-                            player.button_color_left);
-        qt_config->setValue(QString("player_%1_button_color_right").arg(p),
-                            player.button_color_right);
+        WriteSetting(QString("player_%1_body_color_left").arg(p), player.body_color_left,
+                     Settings::JOYCON_BODY_NEON_BLUE);
+        WriteSetting(QString("player_%1_body_color_right").arg(p), player.body_color_right,
+                     Settings::JOYCON_BODY_NEON_RED);
+        WriteSetting(QString("player_%1_button_color_left").arg(p), player.button_color_left,
+                     Settings::JOYCON_BUTTONS_NEON_BLUE);
+        WriteSetting(QString("player_%1_button_color_right").arg(p), player.button_color_right,
+                     Settings::JOYCON_BUTTONS_NEON_RED);
 
         for (int i = 0; i < Settings::NativeButton::NumButtons; ++i) {
-            qt_config->setValue(QString("player_%1_").arg(p) +
-                                    QString::fromStdString(Settings::NativeButton::mapping[i]),
-                                QString::fromStdString(player.buttons[i]));
+            std::string default_param = InputCommon::GenerateKeyboardParam(default_buttons[i]);
+            WriteSetting(QString("player_%1_").arg(p) +
+                             QString::fromStdString(Settings::NativeButton::mapping[i]),
+                         QString::fromStdString(player.buttons[i]),
+                         QString::fromStdString(default_param));
         }
         for (int i = 0; i < Settings::NativeAnalog::NumAnalogs; ++i) {
-            qt_config->setValue(QString("player_%1_").arg(p) +
-                                    QString::fromStdString(Settings::NativeAnalog::mapping[i]),
-                                QString::fromStdString(player.analogs[i]));
+            std::string default_param = InputCommon::GenerateAnalogParamFromKeys(
+                default_analogs[i][0], default_analogs[i][1], default_analogs[i][2],
+                default_analogs[i][3], default_analogs[i][4], 0.5f);
+            WriteSetting(QString("player_%1_").arg(p) +
+                             QString::fromStdString(Settings::NativeAnalog::mapping[i]),
+                         QString::fromStdString(player.analogs[i]),
+                         QString::fromStdString(default_param));
         }
     }
 }
 
 void Config::SaveDebugValues() {
-    qt_config->setValue("debug_pad_enabled", Settings::values.debug_pad_enabled);
+    WriteSetting("debug_pad_enabled", Settings::values.debug_pad_enabled, false);
     for (int i = 0; i < Settings::NativeButton::NumButtons; ++i) {
-        qt_config->setValue(QString("debug_pad_") +
-                                QString::fromStdString(Settings::NativeButton::mapping[i]),
-                            QString::fromStdString(Settings::values.debug_pad_buttons[i]));
+        std::string default_param = InputCommon::GenerateKeyboardParam(default_buttons[i]);
+        WriteSetting(QString("debug_pad_") +
+                         QString::fromStdString(Settings::NativeButton::mapping[i]),
+                     QString::fromStdString(Settings::values.debug_pad_buttons[i]),
+                     QString::fromStdString(default_param));
     }
     for (int i = 0; i < Settings::NativeAnalog::NumAnalogs; ++i) {
-        qt_config->setValue(QString("debug_pad_") +
-                                QString::fromStdString(Settings::NativeAnalog::mapping[i]),
-                            QString::fromStdString(Settings::values.debug_pad_analogs[i]));
+        std::string default_param = InputCommon::GenerateAnalogParamFromKeys(
+            default_analogs[i][0], default_analogs[i][1], default_analogs[i][2],
+            default_analogs[i][3], default_analogs[i][4], 0.5f);
+        WriteSetting(QString("debug_pad_") +
+                         QString::fromStdString(Settings::NativeAnalog::mapping[i]),
+                     QString::fromStdString(Settings::values.debug_pad_analogs[i]),
+                     QString::fromStdString(default_param));
     }
 }
 
 void Config::SaveMouseValues() {
-    qt_config->setValue("mouse_enabled", Settings::values.mouse_enabled);
+    WriteSetting("mouse_enabled", Settings::values.mouse_enabled, false);
 
     for (int i = 0; i < Settings::NativeMouseButton::NumMouseButtons; ++i) {
-        qt_config->setValue(QString("mouse_") +
-                                QString::fromStdString(Settings::NativeMouseButton::mapping[i]),
-                            QString::fromStdString(Settings::values.mouse_buttons[i]));
+        std::string default_param = InputCommon::GenerateKeyboardParam(default_mouse_buttons[i]);
+        WriteSetting(QString("mouse_") +
+                         QString::fromStdString(Settings::NativeMouseButton::mapping[i]),
+                     QString::fromStdString(Settings::values.mouse_buttons[i]),
+                     QString::fromStdString(default_param));
     }
 }
 
 void Config::SaveTouchscreenValues() {
-    qt_config->setValue("touchscreen_enabled", Settings::values.touchscreen.enabled);
-    qt_config->setValue("touchscreen_device",
-                        QString::fromStdString(Settings::values.touchscreen.device));
+    WriteSetting("touchscreen_enabled", Settings::values.touchscreen.enabled, true);
+    WriteSetting("touchscreen_device", QString::fromStdString(Settings::values.touchscreen.device),
+                 "engine:emu_window");
 
-    qt_config->setValue("touchscreen_finger", Settings::values.touchscreen.finger);
-    qt_config->setValue("touchscreen_angle", Settings::values.touchscreen.rotation_angle);
-    qt_config->setValue("touchscreen_diameter_x", Settings::values.touchscreen.diameter_x);
-    qt_config->setValue("touchscreen_diameter_y", Settings::values.touchscreen.diameter_y);
+    WriteSetting("touchscreen_finger", Settings::values.touchscreen.finger, 0);
+    WriteSetting("touchscreen_angle", Settings::values.touchscreen.rotation_angle, 0);
+    WriteSetting("touchscreen_diameter_x", Settings::values.touchscreen.diameter_x, 15);
+    WriteSetting("touchscreen_diameter_y", Settings::values.touchscreen.diameter_y, 15);
 }
 
 void Config::SaveValues() {
@@ -619,91 +630,96 @@ void Config::SaveValues() {
     SaveMouseValues();
     SaveTouchscreenValues();
 
-    qt_config->setValue("motion_device", QString::fromStdString(Settings::values.motion_device));
-    qt_config->setValue("keyboard_enabled", Settings::values.keyboard_enabled);
+    WriteSetting("motion_device", QString::fromStdString(Settings::values.motion_device),
+                 "engine:motion_emu,update_period:100,sensitivity:0.01");
+    WriteSetting("keyboard_enabled", Settings::values.keyboard_enabled, false);
 
     qt_config->endGroup();
 
     qt_config->beginGroup("Core");
-    qt_config->setValue("use_cpu_jit", Settings::values.use_cpu_jit);
-    qt_config->setValue("use_multi_core", Settings::values.use_multi_core);
+    WriteSetting("use_cpu_jit", Settings::values.use_cpu_jit, true);
+    WriteSetting("use_multi_core", Settings::values.use_multi_core, false);
     qt_config->endGroup();
 
     qt_config->beginGroup("Renderer");
-    qt_config->setValue("resolution_factor", (double)Settings::values.resolution_factor);
-    qt_config->setValue("use_frame_limit", Settings::values.use_frame_limit);
-    qt_config->setValue("frame_limit", Settings::values.frame_limit);
-    qt_config->setValue("use_disk_shader_cache", Settings::values.use_disk_shader_cache);
-    qt_config->setValue("use_accurate_gpu_emulation", Settings::values.use_accurate_gpu_emulation);
-    qt_config->setValue("use_asynchronous_gpu_emulation",
-                        Settings::values.use_asynchronous_gpu_emulation);
+    WriteSetting("resolution_factor", (double)Settings::values.resolution_factor, 1.0);
+    WriteSetting("use_frame_limit", Settings::values.use_frame_limit, true);
+    WriteSetting("frame_limit", Settings::values.frame_limit, 100);
+    WriteSetting("use_disk_shader_cache", Settings::values.use_disk_shader_cache, true);
+    WriteSetting("use_accurate_gpu_emulation", Settings::values.use_accurate_gpu_emulation, false);
+    WriteSetting("use_asynchronous_gpu_emulation", Settings::values.use_asynchronous_gpu_emulation,
+                 false);
 
     // Cast to double because Qt's written float values are not human-readable
-    qt_config->setValue("bg_red", (double)Settings::values.bg_red);
-    qt_config->setValue("bg_green", (double)Settings::values.bg_green);
-    qt_config->setValue("bg_blue", (double)Settings::values.bg_blue);
+    WriteSetting("bg_red", (double)Settings::values.bg_red, 0.0);
+    WriteSetting("bg_green", (double)Settings::values.bg_green, 0.0);
+    WriteSetting("bg_blue", (double)Settings::values.bg_blue, 0.0);
     qt_config->endGroup();
 
     qt_config->beginGroup("Audio");
-    qt_config->setValue("output_engine", QString::fromStdString(Settings::values.sink_id));
-    qt_config->setValue("enable_audio_stretching", Settings::values.enable_audio_stretching);
-    qt_config->setValue("output_device", QString::fromStdString(Settings::values.audio_device_id));
-    qt_config->setValue("volume", Settings::values.volume);
+    WriteSetting("output_engine", QString::fromStdString(Settings::values.sink_id), "auto");
+    WriteSetting("enable_audio_stretching", Settings::values.enable_audio_stretching, true);
+    WriteSetting("output_device", QString::fromStdString(Settings::values.audio_device_id), "auto");
+    WriteSetting("volume", Settings::values.volume, 1.0f);
     qt_config->endGroup();
 
     qt_config->beginGroup("Data Storage");
-    qt_config->setValue("use_virtual_sd", Settings::values.use_virtual_sd);
-    qt_config->setValue("nand_directory",
-                        QString::fromStdString(FileUtil::GetUserPath(FileUtil::UserPath::NANDDir)));
-    qt_config->setValue("sdmc_directory",
-                        QString::fromStdString(FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir)));
+    WriteSetting("use_virtual_sd", Settings::values.use_virtual_sd, true);
+    WriteSetting("nand_directory",
+                 QString::fromStdString(FileUtil::GetUserPath(FileUtil::UserPath::NANDDir)),
+                 QString::fromStdString(FileUtil::GetUserPath(FileUtil::UserPath::NANDDir)));
+    WriteSetting("sdmc_directory",
+                 QString::fromStdString(FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir)),
+                 QString::fromStdString(FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir)));
     qt_config->endGroup();
 
     qt_config->beginGroup("System");
-    qt_config->setValue("use_docked_mode", Settings::values.use_docked_mode);
-    qt_config->setValue("enable_nfc", Settings::values.enable_nfc);
-    qt_config->setValue("current_user", Settings::values.current_user);
-    qt_config->setValue("language_index", Settings::values.language_index);
+    WriteSetting("use_docked_mode", Settings::values.use_docked_mode, false);
+    WriteSetting("enable_nfc", Settings::values.enable_nfc, true);
+    WriteSetting("current_user", Settings::values.current_user, 0);
+    WriteSetting("language_index", Settings::values.language_index, 1);
 
-    qt_config->setValue("rng_seed_enabled", Settings::values.rng_seed.has_value());
-    qt_config->setValue("rng_seed", Settings::values.rng_seed.value_or(0));
+    WriteSetting("rng_seed_enabled", Settings::values.rng_seed.has_value(), false);
+    WriteSetting("rng_seed", Settings::values.rng_seed.value_or(0), 0);
 
-    qt_config->setValue("custom_rtc_enabled", Settings::values.custom_rtc.has_value());
-    qt_config->setValue("custom_rtc",
-                        QVariant::fromValue<long long>(
-                            Settings::values.custom_rtc.value_or(std::chrono::seconds{}).count()));
+    WriteSetting("custom_rtc_enabled", Settings::values.custom_rtc.has_value(), false);
+    WriteSetting("custom_rtc",
+                 QVariant::fromValue<long long>(
+                     Settings::values.custom_rtc.value_or(std::chrono::seconds{}).count()),
+                 0);
 
     qt_config->endGroup();
 
     qt_config->beginGroup("Miscellaneous");
-    qt_config->setValue("log_filter", QString::fromStdString(Settings::values.log_filter));
-    qt_config->setValue("use_dev_keys", Settings::values.use_dev_keys);
+    WriteSetting("log_filter", QString::fromStdString(Settings::values.log_filter), "*:Info");
+    WriteSetting("use_dev_keys", Settings::values.use_dev_keys, false);
     qt_config->endGroup();
 
     qt_config->beginGroup("Debugging");
-    qt_config->setValue("use_gdbstub", Settings::values.use_gdbstub);
-    qt_config->setValue("gdbstub_port", Settings::values.gdbstub_port);
-    qt_config->setValue("program_args", QString::fromStdString(Settings::values.program_args));
-    qt_config->setValue("dump_exefs", Settings::values.dump_exefs);
-    qt_config->setValue("dump_nso", Settings::values.dump_nso);
+    WriteSetting("use_gdbstub", Settings::values.use_gdbstub, false);
+    WriteSetting("gdbstub_port", Settings::values.gdbstub_port, 24689);
+    WriteSetting("program_args", QString::fromStdString(Settings::values.program_args), "");
+    WriteSetting("dump_exefs", Settings::values.dump_exefs, false);
+    WriteSetting("dump_nso", Settings::values.dump_nso, false);
     qt_config->endGroup();
 
     qt_config->beginGroup("WebService");
-    qt_config->setValue("enable_telemetry", Settings::values.enable_telemetry);
-    qt_config->setValue("web_api_url", QString::fromStdString(Settings::values.web_api_url));
-    qt_config->setValue("yuzu_username", QString::fromStdString(Settings::values.yuzu_username));
-    qt_config->setValue("yuzu_token", QString::fromStdString(Settings::values.yuzu_token));
+    WriteSetting("enable_telemetry", Settings::values.enable_telemetry, true);
+    WriteSetting("web_api_url", QString::fromStdString(Settings::values.web_api_url),
+                 "https://api.yuzu-emu.org");
+    WriteSetting("yuzu_username", QString::fromStdString(Settings::values.yuzu_username));
+    WriteSetting("yuzu_token", QString::fromStdString(Settings::values.yuzu_token));
     qt_config->endGroup();
 
     qt_config->beginWriteArray("DisabledAddOns");
     int i = 0;
     for (const auto& elem : Settings::values.disabled_addons) {
         qt_config->setArrayIndex(i);
-        qt_config->setValue("title_id", QVariant::fromValue<u64>(elem.first));
+        WriteSetting("title_id", QVariant::fromValue<u64>(elem.first), 0);
         qt_config->beginWriteArray("disabled");
         for (std::size_t j = 0; j < elem.second.size(); ++j) {
             qt_config->setArrayIndex(static_cast<int>(j));
-            qt_config->setValue("d", QString::fromStdString(elem.second[j]));
+            WriteSetting("d", QString::fromStdString(elem.second[j]), "");
         }
         qt_config->endArray();
         ++i;
@@ -711,60 +727,86 @@ void Config::SaveValues() {
     qt_config->endArray();
 
     qt_config->beginGroup("UI");
-    qt_config->setValue("theme", UISettings::values.theme);
-    qt_config->setValue("enable_discord_presence", UISettings::values.enable_discord_presence);
-    qt_config->setValue("screenshot_resolution_factor",
-                        UISettings::values.screenshot_resolution_factor);
-    qt_config->setValue("select_user_on_boot", UISettings::values.select_user_on_boot);
+    WriteSetting("theme", UISettings::values.theme, UISettings::themes[0].second);
+    WriteSetting("enable_discord_presence", UISettings::values.enable_discord_presence, true);
+    WriteSetting("screenshot_resolution_factor", UISettings::values.screenshot_resolution_factor,
+                 0);
+    WriteSetting("select_user_on_boot", UISettings::values.select_user_on_boot, false);
 
     qt_config->beginGroup("UIGameList");
-    qt_config->setValue("show_unknown", UISettings::values.show_unknown);
-    qt_config->setValue("show_add_ons", UISettings::values.show_add_ons);
-    qt_config->setValue("icon_size", UISettings::values.icon_size);
-    qt_config->setValue("row_1_text_id", UISettings::values.row_1_text_id);
-    qt_config->setValue("row_2_text_id", UISettings::values.row_2_text_id);
+    WriteSetting("show_unknown", UISettings::values.show_unknown, true);
+    WriteSetting("show_add_ons", UISettings::values.show_add_ons, true);
+    WriteSetting("icon_size", UISettings::values.icon_size, 64);
+    WriteSetting("row_1_text_id", UISettings::values.row_1_text_id, 3);
+    WriteSetting("row_2_text_id", UISettings::values.row_2_text_id, 2);
     qt_config->endGroup();
 
     qt_config->beginGroup("UILayout");
-    qt_config->setValue("geometry", UISettings::values.geometry);
-    qt_config->setValue("state", UISettings::values.state);
-    qt_config->setValue("geometryRenderWindow", UISettings::values.renderwindow_geometry);
-    qt_config->setValue("gameListHeaderState", UISettings::values.gamelist_header_state);
-    qt_config->setValue("microProfileDialogGeometry", UISettings::values.microprofile_geometry);
-    qt_config->setValue("microProfileDialogVisible", UISettings::values.microprofile_visible);
+    WriteSetting("geometry", UISettings::values.geometry);
+    WriteSetting("state", UISettings::values.state);
+    WriteSetting("geometryRenderWindow", UISettings::values.renderwindow_geometry);
+    WriteSetting("gameListHeaderState", UISettings::values.gamelist_header_state);
+    WriteSetting("microProfileDialogGeometry", UISettings::values.microprofile_geometry);
+    WriteSetting("microProfileDialogVisible", UISettings::values.microprofile_visible, false);
     qt_config->endGroup();
 
     qt_config->beginGroup("Paths");
-    qt_config->setValue("romsPath", UISettings::values.roms_path);
-    qt_config->setValue("symbolsPath", UISettings::values.symbols_path);
-    qt_config->setValue("screenshotPath", UISettings::values.screenshot_path);
-    qt_config->setValue("gameListRootDir", UISettings::values.gamedir);
-    qt_config->setValue("gameListDeepScan", UISettings::values.gamedir_deepscan);
-    qt_config->setValue("recentFiles", UISettings::values.recent_files);
+    WriteSetting("romsPath", UISettings::values.roms_path);
+    WriteSetting("symbolsPath", UISettings::values.symbols_path);
+    WriteSetting("screenshotPath", UISettings::values.screenshot_path);
+    WriteSetting("gameListRootDir", UISettings::values.gamedir, ".");
+    WriteSetting("gameListDeepScan", UISettings::values.gamedir_deepscan, false);
+    WriteSetting("recentFiles", UISettings::values.recent_files);
     qt_config->endGroup();
 
     qt_config->beginGroup("Shortcuts");
     for (auto shortcut : UISettings::values.shortcuts) {
-        qt_config->setValue(shortcut.first + "/KeySeq", shortcut.second.first);
-        qt_config->setValue(shortcut.first + "/Context", shortcut.second.second);
+        WriteSetting(shortcut.first + "/KeySeq", shortcut.second.first);
+        WriteSetting(shortcut.first + "/Context", shortcut.second.second);
     }
     qt_config->endGroup();
 
-    qt_config->setValue("singleWindowMode", UISettings::values.single_window_mode);
-    qt_config->setValue("fullscreen", UISettings::values.fullscreen);
-    qt_config->setValue("displayTitleBars", UISettings::values.display_titlebar);
-    qt_config->setValue("showFilterBar", UISettings::values.show_filter_bar);
-    qt_config->setValue("showStatusBar", UISettings::values.show_status_bar);
-    qt_config->setValue("confirmClose", UISettings::values.confirm_before_closing);
-    qt_config->setValue("firstStart", UISettings::values.first_start);
-    qt_config->setValue("calloutFlags", UISettings::values.callout_flags);
-    qt_config->setValue("showConsole", UISettings::values.show_console);
-    qt_config->setValue("profileIndex", UISettings::values.profile_index);
+    WriteSetting("singleWindowMode", UISettings::values.single_window_mode, true);
+    WriteSetting("fullscreen", UISettings::values.fullscreen, false);
+    WriteSetting("displayTitleBars", UISettings::values.display_titlebar, true);
+    WriteSetting("showFilterBar", UISettings::values.show_filter_bar, true);
+    WriteSetting("showStatusBar", UISettings::values.show_status_bar, true);
+    WriteSetting("confirmClose", UISettings::values.confirm_before_closing, true);
+    WriteSetting("firstStart", UISettings::values.first_start, true);
+    WriteSetting("calloutFlags", UISettings::values.callout_flags, 0);
+    WriteSetting("showConsole", UISettings::values.show_console, false);
+    WriteSetting("profileIndex", UISettings::values.profile_index, 0);
     qt_config->endGroup();
+}
+
+QVariant Config::ReadSetting(const QString& name) const {
+    return qt_config->value(name);
+}
+
+QVariant Config::ReadSetting(const QString& name, const QVariant& default_value) const {
+    QVariant result;
+    if (qt_config->value(name + "/default", false).toBool()) {
+        result = default_value;
+    } else {
+        result = qt_config->value(name, default_value);
+    }
+    return result;
+}
+
+void Config::WriteSetting(const QString& name, const QVariant& value) {
+    qt_config->setValue(name, value);
+}
+
+void Config::WriteSetting(const QString& name, const QVariant& value,
+                          const QVariant& default_value) {
+    qt_config->setValue(name + "/default", value == default_value);
+    qt_config->setValue(name, value);
 }
 
 void Config::Reload() {
     ReadValues();
+    // To apply default value changes
+    SaveValues();
     Settings::Apply();
 }
 
