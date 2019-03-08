@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include "common/common_types.h"
+#include "core/file_sys/cheat_engine.h"
 #include "core/file_sys/nca_metadata.h"
 #include "core/file_sys/vfs.h"
 
@@ -44,6 +45,9 @@ public:
     // Checks to see if PatchNSO() will have any effect given the NSO's build ID.
     // Used to prevent expensive copies in NSO loader.
     bool HasNSOPatch(const std::array<u8, 0x20>& build_id) const;
+
+    // Creates a CheatList object with all
+    std::vector<CheatList> CreateCheatList(const std::array<u8, 0x20>& build_id) const;
 
     // Currently tracked RomFS patches:
     // - Game Updates
