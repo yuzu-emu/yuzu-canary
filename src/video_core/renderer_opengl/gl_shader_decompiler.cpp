@@ -5,7 +5,9 @@
 #include <array>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
+#include <vector>
 
 #include <fmt/format.h>
 
@@ -717,7 +719,7 @@ private:
     }
 
     std::string GenerateTexture(Operation operation, const std::string& func,
-                                bool is_extra_int = false) {
+                                const std::vector<std::pair<Type, Node>>& extras) {
         constexpr std::array<const char*, 4> coord_constructors = {"float", "vec2", "vec3", "vec4"};
 
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
@@ -738,36 +740,47 @@ private:
             expr += Visit(operation[i]);
 
             const std::size_t next = i + 1;
-            if (next < count || has_array || has_shadow)
+            if (next < count)
                 expr += ", ";
         }
         if (has_array) {
-            expr += "float(ftoi(" + Visit(meta->array) + "))";
+            expr += ", float(ftoi(" + Visit(meta->array) + "))";
         }
         if (has_shadow) {
-            if (has_array)
-                expr += ", ";
-            expr += Visit(meta->depth_compare);
+            expr += ", " + Visit(meta->depth_compare);
         }
         expr += ')';
 
-        for (const Node extra : meta->extras) {
+        for (const auto& extra_pair : extras) {
+            const auto [type, operand] = extra_pair;
+            if (operand == nullptr) {
+                continue;
+            }
             expr += ", ";
-            if (is_extra_int) {
-                if (const auto immediate = std::get_if<ImmediateNode>(extra)) {
+
+            switch (type) {
+            case Type::Int:
+                if (const auto immediate = std::get_if<ImmediateNode>(operand)) {
                     // Inline the string as an immediate integer in GLSL (some extra arguments are
                     // required to be constant)
                     expr += std::to_string(static_cast<s32>(immediate->GetValue()));
                 } else {
-                    expr += "ftoi(" + Visit(extra) + ')';
+                    expr += "ftoi(" + Visit(operand) + ')';
                 }
-            } else {
-                expr += Visit(extra);
+                break;
+            case Type::Float:
+                expr += Visit(operand);
+                break;
+            default: {
+                const auto type_int = static_cast<u32>(type);
+                UNIMPLEMENTED_MSG("Unimplemented extra type={}", type_int);
+                expr += '0';
+                break;
+            }
             }
         }
 
-        expr += ')';
-        return expr;
+        return expr + ')';
     }
 
     std::string Assign(Operation operation) {
@@ -1146,7 +1159,7 @@ private:
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
 
-        std::string expr = GenerateTexture(operation, "texture");
+        std::string expr = GenerateTexture(operation, "texture", {{Type::Float, meta->bias}});
         if (meta->sampler.IsShadow()) {
             expr = "vec4(" + expr + ')';
         }
@@ -1157,7 +1170,7 @@ private:
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
 
-        std::string expr = GenerateTexture(operation, "textureLod");
+        std::string expr = GenerateTexture(operation, "textureLod", {{Type::Float, meta->lod}});
         if (meta->sampler.IsShadow()) {
             expr = "vec4(" + expr + ')';
         }
@@ -1168,7 +1181,8 @@ private:
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
 
-        return GenerateTexture(operation, "textureGather", !meta->sampler.IsShadow()) +
+        const auto type = meta->sampler.IsShadow() ? Type::Float : Type::Int;
+        return GenerateTexture(operation, "textureGather", {{type, meta->component}}) +
                GetSwizzle(meta->element);
     }
 
@@ -1197,8 +1211,8 @@ private:
         ASSERT(meta);
 
         if (meta->element < 2) {
-            return "itof(int((" + GenerateTexture(operation, "textureQueryLod") + " * vec2(256))" +
-                   GetSwizzle(meta->element) + "))";
+            return "itof(int((" + GenerateTexture(operation, "textureQueryLod", {}) +
+                   " * vec2(256))" + GetSwizzle(meta->element) + "))";
         }
         return "0";
     }
@@ -1224,9 +1238,9 @@ private:
             else if (next < count)
                 expr += ", ";
         }
-        for (std::size_t i = 0; i < meta->extras.size(); ++i) {
+        if (meta->lod) {
             expr += ", ";
-            expr += CastOperand(Visit(meta->extras.at(i)), Type::Int);
+            expr += CastOperand(Visit(meta->lod), Type::Int);
         }
         expr += ')';
 
