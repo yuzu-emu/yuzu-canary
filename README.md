@@ -1,3 +1,28 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 46fdf8c81985cf2b7a11b365efd0763f78887a7b
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2187](https://github.com/yuzu-emu/yuzu/pull/2187)|[71817af](https://github.com/yuzu-emu/yuzu/pull/2187/files/)|Port various Citra changes to input_common, including deadzone support |[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[2147](https://github.com/yuzu-emu/yuzu/pull/2147)|[5ca63d0](https://github.com/yuzu-emu/yuzu/pull/2147/files/)|shader_ir: Remove "extras" from the MetaTexture|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2143](https://github.com/yuzu-emu/yuzu/pull/2143)|[27ddbeb](https://github.com/yuzu-emu/yuzu/pull/2143/files/)|gl_rasterizer_cache: Create texture views for array discrepancies|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2135](https://github.com/yuzu-emu/yuzu/pull/2135)|[2677cc8](https://github.com/yuzu-emu/yuzu/pull/2135/files/)|DO NOT MERGE Implemented a lil edge case on RecreateSurface.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2129](https://github.com/yuzu-emu/yuzu/pull/2129)|[a8d4927](https://github.com/yuzu-emu/yuzu/pull/2129/files/)|Correct CNTPCT from using CPU Cycles to using Clock Cycles|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2048](https://github.com/yuzu-emu/yuzu/pull/2048)|[39e895c](https://github.com/yuzu-emu/yuzu/pull/2048/files/)|Port citra-emu/citra#3924: "citra_qt: Settings (configuration) rework"|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[1933](https://github.com/yuzu-emu/yuzu/pull/1933)|[52ac641](https://github.com/yuzu-emu/yuzu/pull/1933/files/)|file_sys: Implement parser and interpreter for game memory cheats|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
