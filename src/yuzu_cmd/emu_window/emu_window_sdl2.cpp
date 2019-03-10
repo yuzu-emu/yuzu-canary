@@ -135,15 +135,15 @@ bool EmuWindow_SDL2::SupportsRequiredGLExtensions() {
 }
 
 EmuWindow_SDL2::EmuWindow_SDL2(bool fullscreen) {
-    InputCommon::Init();
-
-    SDL_SetMainReady();
-
     // Initialize the window
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
         LOG_CRITICAL(Frontend, "Failed to initialize SDL2! Exiting...");
         exit(1);
     }
+
+    InputCommon::Init();
+
+    SDL_SetMainReady();
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -201,11 +201,9 @@ EmuWindow_SDL2::EmuWindow_SDL2(bool fullscreen) {
 }
 
 EmuWindow_SDL2::~EmuWindow_SDL2() {
-    InputCommon::SDL::CloseSDLJoysticks();
+    InputCommon::Shutdown();
     SDL_GL_DeleteContext(gl_context);
     SDL_Quit();
-
-    InputCommon::Shutdown();
 }
 
 void EmuWindow_SDL2::SwapBuffers() {
@@ -262,7 +260,6 @@ void EmuWindow_SDL2::PollEvents() {
             is_open = false;
             break;
         default:
-            InputCommon::SDL::HandleGameControllerEvent(event);
             break;
         }
     }
