@@ -42,6 +42,11 @@ private:
     void SaveMouseValues();
     void SaveTouchscreenValues();
 
+    QVariant ReadSetting(const QString& name) const;
+    QVariant ReadSetting(const QString& name, const QVariant& default_value) const;
+    void WriteSetting(const QString& name, const QVariant& value);
+    void WriteSetting(const QString& name, const QVariant& value, const QVariant& default_value);
+
     std::unique_ptr<QSettings> qt_config;
     std::string qt_config_loc;
 };
