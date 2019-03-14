@@ -6,6 +6,7 @@
 #include "core/file_sys/romfs.h"
 #include "core/file_sys/system_archive/ng_word.h"
 #include "core/file_sys/system_archive/system_archive.h"
+#include "core/file_sys/system_archive/system_version.h"
 
 namespace FileSys::SystemArchive {
 
@@ -30,7 +31,7 @@ constexpr std::array<SystemArchiveDescriptor, SYSTEM_ARCHIVE_COUNT> SYSTEM_ARCHI
     {0x0100000000000806, "NgWord", &NgWord1},
     {0x0100000000000807, "SsidList", nullptr},
     {0x0100000000000808, "Dictionary", nullptr},
-    {0x0100000000000809, "SystemVersion", nullptr},
+    {0x0100000000000809, "SystemVersion", &SystemVersion},
     {0x010000000000080A, "AvatarImage", nullptr},
     {0x010000000000080B, "LocalNews", nullptr},
     {0x010000000000080C, "Eula", nullptr},
