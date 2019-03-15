@@ -297,6 +297,7 @@ struct SurfaceParams {
     bool srgb_conversion;
     // Parameters used for caching
     VAddr addr;
+    u8* host_ptr;
     Tegra::GPUVAddr gpu_addr;
     std::size_t size_in_bytes;
     std::size_t size_in_bytes_gl;
@@ -345,9 +346,9 @@ class RasterizerOpenGL;
 
 class CachedSurface final : public RasterizerCacheObject {
 public:
-    CachedSurface(const SurfaceParams& params);
+    explicit CachedSurface(const SurfaceParams& params);
 
-    VAddr GetAddr() const override {
+    VAddr GetCpuAddr() const override {
         return params.addr;
     }
 
@@ -449,7 +450,7 @@ public:
     Surface GetColorBufferSurface(std::size_t index, bool preserve_contents);
 
     /// Tries to find a framebuffer using on the provided CPU address
-    Surface TryFindFramebufferSurface(VAddr addr) const;
+    Surface TryFindFramebufferSurface(const u8* host_ptr) const;
 
     /// Copies the contents of one surface to another
     void FermiCopySurface(const Tegra::Engines::Fermi2D::Regs::Surface& src_config,
@@ -506,12 +507,12 @@ private:
     std::array<Surface, Maxwell::NumRenderTargets> current_color_buffers;
     Surface last_depth_buffer;
 
-    using SurfaceIntervalCache = boost::icl::interval_map<VAddr, Surface>;
+    using SurfaceIntervalCache = boost::icl::interval_map<CacheAddr, Surface>;
     using SurfaceInterval = typename SurfaceIntervalCache::interval_type;
 
     static auto GetReinterpretInterval(const Surface& object) {
-        return SurfaceInterval::right_open(object->GetAddr() + 1,
-                                           object->GetAddr() + object->GetMemorySize() - 1);
+        return SurfaceInterval::right_open(object->GetCacheAddr() + 1,
+                                           object->GetCacheAddr() + object->GetMemorySize() - 1);
     }
 
     // Reinterpreted surfaces are very fragil as the game may keep rendering into them.
@@ -523,7 +524,7 @@ private:
         reinterpret_surface->MarkReinterpreted();
     }
 
-    Surface CollideOnReinterpretedSurface(VAddr addr) const {
+    Surface CollideOnReinterpretedSurface(CacheAddr addr) const {
         const SurfaceInterval interval{addr};
         for (auto& pair :
              boost::make_iterator_range(reinterpreted_surfaces.equal_range(interval))) {

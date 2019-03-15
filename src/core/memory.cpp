@@ -67,8 +67,11 @@ static void MapPages(PageTable& page_table, VAddr base, u64 size, u8* memory, Pa
     LOG_DEBUG(HW_Memory, "Mapping {} onto {:016X}-{:016X}", fmt::ptr(memory), base * PAGE_SIZE,
               (base + size) * PAGE_SIZE);
 
-    RasterizerFlushVirtualRegion(base << PAGE_BITS, size * PAGE_SIZE,
-                                 FlushMode::FlushAndInvalidate);
+    // During boot, current_page_table might not be set yet, in which case we need not flush
+    if (current_page_table) {
+        RasterizerFlushVirtualRegion(base << PAGE_BITS, size * PAGE_SIZE,
+                                     FlushMode::FlushAndInvalidate);
+    }
 
     VAddr end = base + size;
     ASSERT_MSG(end <= page_table.pointers.size(), "out of range mapping at {:016X}",
@@ -359,13 +362,13 @@ void RasterizerFlushVirtualRegion(VAddr start, u64 size, FlushMode mode) {
         auto& gpu = system_instance.GPU();
         switch (mode) {
         case FlushMode::Flush:
-            gpu.FlushRegion(overlap_start, overlap_size);
+            gpu.FlushRegion(ToCacheAddr(GetPointer(overlap_start)), overlap_size);
             break;
         case FlushMode::Invalidate:
-            gpu.InvalidateRegion(overlap_start, overlap_size);
+            gpu.InvalidateRegion(ToCacheAddr(GetPointer(overlap_start)), overlap_size);
             break;
         case FlushMode::FlushAndInvalidate:
-            gpu.FlushAndInvalidateRegion(overlap_start, overlap_size);
+            gpu.FlushAndInvalidateRegion(ToCacheAddr(GetPointer(overlap_start)), overlap_size);
             break;
         }
     };

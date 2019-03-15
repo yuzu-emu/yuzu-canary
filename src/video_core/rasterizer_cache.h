@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <mutex>
 #include <set>
 #include <unordered_map>
 
@@ -12,14 +13,26 @@
 
 #include "common/common_types.h"
 #include "core/settings.h"
+#include "video_core/gpu.h"
 #include "video_core/rasterizer_interface.h"
 
 class RasterizerCacheObject {
 public:
+    explicit RasterizerCacheObject(const u8* host_ptr)
+        : host_ptr{host_ptr}, cache_addr{ToCacheAddr(host_ptr)} {}
+
     virtual ~RasterizerCacheObject();
 
+    CacheAddr GetCacheAddr() const {
+        return cache_addr;
+    }
+
+    const u8* GetHostPtr() const {
+        return host_ptr;
+    }
+
     /// Gets the address of the shader in guest memory, required for cache management
-    virtual VAddr GetAddr() const = 0;
+    virtual VAddr GetCpuAddr() const = 0;
 
     /// Gets the size of the shader in guest memory, required for cache management
     virtual std::size_t GetSizeInBytes() const = 0;
@@ -58,6 +71,8 @@ private:
     bool is_registered{};      ///< Whether the object is currently registered with the cache
     bool is_dirty{};           ///< Whether the object is dirty (out of sync with guest memory)
     u64 last_modified_ticks{}; ///< When the object was last modified, used for in-order flushing
+    CacheAddr cache_addr{};    ///< Cache address memory, unique from emulated virtual address space
+    const u8* host_ptr{};      ///< Pointer to the memory backing this cached region
 };
 
 template <class T>
@@ -68,7 +83,9 @@ public:
     explicit RasterizerCache(VideoCore::RasterizerInterface& rasterizer) : rasterizer{rasterizer} {}
 
     /// Write any cached resources overlapping the specified region back to memory
-    void FlushRegion(Tegra::GPUVAddr addr, size_t size) {
+    void FlushRegion(CacheAddr addr, std::size_t size) {
+        std::lock_guard<std::recursive_mutex> lock{mutex};
+
         const auto& objects{GetSortedObjectsFromRegion(addr, size)};
         for (auto& object : objects) {
             FlushObject(object);
@@ -76,7 +93,9 @@ public:
     }
 
     /// Mark the specified region as being invalidated
-    void InvalidateRegion(VAddr addr, u64 size) {
+    void InvalidateRegion(CacheAddr addr, u64 size) {
+        std::lock_guard<std::recursive_mutex> lock{mutex};
+
         const auto& objects{GetSortedObjectsFromRegion(addr, size)};
         for (auto& object : objects) {
             if (!object->IsRegistered()) {
@@ -89,15 +108,24 @@ public:
 
     /// Invalidates everything in the cache
     void InvalidateAll() {
+        std::lock_guard<std::recursive_mutex> lock{mutex};
+
         while (interval_cache.begin() != interval_cache.end()) {
             Unregister(*interval_cache.begin()->second.begin());
         }
     }
 
 protected:
-    /// Tries to get an object from the cache with the specified address
-    T TryGet(VAddr addr) const {
+    /// Tries to get an object from the cache with the specified cache address
+    T TryGet(CacheAddr addr) const {
         const auto iter = map_cache.find(addr);
+        if (iter != map_cache.end())
+            return iter->second;
+        return nullptr;
+    }
+
+    T TryGet(const void* addr) const {
+        const auto iter = map_cache.find(ToCacheAddr(addr));
         if (iter != map_cache.end())
             return iter->second;
         return nullptr;
@@ -105,32 +133,35 @@ protected:
 
     /// Register an object into the cache
     void Register(const T& object) {
+        std::lock_guard<std::recursive_mutex> lock{mutex};
+
         object->SetIsRegistered(true);
         interval_cache.add({GetInterval(object), ObjectSet{object}});
-        map_cache.insert({object->GetAddr(), object});
-        rasterizer.UpdatePagesCachedCount(object->GetAddr(), object->GetSizeInBytes(), 1);
+        map_cache.insert({object->GetCacheAddr(), object});
+        rasterizer.UpdatePagesCachedCount(object->GetCpuAddr(), object->GetSizeInBytes(), 1);
     }
 
     /// Unregisters an object from the cache
     void Unregister(const T& object) {
-        object->SetIsRegistered(false);
-        rasterizer.UpdatePagesCachedCount(object->GetAddr(), object->GetSizeInBytes(), -1);
-        // Only flush if use_accurate_gpu_emulation is enabled, as it incurs a performance hit
-        if (Settings::values.use_accurate_gpu_emulation) {
-            FlushObject(object);
-        }
+        std::lock_guard<std::recursive_mutex> lock{mutex};
 
+        object->SetIsRegistered(false);
+        rasterizer.UpdatePagesCachedCount(object->GetCpuAddr(), object->GetSizeInBytes(), -1);
         interval_cache.subtract({GetInterval(object), ObjectSet{object}});
-        map_cache.erase(object->GetAddr());
+        map_cache.erase(object->GetCacheAddr());
     }
 
     /// Returns a ticks counter used for tracking when cached objects were last modified
     u64 GetModifiedTicks() {
+        std::lock_guard<std::recursive_mutex> lock{mutex};
+
         return ++modified_ticks;
     }
 
     /// Flushes the specified object, updating appropriate cache state as needed
     void FlushObject(const T& object) {
+        std::lock_guard<std::recursive_mutex> lock{mutex};
+
         if (!object->IsDirty()) {
             return;
         }
@@ -140,7 +171,7 @@ protected:
 
 private:
     /// Returns a list of cached objects from the specified memory region, ordered by access time
-    std::vector<T> GetSortedObjectsFromRegion(VAddr addr, u64 size) {
+    std::vector<T> GetSortedObjectsFromRegion(CacheAddr addr, u64 size) {
         if (size == 0) {
             return {};
         }
@@ -164,17 +195,18 @@ private:
     }
 
     using ObjectSet = std::set<T>;
-    using ObjectCache = std::unordered_map<VAddr, T>;
-    using IntervalCache = boost::icl::interval_map<VAddr, ObjectSet>;
+    using ObjectCache = std::unordered_map<CacheAddr, T>;
+    using IntervalCache = boost::icl::interval_map<CacheAddr, ObjectSet>;
     using ObjectInterval = typename IntervalCache::interval_type;
 
     static auto GetInterval(const T& object) {
-        return ObjectInterval::right_open(object->GetAddr(),
-                                          object->GetAddr() + object->GetSizeInBytes());
+        return ObjectInterval::right_open(object->GetCacheAddr(),
+                                          object->GetCacheAddr() + object->GetSizeInBytes());
     }
 
     ObjectCache map_cache;
     IntervalCache interval_cache; ///< Cache of objects
     u64 modified_ticks{};         ///< Counter of cache state ticks, used for in-order flushing
     VideoCore::RasterizerInterface& rasterizer;
+    std::recursive_mutex mutex;
 };

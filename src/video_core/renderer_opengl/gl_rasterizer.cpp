@@ -449,7 +449,7 @@ static constexpr auto RangeFromInterval(Map& map, const Interval& interval) {
     return boost::make_iterator_range(map.equal_range(interval));
 }
 
-void RasterizerOpenGL::UpdatePagesCachedCount(Tegra::GPUVAddr addr, u64 size, int delta) {
+void RasterizerOpenGL::UpdatePagesCachedCount(VAddr addr, u64 size, int delta) {
     const u64 page_start{addr >> Memory::PAGE_BITS};
     const u64 page_end{(addr + size + Memory::PAGE_SIZE - 1) >> Memory::PAGE_BITS};
 
@@ -747,12 +747,12 @@ void RasterizerOpenGL::DrawArrays() {
 
 void RasterizerOpenGL::FlushAll() {}
 
-void RasterizerOpenGL::FlushRegion(VAddr addr, u64 size) {
+void RasterizerOpenGL::FlushRegion(CacheAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.FlushRegion(addr, size);
 }
 
-void RasterizerOpenGL::InvalidateRegion(VAddr addr, u64 size) {
+void RasterizerOpenGL::InvalidateRegion(CacheAddr addr, u64 size) {
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
     res_cache.InvalidateRegion(addr, size);
     shader_cache.InvalidateRegion(addr, size);
@@ -760,7 +760,7 @@ void RasterizerOpenGL::InvalidateRegion(VAddr addr, u64 size) {
     buffer_cache.InvalidateRegion(addr, size);
 }
 
-void RasterizerOpenGL::FlushAndInvalidateRegion(VAddr addr, u64 size) {
+void RasterizerOpenGL::FlushAndInvalidateRegion(CacheAddr addr, u64 size) {
     FlushRegion(addr, size);
     InvalidateRegion(addr, size);
 }
@@ -782,7 +782,7 @@ bool RasterizerOpenGL::AccelerateDisplay(const Tegra::FramebufferConfig& config,
 
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
 
-    const auto& surface{res_cache.TryFindFramebufferSurface(framebuffer_addr)};
+    const auto& surface{res_cache.TryFindFramebufferSurface(Memory::GetPointer(framebuffer_addr))};
     if (!surface) {
         return {};
     }

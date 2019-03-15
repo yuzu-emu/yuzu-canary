@@ -10,6 +10,7 @@
 #include "core/core.h"
 #include "core/hle/service/nvdrv/devices/nvhost_as_gpu.h"
 #include "core/hle/service/nvdrv/devices/nvmap.h"
+#include "core/memory.h"
 #include "video_core/memory_manager.h"
 #include "video_core/rasterizer_interface.h"
 #include "video_core/renderer_base.h"
@@ -178,7 +179,7 @@ u32 nvhost_as_gpu::UnmapBuffer(const std::vector<u8>& input, std::vector<u8>& ou
     auto& gpu = system_instance.GPU();
     auto cpu_addr = gpu.MemoryManager().GpuToCpuAddress(params.offset);
     ASSERT(cpu_addr);
-    gpu.FlushAndInvalidateRegion(*cpu_addr, itr->second.size);
+    gpu.FlushAndInvalidateRegion(ToCacheAddr(Memory::GetPointer(*cpu_addr)), itr->second.size);
 
     params.offset = gpu.MemoryManager().UnmapBuffer(params.offset, itr->second.size);
 

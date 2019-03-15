@@ -22,15 +22,15 @@ void GPUAsynch::SwapBuffers(
     gpu_thread.SwapBuffers(std::move(framebuffer));
 }
 
-void GPUAsynch::FlushRegion(VAddr addr, u64 size) {
+void GPUAsynch::FlushRegion(CacheAddr addr, u64 size) {
     gpu_thread.FlushRegion(addr, size);
 }
 
-void GPUAsynch::InvalidateRegion(VAddr addr, u64 size) {
+void GPUAsynch::InvalidateRegion(CacheAddr addr, u64 size) {
     gpu_thread.InvalidateRegion(addr, size);
 }
 
-void GPUAsynch::FlushAndInvalidateRegion(VAddr addr, u64 size) {
+void GPUAsynch::FlushAndInvalidateRegion(CacheAddr addr, u64 size) {
     gpu_thread.FlushAndInvalidateRegion(addr, size);
 }
 

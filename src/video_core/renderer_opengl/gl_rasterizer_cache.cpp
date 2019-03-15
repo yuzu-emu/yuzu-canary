@@ -61,6 +61,7 @@ void SurfaceParams::InitCacheParameters(Tegra::GPUVAddr gpu_addr_) {
 
     addr = cpu_addr ? *cpu_addr : 0;
     gpu_addr = gpu_addr_;
+    host_ptr = Memory::GetPointer(addr);
     size_in_bytes = SizeInBytesRaw();
 
     if (IsPixelFormatASTC(pixel_format)) {
@@ -563,8 +564,8 @@ void RasterizerCacheOpenGL::CopySurface(const Surface& src_surface, const Surfac
 }
 
 CachedSurface::CachedSurface(const SurfaceParams& params)
-    : params(params), gl_target(SurfaceTargetToGL(params.target)),
-      cached_size_in_bytes(params.size_in_bytes) {
+    : params{params}, gl_target{SurfaceTargetToGL(params.target)},
+      cached_size_in_bytes{params.size_in_bytes}, RasterizerCacheObject{params.host_ptr} {
     texture.Create(gl_target);
 
     // TODO(Rodrigo): Using params.GetRect() returns a different size than using its Mip*(0)
@@ -633,10 +634,9 @@ void CachedSurface::LoadGLBuffer() {
         const u32 bpp = params.GetFormatBpp() / 8;
         const u32 copy_size = params.width * bpp;
         if (params.pitch == copy_size) {
-            std::memcpy(gl_buffer[0].data(), Memory::GetPointer(params.addr),
-                        params.size_in_bytes_gl);
+            std::memcpy(gl_buffer[0].data(), params.host_ptr, params.size_in_bytes_gl);
         } else {
-            const u8* start = Memory::GetPointer(params.addr);
+            const u8* start{params.host_ptr};
             u8* write_to = gl_buffer[0].data();
             for (u32 h = params.height; h > 0; h--) {
                 std::memcpy(write_to, start, copy_size);
@@ -680,8 +680,6 @@ void CachedSurface::FlushGLBuffer() {
     glPixelStorei(GL_PACK_ROW_LENGTH, 0);
     Tegra::Texture::ConvertFromHostToGuest(gl_buffer[0].data(), params.pixel_format, params.width,
                                            params.height, params.depth, true, true);
-    const u8* const texture_src_data = Memory::GetPointer(params.addr);
-    ASSERT(texture_src_data);
     if (params.is_tiled) {
         ASSERT_MSG(params.block_width == 1, "Block width is defined as {} on texture type {}",
                    params.block_width, static_cast<u32>(params.target));
@@ -691,9 +689,9 @@ void CachedSurface::FlushGLBuffer() {
         const u32 bpp = params.GetFormatBpp() / 8;
         const u32 copy_size = params.width * bpp;
         if (params.pitch == copy_size) {
-            std::memcpy(Memory::GetPointer(params.addr), gl_buffer[0].data(), GetSizeInBytes());
+            std::memcpy(params.host_ptr, gl_buffer[0].data(), GetSizeInBytes());
         } else {
-            u8* start = Memory::GetPointer(params.addr);
+            u8* start{params.host_ptr};
             const u8* read_to = gl_buffer[0].data();
             for (u32 h = params.height; h > 0; h--) {
                 std::memcpy(start, read_to, copy_size);
@@ -932,7 +930,7 @@ Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, bool pres
     }
 
     // Look up surface in the cache based on address
-    Surface surface{TryGet(params.addr)};
+    Surface surface{TryGet(params.host_ptr)};
     if (surface) {
         if (surface->GetSurfaceParams().IsCompatibleSurface(params)) {
             // Use the cached surface as-is unless it's not synced with memory
@@ -986,7 +984,7 @@ void RasterizerCacheOpenGL::FastLayeredCopySurface(const Surface& src_surface,
     for (u32 layer = 0; layer < dst_params.depth; layer++) {
         for (u32 mipmap = 0; mipmap < dst_params.max_mip_level; mipmap++) {
             const VAddr sub_address = address + dst_params.GetMipmapLevelOffset(mipmap);
-            const Surface& copy = TryGet(sub_address);
+            const Surface& copy = TryGet(Memory::GetPointer(sub_address));
             if (!copy)
                 continue;
             const auto& src_params{copy->GetSurfaceParams()};
@@ -1163,7 +1161,8 @@ void RasterizerCacheOpenGL::AccurateCopySurface(const Surface& src_surface,
     const auto& dst_params{dst_surface->GetSurfaceParams()};
 
     // Flush enough memory for both the source and destination surface
-    FlushRegion(src_params.addr, std::max(src_params.MemorySize(), dst_params.MemorySize()));
+    FlushRegion(ToCacheAddr(src_params.host_ptr),
+                std::max(src_params.MemorySize(), dst_params.MemorySize()));
 
     LoadSurface(dst_surface);
 }
@@ -1215,8 +1214,8 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& old_surface,
     return new_surface;
 }
 
-Surface RasterizerCacheOpenGL::TryFindFramebufferSurface(VAddr addr) const {
-    return TryGet(addr);
+Surface RasterizerCacheOpenGL::TryFindFramebufferSurface(const u8* host_ptr) const {
+    return TryGet(host_ptr);
 }
 
 void RasterizerCacheOpenGL::ReserveSurface(const Surface& surface) {
@@ -1267,7 +1266,7 @@ static bool LayerFitReinterpretSurface(RasterizerCacheOpenGL& cache, const Surfa
             src_params.height == dst_params.MipHeight(*level) &&
             src_params.block_height >= dst_params.MipBlockHeight(*level)) {
             const std::optional<u32> slot =
-                TryFindBestLayer(render_surface->GetAddr(), dst_params, *level);
+                TryFindBestLayer(render_surface->GetCpuAddr(), dst_params, *level);
             if (slot.has_value()) {
                 glCopyImageSubData(render_surface->Texture().handle,
                                    SurfaceTargetToGL(src_params.target), 0, 0, 0, 0,
@@ -1283,8 +1282,8 @@ static bool LayerFitReinterpretSurface(RasterizerCacheOpenGL& cache, const Surfa
 }
 
 static bool IsReinterpretInvalid(const Surface render_surface, const Surface blitted_surface) {
-    const VAddr bound1 = blitted_surface->GetAddr() + blitted_surface->GetMemorySize();
-    const VAddr bound2 = render_surface->GetAddr() + render_surface->GetMemorySize();
+    const VAddr bound1 = blitted_surface->GetCpuAddr() + blitted_surface->GetMemorySize();
+    const VAddr bound2 = render_surface->GetCpuAddr() + render_surface->GetMemorySize();
     if (bound2 > bound1)
         return true;
     const auto& dst_params = blitted_surface->GetSurfaceParams();
@@ -1327,7 +1326,8 @@ void RasterizerCacheOpenGL::SignalPreDrawCall() {
 void RasterizerCacheOpenGL::SignalPostDrawCall() {
     for (u32 i = 0; i < Maxwell::NumRenderTargets; i++) {
         if (current_color_buffers[i] != nullptr) {
-            Surface intersect = CollideOnReinterpretedSurface(current_color_buffers[i]->GetAddr());
+            Surface intersect =
+                CollideOnReinterpretedSurface(current_color_buffers[i]->GetCacheAddr());
             if (intersect != nullptr) {
                 PartialReinterpretSurface(current_color_buffers[i], intersect);
                 texception = true;

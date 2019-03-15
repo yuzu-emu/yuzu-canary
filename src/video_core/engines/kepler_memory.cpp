@@ -9,6 +9,7 @@
 #include "video_core/engines/kepler_memory.h"
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/rasterizer_interface.h"
+#include "video_core/renderer_base.h"
 
 namespace Tegra::Engines {
 
@@ -48,7 +49,8 @@ void KeplerMemory::ProcessData(u32 data) {
     // We have to invalidate the destination region to evict any outdated surfaces from the cache.
     // We do this before actually writing the new data because the destination address might contain
     // a dirty surface that will have to be written back to memory.
-    Core::System::GetInstance().GPU().InvalidateRegion(*dest_address, sizeof(u32));
+    system.Renderer().Rasterizer().InvalidateRegion(ToCacheAddr(Memory::GetPointer(*dest_address)),
+                                                    sizeof(u32));
 
     Memory::Write32(*dest_address, data);
     system.GPU().Maxwell3D().dirty_flags.OnMemoryWrite();

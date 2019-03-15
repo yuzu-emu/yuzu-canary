@@ -39,18 +39,18 @@ using PrecompiledShaders = std::unordered_map<u64, GLShader::ProgramResult>;
 
 class CachedShader final : public RasterizerCacheObject {
 public:
-    explicit CachedShader(VAddr addr, u64 unique_identifier, Maxwell::ShaderProgram program_type,
-                          ShaderDiskCacheOpenGL& disk_cache,
+    explicit CachedShader(VAddr guest_addr, u64 unique_identifier,
+                          Maxwell::ShaderProgram program_type, ShaderDiskCacheOpenGL& disk_cache,
                           const PrecompiledPrograms& precompiled_programs,
-                          ProgramCode&& program_code, ProgramCode&& program_code_b);
+                          ProgramCode&& program_code, ProgramCode&& program_code_b, u8* host_ptr);
 
-    explicit CachedShader(VAddr addr, u64 unique_identifier, Maxwell::ShaderProgram program_type,
-                          ShaderDiskCacheOpenGL& disk_cache,
+    explicit CachedShader(VAddr guest_addr, u64 unique_identifier,
+                          Maxwell::ShaderProgram program_type, ShaderDiskCacheOpenGL& disk_cache,
                           const PrecompiledPrograms& precompiled_programs,
-                          GLShader::ProgramResult result);
+                          GLShader::ProgramResult result, u8* host_ptr);
 
-    VAddr GetAddr() const override {
-        return addr;
+    VAddr GetCpuAddr() const override {
+        return guest_addr;
     }
 
     std::size_t GetSizeInBytes() const override {
@@ -91,7 +91,8 @@ private:
 
     ShaderDiskCacheUsage GetUsage(GLenum primitive_mode, BaseBindings base_bindings) const;
 
-    VAddr addr{};
+    u8* host_ptr{};
+    VAddr guest_addr{};
     u64 unique_identifier{};
     Maxwell::ShaderProgram program_type{};
     ShaderDiskCacheOpenGL& disk_cache;
