@@ -161,10 +161,4 @@ enum class FlushMode {
  */
 void RasterizerMarkRegionCached(VAddr vaddr, u64 size, bool cached);
 
-/**
- * Flushes and invalidates any externally cached rasterizer resources touching the given virtual
- * address region.
- */
-void RasterizerFlushVirtualRegion(VAddr start, u64 size, FlushMode mode);
-
 } // namespace Memory
