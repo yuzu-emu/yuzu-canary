@@ -18,6 +18,7 @@
 #include "core/hle/lock.h"
 #include "core/memory.h"
 #include "core/memory_setup.h"
+#include "video_core/gpu.h"
 #include "video_core/renderer_base.h"
 
 namespace Memory {
@@ -69,8 +70,8 @@ static void MapPages(PageTable& page_table, VAddr base, u64 size, u8* memory, Pa
 
     // During boot, current_page_table might not be set yet, in which case we need not flush
     if (current_page_table) {
-        RasterizerFlushVirtualRegion(base << PAGE_BITS, size * PAGE_SIZE,
-                                     FlushMode::FlushAndInvalidate);
+        Core::System::GetInstance().GPU().FlushAndInvalidateRegion(base << PAGE_BITS,
+                                                                   size * PAGE_SIZE);
     }
 
     VAddr end = base + size;
@@ -183,10 +184,10 @@ T Read(const VAddr vaddr) {
         ASSERT_MSG(false, "Mapped memory page without a pointer @ {:016X}", vaddr);
         break;
     case PageType::RasterizerCachedMemory: {
-        RasterizerFlushVirtualRegion(vaddr, sizeof(T), FlushMode::Flush);
-
+        auto host_ptr{GetPointerFromVMA(vaddr)};
+        Core::System::GetInstance().GPU().FlushRegion(ToCacheAddr(host_ptr), sizeof(T));
         T value;
-        std::memcpy(&value, GetPointerFromVMA(vaddr), sizeof(T));
+        std::memcpy(&value, host_ptr, sizeof(T));
         return value;
     }
     default:
@@ -214,8 +215,9 @@ void Write(const VAddr vaddr, const T data) {
         ASSERT_MSG(false, "Mapped memory page without a pointer @ {:016X}", vaddr);
         break;
     case PageType::RasterizerCachedMemory: {
-        RasterizerFlushVirtualRegion(vaddr, sizeof(T), FlushMode::Invalidate);
-        std::memcpy(GetPointerFromVMA(vaddr), &data, sizeof(T));
+        auto host_ptr{GetPointerFromVMA(vaddr)};
+        Core::System::GetInstance().GPU().InvalidateRegion(ToCacheAddr(host_ptr), sizeof(T));
+        std::memcpy(host_ptr, &data, sizeof(T));
         break;
     }
     default:
@@ -338,47 +340,6 @@ void RasterizerMarkRegionCached(VAddr vaddr, u64 size, bool cached) {
     }
 }
 
-void RasterizerFlushVirtualRegion(VAddr start, u64 size, FlushMode mode) {
-    auto& system_instance = Core::System::GetInstance();
-
-    // Since pages are unmapped on shutdown after video core is shutdown, the renderer may be
-    // null here
-    if (!system_instance.IsPoweredOn()) {
-        return;
-    }
-
-    const VAddr end = start + size;
-
-    const auto CheckRegion = [&](VAddr region_start, VAddr region_end) {
-        if (start >= region_end || end <= region_start) {
-            // No overlap with region
-            return;
-        }
-
-        const VAddr overlap_start = std::max(start, region_start);
-        const VAddr overlap_end = std::min(end, region_end);
-        const VAddr overlap_size = overlap_end - overlap_start;
-
-        auto& gpu = system_instance.GPU();
-        switch (mode) {
-        case FlushMode::Flush:
-            gpu.FlushRegion(ToCacheAddr(GetPointer(overlap_start)), overlap_size);
-            break;
-        case FlushMode::Invalidate:
-            gpu.InvalidateRegion(ToCacheAddr(GetPointer(overlap_start)), overlap_size);
-            break;
-        case FlushMode::FlushAndInvalidate:
-            gpu.FlushAndInvalidateRegion(ToCacheAddr(GetPointer(overlap_start)), overlap_size);
-            break;
-        }
-    };
-
-    const auto& vm_manager = Core::CurrentProcess()->VMManager();
-
-    CheckRegion(vm_manager.GetCodeRegionBaseAddress(), vm_manager.GetCodeRegionEndAddress());
-    CheckRegion(vm_manager.GetHeapRegionBaseAddress(), vm_manager.GetHeapRegionEndAddress());
-}
-
 u8 Read8(const VAddr addr) {
     return Read<u8>(addr);
 }
@@ -424,9 +385,9 @@ void ReadBlock(const Kernel::Process& process, const VAddr src_addr, void* dest_
             break;
         }
         case PageType::RasterizerCachedMemory: {
-            RasterizerFlushVirtualRegion(current_vaddr, static_cast<u32>(copy_amount),
-                                         FlushMode::Flush);
-            std::memcpy(dest_buffer, GetPointerFromVMA(process, current_vaddr), copy_amount);
+            const auto& host_ptr{GetPointerFromVMA(process, current_vaddr)};
+            Core::System::GetInstance().GPU().FlushRegion(ToCacheAddr(host_ptr), copy_amount);
+            std::memcpy(dest_buffer, host_ptr, copy_amount);
             break;
         }
         default:
@@ -487,9 +448,9 @@ void WriteBlock(const Kernel::Process& process, const VAddr dest_addr, const voi
             break;
         }
         case PageType::RasterizerCachedMemory: {
-            RasterizerFlushVirtualRegion(current_vaddr, static_cast<u32>(copy_amount),
-                                         FlushMode::Invalidate);
-            std::memcpy(GetPointerFromVMA(process, current_vaddr), src_buffer, copy_amount);
+            const auto& host_ptr{GetPointerFromVMA(process, current_vaddr)};
+            Core::System::GetInstance().GPU().InvalidateRegion(ToCacheAddr(host_ptr), copy_amount);
+            std::memcpy(host_ptr, src_buffer, copy_amount);
             break;
         }
         default:
@@ -533,9 +494,9 @@ void ZeroBlock(const Kernel::Process& process, const VAddr dest_addr, const std:
             break;
         }
         case PageType::RasterizerCachedMemory: {
-            RasterizerFlushVirtualRegion(current_vaddr, static_cast<u32>(copy_amount),
-                                         FlushMode::Invalidate);
-            std::memset(GetPointerFromVMA(process, current_vaddr), 0, copy_amount);
+            const auto& host_ptr{GetPointerFromVMA(process, current_vaddr)};
+            Core::System::GetInstance().GPU().InvalidateRegion(ToCacheAddr(host_ptr), copy_amount);
+            std::memset(host_ptr, 0, copy_amount);
             break;
         }
         default:
@@ -575,9 +536,9 @@ void CopyBlock(const Kernel::Process& process, VAddr dest_addr, VAddr src_addr,
             break;
         }
         case PageType::RasterizerCachedMemory: {
-            RasterizerFlushVirtualRegion(current_vaddr, static_cast<u32>(copy_amount),
-                                         FlushMode::Flush);
-            WriteBlock(process, dest_addr, GetPointerFromVMA(process, current_vaddr), copy_amount);
+            const auto& host_ptr{GetPointerFromVMA(process, current_vaddr)};
+            Core::System::GetInstance().GPU().FlushRegion(ToCacheAddr(host_ptr), copy_amount);
+            WriteBlock(process, dest_addr, host_ptr, copy_amount);
             break;
         }
         default:
