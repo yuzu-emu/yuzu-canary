@@ -13,6 +13,9 @@
 #include <thread>
 #include <variant>
 
+#include "common/threadsafe_queue.h"
+#include "video_core/gpu.h"
+
 namespace Tegra {
 struct FramebufferConfig;
 class DmaPusher;
@@ -23,6 +26,9 @@ class RendererBase;
 } // namespace VideoCore
 
 namespace VideoCommon::GPUThread {
+
+/// Command to signal to the GPU thread that processing has ended
+struct EndProcessingCommand final {};
 
 /// Command to signal to the GPU thread that a command list is ready for processing
 struct SubmitListCommand final {
@@ -36,59 +42,110 @@ struct SwapBuffersCommand final {
     explicit SwapBuffersCommand(std::optional<const Tegra::FramebufferConfig> framebuffer)
         : framebuffer{std::move(framebuffer)} {}
 
-    std::optional<const Tegra::FramebufferConfig> framebuffer;
+    std::optional<Tegra::FramebufferConfig> framebuffer;
 };
 
 /// Command to signal to the GPU thread to flush a region
 struct FlushRegionCommand final {
-    explicit constexpr FlushRegionCommand(VAddr addr, u64 size) : addr{addr}, size{size} {}
+    explicit constexpr FlushRegionCommand(CacheAddr addr, u64 size) : addr{addr}, size{size} {}
 
-    const VAddr addr;
-    const u64 size;
+    CacheAddr addr;
+    u64 size;
 };
 
 /// Command to signal to the GPU thread to invalidate a region
 struct InvalidateRegionCommand final {
-    explicit constexpr InvalidateRegionCommand(VAddr addr, u64 size) : addr{addr}, size{size} {}
+    explicit constexpr InvalidateRegionCommand(CacheAddr addr, u64 size) : addr{addr}, size{size} {}
 
-    const VAddr addr;
-    const u64 size;
+    CacheAddr addr;
+    u64 size;
 };
 
 /// Command to signal to the GPU thread to flush and invalidate a region
 struct FlushAndInvalidateRegionCommand final {
-    explicit constexpr FlushAndInvalidateRegionCommand(VAddr addr, u64 size)
+    explicit constexpr FlushAndInvalidateRegionCommand(CacheAddr addr, u64 size)
         : addr{addr}, size{size} {}
 
-    const VAddr addr;
-    const u64 size;
+    CacheAddr addr;
+    u64 size;
 };
 
-using CommandData = std::variant<SubmitListCommand, SwapBuffersCommand, FlushRegionCommand,
-                                 InvalidateRegionCommand, FlushAndInvalidateRegionCommand>;
+using CommandData =
+    std::variant<EndProcessingCommand, SubmitListCommand, SwapBuffersCommand, FlushRegionCommand,
+                 InvalidateRegionCommand, FlushAndInvalidateRegionCommand>;
+
+struct CommandDataContainer {
+    CommandDataContainer() = default;
+
+    CommandDataContainer(CommandData&& data) : data{std::move(data)} {}
+
+    CommandDataContainer& operator=(const CommandDataContainer& t) {
+        data = std::move(t.data);
+        return *this;
+    }
+
+    CommandData data;
+};
 
 /// Struct used to synchronize the GPU thread
 struct SynchState final {
-    std::atomic<bool> is_running{true};
-    std::atomic<bool> is_idle{true};
-    std::condition_variable signal_condition;
-    std::mutex signal_mutex;
-    std::condition_variable idle_condition;
-    std::mutex idle_mutex;
+    std::atomic_bool is_running{true};
+    std::atomic_int queued_frame_count{};
+    std::mutex frames_mutex;
+    std::mutex commands_mutex;
+    std::condition_variable commands_condition;
+    std::condition_variable frames_condition;
 
-    // We use two queues for sending commands to the GPU thread, one for writing (push_queue) to and
-    // one for reading from (pop_queue). These are swapped whenever the current pop_queue becomes
-    // empty. This allows for efficient thread-safe access, as it does not require any copies.
-
-    using CommandQueue = std::queue<CommandData>;
-    std::array<CommandQueue, 2> command_queues;
-    CommandQueue* push_queue{&command_queues[0]};
-    CommandQueue* pop_queue{&command_queues[1]};
-
-    void UpdateIdleState() {
-        std::lock_guard<std::mutex> lock{idle_mutex};
-        is_idle = command_queues[0].empty() && command_queues[1].empty();
+    void IncrementFramesCounter() {
+        std::lock_guard<std::mutex> lock{frames_mutex};
+        ++queued_frame_count;
     }
+
+    void DecrementFramesCounter() {
+        {
+            std::lock_guard<std::mutex> lock{frames_mutex};
+            --queued_frame_count;
+
+            if (queued_frame_count) {
+                return;
+            }
+        }
+        frames_condition.notify_one();
+    }
+
+    void WaitForFrames() {
+        {
+            std::lock_guard<std::mutex> lock{frames_mutex};
+            if (!queued_frame_count) {
+                return;
+            }
+        }
+
+        // Wait for the GPU to be idle (all commands to be executed)
+        {
+            std::unique_lock<std::mutex> lock{frames_mutex};
+            frames_condition.wait(lock, [this] { return !queued_frame_count; });
+        }
+    }
+
+    void SignalCommands() {
+        {
+            std::unique_lock<std::mutex> lock{commands_mutex};
+            if (queue.Empty()) {
+                return;
+            }
+        }
+
+        commands_condition.notify_one();
+    }
+
+    void WaitForCommands() {
+        std::unique_lock<std::mutex> lock{commands_mutex};
+        commands_condition.wait(lock, [this] { return !queue.Empty(); });
+    }
+
+    using CommandQueue = Common::SPSCQueue<CommandDataContainer>;
+    CommandQueue queue;
 };
 
 /// Class used to manage the GPU thread
@@ -105,22 +162,17 @@ public:
         std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer);
 
     /// Notify rasterizer that any caches of the specified region should be flushed to Switch memory
-    void FlushRegion(VAddr addr, u64 size);
+    void FlushRegion(CacheAddr addr, u64 size);
 
     /// Notify rasterizer that any caches of the specified region should be invalidated
-    void InvalidateRegion(VAddr addr, u64 size);
+    void InvalidateRegion(CacheAddr addr, u64 size);
 
     /// Notify rasterizer that any caches of the specified region should be flushed and invalidated
-    void FlushAndInvalidateRegion(VAddr addr, u64 size);
+    void FlushAndInvalidateRegion(CacheAddr addr, u64 size);
 
 private:
     /// Pushes a command to be executed by the GPU thread
-    void PushCommand(CommandData&& command_data, bool wait_for_idle, bool allow_on_cpu);
-
-    /// Returns true if this is called by the GPU thread
-    bool IsGpuThread() const {
-        return std::this_thread::get_id() == thread_id;
-    }
+    void PushCommand(CommandData&& command_data);
 
 private:
     SynchState state;

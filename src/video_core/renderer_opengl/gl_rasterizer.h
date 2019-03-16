@@ -57,9 +57,9 @@ public:
     void DrawArrays() override;
     void Clear() override;
     void FlushAll() override;
-    void FlushRegion(VAddr addr, u64 size) override;
-    void InvalidateRegion(VAddr addr, u64 size) override;
-    void FlushAndInvalidateRegion(VAddr addr, u64 size) override;
+    void FlushRegion(CacheAddr addr, u64 size) override;
+    void InvalidateRegion(CacheAddr addr, u64 size) override;
+    void FlushAndInvalidateRegion(CacheAddr addr, u64 size) override;
     bool AccelerateSurfaceCopy(const Tegra::Engines::Fermi2D::Regs::Surface& src,
                                const Tegra::Engines::Fermi2D::Regs::Surface& dst,
                                const Common::Rectangle<u32>& src_rect,
@@ -67,7 +67,7 @@ public:
     bool AccelerateDisplay(const Tegra::FramebufferConfig& config, VAddr framebuffer_addr,
                            u32 pixel_stride) override;
     bool AccelerateDrawBatch(bool is_indexed) override;
-    void UpdatePagesCachedCount(Tegra::GPUVAddr addr, u64 size, int delta) override;
+    void UpdatePagesCachedCount(VAddr addr, u64 size, int delta) override;
     void LoadDiskResources(const std::atomic_bool& stop_loading,
                            const VideoCore::DiskResourceLoadCallback& callback) override;
 

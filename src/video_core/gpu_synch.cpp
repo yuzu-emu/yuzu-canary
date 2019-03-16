@@ -22,15 +22,15 @@ void GPUSynch::SwapBuffers(
     renderer.SwapBuffers(std::move(framebuffer));
 }
 
-void GPUSynch::FlushRegion(VAddr addr, u64 size) {
+void GPUSynch::FlushRegion(CacheAddr addr, u64 size) {
     renderer.Rasterizer().FlushRegion(addr, size);
 }
 
-void GPUSynch::InvalidateRegion(VAddr addr, u64 size) {
+void GPUSynch::InvalidateRegion(CacheAddr addr, u64 size) {
     renderer.Rasterizer().InvalidateRegion(addr, size);
 }
 
-void GPUSynch::FlushAndInvalidateRegion(VAddr addr, u64 size) {
+void GPUSynch::FlushAndInvalidateRegion(CacheAddr addr, u64 size) {
     renderer.Rasterizer().FlushAndInvalidateRegion(addr, size);
 }
 

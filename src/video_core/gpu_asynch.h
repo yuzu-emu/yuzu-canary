@@ -26,9 +26,9 @@ public:
     void PushGPUEntries(Tegra::CommandList&& entries) override;
     void SwapBuffers(
         std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) override;
-    void FlushRegion(VAddr addr, u64 size) override;
-    void InvalidateRegion(VAddr addr, u64 size) override;
-    void FlushAndInvalidateRegion(VAddr addr, u64 size) override;
+    void FlushRegion(CacheAddr addr, u64 size) override;
+    void InvalidateRegion(CacheAddr addr, u64 size) override;
+    void FlushAndInvalidateRegion(CacheAddr addr, u64 size) override;
 
 private:
     GPUThread::ThreadManager gpu_thread;

@@ -11,6 +11,11 @@
 #include "video_core/dma_pusher.h"
 #include "video_core/memory_manager.h"
 
+using CacheAddr = std::uintptr_t;
+inline CacheAddr ToCacheAddr(const void* host_ptr) {
+    return reinterpret_cast<CacheAddr>(host_ptr);
+}
+
 namespace Core {
 class System;
 }
@@ -209,13 +214,13 @@ public:
         std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) = 0;
 
     /// Notify rasterizer that any caches of the specified region should be flushed to Switch memory
-    virtual void FlushRegion(VAddr addr, u64 size) = 0;
+    virtual void FlushRegion(CacheAddr addr, u64 size) = 0;
 
     /// Notify rasterizer that any caches of the specified region should be invalidated
-    virtual void InvalidateRegion(VAddr addr, u64 size) = 0;
+    virtual void InvalidateRegion(CacheAddr addr, u64 size) = 0;
 
     /// Notify rasterizer that any caches of the specified region should be flushed and invalidated
-    virtual void FlushAndInvalidateRegion(VAddr addr, u64 size) = 0;
+    virtual void FlushAndInvalidateRegion(CacheAddr addr, u64 size) = 0;
 
 private:
     void ProcessBindMethod(const MethodCall& method_call);

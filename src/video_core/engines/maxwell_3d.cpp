@@ -396,7 +396,10 @@ void Maxwell3D::ProcessCBData(u32 value) {
     const auto address = memory_manager.GpuToCpuAddress(buffer_address + regs.const_buffer.cb_pos);
     ASSERT_MSG(address, "Invalid GPU address");
 
-    Memory::Write32(*address, value);
+    u8* ptr{Memory::GetPointer(*address)};
+    rasterizer.InvalidateRegion(ToCacheAddr(ptr), sizeof(u32));
+    std::memcpy(ptr, &value, sizeof(u32));
+
     dirty_flags.OnMemoryWrite();
 
     // Increment the current buffer position.

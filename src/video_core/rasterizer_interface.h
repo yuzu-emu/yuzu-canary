@@ -35,14 +35,14 @@ public:
     virtual void FlushAll() = 0;
 
     /// Notify rasterizer that any caches of the specified region should be flushed to Switch memory
-    virtual void FlushRegion(VAddr addr, u64 size) = 0;
+    virtual void FlushRegion(CacheAddr addr, u64 size) = 0;
 
     /// Notify rasterizer that any caches of the specified region should be invalidated
-    virtual void InvalidateRegion(VAddr addr, u64 size) = 0;
+    virtual void InvalidateRegion(CacheAddr addr, u64 size) = 0;
 
     /// Notify rasterizer that any caches of the specified region should be flushed to Switch memory
     /// and invalidated
-    virtual void FlushAndInvalidateRegion(VAddr addr, u64 size) = 0;
+    virtual void FlushAndInvalidateRegion(CacheAddr addr, u64 size) = 0;
 
     /// Attempt to use a faster method to perform a surface copy
     virtual bool AccelerateSurfaceCopy(const Tegra::Engines::Fermi2D::Regs::Surface& src,
@@ -63,7 +63,7 @@ public:
     }
 
     /// Increase/decrease the number of object in pages touching the specified region
-    virtual void UpdatePagesCachedCount(Tegra::GPUVAddr addr, u64 size, int delta) {}
+    virtual void UpdatePagesCachedCount(VAddr addr, u64 size, int delta) {}
 
     /// Initialize disk cached resources for the game being emulated
     virtual void LoadDiskResources(const std::atomic_bool& stop_loading = false,

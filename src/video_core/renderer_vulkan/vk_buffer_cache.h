@@ -24,22 +24,39 @@ class VKFence;
 class VKMemoryManager;
 class VKStreamBuffer;
 
-struct CachedBufferEntry final : public RasterizerCacheObject {
-    VAddr GetAddr() const override {
-        return addr;
+class CachedBufferEntry final : public RasterizerCacheObject {
+public:
+    explicit CachedBufferEntry(VAddr cpu_addr, std::size_t size, u64 offset, std::size_t alignment,
+                               u8* host_ptr);
+
+    VAddr GetCpuAddr() const override {
+        return cpu_addr;
     }
 
     std::size_t GetSizeInBytes() const override {
         return size;
     }
 
+    std::size_t GetSize() const {
+        return size;
+    }
+
+    u64 GetOffset() const {
+        return offset;
+    }
+
+    std::size_t GetAlignment() const {
+        return alignment;
+    }
+
     // We do not have to flush this cache as things in it are never modified by us.
     void Flush() override {}
 
-    VAddr addr;
-    std::size_t size;
-    u64 offset;
-    std::size_t alignment;
+private:
+    VAddr cpu_addr{};
+    std::size_t size{};
+    u64 offset{};
+    std::size_t alignment{};
 };
 
 class VKBufferCache final : public RasterizerCache<std::shared_ptr<CachedBufferEntry>> {

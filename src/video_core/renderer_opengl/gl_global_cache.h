@@ -27,14 +27,12 @@ using GlobalRegion = std::shared_ptr<CachedGlobalRegion>;
 
 class CachedGlobalRegion final : public RasterizerCacheObject {
 public:
-    explicit CachedGlobalRegion(VAddr addr, u32 size);
+    explicit CachedGlobalRegion(VAddr cpu_addr, u32 size, u8* host_ptr);
 
-    /// Gets the address of the shader in guest memory, required for cache management
-    VAddr GetAddr() const override {
-        return addr;
+    VAddr GetCpuAddr() const override {
+        return cpu_addr;
     }
 
-    /// Gets the size of the shader in guest memory, required for cache management
     std::size_t GetSizeInBytes() const override {
         return size;
     }
@@ -53,9 +51,8 @@ public:
     }
 
 private:
-    VAddr addr{};
+    VAddr cpu_addr{};
     u32 size{};
-
     OGLBuffer buffer;
 };
 
@@ -69,7 +66,7 @@ public:
 
 private:
     GlobalRegion TryGetReservedGlobalRegion(VAddr addr, u32 size) const;
-    GlobalRegion GetUncachedGlobalRegion(VAddr addr, u32 size);
+    GlobalRegion GetUncachedGlobalRegion(VAddr addr, u32 size, u8* host_ptr);
     void ReserveGlobalRegion(GlobalRegion region);
 
     std::unordered_map<VAddr, GlobalRegion> reserve;
