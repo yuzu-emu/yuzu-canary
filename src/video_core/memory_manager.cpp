@@ -5,6 +5,7 @@
 #include "common/alignment.h"
 #include "common/assert.h"
 #include "common/logging/log.h"
+#include "core/memory.h"
 #include "video_core/memory_manager.h"
 
 namespace Tegra {
@@ -162,15 +163,51 @@ std::optional<VAddr> MemoryManager::GpuToCpuAddress(GPUVAddr gpu_addr) {
     return base_addr + (gpu_addr & PAGE_MASK);
 }
 
-std::vector<GPUVAddr> MemoryManager::CpuToGpuAddress(VAddr cpu_addr) const {
-    std::vector<GPUVAddr> results;
-    for (const auto& region : mapped_regions) {
-        if (cpu_addr >= region.cpu_addr && cpu_addr < (region.cpu_addr + region.size)) {
-            const u64 offset{cpu_addr - region.cpu_addr};
-            results.push_back(region.gpu_addr + offset);
-        }
-    }
-    return results;
+u8 MemoryManager::Read8(GPUVAddr addr) {
+    return Memory::Read8(*GpuToCpuAddress(addr));
+}
+
+u16 MemoryManager::Read16(GPUVAddr addr) {
+    return Memory::Read16(*GpuToCpuAddress(addr));
+}
+
+u32 MemoryManager::Read32(GPUVAddr addr) {
+    return Memory::Read32(*GpuToCpuAddress(addr));
+}
+
+u64 MemoryManager::Read64(GPUVAddr addr) {
+    return Memory::Read64(*GpuToCpuAddress(addr));
+}
+
+void MemoryManager::Write8(GPUVAddr addr, u8 data) {
+    Memory::Write8(*GpuToCpuAddress(addr), data);
+}
+
+void MemoryManager::Write16(GPUVAddr addr, u16 data) {
+    Memory::Write16(*GpuToCpuAddress(addr), data);
+}
+
+void MemoryManager::Write32(GPUVAddr addr, u32 data) {
+    Memory::Write32(*GpuToCpuAddress(addr), data);
+}
+
+void MemoryManager::Write64(GPUVAddr addr, u64 data) {
+    Memory::Write64(*GpuToCpuAddress(addr), data);
+}
+
+u8* MemoryManager::GetPointer(GPUVAddr addr) {
+    return Memory::GetPointer(*GpuToCpuAddress(addr));
+}
+
+void MemoryManager::ReadBlock(GPUVAddr src_addr, void* dest_buffer, std::size_t size) {
+    std::memcpy(dest_buffer, GetPointer(src_addr), size);
+}
+void MemoryManager::WriteBlock(GPUVAddr dest_addr, const void* src_buffer, std::size_t size) {
+    std::memcpy(GetPointer(dest_addr), src_buffer, size);
+}
+
+void MemoryManager::CopyBlock(GPUVAddr dest_addr, GPUVAddr src_addr, std::size_t size) {
+    std::memcpy(GetPointer(dest_addr), GetPointer(src_addr), size);
 }
 
 VAddr& MemoryManager::PageSlot(GPUVAddr gpu_addr) {

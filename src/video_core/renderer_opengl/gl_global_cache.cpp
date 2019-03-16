@@ -7,7 +7,6 @@
 #include "common/assert.h"
 #include "common/logging/log.h"
 #include "core/core.h"
-#include "core/memory.h"
 #include "video_core/renderer_opengl/gl_global_cache.h"
 #include "video_core/renderer_opengl/gl_rasterizer.h"
 #include "video_core/renderer_opengl/gl_shader_decompiler.h"
@@ -39,7 +38,7 @@ void CachedGlobalRegion::Reload(u32 size_) {
     glBufferData(GL_SHADER_STORAGE_BUFFER, size, GetHostPtr(), GL_DYNAMIC_DRAW);
 }
 
-GlobalRegion GlobalRegionCacheOpenGL::TryGetReservedGlobalRegion(VAddr addr, u32 size) const {
+GlobalRegion GlobalRegionCacheOpenGL::TryGetReservedGlobalRegion(CacheAddr addr, u32 size) const {
     const auto search{reserve.find(addr)};
     if (search == reserve.end()) {
         return {};
@@ -47,11 +46,14 @@ GlobalRegion GlobalRegionCacheOpenGL::TryGetReservedGlobalRegion(VAddr addr, u32
     return search->second;
 }
 
-GlobalRegion GlobalRegionCacheOpenGL::GetUncachedGlobalRegion(VAddr addr, u32 size, u8* host_ptr) {
-    GlobalRegion region{TryGetReservedGlobalRegion(addr, size)};
+GlobalRegion GlobalRegionCacheOpenGL::GetUncachedGlobalRegion(Tegra::GPUVAddr addr, u32 size,
+                                                              u8* host_ptr) {
+    GlobalRegion region{TryGetReservedGlobalRegion(ToCacheAddr(host_ptr), size)};
     if (!region) {
         // No reserved surface available, create a new one and reserve it
-        region = std::make_shared<CachedGlobalRegion>(addr, size, host_ptr);
+        auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
+        const auto cpu_addr = *memory_manager.GpuToCpuAddress(addr);
+        region = std::make_shared<CachedGlobalRegion>(cpu_addr, size, host_ptr);
         ReserveGlobalRegion(region);
     }
     region->Reload(size);
@@ -59,7 +61,7 @@ GlobalRegion GlobalRegionCacheOpenGL::GetUncachedGlobalRegion(VAddr addr, u32 si
 }
 
 void GlobalRegionCacheOpenGL::ReserveGlobalRegion(GlobalRegion region) {
-    reserve.insert_or_assign(region->GetCpuAddr(), std::move(region));
+    reserve.insert_or_assign(region->GetCacheAddr(), std::move(region));
 }
 
 GlobalRegionCacheOpenGL::GlobalRegionCacheOpenGL(RasterizerOpenGL& rasterizer)
@@ -70,23 +72,20 @@ GlobalRegion GlobalRegionCacheOpenGL::GetGlobalRegion(
     Tegra::Engines::Maxwell3D::Regs::ShaderStage stage) {
 
     auto& gpu{Core::System::GetInstance().GPU()};
-    const auto cbufs = gpu.Maxwell3D().state.shader_stages[static_cast<u64>(stage)];
-    const auto cbuf_addr = gpu.MemoryManager().GpuToCpuAddress(
-        cbufs.const_buffers[global_region.GetCbufIndex()].address + global_region.GetCbufOffset());
-    ASSERT(cbuf_addr);
-
-    const auto actual_addr_gpu = Memory::Read64(*cbuf_addr);
-    const auto size = Memory::Read32(*cbuf_addr + 8);
-    const auto actual_addr = gpu.MemoryManager().GpuToCpuAddress(actual_addr_gpu);
-    ASSERT(actual_addr);
+    auto& memory_manager{gpu.MemoryManager()};
+    const auto cbufs{gpu.Maxwell3D().state.shader_stages[static_cast<u64>(stage)]};
+    const auto addr{cbufs.const_buffers[global_region.GetCbufIndex()].address +
+                    global_region.GetCbufOffset()};
+    const auto actual_addr{memory_manager.Read64(addr)};
+    const auto size{memory_manager.Read32(addr + 8)};
 
     // Look up global region in the cache based on address
-    const auto& host_ptr{Memory::GetPointer(*actual_addr)};
+    const auto& host_ptr{memory_manager.GetPointer(actual_addr)};
     GlobalRegion region{TryGet(host_ptr)};
 
     if (!region) {
         // No global region found - create a new one
-        region = GetUncachedGlobalRegion(*actual_addr, size, host_ptr);
+        region = GetUncachedGlobalRegion(actual_addr, size, host_ptr);
         Register(region);
     }
 

@@ -296,7 +296,6 @@ struct SurfaceParams {
     bool is_array;
     bool srgb_conversion;
     // Parameters used for caching
-    VAddr addr;
     u8* host_ptr;
     Tegra::GPUVAddr gpu_addr;
     std::size_t size_in_bytes;
@@ -349,7 +348,7 @@ public:
     explicit CachedSurface(const SurfaceParams& params);
 
     VAddr GetCpuAddr() const override {
-        return params.addr;
+        return cpu_addr;
     }
 
     std::size_t GetSizeInBytes() const override {
@@ -433,6 +432,7 @@ private:
     std::size_t memory_size;
     bool reinterpreted = false;
     bool must_reload = false;
+    VAddr cpu_addr{};
 };
 
 class RasterizerCacheOpenGL final : public RasterizerCache<Surface> {

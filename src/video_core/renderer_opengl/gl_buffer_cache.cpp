@@ -24,14 +24,12 @@ OGLBufferCache::OGLBufferCache(RasterizerOpenGL& rasterizer, std::size_t size)
 GLintptr OGLBufferCache::UploadMemory(Tegra::GPUVAddr gpu_addr, std::size_t size,
                                       std::size_t alignment, bool cache) {
     auto& memory_manager = Core::System::GetInstance().GPU().MemoryManager();
-    const auto cpu_addr{memory_manager.GpuToCpuAddress(gpu_addr)};
-    ASSERT_MSG(cpu_addr, "Invalid GPU address");
 
     // Cache management is a big overhead, so only cache entries with a given size.
     // TODO: Figure out which size is the best for given games.
     cache &= size >= 2048;
 
-    const auto& host_ptr{Memory::GetPointer(*cpu_addr)};
+    const auto& host_ptr{memory_manager.GetPointer(gpu_addr)};
     if (cache) {
         auto entry = TryGet(host_ptr);
         if (entry) {
@@ -54,8 +52,8 @@ GLintptr OGLBufferCache::UploadMemory(Tegra::GPUVAddr gpu_addr, std::size_t size
     buffer_offset += size;
 
     if (cache) {
-        auto entry = std::make_shared<CachedBufferEntry>(*cpu_addr, size, uploaded_offset,
-                                                         alignment, host_ptr);
+        auto entry = std::make_shared<CachedBufferEntry>(
+            *memory_manager.GpuToCpuAddress(gpu_addr), size, uploaded_offset, alignment, host_ptr);
         Register(entry);
     }
 

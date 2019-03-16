@@ -55,12 +55,9 @@ bool DmaPusher::Step() {
     }
 
     // Push buffer non-empty, read a word
-    const auto address = gpu.MemoryManager().GpuToCpuAddress(dma_get);
-    ASSERT_MSG(address, "Invalid GPU address");
-
     command_headers.resize(command_list_header.size);
-
-    Memory::ReadBlock(*address, command_headers.data(), command_list_header.size * sizeof(u32));
+    gpu.MemoryManager().ReadBlock(dma_get, command_headers.data(),
+                                  command_list_header.size * sizeof(u32));
 
     for (const CommandHeader& command_header : command_headers) {
 

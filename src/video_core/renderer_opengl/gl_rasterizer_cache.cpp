@@ -57,11 +57,9 @@ static void ApplyTextureDefaults(GLuint texture, u32 max_mip_level) {
 
 void SurfaceParams::InitCacheParameters(Tegra::GPUVAddr gpu_addr_) {
     auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
-    const auto cpu_addr{memory_manager.GpuToCpuAddress(gpu_addr_)};
 
-    addr = cpu_addr ? *cpu_addr : 0;
     gpu_addr = gpu_addr_;
-    host_ptr = Memory::GetPointer(addr);
+    host_ptr = memory_manager.GetPointer(gpu_addr_);
     size_in_bytes = SizeInBytesRaw();
 
     if (IsPixelFormatASTC(pixel_format)) {
@@ -447,7 +445,7 @@ void SwizzleFunc(const MortonSwizzleMode& mode, const SurfaceParams& params,
             MortonSwizzle(mode, params.pixel_format, params.MipWidth(mip_level),
                           params.MipBlockHeight(mip_level), params.MipHeight(mip_level),
                           params.MipBlockDepth(mip_level), 1, params.tile_width_spacing,
-                          gl_buffer.data() + offset_gl, params.addr + offset);
+                          gl_buffer.data() + offset_gl, params.host_ptr + offset);
             offset += layer_size;
             offset_gl += gl_size;
         }
@@ -456,7 +454,7 @@ void SwizzleFunc(const MortonSwizzleMode& mode, const SurfaceParams& params,
         MortonSwizzle(mode, params.pixel_format, params.MipWidth(mip_level),
                       params.MipBlockHeight(mip_level), params.MipHeight(mip_level),
                       params.MipBlockDepth(mip_level), depth, params.tile_width_spacing,
-                      gl_buffer.data(), params.addr + offset);
+                      gl_buffer.data(), params.host_ptr + offset);
     }
 }
 
@@ -514,9 +512,9 @@ void RasterizerCacheOpenGL::CopySurface(const Surface& src_surface, const Surfac
                               "reinterpretation but the texture is tiled.");
         }
         const std::size_t remaining_size = dst_params.size_in_bytes - src_params.size_in_bytes;
-
+        auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
         glBufferSubData(GL_PIXEL_PACK_BUFFER, src_params.size_in_bytes, remaining_size,
-                        Memory::GetPointer(dst_params.addr + src_params.size_in_bytes));
+                        memory_manager.GetPointer(dst_params.gpu_addr + src_params.size_in_bytes));
     }
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
@@ -604,7 +602,7 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
 
     ApplyTextureDefaults(texture.handle, params.max_mip_level);
 
-    OpenGL::LabelGLObject(GL_TEXTURE, texture.handle, params.addr, params.IdentityString());
+    OpenGL::LabelGLObject(GL_TEXTURE, texture.handle, params.gpu_addr, params.IdentityString());
 
     // Clamp size to mapped GPU memory region
     // TODO(bunnei): Super Mario Odyssey maps a 0x40000 byte region and then uses it for a 0x80000
@@ -617,6 +615,8 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
         LOG_ERROR(HW_GPU, "Surface size {} exceeds region size {}", params.size_in_bytes, max_size);
         cached_size_in_bytes = max_size;
     }
+
+    cpu_addr = *memory_manager.GpuToCpuAddress(params.gpu_addr);
 }
 
 MICROPROFILE_DEFINE(OpenGL_SurfaceLoad, "OpenGL", "Surface Load", MP_RGB(128, 192, 64));
@@ -925,7 +925,7 @@ void RasterizerCacheOpenGL::LoadSurface(const Surface& surface) {
 }
 
 Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, bool preserve_contents) {
-    if (params.addr == 0 || params.height * params.width == 0) {
+    if (params.gpu_addr == 0 || params.height * params.width == 0) {
         return {};
     }
 
@@ -979,14 +979,16 @@ void RasterizerCacheOpenGL::FastLayeredCopySurface(const Surface& src_surface,
                                                    const Surface& dst_surface) {
     const auto& init_params{src_surface->GetSurfaceParams()};
     const auto& dst_params{dst_surface->GetSurfaceParams()};
-    VAddr address = init_params.addr;
-    const std::size_t layer_size = dst_params.LayerMemorySize();
+    auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
+    Tegra::GPUVAddr address{init_params.gpu_addr};
+    const std::size_t layer_size{dst_params.LayerMemorySize()};
     for (u32 layer = 0; layer < dst_params.depth; layer++) {
         for (u32 mipmap = 0; mipmap < dst_params.max_mip_level; mipmap++) {
-            const VAddr sub_address = address + dst_params.GetMipmapLevelOffset(mipmap);
-            const Surface& copy = TryGet(Memory::GetPointer(sub_address));
-            if (!copy)
+            const Tegra::GPUVAddr sub_address{address + dst_params.GetMipmapLevelOffset(mipmap)};
+            const Surface& copy{TryGet(memory_manager.GetPointer(sub_address))};
+            if (!copy) {
                 continue;
+            }
             const auto& src_params{copy->GetSurfaceParams()};
             const u32 width{std::min(src_params.width, dst_params.MipWidth(mipmap))};
             const u32 height{std::min(src_params.height, dst_params.MipHeight(mipmap))};
@@ -1242,9 +1244,10 @@ static std::optional<u32> TryFindBestMipMap(std::size_t memory, const SurfacePar
     return {};
 }
 
-static std::optional<u32> TryFindBestLayer(VAddr addr, const SurfaceParams params, u32 mipmap) {
-    const std::size_t size = params.LayerMemorySize();
-    VAddr start = params.addr + params.GetMipmapLevelOffset(mipmap);
+static std::optional<u32> TryFindBestLayer(Tegra::GPUVAddr addr, const SurfaceParams params,
+                                           u32 mipmap) {
+    const std::size_t size{params.LayerMemorySize()};
+    Tegra::GPUVAddr start{params.gpu_addr + params.GetMipmapLevelOffset(mipmap)};
     for (u32 i = 0; i < params.depth; i++) {
         if (start == addr) {
             return {i};
@@ -1266,7 +1269,7 @@ static bool LayerFitReinterpretSurface(RasterizerCacheOpenGL& cache, const Surfa
             src_params.height == dst_params.MipHeight(*level) &&
             src_params.block_height >= dst_params.MipBlockHeight(*level)) {
             const std::optional<u32> slot =
-                TryFindBestLayer(render_surface->GetCpuAddr(), dst_params, *level);
+                TryFindBestLayer(render_surface->GetSurfaceParams().gpu_addr, dst_params, *level);
             if (slot.has_value()) {
                 glCopyImageSubData(render_surface->Texture().handle,
                                    SurfaceTargetToGL(src_params.target), 0, 0, 0, 0,
