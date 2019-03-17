@@ -9,10 +9,10 @@
 #include <vector>
 
 #include "common/common_types.h"
+#include "common/memory_hook.h"
 #include "core/hle/kernel/kernel.h"
-#include "core/memory_hook.h"
 
-namespace Memory {
+namespace Common {
 struct PageTable;
 }
 
@@ -58,7 +58,7 @@ public:
 
 private:
     friend struct TestMemory;
-    struct TestMemory final : Memory::MemoryHook {
+    struct TestMemory final : Common::MemoryHook {
         explicit TestMemory(TestEnvironment* env_) : env(env_) {}
         TestEnvironment* env;
 
@@ -86,7 +86,7 @@ private:
     bool mutable_memory;
     std::shared_ptr<TestMemory> test_memory;
     std::vector<WriteRecord> write_records;
-    Memory::PageTable* page_table = nullptr;
+    Common::PageTable* page_table = nullptr;
     Kernel::KernelCore kernel;
 };
 

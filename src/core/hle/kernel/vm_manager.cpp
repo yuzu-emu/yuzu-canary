@@ -7,13 +7,13 @@
 #include <utility>
 #include "common/assert.h"
 #include "common/logging/log.h"
+#include "common/memory_hook.h"
 #include "core/arm/arm_interface.h"
 #include "core/core.h"
 #include "core/file_sys/program_metadata.h"
 #include "core/hle/kernel/errors.h"
 #include "core/hle/kernel/vm_manager.h"
 #include "core/memory.h"
-#include "core/memory_hook.h"
 #include "core/memory_setup.h"
 
 namespace Kernel {
@@ -177,7 +177,7 @@ ResultVal<VAddr> VMManager::FindFreeRegion(u64 size) const {
 
 ResultVal<VMManager::VMAHandle> VMManager::MapMMIO(VAddr target, PAddr paddr, u64 size,
                                                    MemoryState state,
-                                                   Memory::MemoryHookPointer mmio_handler) {
+                                                   Common::MemoryHookPointer mmio_handler) {
     // This is the appropriately sized VMA that will turn into our allocation.
     CASCADE_RESULT(VMAIter vma_handle, CarveVMA(target, size));
     VirtualMemoryArea& final_vma = vma_handle->second;
@@ -624,7 +624,7 @@ void VMManager::ClearPageTable() {
     std::fill(page_table.pointers.begin(), page_table.pointers.end(), nullptr);
     page_table.special_regions.clear();
     std::fill(page_table.attributes.begin(), page_table.attributes.end(),
-              Memory::PageType::Unmapped);
+              Common::PageType::Unmapped);
 }
 
 VMManager::CheckResults VMManager::CheckRangeState(VAddr address, u64 size, MemoryState state_mask,

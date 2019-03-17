@@ -31,7 +31,7 @@ namespace {
  */
 void SetupMainThread(Process& owner_process, KernelCore& kernel, VAddr entry_point, u32 priority) {
     // Setup page table so we can write to memory
-    SetCurrentPageTable(&owner_process.VMManager().page_table);
+    Memory::SetCurrentPageTable(&owner_process.VMManager().page_table);
 
     // Initialize new "main" thread
     const VAddr stack_top = owner_process.VMManager().GetTLSIORegionEndAddress();

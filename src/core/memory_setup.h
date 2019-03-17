@@ -5,7 +5,11 @@
 #pragma once
 
 #include "common/common_types.h"
-#include "core/memory_hook.h"
+#include "common/memory_hook.h"
+
+namespace Common {
+struct PageTable;
+}
 
 namespace Memory {
 
@@ -17,7 +21,7 @@ namespace Memory {
  * @param size The amount of bytes to map. Must be page-aligned.
  * @param target Buffer with the memory backing the mapping. Must be of length at least `size`.
  */
-void MapMemoryRegion(PageTable& page_table, VAddr base, u64 size, u8* target);
+void MapMemoryRegion(Common::PageTable& page_table, VAddr base, u64 size, u8* target);
 
 /**
  * Maps a region of the emulated process address space as a IO region.
@@ -26,11 +30,14 @@ void MapMemoryRegion(PageTable& page_table, VAddr base, u64 size, u8* target);
  * @param size The amount of bytes to map. Must be page-aligned.
  * @param mmio_handler The handler that backs the mapping.
  */
-void MapIoRegion(PageTable& page_table, VAddr base, u64 size, MemoryHookPointer mmio_handler);
+void MapIoRegion(Common::PageTable& page_table, VAddr base, u64 size,
+                 Common::MemoryHookPointer mmio_handler);
 
-void UnmapRegion(PageTable& page_table, VAddr base, u64 size);
+void UnmapRegion(Common::PageTable& page_table, VAddr base, u64 size);
 
-void AddDebugHook(PageTable& page_table, VAddr base, u64 size, MemoryHookPointer hook);
-void RemoveDebugHook(PageTable& page_table, VAddr base, u64 size, MemoryHookPointer hook);
+void AddDebugHook(Common::PageTable& page_table, VAddr base, u64 size,
+                  Common::MemoryHookPointer hook);
+void RemoveDebugHook(Common::PageTable& page_table, VAddr base, u64 size,
+                     Common::MemoryHookPointer hook);
 
 } // namespace Memory

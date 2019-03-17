@@ -92,10 +92,14 @@ add_library(common STATIC
     logging/text_formatter.cpp
     logging/text_formatter.h
     math_util.h
+    memory_hook.cpp
+    memory_hook.h
     microprofile.cpp
     microprofile.h
     microprofileui.h
     misc.cpp
+    page_table.cpp
+    page_table.h
     param_package.cpp
     param_package.h
     quaternion.h

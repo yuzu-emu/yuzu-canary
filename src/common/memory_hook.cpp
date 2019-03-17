@@ -2,10 +2,10 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
-#include "core/memory_hook.h"
+#include "common/memory_hook.h"
 
-namespace Memory {
+namespace Common {
 
 MemoryHook::~MemoryHook() = default;
 
-} // namespace Memory
+} // namespace Common
