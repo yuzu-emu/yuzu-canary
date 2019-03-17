@@ -164,8 +164,7 @@ void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuf
         // Reset the screen info's display texture to its own permanent texture
         screen_info.display_texture = screen_info.texture.resource.handle;
 
-        Memory::RasterizerFlushVirtualRegion(framebuffer_addr, size_in_bytes,
-                                             Memory::FlushMode::Flush);
+        rasterizer->FlushRegion(ToCacheAddr(Memory::GetPointer(framebuffer_addr)), size_in_bytes);
 
         constexpr u32 linear_bpp = 4;
         VideoCore::MortonCopyPixels128(VideoCore::MortonSwizzleMode::MortonToLinear,
