@@ -41,18 +41,13 @@ void KeplerMemory::ProcessData(u32 data) {
     ASSERT_MSG(regs.exec.linear, "Non-linear uploads are not supported");
     ASSERT(regs.dest.x == 0 && regs.dest.y == 0 && regs.dest.z == 0);
 
-    const GPUVAddr address = regs.dest.Address();
-    const auto dest_address =
-        memory_manager.GpuToCpuAddress(address + state.write_offset * sizeof(u32));
-    ASSERT_MSG(dest_address, "Invalid GPU address");
-
     // We have to invalidate the destination region to evict any outdated surfaces from the cache.
-    // We do this before actually writing the new data because the destination address might contain
-    // a dirty surface that will have to be written back to memory.
-    system.Renderer().Rasterizer().InvalidateRegion(ToCacheAddr(Memory::GetPointer(*dest_address)),
-                                                    sizeof(u32));
+    // We do this before actually writing the new data because the destination address might
+    // contain a dirty surface that will have to be written back to memory.
+    const GPUVAddr address{regs.dest.Address() + state.write_offset * sizeof(u32)};
+    rasterizer.InvalidateRegion(ToCacheAddr(memory_manager.GetPointer(address)), sizeof(u32));
+    memory_manager.Write32(address, data);
 
-    Memory::Write32(*dest_address, data);
     system.GPU().Maxwell3D().dirty_flags.OnMemoryWrite();
 
     state.write_offset++;

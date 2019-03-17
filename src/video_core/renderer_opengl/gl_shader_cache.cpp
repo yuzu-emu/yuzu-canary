@@ -32,13 +32,10 @@ struct UnspecializedShader {
 namespace {
 
 /// Gets the address for the specified shader stage program
-VAddr GetShaderAddress(Maxwell::ShaderProgram program) {
-    const auto& gpu = Core::System::GetInstance().GPU().Maxwell3D();
-    const auto& shader_config = gpu.regs.shader_config[static_cast<std::size_t>(program)];
-    const auto address = gpu.memory_manager.GpuToCpuAddress(gpu.regs.code_address.CodeAddress() +
-                                                            shader_config.offset);
-    ASSERT_MSG(address, "Invalid GPU address");
-    return *address;
+Tegra::GPUVAddr GetShaderAddress(Maxwell::ShaderProgram program) {
+    const auto& gpu{Core::System::GetInstance().GPU().Maxwell3D()};
+    const auto& shader_config{gpu.regs.shader_config[static_cast<std::size_t>(program)]};
+    return gpu.regs.code_address.CodeAddress() + shader_config.offset;
 }
 
 /// Gets the shader program code from memory for the specified address
@@ -214,11 +211,11 @@ std::set<GLenum> GetSupportedFormats() {
 
 } // namespace
 
-CachedShader::CachedShader(VAddr guest_addr, u64 unique_identifier,
+CachedShader::CachedShader(VAddr cpu_addr, u64 unique_identifier,
                            Maxwell::ShaderProgram program_type, ShaderDiskCacheOpenGL& disk_cache,
                            const PrecompiledPrograms& precompiled_programs,
                            ProgramCode&& program_code, ProgramCode&& program_code_b, u8* host_ptr)
-    : host_ptr{host_ptr}, guest_addr{guest_addr}, unique_identifier{unique_identifier},
+    : host_ptr{host_ptr}, cpu_addr{cpu_addr}, unique_identifier{unique_identifier},
       program_type{program_type}, disk_cache{disk_cache},
       precompiled_programs{precompiled_programs}, RasterizerCacheObject{host_ptr} {
 
@@ -244,11 +241,11 @@ CachedShader::CachedShader(VAddr guest_addr, u64 unique_identifier,
     disk_cache.SaveRaw(raw);
 }
 
-CachedShader::CachedShader(VAddr guest_addr, u64 unique_identifier,
+CachedShader::CachedShader(VAddr cpu_addr, u64 unique_identifier,
                            Maxwell::ShaderProgram program_type, ShaderDiskCacheOpenGL& disk_cache,
                            const PrecompiledPrograms& precompiled_programs,
                            GLShader::ProgramResult result, u8* host_ptr)
-    : guest_addr{guest_addr}, unique_identifier{unique_identifier}, program_type{program_type},
+    : cpu_addr{cpu_addr}, unique_identifier{unique_identifier}, program_type{program_type},
       disk_cache{disk_cache}, precompiled_programs{precompiled_programs}, RasterizerCacheObject{
                                                                               host_ptr} {
 
@@ -273,7 +270,7 @@ std::tuple<GLuint, BaseBindings> CachedShader::GetProgramHandle(GLenum primitive
                 disk_cache.SaveUsage(GetUsage(primitive_mode, base_bindings));
             }
 
-            LabelGLObject(GL_PROGRAM, program->handle, guest_addr);
+            LabelGLObject(GL_PROGRAM, program->handle, cpu_addr);
         }
 
         handle = program->handle;
@@ -325,7 +322,7 @@ GLuint CachedShader::LazyGeometryProgram(CachedProgram& target_program, BaseBind
         disk_cache.SaveUsage(GetUsage(primitive_mode, base_bindings));
     }
 
-    LabelGLObject(GL_PROGRAM, target_program->handle, guest_addr, debug_name);
+    LabelGLObject(GL_PROGRAM, target_program->handle, cpu_addr, debug_name);
 
     return target_program->handle;
 };
@@ -488,31 +485,31 @@ Shader ShaderCacheOpenGL::GetStageProgram(Maxwell::ShaderProgram program) {
         return last_shaders[static_cast<u32>(program)];
     }
 
-    const VAddr program_addr{GetShaderAddress(program)};
+    auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
+    const Tegra::GPUVAddr program_addr{GetShaderAddress(program)};
 
     // Look up shader in the cache based on address
-    const auto& host_ptr{Memory::GetPointer(program_addr)};
+    const auto& host_ptr{memory_manager.GetPointer(program_addr)};
     Shader shader{TryGet(host_ptr)};
 
     if (!shader) {
         // No shader found - create a new one
-        const auto& host_ptr{Memory::GetPointer(program_addr)};
         ProgramCode program_code{GetShaderCode(host_ptr)};
         ProgramCode program_code_b;
         if (program == Maxwell::ShaderProgram::VertexA) {
             program_code_b = GetShaderCode(
-                Memory::GetPointer(GetShaderAddress(Maxwell::ShaderProgram::VertexB)));
+                memory_manager.GetPointer(GetShaderAddress(Maxwell::ShaderProgram::VertexB)));
         }
         const u64 unique_identifier = GetUniqueIdentifier(program, program_code, program_code_b);
-
+        const VAddr cpu_addr{*memory_manager.GpuToCpuAddress(program_addr)};
         const auto found = precompiled_shaders.find(unique_identifier);
         if (found != precompiled_shaders.end()) {
             shader =
-                std::make_shared<CachedShader>(program_addr, unique_identifier, program, disk_cache,
+                std::make_shared<CachedShader>(cpu_addr, unique_identifier, program, disk_cache,
                                                precompiled_programs, found->second, host_ptr);
         } else {
             shader = std::make_shared<CachedShader>(
-                program_addr, unique_identifier, program, disk_cache, precompiled_programs,
+                cpu_addr, unique_identifier, program, disk_cache, precompiled_programs,
                 std::move(program_code), std::move(program_code_b), host_ptr);
         }
         Register(shader);

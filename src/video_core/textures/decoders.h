@@ -17,14 +17,14 @@ inline std::size_t GetGOBSize() {
 }
 
 /// Unswizzles a swizzled texture without changing its format.
-void UnswizzleTexture(u8* unswizzled_data, VAddr address, u32 tile_size_x, u32 tile_size_y,
+void UnswizzleTexture(u8* unswizzled_data, u8* address, u32 tile_size_x, u32 tile_size_y,
                       u32 bytes_per_pixel, u32 width, u32 height, u32 depth,
                       u32 block_height = TICEntry::DefaultBlockHeight,
                       u32 block_depth = TICEntry::DefaultBlockHeight, u32 width_spacing = 0);
 
 /// Unswizzles a swizzled texture without changing its format.
-std::vector<u8> UnswizzleTexture(VAddr address, u32 tile_size_x, u32 tile_size_y,
-                                 u32 bytes_per_pixel, u32 width, u32 height, u32 depth,
+std::vector<u8> UnswizzleTexture(u8* address, u32 tile_size_x, u32 tile_size_y, u32 bytes_per_pixel,
+                                 u32 width, u32 height, u32 depth,
                                  u32 block_height = TICEntry::DefaultBlockHeight,
                                  u32 block_depth = TICEntry::DefaultBlockHeight,
                                  u32 width_spacing = 0);
@@ -44,12 +44,11 @@ std::size_t CalculateSize(bool tiled, u32 bytes_per_pixel, u32 width, u32 height
 
 /// Copies an untiled subrectangle into a tiled surface.
 void SwizzleSubrect(u32 subrect_width, u32 subrect_height, u32 source_pitch, u32 swizzled_width,
-                    u32 bytes_per_pixel, VAddr swizzled_data, VAddr unswizzled_data,
-                    u32 block_height);
+                    u32 bytes_per_pixel, u8* swizzled_data, u8* unswizzled_data, u32 block_height);
 
 /// Copies a tiled subrectangle into a linear surface.
 void UnswizzleSubrect(u32 subrect_width, u32 subrect_height, u32 dest_pitch, u32 swizzled_width,
-                      u32 bytes_per_pixel, VAddr swizzled_data, VAddr unswizzled_data,
-                      u32 block_height, u32 offset_x, u32 offset_y);
+                      u32 bytes_per_pixel, u8* swizzled_data, u8* unswizzled_data, u32 block_height,
+                      u32 offset_x, u32 offset_y);
 
 } // namespace Tegra::Texture

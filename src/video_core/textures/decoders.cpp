@@ -6,7 +6,6 @@
 #include <cstring>
 #include "common/alignment.h"
 #include "common/assert.h"
-#include "core/memory.h"
 #include "video_core/gpu.h"
 #include "video_core/textures/decoders.h"
 #include "video_core/textures/texture.h"
@@ -230,18 +229,18 @@ u32 BytesPerPixel(TextureFormat format) {
     }
 }
 
-void UnswizzleTexture(u8* const unswizzled_data, VAddr address, u32 tile_size_x, u32 tile_size_y,
+void UnswizzleTexture(u8* const unswizzled_data, u8* address, u32 tile_size_x, u32 tile_size_y,
                       u32 bytes_per_pixel, u32 width, u32 height, u32 depth, u32 block_height,
                       u32 block_depth, u32 width_spacing) {
     CopySwizzledData((width + tile_size_x - 1) / tile_size_x,
                      (height + tile_size_y - 1) / tile_size_y, depth, bytes_per_pixel,
-                     bytes_per_pixel, Memory::GetPointer(address), unswizzled_data, true,
-                     block_height, block_depth, width_spacing);
+                     bytes_per_pixel, address, unswizzled_data, true, block_height, block_depth,
+                     width_spacing);
 }
 
-std::vector<u8> UnswizzleTexture(VAddr address, u32 tile_size_x, u32 tile_size_y,
-                                 u32 bytes_per_pixel, u32 width, u32 height, u32 depth,
-                                 u32 block_height, u32 block_depth, u32 width_spacing) {
+std::vector<u8> UnswizzleTexture(u8* address, u32 tile_size_x, u32 tile_size_y, u32 bytes_per_pixel,
+                                 u32 width, u32 height, u32 depth, u32 block_height,
+                                 u32 block_depth, u32 width_spacing) {
     std::vector<u8> unswizzled_data(width * height * depth * bytes_per_pixel);
     UnswizzleTexture(unswizzled_data.data(), address, tile_size_x, tile_size_y, bytes_per_pixel,
                      width, height, depth, block_height, block_depth, width_spacing);
@@ -249,8 +248,7 @@ std::vector<u8> UnswizzleTexture(VAddr address, u32 tile_size_x, u32 tile_size_y
 }
 
 void SwizzleSubrect(u32 subrect_width, u32 subrect_height, u32 source_pitch, u32 swizzled_width,
-                    u32 bytes_per_pixel, VAddr swizzled_data, VAddr unswizzled_data,
-                    u32 block_height) {
+                    u32 bytes_per_pixel, u8* swizzled_data, u8* unswizzled_data, u32 block_height) {
     const u32 image_width_in_gobs{(swizzled_width * bytes_per_pixel + (gob_size_x - 1)) /
                                   gob_size_x};
     for (u32 line = 0; line < subrect_height; ++line) {
@@ -262,17 +260,17 @@ void SwizzleSubrect(u32 subrect_width, u32 subrect_height, u32 source_pitch, u32
             const u32 gob_address =
                 gob_address_y + (x * bytes_per_pixel / gob_size_x) * gob_size * block_height;
             const u32 swizzled_offset = gob_address + table[(x * bytes_per_pixel) % gob_size_x];
-            const VAddr source_line = unswizzled_data + line * source_pitch + x * bytes_per_pixel;
-            const VAddr dest_addr = swizzled_data + swizzled_offset;
+            u8* source_line = unswizzled_data + line * source_pitch + x * bytes_per_pixel;
+            u8* dest_addr = swizzled_data + swizzled_offset;
 
-            Memory::CopyBlock(dest_addr, source_line, bytes_per_pixel);
+            std::memcpy(dest_addr, source_line, bytes_per_pixel);
         }
     }
 }
 
 void UnswizzleSubrect(u32 subrect_width, u32 subrect_height, u32 dest_pitch, u32 swizzled_width,
-                      u32 bytes_per_pixel, VAddr swizzled_data, VAddr unswizzled_data,
-                      u32 block_height, u32 offset_x, u32 offset_y) {
+                      u32 bytes_per_pixel, u8* swizzled_data, u8* unswizzled_data, u32 block_height,
+                      u32 offset_x, u32 offset_y) {
     for (u32 line = 0; line < subrect_height; ++line) {
         const u32 y2 = line + offset_y;
         const u32 gob_address_y = (y2 / (gob_size_y * block_height)) * gob_size * block_height +
@@ -282,10 +280,10 @@ void UnswizzleSubrect(u32 subrect_width, u32 subrect_height, u32 dest_pitch, u32
             const u32 x2 = (x + offset_x) * bytes_per_pixel;
             const u32 gob_address = gob_address_y + (x2 / gob_size_x) * gob_size * block_height;
             const u32 swizzled_offset = gob_address + table[x2 % gob_size_x];
-            const VAddr dest_line = unswizzled_data + line * dest_pitch + x * bytes_per_pixel;
-            const VAddr source_addr = swizzled_data + swizzled_offset;
+            u8* dest_line = unswizzled_data + line * dest_pitch + x * bytes_per_pixel;
+            u8* source_addr = swizzled_data + swizzled_offset;
 
-            Memory::CopyBlock(dest_line, source_addr, bytes_per_pixel);
+            std::memcpy(dest_line, source_addr, bytes_per_pixel);
         }
     }
 }
