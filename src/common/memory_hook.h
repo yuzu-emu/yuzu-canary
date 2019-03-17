@@ -9,7 +9,7 @@
 
 #include "common/common_types.h"
 
-namespace Memory {
+namespace Common {
 
 /**
  * Memory hooks have two purposes:
@@ -44,4 +44,4 @@ public:
 };
 
 using MemoryHookPointer = std::shared_ptr<MemoryHook>;
-} // namespace Memory
+} // namespace Common

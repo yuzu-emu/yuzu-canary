@@ -4,6 +4,7 @@
 
 #include <algorithm>
 
+#include "common/page_table.h"
 #include "core/core.h"
 #include "core/hle/kernel/process.h"
 #include "core/memory.h"
@@ -22,7 +23,7 @@ TestEnvironment::TestEnvironment(bool mutable_memory_)
     std::fill(page_table->pointers.begin(), page_table->pointers.end(), nullptr);
     page_table->special_regions.clear();
     std::fill(page_table->attributes.begin(), page_table->attributes.end(),
-              Memory::PageType::Unmapped);
+              Common::PageType::Unmapped);
 
     Memory::MapIoRegion(*page_table, 0x00000000, 0x80000000, test_memory);
     Memory::MapIoRegion(*page_table, 0x80000000, 0x80000000, test_memory);

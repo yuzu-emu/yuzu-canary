@@ -12,7 +12,7 @@
 #include "core/arm/exclusive_monitor.h"
 #include "core/arm/unicorn/arm_unicorn.h"
 
-namespace Memory {
+namespace Common {
 struct PageTable;
 }
 
@@ -70,7 +70,7 @@ private:
     Timing::CoreTiming& core_timing;
     DynarmicExclusiveMonitor& exclusive_monitor;
 
-    Memory::PageTable* current_page_table = nullptr;
+    Common::PageTable* current_page_table = nullptr;
 };
 
 class DynarmicExclusiveMonitor final : public ExclusiveMonitor {
