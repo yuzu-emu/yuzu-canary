@@ -27,11 +27,26 @@ public:
     GPUVAddr UnmapBuffer(GPUVAddr gpu_addr, u64 size);
     GPUVAddr GetRegionEnd(GPUVAddr region_start) const;
     std::optional<VAddr> GpuToCpuAddress(GPUVAddr gpu_addr);
-    std::vector<GPUVAddr> CpuToGpuAddress(VAddr cpu_addr) const;
 
     static constexpr u64 PAGE_BITS = 16;
     static constexpr u64 PAGE_SIZE = 1 << PAGE_BITS;
     static constexpr u64 PAGE_MASK = PAGE_SIZE - 1;
+
+    u8 Read8(GPUVAddr addr);
+    u16 Read16(GPUVAddr addr);
+    u32 Read32(GPUVAddr addr);
+    u64 Read64(GPUVAddr addr);
+
+    void Write8(GPUVAddr addr, u8 data);
+    void Write16(GPUVAddr addr, u16 data);
+    void Write32(GPUVAddr addr, u32 data);
+    void Write64(GPUVAddr addr, u64 data);
+
+    u8* GetPointer(GPUVAddr vaddr);
+
+    void ReadBlock(GPUVAddr src_addr, void* dest_buffer, std::size_t size);
+    void WriteBlock(GPUVAddr dest_addr, const void* src_buffer, std::size_t size);
+    void CopyBlock(VAddr dest_addr, VAddr src_addr, std::size_t size);
 
 private:
     enum class PageStatus : u64 {

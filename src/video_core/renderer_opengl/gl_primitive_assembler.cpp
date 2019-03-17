@@ -46,10 +46,7 @@ GLintptr PrimitiveAssembler::MakeQuadIndexed(Tegra::GPUVAddr gpu_addr, std::size
     auto [dst_pointer, index_offset] = buffer_cache.ReserveMemory(map_size);
 
     auto& memory_manager = Core::System::GetInstance().GPU().MemoryManager();
-    const auto cpu_addr{memory_manager.GpuToCpuAddress(gpu_addr)};
-    ASSERT_MSG(cpu_addr, "Invalid GPU address");
-
-    const u8* source{Memory::GetPointer(*cpu_addr)};
+    const u8* source{memory_manager.GetPointer(gpu_addr)};
 
     for (u32 primitive = 0; primitive < count / 4; ++primitive) {
         for (std::size_t i = 0; i < TRIANGLES_PER_QUAD; ++i) {
