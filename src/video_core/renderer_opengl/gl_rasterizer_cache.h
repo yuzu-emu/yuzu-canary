@@ -109,6 +109,11 @@ struct SurfaceParams {
         return size;
     }
 
+    /// Returns true if the parameters constitute a valid rasterizer surface.
+    bool IsValid() const {
+        return gpu_addr && host_ptr && height && width;
+    }
+
     /// Returns the exact size of the memory occupied by a layer in a texture in VRAM, including
     /// mipmaps.
     std::size_t LayerMemorySize() const {
@@ -210,7 +215,7 @@ struct SurfaceParams {
 
     /// Creates SurfaceParams for a depth buffer configuration
     static SurfaceParams CreateForDepthBuffer(
-        u32 zeta_width, u32 zeta_height, Tegra::GPUVAddr zeta_address, Tegra::DepthFormat format,
+        u32 zeta_width, u32 zeta_height, GPUVAddr zeta_address, Tegra::DepthFormat format,
         u32 block_width, u32 block_height, u32 block_depth,
         Tegra::Engines::Maxwell3D::Regs::InvMemoryLayout type);
 
@@ -232,7 +237,7 @@ struct SurfaceParams {
     }
 
     /// Initializes parameters for caching, should be called after everything has been initialized
-    void InitCacheParameters(Tegra::GPUVAddr gpu_addr);
+    void InitCacheParameters(GPUVAddr gpu_addr);
 
     std::string TargetName() const {
         switch (target) {
@@ -297,7 +302,7 @@ struct SurfaceParams {
     bool srgb_conversion;
     // Parameters used for caching
     u8* host_ptr;
-    Tegra::GPUVAddr gpu_addr;
+    GPUVAddr gpu_addr;
     std::size_t size_in_bytes;
     std::size_t size_in_bytes_gl;
 
