@@ -68,6 +68,8 @@ add_library(core STATIC
     file_sys/system_archive/ng_word.h
     file_sys/system_archive/system_archive.cpp
     file_sys/system_archive/system_archive.h
+    file_sys/system_archive/system_version.cpp
+    file_sys/system_archive/system_version.h
     file_sys/vfs.cpp
     file_sys/vfs.h
     file_sys/vfs_concat.cpp
