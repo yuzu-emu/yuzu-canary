@@ -7,6 +7,8 @@
 #include <optional>
 #include <vector>
 
+#include <boost/range/algorithm_ext/erase.hpp>
+
 #include "common/assert.h"
 #include "common/common_types.h"
 #include "common/logging/log.h"
@@ -256,8 +258,8 @@ void Thread::AddMutexWaiter(SharedPtr<Thread> thread) {
     if (thread->lock_owner == this) {
         // If the thread is already waiting for this thread to release the mutex, ensure that the
         // waiters list is consistent and return without doing anything.
-        const auto iter = std::find(wait_mutex_threads.begin(), wait_mutex_threads.end(), thread);
-        ASSERT(iter != wait_mutex_threads.end());
+        auto itr = std::find(wait_mutex_threads.begin(), wait_mutex_threads.end(), thread);
+        ASSERT(itr != wait_mutex_threads.end());
         return;
     }
 
@@ -265,16 +267,11 @@ void Thread::AddMutexWaiter(SharedPtr<Thread> thread) {
     ASSERT(thread->lock_owner == nullptr);
 
     // Ensure that the thread is not already in the list of mutex waiters
-    const auto iter = std::find(wait_mutex_threads.begin(), wait_mutex_threads.end(), thread);
-    ASSERT(iter == wait_mutex_threads.end());
+    auto itr = std::find(wait_mutex_threads.begin(), wait_mutex_threads.end(), thread);
+    ASSERT(itr == wait_mutex_threads.end());
 
-    // Keep the list in an ordered fashion
-    const auto insertion_point = std::find_if(
-        wait_mutex_threads.begin(), wait_mutex_threads.end(),
-        [&thread](const auto& entry) { return entry->GetPriority() > thread->GetPriority(); });
-    wait_mutex_threads.insert(insertion_point, thread);
     thread->lock_owner = this;
-
+    wait_mutex_threads.emplace_back(std::move(thread));
     UpdatePriority();
 }
 
@@ -282,43 +279,32 @@ void Thread::RemoveMutexWaiter(SharedPtr<Thread> thread) {
     ASSERT(thread->lock_owner == this);
 
     // Ensure that the thread is in the list of mutex waiters
-    const auto iter = std::find(wait_mutex_threads.begin(), wait_mutex_threads.end(), thread);
-    ASSERT(iter != wait_mutex_threads.end());
+    auto itr = std::find(wait_mutex_threads.begin(), wait_mutex_threads.end(), thread);
+    ASSERT(itr != wait_mutex_threads.end());
 
-    wait_mutex_threads.erase(iter);
-
+    boost::remove_erase(wait_mutex_threads, thread);
     thread->lock_owner = nullptr;
     UpdatePriority();
 }
 
 void Thread::UpdatePriority() {
-    // If any of the threads waiting on the mutex have a higher priority
-    // (taking into account priority inheritance), then this thread inherits
-    // that thread's priority.
+    // Find the highest priority among all the threads that are waiting for this thread's lock
     u32 new_priority = nominal_priority;
-    if (!wait_mutex_threads.empty()) {
-        if (wait_mutex_threads.front()->current_priority < new_priority) {
-            new_priority = wait_mutex_threads.front()->current_priority;
-        }
+    for (const auto& thread : wait_mutex_threads) {
+        if (thread->nominal_priority < new_priority)
+            new_priority = thread->nominal_priority;
     }
 
-    if (new_priority == current_priority) {
+    if (new_priority == current_priority)
         return;
-    }
 
     scheduler->SetThreadPriority(this, new_priority);
+
     current_priority = new_priority;
 
-    if (!lock_owner) {
-        return;
-    }
-
-    // Ensure that the thread is within the correct location in the waiting list.
-    lock_owner->RemoveMutexWaiter(this);
-    lock_owner->AddMutexWaiter(this);
-
     // Recursively update the priority of the thread that depends on the priority of this one.
-    lock_owner->UpdatePriority();
+    if (lock_owner)
+        lock_owner->UpdatePriority();
 }
 
 void Thread::ChangeCore(u32 core, u64 mask) {
