@@ -68,8 +68,7 @@ public:
 
     /// Uploads data from a guest GPU address. Returns host's buffer offset where it's been
     /// allocated.
-    u64 UploadMemory(Tegra::GPUVAddr gpu_addr, std::size_t size, u64 alignment = 4,
-                     bool cache = true);
+    u64 UploadMemory(GPUVAddr gpu_addr, std::size_t size, u64 alignment = 4, bool cache = true);
 
     /// Uploads from a host memory. Returns host's buffer offset where it's been allocated.
     u64 UploadHostMemory(const u8* raw_pointer, std::size_t size, u64 alignment = 4);
