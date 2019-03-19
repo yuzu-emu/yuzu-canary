@@ -12,6 +12,7 @@
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/engines/maxwell_dma.h"
 #include "video_core/gpu.h"
+#include "video_core/memory_manager.h"
 #include "video_core/renderer_base.h"
 
 namespace Tegra {
@@ -287,7 +288,7 @@ void GPU::ProcessSemaphoreTriggerMethod() {
         block.timestamp = Core::System::GetInstance().CoreTiming().GetTicks();
         memory_manager->WriteBlock(regs.smaphore_address.SmaphoreAddress(), &block, sizeof(block));
     } else {
-        const u32 word{memory_manager->Read32(regs.smaphore_address.SmaphoreAddress())};
+        const u32 word{memory_manager->Read<u32>(regs.smaphore_address.SmaphoreAddress())};
         if ((op == GpuSemaphoreOperation::AcquireEqual && word == regs.semaphore_sequence) ||
             (op == GpuSemaphoreOperation::AcquireGequal &&
              static_cast<s32>(word - regs.semaphore_sequence) > 0) ||
@@ -314,11 +315,11 @@ void GPU::ProcessSemaphoreTriggerMethod() {
 }
 
 void GPU::ProcessSemaphoreRelease() {
-    memory_manager->Write32(regs.smaphore_address.SmaphoreAddress(), regs.semaphore_release);
+    memory_manager->Write<u32>(regs.smaphore_address.SmaphoreAddress(), regs.semaphore_release);
 }
 
 void GPU::ProcessSemaphoreAcquire() {
-    const u32 word = memory_manager->Read32(regs.smaphore_address.SmaphoreAddress());
+    const u32 word = memory_manager->Read<u32>(regs.smaphore_address.SmaphoreAddress());
     const auto value = regs.semaphore_acquire;
     if (word != value) {
         regs.acquire_active = true;

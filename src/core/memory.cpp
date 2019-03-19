@@ -48,7 +48,7 @@ static void MapPages(Common::PageTable& page_table, VAddr base, u64 size, u8* me
               (base + size) * PAGE_SIZE);
 
     // During boot, current_page_table might not be set yet, in which case we need not flush
-    if (current_page_table) {
+    if (Core::System::GetInstance().IsPoweredOn()) {
         Core::System::GetInstance().GPU().FlushAndInvalidateRegion(base << PAGE_BITS,
                                                                    size * PAGE_SIZE);
     }

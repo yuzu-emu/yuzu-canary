@@ -46,7 +46,7 @@ void KeplerMemory::ProcessData(u32 data) {
     // contain a dirty surface that will have to be written back to memory.
     const GPUVAddr address{regs.dest.Address() + state.write_offset * sizeof(u32)};
     rasterizer.InvalidateRegion(ToCacheAddr(memory_manager.GetPointer(address)), sizeof(u32));
-    memory_manager.Write32(address, data);
+    memory_manager.Write<u32>(address, data);
 
     system.GPU().Maxwell3D().dirty_flags.OnMemoryWrite();
 
