@@ -20,6 +20,8 @@ private:
         BasicBlack = 1,
     };
 
+    void GetFirmwareVersion(Kernel::HLERequestContext& ctx);
+    void GetFirmwareVersion2(Kernel::HLERequestContext& ctx);
     void GetColorSetId(Kernel::HLERequestContext& ctx);
     void SetColorSetId(Kernel::HLERequestContext& ctx);
 
