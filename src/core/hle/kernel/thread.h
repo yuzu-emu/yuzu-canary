@@ -401,14 +401,8 @@ private:
     VAddr entry_point = 0;
     VAddr stack_top = 0;
 
-    /// Nominal thread priority, as set by the emulated application.
-    /// The nominal priority is the thread priority without priority
-    /// inheritance taken into account.
-    u32 nominal_priority = 0;
-
-    /// Current thread priority. This may change over the course of the
-    /// thread's lifetime in order to facilitate priority inheritance.
-    u32 current_priority = 0;
+    u32 nominal_priority = 0; ///< Nominal thread priority, as set by the emulated application
+    u32 current_priority = 0; ///< Current thread priority, can be temporarily changed
 
     u64 total_cpu_time_ticks = 0; ///< Total CPU running ticks.
     u64 last_running_ticks = 0;   ///< CPU tick when thread was last running
