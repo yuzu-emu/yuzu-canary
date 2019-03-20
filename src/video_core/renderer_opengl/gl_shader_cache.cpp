@@ -32,7 +32,7 @@ struct UnspecializedShader {
 namespace {
 
 /// Gets the address for the specified shader stage program
-Tegra::GPUVAddr GetShaderAddress(Maxwell::ShaderProgram program) {
+GPUVAddr GetShaderAddress(Maxwell::ShaderProgram program) {
     const auto& gpu{Core::System::GetInstance().GPU().Maxwell3D()};
     const auto& shader_config{gpu.regs.shader_config[static_cast<std::size_t>(program)]};
     return gpu.regs.code_address.CodeAddress() + shader_config.offset;
@@ -486,10 +486,16 @@ Shader ShaderCacheOpenGL::GetStageProgram(Maxwell::ShaderProgram program) {
     }
 
     auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
-    const Tegra::GPUVAddr program_addr{GetShaderAddress(program)};
+    const GPUVAddr program_addr{GetShaderAddress(program)};
 
     // Look up shader in the cache based on address
     const auto& host_ptr{memory_manager.GetPointer(program_addr)};
+
+    if (!host_ptr) {
+        LOG_ERROR(HW_GPU, "address {:016x} is no longer mapped!", program_addr);
+        return last_shaders[static_cast<u32>(program)];
+    }
+
     Shader shader{TryGet(host_ptr)};
 
     if (!shader) {

@@ -9,7 +9,6 @@
 #include "common/common_types.h"
 #include "core/hle/service/nvflinger/buffer_queue.h"
 #include "video_core/dma_pusher.h"
-#include "video_core/memory_manager.h"
 
 using CacheAddr = std::uintptr_t;
 inline CacheAddr ToCacheAddr(const void* host_ptr) {
@@ -123,6 +122,8 @@ enum class EngineID {
     KEPLER_INLINE_TO_MEMORY_B = 0xA140,
     MAXWELL_DMA_COPY_A = 0xB0B5,
 };
+
+class MemoryManager;
 
 class GPU {
 public:
@@ -244,9 +245,8 @@ protected:
 private:
     std::unique_ptr<Tegra::MemoryManager> memory_manager;
 
-    /// Mapping of command subchannels to their bound engine ids.
+    /// Mapping of command subchannels to their bound engine ids
     std::array<EngineID, 8> bound_engines = {};
-
     /// 3D engine
     std::unique_ptr<Engines::Maxwell3D> maxwell_3d;
     /// 2D engine
