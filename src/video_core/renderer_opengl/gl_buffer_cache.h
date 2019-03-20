@@ -58,7 +58,7 @@ public:
 
     /// Uploads data from a guest GPU address. Returns host's buffer offset where it's been
     /// allocated.
-    GLintptr UploadMemory(Tegra::GPUVAddr gpu_addr, std::size_t size, std::size_t alignment = 4,
+    GLintptr UploadMemory(GPUVAddr gpu_addr, std::size_t size, std::size_t alignment = 4,
                           bool cache = true);
 
     /// Uploads from a host memory. Returns host's buffer offset where it's been allocated.

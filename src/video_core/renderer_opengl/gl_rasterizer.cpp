@@ -225,8 +225,8 @@ void RasterizerOpenGL::SetupVertexBuffer(GLuint vao) {
         if (!vertex_array.IsEnabled())
             continue;
 
-        const Tegra::GPUVAddr start = vertex_array.StartAddress();
-        const Tegra::GPUVAddr end = regs.vertex_array_limit[index].LimitAddress();
+        const GPUVAddr start = vertex_array.StartAddress();
+        const GPUVAddr end = regs.vertex_array_limit[index].LimitAddress();
 
         ASSERT(end > start);
         const u64 size = end - start + 1;
@@ -421,8 +421,8 @@ std::size_t RasterizerOpenGL::CalculateVertexArraysSize() const {
         if (!regs.vertex_array[index].IsEnabled())
             continue;
 
-        const Tegra::GPUVAddr start = regs.vertex_array[index].StartAddress();
-        const Tegra::GPUVAddr end = regs.vertex_array_limit[index].LimitAddress();
+        const GPUVAddr start = regs.vertex_array[index].StartAddress();
+        const GPUVAddr end = regs.vertex_array_limit[index].LimitAddress();
 
         ASSERT(end > start);
         size += end - start + 1;
