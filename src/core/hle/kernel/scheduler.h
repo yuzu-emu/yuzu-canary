@@ -7,7 +7,7 @@
 #include <mutex>
 #include <vector>
 #include "common/common_types.h"
-#include "common/thread_queue_list.h"
+#include "common/multi_level_queue.h"
 #include "core/hle/kernel/object.h"
 #include "core/hle/kernel/thread.h"
 
@@ -156,7 +156,7 @@ private:
     std::vector<SharedPtr<Thread>> thread_list;
 
     /// Lists only ready thread ids.
-    Common::ThreadQueueList<Thread*, THREADPRIO_LOWEST + 1> ready_queue;
+    Common::MultiLevelQueue<Thread*, THREADPRIO_LOWEST + 1> ready_queue;
 
     SharedPtr<Thread> current_thread = nullptr;
 

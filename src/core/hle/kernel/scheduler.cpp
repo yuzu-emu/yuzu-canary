@@ -30,7 +30,7 @@ Scheduler::~Scheduler() {
 
 bool Scheduler::HaveReadyThreads() const {
     std::lock_guard<std::mutex> lock(scheduler_mutex);
-    return ready_queue.get_first() != nullptr;
+    return !ready_queue.empty();
 }
 
 Thread* Scheduler::GetCurrentThread() const {
@@ -46,22 +46,27 @@ Thread* Scheduler::PopNextReadyThread() {
     Thread* thread = GetCurrentThread();
 
     if (thread && thread->GetStatus() == ThreadStatus::Running) {
+        if (ready_queue.empty()) {
+            return thread;
+        }
         // We have to do better than the current thread.
         // This call returns null when that's not possible.
-        next = ready_queue.pop_first_better(thread->GetPriority());
-        if (!next) {
-            // Otherwise just keep going with the current thread
+        next = ready_queue.front();
+        if (next == nullptr || next->GetPriority() >= thread->GetPriority()) {
             next = thread;
         }
     } else {
-        next = ready_queue.pop_first();
+        if (ready_queue.empty()) {
+            return nullptr;
+        }
+        next = ready_queue.front();
     }
 
     return next;
 }
 
 void Scheduler::SwitchContext(Thread* new_thread) {
-    Thread* const previous_thread = GetCurrentThread();
+    Thread* previous_thread = GetCurrentThread();
     Process* const previous_process = system.Kernel().CurrentProcess();
 
     UpdateLastContextSwitchTime(previous_thread, previous_process);
@@ -75,7 +80,7 @@ void Scheduler::SwitchContext(Thread* new_thread) {
         if (previous_thread->GetStatus() == ThreadStatus::Running) {
             // This is only the case when a reschedule is triggered without the current thread
             // yielding execution (i.e. an event triggered, system core time-sliced, etc)
-            ready_queue.push_front(previous_thread->GetPriority(), previous_thread);
+            ready_queue.add(previous_thread, previous_thread->GetPriority(), false);
             previous_thread->SetStatus(ThreadStatus::Ready);
         }
     }
@@ -90,7 +95,7 @@ void Scheduler::SwitchContext(Thread* new_thread) {
 
         current_thread = new_thread;
 
-        ready_queue.remove(new_thread->GetPriority(), new_thread);
+        ready_queue.remove(new_thread, new_thread->GetPriority());
         new_thread->SetStatus(ThreadStatus::Running);
 
         auto* const thread_owner_process = current_thread->GetOwnerProcess();
@@ -147,7 +152,6 @@ void Scheduler::AddThread(SharedPtr<Thread> thread, u32 priority) {
     std::lock_guard<std::mutex> lock(scheduler_mutex);
 
     thread_list.push_back(std::move(thread));
-    ready_queue.prepare(priority);
 }
 
 void Scheduler::RemoveThread(Thread* thread) {
@@ -161,33 +165,37 @@ void Scheduler::ScheduleThread(Thread* thread, u32 priority) {
     std::lock_guard<std::mutex> lock(scheduler_mutex);
 
     ASSERT(thread->GetStatus() == ThreadStatus::Ready);
-    ready_queue.push_back(priority, thread);
+    ready_queue.add(thread, priority);
 }
 
 void Scheduler::UnscheduleThread(Thread* thread, u32 priority) {
     std::lock_guard<std::mutex> lock(scheduler_mutex);
 
     ASSERT(thread->GetStatus() == ThreadStatus::Ready);
-    ready_queue.remove(priority, thread);
+    ready_queue.remove(thread, priority);
 }
 
 void Scheduler::SetThreadPriority(Thread* thread, u32 priority) {
     std::lock_guard<std::mutex> lock(scheduler_mutex);
+    if (thread->GetPriority() == priority) {
+        return;
+    }
 
     // If thread was ready, adjust queues
     if (thread->GetStatus() == ThreadStatus::Ready)
-        ready_queue.move(thread, thread->GetPriority(), priority);
-    else
-        ready_queue.prepare(priority);
+        ready_queue.adjust(thread, thread->GetPriority(), priority);
 }
 
 Thread* Scheduler::GetNextSuggestedThread(u32 core, u32 maximum_priority) const {
     std::lock_guard<std::mutex> lock(scheduler_mutex);
 
     const u32 mask = 1U << core;
-    return ready_queue.get_first_filter([mask, maximum_priority](Thread const* thread) {
-        return (thread->GetAffinityMask() & mask) != 0 && thread->GetPriority() < maximum_priority;
-    });
+    for (auto* thread : ready_queue) {
+        if ((thread->GetAffinityMask() & mask) != 0 && thread->GetPriority() < maximum_priority) {
+            return thread;
+        }
+    }
+    return nullptr;
 }
 
 void Scheduler::YieldWithoutLoadBalancing(Thread* thread) {
