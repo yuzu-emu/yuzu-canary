@@ -307,7 +307,7 @@ void Maxwell3D::ProcessQueryGet() {
             // Write the current query sequence to the sequence address.
             // TODO(Subv): Find out what happens if you use a long query type but mark it as a short
             // query.
-            memory_manager.Write32(sequence_address, sequence);
+            memory_manager.Write<u32>(sequence_address, sequence);
         } else {
             // Write the 128-bit result structure in long mode. Note: We emulate an infinitely fast
             // GPU, this command may actually take a while to complete in real hardware due to GPU
@@ -395,7 +395,7 @@ void Maxwell3D::ProcessCBData(u32 value) {
 
     u8* ptr{memory_manager.GetPointer(address)};
     rasterizer.InvalidateRegion(ToCacheAddr(ptr), sizeof(u32));
-    memory_manager.Write32(address, value);
+    memory_manager.Write<u32>(address, value);
 
     dirty_flags.OnMemoryWrite();
 
@@ -447,7 +447,7 @@ std::vector<Texture::FullTextureInfo> Maxwell3D::GetStageTextures(Regs::ShaderSt
     for (GPUVAddr current_texture = tex_info_buffer.address + TextureInfoOffset;
          current_texture < tex_info_buffer_end; current_texture += sizeof(Texture::TextureHandle)) {
 
-        const Texture::TextureHandle tex_handle{memory_manager.Read32(current_texture)};
+        const Texture::TextureHandle tex_handle{memory_manager.Read<u32>(current_texture)};
 
         Texture::FullTextureInfo tex_info{};
         // TODO(Subv): Use the shader to determine which textures are actually accessed.
@@ -482,7 +482,7 @@ Texture::FullTextureInfo Maxwell3D::GetStageTexture(Regs::ShaderStage stage,
 
     ASSERT(tex_info_address < tex_info_buffer.address + tex_info_buffer.size);
 
-    const Texture::TextureHandle tex_handle{memory_manager.Read32(tex_info_address)};
+    const Texture::TextureHandle tex_handle{memory_manager.Read<u32>(tex_info_address)};
 
     Texture::FullTextureInfo tex_info{};
     tex_info.index = static_cast<u32>(offset);
