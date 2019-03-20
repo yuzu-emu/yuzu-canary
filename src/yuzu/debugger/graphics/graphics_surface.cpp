@@ -261,7 +261,7 @@ void GraphicsSurfaceWidget::OnSurfaceSourceChanged(int new_value) {
 
 void GraphicsSurfaceWidget::OnSurfaceAddressChanged(qint64 new_value) {
     if (surface_address != new_value) {
-        surface_address = static_cast<Tegra::GPUVAddr>(new_value);
+        surface_address = static_cast<GPUVAddr>(new_value);
 
         surface_source_list->setCurrentIndex(static_cast<int>(Source::Custom));
         emit Update();
