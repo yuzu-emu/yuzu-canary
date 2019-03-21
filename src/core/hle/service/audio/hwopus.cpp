@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <opus.h>
+#include <opus_multistream.h>
 
 #include "common/assert.h"
 #include "common/logging/log.h"
@@ -18,12 +19,12 @@
 namespace Service::Audio {
 namespace {
 struct OpusDeleter {
-    void operator()(void* ptr) const {
-        operator delete(ptr);
+    void operator()(OpusMSDecoder* ptr) const {
+        opus_multistream_decoder_destroy(ptr);
     }
 };
 
-using OpusDecoderPtr = std::unique_ptr<OpusDecoder, OpusDeleter>;
+using OpusDecoderPtr = std::unique_ptr<OpusMSDecoder, OpusDeleter>;
 
 struct OpusPacketHeader {
     // Packet size in bytes.
@@ -33,7 +34,7 @@ struct OpusPacketHeader {
 };
 static_assert(sizeof(OpusPacketHeader) == 0x8, "OpusHeader is an invalid size");
 
-class OpusDecoderStateBase {
+class OpusDecoderState {
 public:
     /// Describes extra behavior that may be asked of the decoding context.
     enum class ExtraBehavior {
@@ -49,22 +50,13 @@ public:
         Enabled,
     };
 
-    virtual ~OpusDecoderStateBase() = default;
-
-    // Decodes interleaved Opus packets. Optionally allows reporting time taken to
-    // perform the decoding, as well as any relevant extra behavior.
-    virtual void DecodeInterleaved(Kernel::HLERequestContext& ctx, PerfTime perf_time,
-                                   ExtraBehavior extra_behavior) = 0;
-};
-
-// Represents the decoder state for a non-multistream decoder.
-class OpusDecoderState final : public OpusDecoderStateBase {
-public:
     explicit OpusDecoderState(OpusDecoderPtr decoder, u32 sample_rate, u32 channel_count)
         : decoder{std::move(decoder)}, sample_rate{sample_rate}, channel_count{channel_count} {}
 
+    // Decodes interleaved Opus packets. Optionally allows reporting time taken to
+    // perform the decoding, as well as any relevant extra behavior.
     void DecodeInterleaved(Kernel::HLERequestContext& ctx, PerfTime perf_time,
-                           ExtraBehavior extra_behavior) override {
+                           ExtraBehavior extra_behavior) {
         if (perf_time == PerfTime::Disabled) {
             DecodeInterleavedHelper(ctx, nullptr, extra_behavior);
         } else {
@@ -135,7 +127,7 @@ private:
 
         const int frame_size = (static_cast<int>(raw_output_sz / sizeof(s16) / channel_count));
         const auto out_sample_count =
-            opus_decode(decoder.get(), frame, hdr.size, output.data(), frame_size, 0);
+            opus_multistream_decode(decoder.get(), frame, hdr.size, output.data(), frame_size, 0);
         if (out_sample_count < 0) {
             LOG_ERROR(Audio,
                       "Incorrect sample count received from opus_decode, "
@@ -158,7 +150,7 @@ private:
     void ResetDecoderContext() {
         ASSERT(decoder != nullptr);
 
-        opus_decoder_ctl(decoder.get(), OPUS_RESET_STATE);
+        opus_multistream_decoder_ctl(decoder.get(), OPUS_RESET_STATE);
     }
 
     OpusDecoderPtr decoder;
@@ -168,7 +160,7 @@ private:
 
 class IHardwareOpusDecoderManager final : public ServiceFramework<IHardwareOpusDecoderManager> {
 public:
-    explicit IHardwareOpusDecoderManager(std::unique_ptr<OpusDecoderStateBase> decoder_state)
+    explicit IHardwareOpusDecoderManager(OpusDecoderState decoder_state)
         : ServiceFramework("IHardwareOpusDecoderManager"), decoder_state{std::move(decoder_state)} {
         // clang-format off
         static const FunctionInfo functions[] = {
@@ -190,35 +182,51 @@ private:
     void DecodeInterleavedOld(Kernel::HLERequestContext& ctx) {
         LOG_DEBUG(Audio, "called");
 
-        decoder_state->DecodeInterleaved(ctx, OpusDecoderStateBase::PerfTime::Disabled,
-                                         OpusDecoderStateBase::ExtraBehavior::None);
+        decoder_state.DecodeInterleaved(ctx, OpusDecoderState::PerfTime::Disabled,
+                                        OpusDecoderState::ExtraBehavior::None);
     }
 
     void DecodeInterleavedWithPerfOld(Kernel::HLERequestContext& ctx) {
         LOG_DEBUG(Audio, "called");
 
-        decoder_state->DecodeInterleaved(ctx, OpusDecoderStateBase::PerfTime::Enabled,
-                                         OpusDecoderStateBase::ExtraBehavior::None);
+        decoder_state.DecodeInterleaved(ctx, OpusDecoderState::PerfTime::Enabled,
+                                        OpusDecoderState::ExtraBehavior::None);
     }
 
     void DecodeInterleaved(Kernel::HLERequestContext& ctx) {
         LOG_DEBUG(Audio, "called");
 
         IPC::RequestParser rp{ctx};
-        const auto extra_behavior = rp.Pop<bool>()
-                                        ? OpusDecoderStateBase::ExtraBehavior::ResetContext
-                                        : OpusDecoderStateBase::ExtraBehavior::None;
+        const auto extra_behavior = rp.Pop<bool>() ? OpusDecoderState::ExtraBehavior::ResetContext
+                                                   : OpusDecoderState::ExtraBehavior::None;
 
-        decoder_state->DecodeInterleaved(ctx, OpusDecoderStateBase::PerfTime::Enabled,
-                                         extra_behavior);
+        decoder_state.DecodeInterleaved(ctx, OpusDecoderState::PerfTime::Enabled, extra_behavior);
     }
 
-    std::unique_ptr<OpusDecoderStateBase> decoder_state;
+    OpusDecoderState decoder_state;
 };
 
 std::size_t WorkerBufferSize(u32 channel_count) {
     ASSERT_MSG(channel_count == 1 || channel_count == 2, "Invalid channel count");
-    return opus_decoder_get_size(static_cast<int>(channel_count));
+    constexpr int num_streams = 1;
+    const int num_stereo_streams = channel_count == 2 ? 1 : 0;
+    return opus_multistream_decoder_get_size(num_streams, num_stereo_streams);
+}
+
+// Creates the mapping table that maps the input channels to the particular
+// output channels. In the stereo case, we map the left and right input channels
+// to the left and right output channels respectively.
+//
+// However, in the monophonic case, we only map the one available channel
+// to the sole output channel. We specify 255 for the would-be right channel
+// as this is a special value defined by Opus to indicate to the decoder to
+// ignore that channel.
+std::array<u8, 2> CreateMappingTable(u32 channel_count) {
+    if (channel_count == 2) {
+        return {{0, 1}};
+    }
+
+    return {{0, 255}};
 }
 } // Anonymous namespace
 
@@ -259,9 +267,15 @@ void HwOpus::OpenOpusDecoder(Kernel::HLERequestContext& ctx) {
     const std::size_t worker_sz = WorkerBufferSize(channel_count);
     ASSERT_MSG(buffer_sz >= worker_sz, "Worker buffer too large");
 
-    OpusDecoderPtr decoder{static_cast<OpusDecoder*>(operator new(worker_sz))};
-    if (const int err = opus_decoder_init(decoder.get(), sample_rate, channel_count)) {
-        LOG_ERROR(Audio, "Failed to init opus decoder with error={}", err);
+    const int num_stereo_streams = channel_count == 2 ? 1 : 0;
+    const auto mapping_table = CreateMappingTable(channel_count);
+
+    int error = 0;
+    OpusDecoderPtr decoder{
+        opus_multistream_decoder_create(sample_rate, static_cast<int>(channel_count), 1,
+                                        num_stereo_streams, mapping_table.data(), &error)};
+    if (error != OPUS_OK || decoder == nullptr) {
+        LOG_ERROR(Audio, "Failed to create Opus decoder (error={}).", error);
         IPC::ResponseBuilder rb{ctx, 2};
         // TODO(ogniK): Use correct error code
         rb.Push(ResultCode(-1));
@@ -271,7 +285,7 @@ void HwOpus::OpenOpusDecoder(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(RESULT_SUCCESS);
     rb.PushIpcInterface<IHardwareOpusDecoderManager>(
-        std::make_unique<OpusDecoderState>(std::move(decoder), sample_rate, channel_count));
+        OpusDecoderState{std::move(decoder), sample_rate, channel_count});
 }
 
 HwOpus::HwOpus() : ServiceFramework("hwopus") {
