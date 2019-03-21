@@ -2,12 +2,87 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include "common/assert.h"
 #include "common/logging/log.h"
+#include "core/file_sys/errors.h"
+#include "core/file_sys/system_archive/system_version.h"
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/kernel/client_port.h"
+#include "core/hle/service/filesystem/filesystem.h"
 #include "core/hle/service/set/set_sys.h"
 
 namespace Service::Set {
+
+namespace {
+constexpr u64 SYSTEM_VERSION_FILE_MINOR_REVISION_OFFSET = 0x05;
+
+enum class GetFirmwareVersionType {
+    Version1,
+    Version2,
+};
+
+void GetFirmwareVersionImpl(Kernel::HLERequestContext& ctx, GetFirmwareVersionType type) {
+    LOG_WARNING(Service_SET, "called - Using hardcoded firmware version '{}'",
+                FileSys::SystemArchive::GetLongDisplayVersion());
+
+    ASSERT_MSG(ctx.GetWriteBufferSize() == 0x100,
+               "FirmwareVersion output buffer must be 0x100 bytes in size!");
+
+    // Instead of using the normal procedure of checking for the real system archive and if it
+    // doesn't exist, synthesizing one, I feel that that would lead to strange bugs because a
+    // used is using a really old or really new SystemVersion title. The synthesized one ensures
+    // consistence (currently reports as 5.1.0-0.0)
+    const auto archive = FileSys::SystemArchive::SystemVersion();
+
+    const auto early_exit_failure = [&ctx](const std::string& desc, ResultCode code) {
+        LOG_ERROR(Service_SET, "General failure while attempting to resolve firmware version ({}).",
+                  desc.c_str());
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(code);
+    };
+
+    if (archive == nullptr) {
+        early_exit_failure("The system version archive couldn't be synthesized.",
+                           FileSys::ERROR_FAILED_MOUNT_ARCHIVE);
+        return;
+    }
+
+    const auto ver_file = archive->GetFile("file");
+    if (ver_file == nullptr) {
+        early_exit_failure("The system version archive didn't contain the file 'file'.",
+                           FileSys::ERROR_INVALID_ARGUMENT);
+        return;
+    }
+
+    auto data = ver_file->ReadAllBytes();
+    if (data.size() != 0x100) {
+        early_exit_failure("The system version file 'file' was not the correct size.",
+                           FileSys::ERROR_OUT_OF_BOUNDS);
+        return;
+    }
+
+    // If the command is GetFirmwareVersion (as opposed to GetFirmwareVersion2), hardware will
+    // zero out the REVISION_MINOR field.
+    if (type == GetFirmwareVersionType::Version1) {
+        data[SYSTEM_VERSION_FILE_MINOR_REVISION_OFFSET] = 0;
+    }
+
+    ctx.WriteBuffer(data);
+
+    IPC::ResponseBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+}
+} // Anonymous namespace
+
+void SET_SYS::GetFirmwareVersion(Kernel::HLERequestContext& ctx) {
+    LOG_DEBUG(Service_SET, "called");
+    GetFirmwareVersionImpl(ctx, GetFirmwareVersionType::Version1);
+}
+
+void SET_SYS::GetFirmwareVersion2(Kernel::HLERequestContext& ctx) {
+    LOG_DEBUG(Service_SET, "called");
+    GetFirmwareVersionImpl(ctx, GetFirmwareVersionType::Version2);
+}
 
 void SET_SYS::GetColorSetId(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service_SET, "called");
@@ -33,8 +108,8 @@ SET_SYS::SET_SYS() : ServiceFramework("set:sys") {
         {0, nullptr, "SetLanguageCode"},
         {1, nullptr, "SetNetworkSettings"},
         {2, nullptr, "GetNetworkSettings"},
-        {3, nullptr, "GetFirmwareVersion"},
-        {4, nullptr, "GetFirmwareVersion2"},
+        {3, &SET_SYS::GetFirmwareVersion, "GetFirmwareVersion"},
+        {4, &SET_SYS::GetFirmwareVersion2, "GetFirmwareVersion2"},
         {5, nullptr, "GetFirmwareVersionDigest"},
         {7, nullptr, "GetLockScreenFlag"},
         {8, nullptr, "SetLockScreenFlag"},
