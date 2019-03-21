@@ -1,4 +1,6 @@
 add_executable(tests
+    common/bit_utils.cpp
+    common/multi_level_queue.cpp
     common/param_package.cpp
     common/ring_buffer.cpp
     core/arm/arm_test_common.cpp
