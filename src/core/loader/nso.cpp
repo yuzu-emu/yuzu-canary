@@ -7,8 +7,10 @@
 #include <lz4.h>
 #include "common/common_funcs.h"
 #include "common/file_util.h"
+#include "common/hex_util.h"
 #include "common/logging/log.h"
 #include "common/swap.h"
+#include "core/core.h"
 #include "core/file_sys/patch_manager.h"
 #include "core/gdbstub/gdbstub.h"
 #include "core/hle/kernel/process.h"
@@ -162,6 +164,16 @@ std::optional<VAddr> AppLoader_NSO::LoadModule(Kernel::Process& process,
         pi_header = pm->PatchNSO(pi_header);
 
         std::memcpy(program_image.data(), pi_header.data() + 0x100, program_image.size());
+    }
+
+    // Apply cheats if they exist and the program has a valid title ID
+    if (pm) {
+        const auto cheats = pm->CreateCheatList(nso_header.build_id);
+        if (!cheats.empty()) {
+            Core::System::GetInstance().RegisterCheatList(
+                cheats, Common::HexArrayToString(nso_header.build_id), load_base,
+                load_base + program_image.size());
+        }
     }
 
     // Load codeset for current process
