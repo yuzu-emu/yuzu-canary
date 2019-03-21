@@ -24,7 +24,7 @@ public:
 
     GLintptr MakeQuadArray(u32 first, u32 count);
 
-    GLintptr MakeQuadIndexed(Tegra::GPUVAddr gpu_addr, std::size_t index_size, u32 count);
+    GLintptr MakeQuadIndexed(GPUVAddr gpu_addr, std::size_t index_size, u32 count);
 
 private:
     OGLBufferCache& buffer_cache;
