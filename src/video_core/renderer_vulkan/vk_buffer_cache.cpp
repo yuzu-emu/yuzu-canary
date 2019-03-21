@@ -39,8 +39,7 @@ VKBufferCache::VKBufferCache(Tegra::MemoryManager& tegra_memory_manager,
 
 VKBufferCache::~VKBufferCache() = default;
 
-u64 VKBufferCache::UploadMemory(Tegra::GPUVAddr gpu_addr, std::size_t size, u64 alignment,
-                                bool cache) {
+u64 VKBufferCache::UploadMemory(GPUVAddr gpu_addr, std::size_t size, u64 alignment, bool cache) {
     const auto cpu_addr{tegra_memory_manager.GpuToCpuAddress(gpu_addr)};
     ASSERT_MSG(cpu_addr, "Invalid GPU address");
 
