@@ -98,6 +98,7 @@ add_library(common STATIC
     microprofile.h
     microprofileui.h
     misc.cpp
+    multi_level_queue.h
     page_table.cpp
     page_table.h
     param_package.cpp
