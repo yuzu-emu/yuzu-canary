@@ -314,8 +314,9 @@ void Thread::UpdatePriority() {
     }
 
     // Ensure that the thread is within the correct location in the waiting list.
+    auto old_owner = lock_owner;
     lock_owner->RemoveMutexWaiter(this);
-    lock_owner->AddMutexWaiter(this);
+    old_owner->AddMutexWaiter(this);
 
     // Recursively update the priority of the thread that depends on the priority of this one.
     lock_owner->UpdatePriority();
