@@ -20,6 +20,7 @@ class WebBrowserApplet;
 } // namespace Core::Frontend
 
 namespace FileSys {
+class CheatList;
 class VfsFilesystem;
 } // namespace FileSys
 
@@ -252,6 +253,9 @@ public:
     void SetFilesystem(std::shared_ptr<FileSys::VfsFilesystem> vfs);
 
     std::shared_ptr<FileSys::VfsFilesystem> GetFilesystem() const;
+
+    void RegisterCheatList(const std::vector<FileSys::CheatList>& list, const std::string& build_id,
+                           VAddr code_region_start, VAddr code_region_end);
 
     void SetProfileSelector(std::unique_ptr<Frontend::ProfileSelectApplet> applet);
 
