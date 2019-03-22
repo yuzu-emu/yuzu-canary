@@ -66,7 +66,7 @@ public:
 
 private:
     GlobalRegion TryGetReservedGlobalRegion(CacheAddr addr, u32 size) const;
-    GlobalRegion GetUncachedGlobalRegion(Tegra::GPUVAddr addr, u32 size, u8* host_ptr);
+    GlobalRegion GetUncachedGlobalRegion(GPUVAddr addr, u32 size, u8* host_ptr);
     void ReserveGlobalRegion(GlobalRegion region);
 
     std::unordered_map<CacheAddr, GlobalRegion> reserve;
