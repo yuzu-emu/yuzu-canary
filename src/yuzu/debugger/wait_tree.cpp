@@ -234,6 +234,9 @@ QString WaitTreeThread::GetText() const {
     case Kernel::ThreadStatus::WaitMutex:
         status = tr("waiting for mutex");
         break;
+    case Kernel::ThreadStatus::WaitCondVar:
+        status = tr("waiting for condition variable");
+        break;
     case Kernel::ThreadStatus::WaitArb:
         status = tr("waiting for address arbiter");
         break;
@@ -269,6 +272,7 @@ QColor WaitTreeThread::GetColor() const {
     case Kernel::ThreadStatus::WaitSynchAll:
     case Kernel::ThreadStatus::WaitSynchAny:
     case Kernel::ThreadStatus::WaitMutex:
+    case Kernel::ThreadStatus::WaitCondVar:
     case Kernel::ThreadStatus::WaitArb:
         return QColor(Qt::GlobalColor::red);
     case Kernel::ThreadStatus::Dormant:
