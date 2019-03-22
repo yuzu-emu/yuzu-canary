@@ -55,7 +55,7 @@ static void ApplyTextureDefaults(GLuint texture, u32 max_mip_level) {
     }
 }
 
-void SurfaceParams::InitCacheParameters(Tegra::GPUVAddr gpu_addr_) {
+void SurfaceParams::InitCacheParameters(GPUVAddr gpu_addr_) {
     auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
 
     gpu_addr = gpu_addr_;
@@ -222,7 +222,7 @@ std::size_t SurfaceParams::InnerMemorySize(bool force_gl, bool layer_only,
 }
 
 /*static*/ SurfaceParams SurfaceParams::CreateForDepthBuffer(
-    u32 zeta_width, u32 zeta_height, Tegra::GPUVAddr zeta_address, Tegra::DepthFormat format,
+    u32 zeta_width, u32 zeta_height, GPUVAddr zeta_address, Tegra::DepthFormat format,
     u32 block_width, u32 block_height, u32 block_depth,
     Tegra::Engines::Maxwell3D::Regs::InvMemoryLayout type) {
     SurfaceParams params{};
@@ -564,6 +564,12 @@ void RasterizerCacheOpenGL::CopySurface(const Surface& src_surface, const Surfac
 CachedSurface::CachedSurface(const SurfaceParams& params)
     : params{params}, gl_target{SurfaceTargetToGL(params.target)},
       cached_size_in_bytes{params.size_in_bytes}, RasterizerCacheObject{params.host_ptr} {
+
+    const auto optional_cpu_addr{
+        Core::System::GetInstance().GPU().MemoryManager().GpuToCpuAddress(params.gpu_addr)};
+    ASSERT_MSG(optional_cpu_addr, "optional_cpu_addr is invalid");
+    cpu_addr = *optional_cpu_addr;
+
     texture.Create(gl_target);
 
     // TODO(Rodrigo): Using params.GetRect() returns a different size than using its Mip*(0)
@@ -603,20 +609,6 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
     ApplyTextureDefaults(texture.handle, params.max_mip_level);
 
     OpenGL::LabelGLObject(GL_TEXTURE, texture.handle, params.gpu_addr, params.IdentityString());
-
-    // Clamp size to mapped GPU memory region
-    // TODO(bunnei): Super Mario Odyssey maps a 0x40000 byte region and then uses it for a 0x80000
-    // R32F render buffer. We do not yet know if this is a game bug or something else, but this
-    // check is necessary to prevent flushing from overwriting unmapped memory.
-
-    auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
-    const u64 max_size{memory_manager.GetRegionEnd(params.gpu_addr) - params.gpu_addr};
-    if (cached_size_in_bytes > max_size) {
-        LOG_ERROR(HW_GPU, "Surface size {} exceeds region size {}", params.size_in_bytes, max_size);
-        cached_size_in_bytes = max_size;
-    }
-
-    cpu_addr = *memory_manager.GpuToCpuAddress(params.gpu_addr);
 }
 
 MICROPROFILE_DEFINE(OpenGL_SurfaceLoad, "OpenGL", "Surface Load", MP_RGB(128, 192, 64));
@@ -925,7 +917,7 @@ void RasterizerCacheOpenGL::LoadSurface(const Surface& surface) {
 }
 
 Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, bool preserve_contents) {
-    if (params.gpu_addr == 0 || params.height * params.width == 0) {
+    if (!params.IsValid()) {
         return {};
     }
 
@@ -980,11 +972,11 @@ void RasterizerCacheOpenGL::FastLayeredCopySurface(const Surface& src_surface,
     const auto& init_params{src_surface->GetSurfaceParams()};
     const auto& dst_params{dst_surface->GetSurfaceParams()};
     auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
-    Tegra::GPUVAddr address{init_params.gpu_addr};
+    GPUVAddr address{init_params.gpu_addr};
     const std::size_t layer_size{dst_params.LayerMemorySize()};
     for (u32 layer = 0; layer < dst_params.depth; layer++) {
         for (u32 mipmap = 0; mipmap < dst_params.max_mip_level; mipmap++) {
-            const Tegra::GPUVAddr sub_address{address + dst_params.GetMipmapLevelOffset(mipmap)};
+            const GPUVAddr sub_address{address + dst_params.GetMipmapLevelOffset(mipmap)};
             const Surface& copy{TryGet(memory_manager.GetPointer(sub_address))};
             if (!copy) {
                 continue;
@@ -1244,10 +1236,9 @@ static std::optional<u32> TryFindBestMipMap(std::size_t memory, const SurfacePar
     return {};
 }
 
-static std::optional<u32> TryFindBestLayer(Tegra::GPUVAddr addr, const SurfaceParams params,
-                                           u32 mipmap) {
+static std::optional<u32> TryFindBestLayer(GPUVAddr addr, const SurfaceParams params, u32 mipmap) {
     const std::size_t size{params.LayerMemorySize()};
-    Tegra::GPUVAddr start{params.gpu_addr + params.GetMipmapLevelOffset(mipmap)};
+    GPUVAddr start{params.gpu_addr + params.GetMipmapLevelOffset(mipmap)};
     for (u32 i = 0; i < params.depth; i++) {
         if (start == addr) {
             return {i};
