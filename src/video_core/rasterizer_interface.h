@@ -9,7 +9,6 @@
 #include "common/common_types.h"
 #include "video_core/engines/fermi_2d.h"
 #include "video_core/gpu.h"
-#include "video_core/memory_manager.h"
 
 namespace VideoCore {
 

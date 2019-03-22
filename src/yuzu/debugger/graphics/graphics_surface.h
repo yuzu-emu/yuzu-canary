@@ -87,7 +87,7 @@ private:
     QPushButton* save_surface;
 
     Source surface_source;
-    Tegra::GPUVAddr surface_address;
+    GPUVAddr surface_address;
     unsigned surface_width;
     unsigned surface_height;
     Tegra::Texture::TextureFormat surface_format;
