@@ -40,8 +40,7 @@ GLintptr PrimitiveAssembler::MakeQuadArray(u32 first, u32 count) {
     return index_offset;
 }
 
-GLintptr PrimitiveAssembler::MakeQuadIndexed(Tegra::GPUVAddr gpu_addr, std::size_t index_size,
-                                             u32 count) {
+GLintptr PrimitiveAssembler::MakeQuadIndexed(GPUVAddr gpu_addr, std::size_t index_size, u32 count) {
     const std::size_t map_size{CalculateQuadSize(count)};
     auto [dst_pointer, index_offset] = buffer_cache.ReserveMemory(map_size);
 
