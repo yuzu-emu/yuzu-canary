@@ -941,7 +941,7 @@ Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, bool pres
             // If surface parameters changed and we care about keeping the previous data, recreate
             // the surface from the old one
             Surface new_surface{RecreateSurface(surface, params)};
-            UnregisterSurface(surface);
+            Unregister(surface);
             Register(new_surface);
             if (new_surface->IsUploaded()) {
                 RegisterReinterpretSurface(new_surface);
@@ -949,7 +949,7 @@ Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, bool pres
             return new_surface;
         } else {
             // Delete the old surface before creating a new one to prevent collisions.
-            UnregisterSurface(surface);
+            Unregister(surface);
         }
     }
 
@@ -1304,12 +1304,12 @@ static bool IsReinterpretInvalidSecond(const Surface render_surface,
 bool RasterizerCacheOpenGL::PartialReinterpretSurface(Surface triggering_surface,
                                                       Surface intersect) {
     if (IsReinterpretInvalid(triggering_surface, intersect)) {
-        UnregisterSurface(intersect);
+        Unregister(intersect);
         return false;
     }
     if (!LayerFitReinterpretSurface(*this, triggering_surface, intersect)) {
         if (IsReinterpretInvalidSecond(triggering_surface, intersect)) {
-            UnregisterSurface(intersect);
+            Unregister(intersect);
             return false;
         }
         FlushObject(intersect);
