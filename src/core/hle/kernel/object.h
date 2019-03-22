@@ -22,6 +22,7 @@ enum class HandleType : u32 {
     WritableEvent,
     ReadableEvent,
     SharedMemory,
+    TransferMemory,
     Thread,
     Process,
     AddressArbiter,
