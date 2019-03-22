@@ -21,6 +21,8 @@ enum class PageType : u8 {
     RasterizerCachedMemory,
     /// Page is mapped to a I/O region. Writing and reading to this page is handled by functions.
     Special,
+    /// Page is allocated for use.
+    Allocated,
 };
 
 struct SpecialRegion {
@@ -66,13 +68,15 @@ struct PageTable {
      * Contains MMIO handlers that back memory regions whose entries in the `attribute` vector is
      * of type `Special`.
      */
-    boost::icl::interval_map<VAddr, std::set<SpecialRegion>> special_regions;
+    boost::icl::interval_map<u64, std::set<SpecialRegion>> special_regions;
 
     /**
      * Vector of fine grained page attributes. If it is set to any value other than `Memory`, then
      * the corresponding entry in `pointers` MUST be set to null.
      */
     std::vector<PageType> attributes;
+
+    std::vector<u64> backing_addr;
 
     const std::size_t page_size_in_bits{};
 };

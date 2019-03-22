@@ -46,7 +46,7 @@ GlobalRegion GlobalRegionCacheOpenGL::TryGetReservedGlobalRegion(CacheAddr addr,
     return search->second;
 }
 
-GlobalRegion GlobalRegionCacheOpenGL::GetUncachedGlobalRegion(Tegra::GPUVAddr addr, u32 size,
+GlobalRegion GlobalRegionCacheOpenGL::GetUncachedGlobalRegion(GPUVAddr addr, u32 size,
                                                               u8* host_ptr) {
     GlobalRegion region{TryGetReservedGlobalRegion(ToCacheAddr(host_ptr), size)};
     if (!region) {
@@ -76,8 +76,8 @@ GlobalRegion GlobalRegionCacheOpenGL::GetGlobalRegion(
     const auto cbufs{gpu.Maxwell3D().state.shader_stages[static_cast<u64>(stage)]};
     const auto addr{cbufs.const_buffers[global_region.GetCbufIndex()].address +
                     global_region.GetCbufOffset()};
-    const auto actual_addr{memory_manager.Read64(addr)};
-    const auto size{memory_manager.Read32(addr + 8)};
+    const auto actual_addr{memory_manager.Read<u64>(addr)};
+    const auto size{memory_manager.Read<u32>(addr + 8)};
 
     // Look up global region in the cache based on address
     const auto& host_ptr{memory_manager.GetPointer(actual_addr)};

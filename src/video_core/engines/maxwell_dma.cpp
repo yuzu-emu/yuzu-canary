@@ -88,6 +88,16 @@ void MaxwellDMA::HandleCopy() {
     auto source_ptr{memory_manager.GetPointer(source)};
     auto dst_ptr{memory_manager.GetPointer(dest)};
 
+    if (!source_ptr) {
+        LOG_ERROR(HW_GPU, "source_ptr is invalid");
+        return;
+    }
+
+    if (!dst_ptr) {
+        LOG_ERROR(HW_GPU, "dst_ptr is invalid");
+        return;
+    }
+
     const auto FlushAndInvalidate = [&](u32 src_size, u64 dst_size) {
         // TODO(Subv): For now, manually flush the regions until we implement GPU-accelerated
         // copying.

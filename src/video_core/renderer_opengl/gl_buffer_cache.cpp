@@ -21,8 +21,8 @@ CachedBufferEntry::CachedBufferEntry(VAddr cpu_addr, std::size_t size, GLintptr 
 OGLBufferCache::OGLBufferCache(RasterizerOpenGL& rasterizer, std::size_t size)
     : RasterizerCache{rasterizer}, stream_buffer(size, true) {}
 
-GLintptr OGLBufferCache::UploadMemory(Tegra::GPUVAddr gpu_addr, std::size_t size,
-                                      std::size_t alignment, bool cache) {
+GLintptr OGLBufferCache::UploadMemory(GPUVAddr gpu_addr, std::size_t size, std::size_t alignment,
+                                      bool cache) {
     auto& memory_manager = Core::System::GetInstance().GPU().MemoryManager();
 
     // Cache management is a big overhead, so only cache entries with a given size.
