@@ -51,7 +51,8 @@ enum class ThreadStatus {
     WaitIPC,      ///< Waiting for the reply from an IPC request
     WaitSynchAny, ///< Waiting due to WaitSynch1 or WaitSynchN with wait_all = false
     WaitSynchAll, ///< Waiting due to WaitSynchronizationN with wait_all = true
-    WaitMutex,    ///< Waiting due to an ArbitrateLock/WaitProcessWideKey svc
+    WaitMutex,    ///< Waiting due to an ArbitrateLock svc
+    WaitCondVar,  ///< Waiting due to an WaitProcessWideKey svc
     WaitArb,      ///< Waiting due to a SignalToAddress/WaitForAddress svc
     Dormant,      ///< Created but not yet made ready
     Dead          ///< Run to completion, or forcefully terminated
