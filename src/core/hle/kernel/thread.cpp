@@ -105,6 +105,7 @@ void Thread::ResumeFromWait() {
     case ThreadStatus::WaitSleep:
     case ThreadStatus::WaitIPC:
     case ThreadStatus::WaitMutex:
+    case ThreadStatus::WaitCondVar:
     case ThreadStatus::WaitArb:
         break;
 
