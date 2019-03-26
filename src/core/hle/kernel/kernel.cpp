@@ -62,7 +62,8 @@ static void ThreadWakeupCallback(u64 thread_handle, [[maybe_unused]] s64 cycles_
 
     if (thread->GetMutexWaitAddress() != 0 || thread->GetCondVarWaitAddress() != 0 ||
         thread->GetWaitHandle() != 0) {
-        ASSERT(thread->GetStatus() == ThreadStatus::WaitMutex);
+        ASSERT(thread->GetStatus() == ThreadStatus::WaitMutex ||
+               thread->GetStatus() == ThreadStatus::WaitCondVar);
         thread->SetMutexWaitAddress(0);
         thread->SetCondVarWaitAddress(0);
         thread->SetWaitHandle(0);

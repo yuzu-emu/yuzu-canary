@@ -1353,7 +1353,7 @@ static ResultCode WaitProcessWideKeyAtomic(VAddr mutex_addr, VAddr condition_var
     current_thread->SetCondVarWaitAddress(condition_variable_addr);
     current_thread->SetMutexWaitAddress(mutex_addr);
     current_thread->SetWaitHandle(thread_handle);
-    current_thread->SetStatus(ThreadStatus::WaitMutex);
+    current_thread->SetStatus(ThreadStatus::WaitCondVar);
     current_thread->InvalidateWakeupCallback();
 
     current_thread->WakeAfterDelay(nano_seconds);
@@ -1397,16 +1397,19 @@ static ResultCode SignalProcessWideKey(VAddr condition_variable_addr, s32 target
     // them all.
     std::size_t last = waiting_threads.size();
     if (target != -1)
-        last = target;
+        last = std::min(waiting_threads.size(), static_cast<std::size_t>(target));
 
     // If there are no threads waiting on this condition variable, just exit
-    if (last > waiting_threads.size())
+    if (last == 0)
         return RESULT_SUCCESS;
 
     for (std::size_t index = 0; index < last; ++index) {
         auto& thread = waiting_threads[index];
 
         ASSERT(thread->GetCondVarWaitAddress() == condition_variable_addr);
+
+        // liberate Cond Var Thread.
+        thread->SetCondVarWaitAddress(0);
 
         std::size_t current_core = Core::System::GetInstance().CurrentCoreIndex();
 
@@ -1426,10 +1429,9 @@ static ResultCode SignalProcessWideKey(VAddr condition_variable_addr, s32 target
             }
         } while (!monitor.ExclusiveWrite32(current_core, thread->GetMutexWaitAddress(),
                                            thread->GetWaitHandle()));
-
         if (mutex_val == 0) {
             // We were able to acquire the mutex, resume this thread.
-            ASSERT(thread->GetStatus() == ThreadStatus::WaitMutex);
+            ASSERT(thread->GetStatus() == ThreadStatus::WaitCondVar);
             thread->ResumeFromWait();
 
             auto* const lock_owner = thread->GetLockOwner();
@@ -1439,8 +1441,8 @@ static ResultCode SignalProcessWideKey(VAddr condition_variable_addr, s32 target
 
             thread->SetLockOwner(nullptr);
             thread->SetMutexWaitAddress(0);
-            thread->SetCondVarWaitAddress(0);
             thread->SetWaitHandle(0);
+            Core::System::GetInstance().CpuCore(thread->GetProcessorID()).PrepareReschedule();
         } else {
             // Atomically signal that the mutex now has a waiting thread.
             do {
@@ -1459,12 +1461,11 @@ static ResultCode SignalProcessWideKey(VAddr condition_variable_addr, s32 target
             const auto& handle_table = Core::CurrentProcess()->GetHandleTable();
             auto owner = handle_table.Get<Thread>(owner_handle);
             ASSERT(owner);
-            ASSERT(thread->GetStatus() == ThreadStatus::WaitMutex);
+            ASSERT(thread->GetStatus() == ThreadStatus::WaitCondVar);
             thread->InvalidateWakeupCallback();
+            thread->SetStatus(ThreadStatus::WaitMutex);
 
             owner->AddMutexWaiter(thread);
-
-            Core::System::GetInstance().CpuCore(thread->GetProcessorID()).PrepareReschedule();
         }
     }
 
