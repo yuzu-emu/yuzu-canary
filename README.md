@@ -1,3 +1,26 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 47f2405ab19f7bab9a1de6b6c8ccd9063cf0bd11
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2284](https://github.com/yuzu-emu/yuzu/pull/2284)|[1e92ba2](https://github.com/yuzu-emu/yuzu/pull/2284/files/)|kernel/vm_manager: Unify heap allocation/freeing functions|[lioncash](https://github.com/lioncash)|Yes|
+|[2282](https://github.com/yuzu-emu/yuzu/pull/2282)|[2d55d21](https://github.com/yuzu-emu/yuzu/pull/2282/files/)|gpu_thread: Improve synchronization by using CoreTiming.|[bunnei](https://github.com/bunnei)|Yes|
+|[2266](https://github.com/yuzu-emu/yuzu/pull/2266)|[9c7319a](https://github.com/yuzu-emu/yuzu/pull/2266/files/)|Kernel: Fixes to Arbitration and SignalProcessWideKey Management|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2265](https://github.com/yuzu-emu/yuzu/pull/2265)|[db42bcb](https://github.com/yuzu-emu/yuzu/pull/2265/files/)|Replace old Thread Queue for a new Multi Level Queue|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2135](https://github.com/yuzu-emu/yuzu/pull/2135)|[2677cc8](https://github.com/yuzu-emu/yuzu/pull/2135/files/)|DO NOT MERGE Implemented a lil edge case on RecreateSurface.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[615](https://github.com/yuzu-emu/yuzu/pull/615)|[c15b401](https://github.com/yuzu-emu/yuzu/pull/615/files/)|Ignore asserts - DO NOT CHECK IN|[bunnei](https://github.com/bunnei)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
