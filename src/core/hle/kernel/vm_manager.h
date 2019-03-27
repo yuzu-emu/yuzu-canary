@@ -380,10 +380,40 @@ public:
     /// Changes the permissions of a range of addresses, splitting VMAs as necessary.
     ResultCode ReprotectRange(VAddr target, u64 size, VMAPermission new_perms);
 
-    ResultVal<VAddr> HeapAllocate(VAddr target, u64 size, VMAPermission perms);
-    ResultCode HeapFree(VAddr target, u64 size);
-
     ResultCode MirrorMemory(VAddr dst_addr, VAddr src_addr, u64 size, MemoryState state);
+
+    /// Attempts to allocate a heap with the given size.
+    ///
+    /// @param size The size of the heap to allocate in bytes.
+    ///
+    /// @note If a heap is currently allocated, and this is called
+    ///       with a size that is equal to the size of the current heap,
+    ///       then this function will do nothing and return the current
+    ///       heap's starting address, as there's no need to perform
+    ///       any additional heap allocation work.
+    ///
+    /// @note If a heap is currently allocated, and this is called
+    ///       with a size less than the current heap's size, then
+    ///       this function will attempt to shrink the heap.
+    ///
+    /// @note If a heap is currently allocated, and this is called
+    ///       with a size larger than the current heap's size, then
+    ///       this function will attempt to extend the size of the heap.
+    ///
+    /// @returns A result indicating either success or failure.
+    ///          <p>
+    ///          If successful, this function will return a result
+    ///          containing the starting address to the allocated heap.
+    ///          <p>
+    ///          If unsuccessful, this function will return a result
+    ///          containing an error code.
+    ///
+    /// @pre The given size must lie within the allowable heap
+    ///      memory region managed by this VMManager instance.
+    ///      Failure to abide by this will result in ERR_OUT_OF_MEMORY
+    ///      being returned as the result.
+    ///
+    ResultVal<VAddr> SetHeapSize(u64 size);
 
     /// Queries the memory manager for information about the given address.
     ///
@@ -417,9 +447,6 @@ public:
 
     /// Gets the total memory usage, used by svcGetInfo
     u64 GetTotalMemoryUsage() const;
-
-    /// Gets the total heap usage, used by svcGetInfo
-    u64 GetTotalHeapUsage() const;
 
     /// Gets the address space base address
     VAddr GetAddressSpaceBaseAddress() const;
@@ -468,6 +495,13 @@ public:
 
     /// Gets the total size of the heap region in bytes.
     u64 GetHeapRegionSize() const;
+
+    /// Gets the total size of the current heap in bytes.
+    ///
+    /// @note This is the current allocated heap size, not the size
+    ///       of the region it's allowed to exist within.
+    ///
+    u64 GetCurrentHeapSize() const;
 
     /// Determines whether or not the specified range is within the heap region.
     bool IsWithinHeapRegion(VAddr address, u64 size) const;
@@ -617,9 +651,6 @@ private:
     VAddr new_map_region_base = 0;
     VAddr new_map_region_end = 0;
 
-    VAddr main_code_region_base = 0;
-    VAddr main_code_region_end = 0;
-
     VAddr tls_io_region_base = 0;
     VAddr tls_io_region_end = 0;
 
@@ -628,9 +659,9 @@ private:
     // This makes deallocation and reallocation of holes fast and keeps process memory contiguous
     // in the emulator address space, allowing Memory::GetPointer to be reasonably safe.
     std::shared_ptr<std::vector<u8>> heap_memory;
-    // The left/right bounds of the address space covered by heap_memory.
-    VAddr heap_start = 0;
+
+    // The end of the currently allocated heap. This is not an inclusive
+    // end of the range. This is essentially 'base_address + current_size'.
     VAddr heap_end = 0;
-    u64 heap_used = 0;
 };
 } // namespace Kernel
