@@ -753,6 +753,7 @@ void RasterizerOpenGL::FlushRegion(CacheAddr addr, u64 size) {
         return;
     }
     res_cache.FlushRegion(addr, size);
+    global_cache.FlushRegion(addr, size);
 }
 
 void RasterizerOpenGL::InvalidateRegion(CacheAddr addr, u64 size) {
@@ -970,6 +971,9 @@ void RasterizerOpenGL::SetupGlobalRegions(Tegra::Engines::Maxwell3D::Regs::Shade
         const auto& entry = entries[bindpoint];
         const u32 current_bindpoint = base_bindings.gmem + bindpoint;
         const auto& region = global_cache.GetGlobalRegion(entry, stage);
+        if (entry.IsWritten()) {
+            region->MarkAsModified(true, global_cache);
+        }
 
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, current_bindpoint, region->GetBufferHandle());
     }

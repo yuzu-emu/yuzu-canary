@@ -792,6 +792,12 @@ union Instruction {
     } ldg;
 
     union {
+        BitField<48, 3, UniformType> type;
+        BitField<46, 2, u64> cache_mode;
+        BitField<20, 24, s64> immediate_offset;
+    } stg;
+
+    union {
         BitField<0, 3, u64> pred0;
         BitField<3, 3, u64> pred3;
         BitField<7, 1, u64> abs_a;
