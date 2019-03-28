@@ -256,57 +256,50 @@ ResultCode VMManager::ReprotectRange(VAddr target, u64 size, VMAPermission new_p
     return RESULT_SUCCESS;
 }
 
-ResultVal<VAddr> VMManager::HeapAllocate(VAddr target, u64 size, VMAPermission perms) {
-    if (!IsWithinHeapRegion(target, size)) {
-        return ERR_INVALID_ADDRESS;
+ResultVal<VAddr> VMManager::SetHeapSize(u64 size) {
+    if (size > GetHeapRegionSize()) {
+        return ERR_OUT_OF_MEMORY;
+    }
+
+    // No need to do any additional work if the heap is already the given size.
+    if (size == GetCurrentHeapSize()) {
+        return MakeResult(heap_region_base);
     }
 
     if (heap_memory == nullptr) {
         // Initialize heap
-        heap_memory = std::make_shared<std::vector<u8>>();
-        heap_start = heap_end = target;
+        heap_memory = std::make_shared<std::vector<u8>>(size);
+        heap_end = heap_region_base + size;
     } else {
-        UnmapRange(heap_start, heap_end - heap_start);
+        UnmapRange(heap_region_base, GetCurrentHeapSize());
     }
 
-    // If necessary, expand backing vector to cover new heap extents.
-    if (target < heap_start) {
-        heap_memory->insert(begin(*heap_memory), heap_start - target, 0);
-        heap_start = target;
+    // If necessary, expand backing vector to cover new heap extents in
+    // the case of allocating. Otherwise, shrink the backing memory,
+    // if a smaller heap has been requested.
+    const u64 old_heap_size = GetCurrentHeapSize();
+    if (size > old_heap_size) {
+        const u64 alloc_size = size - old_heap_size;
+
+        heap_memory->insert(heap_memory->end(), alloc_size, 0);
+        RefreshMemoryBlockMappings(heap_memory.get());
+    } else if (size < old_heap_size) {
+        heap_memory->resize(size);
+        heap_memory->shrink_to_fit();
+
         RefreshMemoryBlockMappings(heap_memory.get());
     }
-    if (target + size > heap_end) {
-        heap_memory->insert(end(*heap_memory), (target + size) - heap_end, 0);
-        heap_end = target + size;
-        RefreshMemoryBlockMappings(heap_memory.get());
-    }
-    ASSERT(heap_end - heap_start == heap_memory->size());
 
-    CASCADE_RESULT(auto vma, MapMemoryBlock(target, heap_memory, target - heap_start, size,
-                                            MemoryState::Heap));
-    Reprotect(vma, perms);
+    heap_end = heap_region_base + size;
+    ASSERT(GetCurrentHeapSize() == heap_memory->size());
 
-    heap_used = size;
-
-    return MakeResult<VAddr>(heap_end - size);
-}
-
-ResultCode VMManager::HeapFree(VAddr target, u64 size) {
-    if (!IsWithinHeapRegion(target, size)) {
-        return ERR_INVALID_ADDRESS;
+    const auto mapping_result =
+        MapMemoryBlock(heap_region_base, heap_memory, 0, size, MemoryState::Heap);
+    if (mapping_result.Failed()) {
+        return mapping_result.Code();
     }
 
-    if (size == 0) {
-        return RESULT_SUCCESS;
-    }
-
-    const ResultCode result = UnmapRange(target, size);
-    if (result.IsError()) {
-        return result;
-    }
-
-    heap_used -= size;
-    return RESULT_SUCCESS;
+    return MakeResult<VAddr>(heap_region_base);
 }
 
 MemoryInfo VMManager::QueryMemory(VAddr address) const {
@@ -598,6 +591,7 @@ void VMManager::InitializeMemoryRegionRanges(FileSys::ProgramAddressSpaceType ty
 
     heap_region_base = map_region_end;
     heap_region_end = heap_region_base + heap_region_size;
+    heap_end = heap_region_base;
 
     new_map_region_base = heap_region_end;
     new_map_region_end = new_map_region_base + new_map_region_size;
@@ -692,10 +686,6 @@ u64 VMManager::GetTotalMemoryUsage() const {
     return 0xF8000000;
 }
 
-u64 VMManager::GetTotalHeapUsage() const {
-    return heap_used;
-}
-
 VAddr VMManager::GetAddressSpaceBaseAddress() const {
     return address_space_base;
 }
@@ -776,6 +766,10 @@ VAddr VMManager::GetHeapRegionEndAddress() const {
 
 u64 VMManager::GetHeapRegionSize() const {
     return heap_region_end - heap_region_base;
+}
+
+u64 VMManager::GetCurrentHeapSize() const {
+    return heap_end - heap_region_base;
 }
 
 bool VMManager::IsWithinHeapRegion(VAddr address, u64 size) const {
