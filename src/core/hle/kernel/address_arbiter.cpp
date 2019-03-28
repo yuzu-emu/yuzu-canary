@@ -26,7 +26,7 @@ void WakeThreads(const std::vector<SharedPtr<Thread>>& waiting_threads, s32 num_
     // them all.
     std::size_t last = waiting_threads.size();
     if (num_to_wake > 0) {
-        last = num_to_wake;
+        last = std::min(last, static_cast<std::size_t>(num_to_wake));
     }
 
     // Signal the waiting threads.
@@ -90,9 +90,9 @@ ResultCode AddressArbiter::ModifyByWaitingCountAndSignalToAddressIfEqual(VAddr a
     // Determine the modified value depending on the waiting count.
     s32 updated_value;
     if (waiting_threads.empty()) {
-        updated_value = value - 1;
-    } else if (num_to_wake <= 0 || waiting_threads.size() <= static_cast<u32>(num_to_wake)) {
         updated_value = value + 1;
+    } else if (num_to_wake <= 0 || waiting_threads.size() <= static_cast<u32>(num_to_wake)) {
+        updated_value = value - 1;
     } else {
         updated_value = value;
     }
