@@ -422,6 +422,8 @@ struct Values {
     std::string yuzu_username;
     std::string yuzu_token;
 
+    bool shaggie;
+
     // Add-Ons
     std::map<u64, std::vector<std::string>> disabled_addons;
 } extern values;

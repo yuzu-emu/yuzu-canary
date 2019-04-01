@@ -3,6 +3,8 @@
 // Refer to the license.txt file included.
 
 #include <algorithm>
+#include <cstdlib>
+#include <ctime>
 #include <optional>
 #include <glad/glad.h>
 
@@ -19,6 +21,7 @@
 #include "video_core/morton.h"
 #include "video_core/renderer_opengl/gl_rasterizer.h"
 #include "video_core/renderer_opengl/gl_rasterizer_cache.h"
+#include "video_core/renderer_opengl/shaggy.h"
 #include "video_core/renderer_opengl/utils.h"
 #include "video_core/surface.h"
 #include "video_core/textures/convert.h"
@@ -561,9 +564,11 @@ void RasterizerCacheOpenGL::CopySurface(const Surface& src_surface, const Surfac
     dst_surface->MarkAsModified(true, *this);
 }
 
-CachedSurface::CachedSurface(const SurfaceParams& params)
-    : RasterizerCacheObject{params.host_ptr}, params{params},
-      gl_target{SurfaceTargetToGL(params.target)}, cached_size_in_bytes{params.size_in_bytes} {
+CachedSurface::CachedSurface(const SurfaceParams& params, GLuint shaggie_read, GLuint shaggie_draw)
+    : RasterizerCacheObject{params.host_ptr}, params{params}, gl_target{SurfaceTargetToGL(
+                                                                  params.target)},
+      cached_size_in_bytes{params.size_in_bytes}, shaggie_read{shaggie_read}, shaggie_draw{
+                                                                                  shaggie_draw} {
 
     const auto optional_cpu_addr{
         Core::System::GetInstance().GPU().MemoryManager().GpuToCpuAddress(params.gpu_addr)};
@@ -694,6 +699,9 @@ void CachedSurface::FlushGLBuffer() {
     }
 }
 
+static constexpr GLuint shaggie_width = 512;
+static constexpr GLuint shaggie_height = 512;
+
 void CachedSurface::UploadGLMipmapTexture(u32 mip_map, GLuint read_fb_handle,
                                           GLuint draw_fb_handle) {
     const auto& rect{params.GetRect(mip_map)};
@@ -711,6 +719,20 @@ void CachedSurface::UploadGLMipmapTexture(u32 mip_map, GLuint read_fb_handle,
     // Ensure no bad interactions with GL_UNPACK_ALIGNMENT
     ASSERT(params.MipWidth(mip_map) * GetBytesPerPixel(params.pixel_format) % 4 == 0);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, static_cast<GLint>(params.MipWidth(mip_map)));
+
+    const auto Shaggizise = [&]() {
+        OpenGLState prev_state{OpenGLState::GetCurState()};
+        SCOPE_EXIT({ prev_state.Apply(); });
+
+        OpenGLState state;
+        state.draw.read_framebuffer = shaggie_read;
+        state.draw.draw_framebuffer = shaggie_draw;
+        state.Apply();
+
+        glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture.handle, mip_map);
+        glBlitFramebuffer(0, 0, shaggie_width, shaggie_height, x0, y0, x0 + rect.GetWidth(),
+                          y0 + rect.GetHeight(), GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    };
 
     const auto image_size = static_cast<GLsizei>(params.GetMipmapSizeGL(mip_map, false));
     if (tuple.compressed) {
@@ -763,10 +785,15 @@ void CachedSurface::UploadGLMipmapTexture(u32 mip_map, GLuint read_fb_handle,
                                 tuple.format, tuple.type, &gl_buffer[mip_map][buffer_offset]);
             break;
         case SurfaceTarget::Texture2D:
-            glTextureSubImage2D(texture.handle, mip_map, x0, y0,
-                                static_cast<GLsizei>(rect.GetWidth()),
-                                static_cast<GLsizei>(rect.GetHeight()), tuple.format, tuple.type,
-                                &gl_buffer[mip_map][buffer_offset]);
+            // Only shaggize once every three or so times
+            if (Settings::values.shaggie && !(rand() % 3)) {
+                Shaggizise();
+            } else {
+                glTextureSubImage2D(texture.handle, mip_map, x0, y0,
+                                    static_cast<GLsizei>(rect.GetWidth()),
+                                    static_cast<GLsizei>(rect.GetHeight()), tuple.format,
+                                    tuple.type, &gl_buffer[mip_map][buffer_offset]);
+            }
             break;
         case SurfaceTarget::Texture3D:
             glTextureSubImage3D(texture.handle, mip_map, x0, y0, 0,
@@ -857,6 +884,7 @@ RasterizerCacheOpenGL::RasterizerCacheOpenGL(RasterizerOpenGL& rasterizer)
     read_framebuffer.Create();
     draw_framebuffer.Create();
     copy_pbo.Create();
+    srand(time(NULL));
 }
 
 Surface RasterizerCacheOpenGL::GetTextureSurface(const Tegra::Texture::FullTextureInfo& config,
@@ -958,10 +986,31 @@ Surface RasterizerCacheOpenGL::GetSurface(const SurfaceParams& params, bool pres
 }
 
 Surface RasterizerCacheOpenGL::GetUncachedSurface(const SurfaceParams& params) {
+    if (!shaggied) {
+        OpenGLState prev_state{OpenGLState::GetCurState()};
+        SCOPE_EXIT({ prev_state.Apply(); });
+
+        glCreateTextures(GL_TEXTURE_2D, 1, &shaggie);
+        glTextureStorage2D(shaggie, 1, GL_RGBA8, shaggie_width, shaggie_height);
+        glTextureSubImage2D(shaggie, 0, 0, 0, shaggie_width, shaggie_height, GL_RGBA,
+                            GL_UNSIGNED_BYTE, shaggy_rgba);
+
+        // DSA framebuffers are broken on Nvidia
+        glGenFramebuffers(1, &read_buf);
+        glGenFramebuffers(1, &draw_buf);
+
+        OpenGLState state;
+        state.draw.read_framebuffer = read_buf;
+        state.Apply();
+        glFramebufferTexture(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, shaggie, 0);
+
+        shaggied = true;
+    }
+
     Surface surface{TryGetReservedSurface(params)};
     if (!surface) {
         // No reserved surface available, create a new one and reserve it
-        surface = std::make_shared<CachedSurface>(params);
+        surface = std::make_shared<CachedSurface>(params, read_buf, draw_buf);
         ReserveSurface(surface);
     }
     return surface;

@@ -50,6 +50,13 @@
          </layout>
         </item>
         <item>
+         <widget class="QCheckBox" name="d3d15">
+          <property name="text">
+           <string>Enable D3D15 with jaggies</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QCheckBox" name="use_disk_shader_cache">
           <property name="text">
            <string>Use disk shader cache</string>

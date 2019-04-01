@@ -65,6 +65,8 @@ add_library(video_core STATIC
     renderer_opengl/maxwell_to_gl.h
     renderer_opengl/renderer_opengl.cpp
     renderer_opengl/renderer_opengl.h
+    renderer_opengl/shaggy.cpp
+    renderer_opengl/shaggy.h
     renderer_opengl/utils.cpp
     renderer_opengl/utils.h
     shader/decode/arithmetic.cpp

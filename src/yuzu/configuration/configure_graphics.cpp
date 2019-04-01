@@ -77,6 +77,7 @@ void ConfigureGraphics::setConfiguration() {
     ui->use_accurate_gpu_emulation->setChecked(Settings::values.use_accurate_gpu_emulation);
     ui->use_asynchronous_gpu_emulation->setEnabled(!Core::System::GetInstance().IsPoweredOn());
     ui->use_asynchronous_gpu_emulation->setChecked(Settings::values.use_asynchronous_gpu_emulation);
+    ui->d3d15->setChecked(Settings::values.shaggie);
     UpdateBackgroundColorButton(QColor::fromRgbF(Settings::values.bg_red, Settings::values.bg_green,
                                                  Settings::values.bg_blue));
 }
@@ -93,6 +94,7 @@ void ConfigureGraphics::applyConfiguration() {
     Settings::values.bg_red = static_cast<float>(bg_color.redF());
     Settings::values.bg_green = static_cast<float>(bg_color.greenF());
     Settings::values.bg_blue = static_cast<float>(bg_color.blueF());
+    Settings::values.shaggie = ui->d3d15->isChecked();
 }
 
 void ConfigureGraphics::UpdateBackgroundColorButton(QColor color) {

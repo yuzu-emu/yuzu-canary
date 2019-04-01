@@ -373,6 +373,7 @@ void Config::ReadValues() {
         ReadSetting("use_accurate_gpu_emulation", false).toBool();
     Settings::values.use_asynchronous_gpu_emulation =
         ReadSetting("use_asynchronous_gpu_emulation", false).toBool();
+    Settings::values.shaggie = ReadSetting("shaggie", false).toBool();
 
     Settings::values.bg_red = ReadSetting("bg_red", 0.0).toFloat();
     Settings::values.bg_green = ReadSetting("bg_green", 0.0).toFloat();
@@ -649,6 +650,7 @@ void Config::SaveValues() {
     WriteSetting("use_accurate_gpu_emulation", Settings::values.use_accurate_gpu_emulation, false);
     WriteSetting("use_asynchronous_gpu_emulation", Settings::values.use_asynchronous_gpu_emulation,
                  false);
+    WriteSetting("shaggie", Settings::values.shaggie, false);
 
     // Cast to double because Qt's written float values are not human-readable
     WriteSetting("bg_red", (double)Settings::values.bg_red, 0.0);

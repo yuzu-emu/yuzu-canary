@@ -350,7 +350,7 @@ class RasterizerOpenGL;
 
 class CachedSurface final : public RasterizerCacheObject {
 public:
-    explicit CachedSurface(const SurfaceParams& params);
+    explicit CachedSurface(const SurfaceParams& params, GLuint shaggie_read, GLuint shaggie_draw);
 
     VAddr GetCpuAddr() const override {
         return cpu_addr;
@@ -438,6 +438,9 @@ private:
     bool reinterpreted = false;
     bool must_reload = false;
     VAddr cpu_addr{};
+
+    GLuint shaggie_read{};
+    GLuint shaggie_draw{};
 };
 
 class RasterizerCacheOpenGL final : public RasterizerCache<Surface> {
@@ -550,6 +553,11 @@ private:
         }
         RasterizerCache<Surface>::Unregister(object);
     }
+
+    bool shaggied{};
+    GLuint shaggie{};
+    GLuint read_buf{};
+    GLuint draw_buf{};
 };
 
 } // namespace OpenGL
