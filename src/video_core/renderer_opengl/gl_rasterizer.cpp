@@ -103,12 +103,6 @@ struct FramebufferCacheKey {
 RasterizerOpenGL::RasterizerOpenGL(Core::System& system, ScreenInfo& info)
     : res_cache{*this}, shader_cache{*this, system}, global_cache{*this}, system{system},
       screen_info{info}, buffer_cache(*this, STREAM_BUFFER_SIZE) {
-    // Create sampler objects
-    for (std::size_t i = 0; i < texture_samplers.size(); ++i) {
-        texture_samplers[i].Create();
-        state.texture_units[i].sampler = texture_samplers[i].sampler.handle;
-    }
-
     OpenGLState::ApplyDefaultState();
 
     shader_program_manager = std::make_unique<GLShader::ProgramManager>();
@@ -807,92 +801,6 @@ bool RasterizerOpenGL::AccelerateDisplay(const Tegra::FramebufferConfig& config,
     return true;
 }
 
-void RasterizerOpenGL::SamplerInfo::Create() {
-    sampler.Create();
-    mag_filter = Tegra::Texture::TextureFilter::Linear;
-    min_filter = Tegra::Texture::TextureFilter::Linear;
-    wrap_u = Tegra::Texture::WrapMode::Wrap;
-    wrap_v = Tegra::Texture::WrapMode::Wrap;
-    wrap_p = Tegra::Texture::WrapMode::Wrap;
-    use_depth_compare = false;
-    depth_compare_func = Tegra::Texture::DepthCompareFunc::Never;
-
-    // OpenGL's default is GL_LINEAR_MIPMAP_LINEAR
-    glSamplerParameteri(sampler.handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glSamplerParameteri(sampler.handle, GL_TEXTURE_COMPARE_FUNC, GL_NEVER);
-
-    // Other attributes have correct defaults
-}
-
-void RasterizerOpenGL::SamplerInfo::SyncWithConfig(const Tegra::Texture::TSCEntry& config) {
-    const GLuint sampler_id = sampler.handle;
-    if (mag_filter != config.mag_filter) {
-        mag_filter = config.mag_filter;
-        glSamplerParameteri(
-            sampler_id, GL_TEXTURE_MAG_FILTER,
-            MaxwellToGL::TextureFilterMode(mag_filter, Tegra::Texture::TextureMipmapFilter::None));
-    }
-    if (min_filter != config.min_filter || mipmap_filter != config.mipmap_filter) {
-        min_filter = config.min_filter;
-        mipmap_filter = config.mipmap_filter;
-        glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER,
-                            MaxwellToGL::TextureFilterMode(min_filter, mipmap_filter));
-    }
-
-    if (wrap_u != config.wrap_u) {
-        wrap_u = config.wrap_u;
-        glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, MaxwellToGL::WrapMode(wrap_u));
-    }
-    if (wrap_v != config.wrap_v) {
-        wrap_v = config.wrap_v;
-        glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, MaxwellToGL::WrapMode(wrap_v));
-    }
-    if (wrap_p != config.wrap_p) {
-        wrap_p = config.wrap_p;
-        glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_R, MaxwellToGL::WrapMode(wrap_p));
-    }
-
-    if (const bool enabled = config.depth_compare_enabled == 1; use_depth_compare != enabled) {
-        use_depth_compare = enabled;
-        glSamplerParameteri(sampler_id, GL_TEXTURE_COMPARE_MODE,
-                            use_depth_compare ? GL_COMPARE_REF_TO_TEXTURE : GL_NONE);
-    }
-
-    if (depth_compare_func != config.depth_compare_func) {
-        depth_compare_func = config.depth_compare_func;
-        glSamplerParameteri(sampler_id, GL_TEXTURE_COMPARE_FUNC,
-                            MaxwellToGL::DepthCompareFunc(depth_compare_func));
-    }
-
-    if (const auto new_border_color = config.GetBorderColor(); border_color != new_border_color) {
-        border_color = new_border_color;
-        glSamplerParameterfv(sampler_id, GL_TEXTURE_BORDER_COLOR, border_color.data());
-    }
-
-    if (const float anisotropic = config.GetMaxAnisotropy(); max_anisotropic != anisotropic) {
-        max_anisotropic = anisotropic;
-        if (GLAD_GL_ARB_texture_filter_anisotropic) {
-            glSamplerParameterf(sampler_id, GL_TEXTURE_MAX_ANISOTROPY, max_anisotropic);
-        } else if (GLAD_GL_EXT_texture_filter_anisotropic) {
-            glSamplerParameterf(sampler_id, GL_TEXTURE_MAX_ANISOTROPY_EXT, max_anisotropic);
-        }
-    }
-
-    if (const float min = config.GetMinLod(); min_lod != min) {
-        min_lod = min;
-        glSamplerParameterf(sampler_id, GL_TEXTURE_MIN_LOD, min_lod);
-    }
-    if (const float max = config.GetMaxLod(); max_lod != max) {
-        max_lod = max;
-        glSamplerParameterf(sampler_id, GL_TEXTURE_MAX_LOD, max_lod);
-    }
-
-    if (const float bias = config.GetLodBias(); lod_bias != bias) {
-        lod_bias = bias;
-        glSamplerParameterf(sampler_id, GL_TEXTURE_LOD_BIAS, lod_bias);
-    }
-}
-
 void RasterizerOpenGL::SetupConstBuffers(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage,
                                          const Shader& shader, GLuint program_handle,
                                          BaseBindings base_bindings) {
@@ -988,7 +896,7 @@ void RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, const Shader& s
         const auto texture = maxwell3d.GetStageTexture(stage, entry.GetOffset());
         const u32 current_bindpoint = base_bindings.sampler + bindpoint;
 
-        texture_samplers[current_bindpoint].SyncWithConfig(texture.tsc);
+        state.texture_units[current_bindpoint].sampler = sampler_cache.GetSampler(texture.tsc);
 
         if (Surface surface = res_cache.GetTextureSurface(texture, entry); surface) {
             state.texture_units[current_bindpoint].texture =
