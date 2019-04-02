@@ -19,9 +19,12 @@ struct FramebufferConfig;
 class DmaPusher;
 } // namespace Tegra
 
-namespace VideoCore {
-class RendererBase;
-} // namespace VideoCore
+namespace Core {
+class System;
+namespace Timing {
+struct EventType;
+} // namespace Timing
+} // namespace Core
 
 namespace VideoCommon::GPUThread {
 
@@ -75,63 +78,47 @@ using CommandData =
 struct CommandDataContainer {
     CommandDataContainer() = default;
 
-    CommandDataContainer(CommandData&& data) : data{std::move(data)} {}
+    CommandDataContainer(CommandData&& data, u64 next_fence)
+        : data{std::move(data)}, fence{next_fence} {}
 
     CommandDataContainer& operator=(const CommandDataContainer& t) {
         data = std::move(t.data);
+        fence = t.fence;
         return *this;
     }
 
     CommandData data;
+    u64 fence{};
 };
 
 /// Struct used to synchronize the GPU thread
 struct SynchState final {
     std::atomic_bool is_running{true};
     std::atomic_int queued_frame_count{};
-    std::mutex frames_mutex;
+    std::mutex synchronization_mutex;
     std::mutex commands_mutex;
     std::condition_variable commands_condition;
-    std::condition_variable frames_condition;
+    std::condition_variable synchronization_condition;
 
-    void IncrementFramesCounter() {
-        std::lock_guard lock{frames_mutex};
-        ++queued_frame_count;
+    /// Returns true if the gap in GPU commands is small enough that we can consider the CPU and GPU
+    /// synchronized. This is entirely empirical.
+    bool IsSynchronized() const {
+        constexpr std::size_t max_queue_gap{5};
+        return queue.Size() <= max_queue_gap;
     }
 
-    void DecrementFramesCounter() {
-        {
-            std::lock_guard lock{frames_mutex};
-            --queued_frame_count;
-
-            if (queued_frame_count) {
-                return;
-            }
-        }
-        frames_condition.notify_one();
-    }
-
-    void WaitForFrames() {
-        {
-            std::lock_guard lock{frames_mutex};
-            if (!queued_frame_count) {
-                return;
-            }
-        }
-
-        // Wait for the GPU to be idle (all commands to be executed)
-        {
-            std::unique_lock lock{frames_mutex};
-            frames_condition.wait(lock, [this] { return !queued_frame_count; });
+    void TrySynchronize() {
+        if (IsSynchronized()) {
+            std::lock_guard<std::mutex> lock{synchronization_mutex};
+            synchronization_condition.notify_one();
         }
     }
+
+    void WaitForSynchronization(u64 fence);
 
     void SignalCommands() {
-        {
-            std::unique_lock lock{commands_mutex};
-            if (queue.Empty()) {
-                return;
-            }
+        if (queue.Empty()) {
+            return;
         }
 
         commands_condition.notify_one();
@@ -144,12 +131,15 @@ struct SynchState final {
 
     using CommandQueue = Common::SPSCQueue<CommandDataContainer>;
     CommandQueue queue;
+    u64 last_fence{};
+    std::atomic<u64> signaled_fence{};
 };
 
 /// Class used to manage the GPU thread
 class ThreadManager final {
 public:
-    explicit ThreadManager(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_pusher);
+    explicit ThreadManager(Core::System& system, VideoCore::RendererBase& renderer,
+                           Tegra::DmaPusher& dma_pusher);
     ~ThreadManager();
 
     /// Push GPU command entries to be processed
@@ -170,11 +160,12 @@ public:
 
 private:
     /// Pushes a command to be executed by the GPU thread
-    void PushCommand(CommandData&& command_data);
+    u64 PushCommand(CommandData&& command_data);
 
 private:
     SynchState state;
-    VideoCore::RendererBase& renderer;
+    Core::System& system;
+    Core::Timing::EventType* synchronization_event{};
     std::thread thread;
     std::thread::id thread_id;
 };
