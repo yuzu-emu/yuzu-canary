@@ -6,6 +6,7 @@
 #include <utility>
 #include <variant>
 
+#include "common/common_types.h"
 #include "video_core/shader/shader_ir.h"
 
 namespace VideoCommon::Shader {
@@ -14,7 +15,7 @@ namespace {
 std::pair<Node, s64> FindOperation(const NodeBlock& code, s64 cursor,
                                    OperationCode operation_code) {
     for (; cursor >= 0; --cursor) {
-        const Node node = code[cursor];
+        const Node node = code.at(cursor);
         if (const auto operation = std::get_if<OperationNode>(node)) {
             if (operation->GetCode() == operation_code)
                 return {node, cursor};
@@ -62,6 +63,20 @@ Node ShaderIR::TrackCbuf(Node tracked, const NodeBlock& code, s64 cursor) {
         return TrackCbuf(tracked, conditional_code, static_cast<s64>(conditional_code.size()));
     }
     return nullptr;
+}
+
+std::optional<u32> ShaderIR::TrackImmediate(Node tracked, const NodeBlock& code, s64 cursor) {
+    // Reduce the cursor in one to avoid infinite loops when the instruction sets the same register
+    // that it uses as operand
+    const auto [found, found_cursor] =
+        TrackRegister(&std::get<GprNode>(*tracked), code, cursor - 1);
+    if (!found) {
+        return {};
+    }
+    if (const auto immediate = std::get_if<ImmediateNode>(found)) {
+        return immediate->GetValue();
+    }
+    return {};
 }
 
 std::pair<Node, s64> ShaderIR::TrackRegister(const GprNode* tracked, const NodeBlock& code,
