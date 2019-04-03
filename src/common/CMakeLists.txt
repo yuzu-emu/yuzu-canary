@@ -91,6 +91,8 @@ add_library(common STATIC
     logging/log.h
     logging/text_formatter.cpp
     logging/text_formatter.h
+    lz4_compression.cpp
+    lz4_compression.h
     math_util.h
     memory_hook.cpp
     memory_hook.h
@@ -136,3 +138,4 @@ endif()
 create_target_directory_groups(common)
 
 target_link_libraries(common PUBLIC Boost::boost fmt microprofile)
+target_link_libraries(common PRIVATE lz4_static)
