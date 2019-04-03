@@ -46,6 +46,8 @@ add_library(video_core STATIC
     renderer_opengl/gl_rasterizer_cache.h
     renderer_opengl/gl_resource_manager.cpp
     renderer_opengl/gl_resource_manager.h
+    renderer_opengl/gl_sampler_cache.cpp
+    renderer_opengl/gl_sampler_cache.h
     renderer_opengl/gl_shader_cache.cpp
     renderer_opengl/gl_shader_cache.h
     renderer_opengl/gl_shader_decompiler.cpp
@@ -67,6 +69,8 @@ add_library(video_core STATIC
     renderer_opengl/renderer_opengl.h
     renderer_opengl/utils.cpp
     renderer_opengl/utils.h
+    sampler_cache.cpp
+    sampler_cache.h
     shader/decode/arithmetic.cpp
     shader/decode/arithmetic_immediate.cpp
     shader/decode/bfe.cpp
