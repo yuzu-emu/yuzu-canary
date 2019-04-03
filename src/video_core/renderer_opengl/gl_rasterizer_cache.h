@@ -18,6 +18,7 @@
 #include "video_core/engines/fermi_2d.h"
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/rasterizer_cache.h"
+#include "video_core/renderer_opengl/gl_framebuffer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_shader_gen.h"
 #include "video_core/surface.h"
@@ -350,7 +351,8 @@ class RasterizerOpenGL;
 
 class CachedSurface final : public RasterizerCacheObject {
 public:
-    explicit CachedSurface(const SurfaceParams& params);
+    explicit CachedSurface(const SurfaceParams& params, FramebufferCacheOpenGL framebuffer_cache_);
+    ~CachedSurface();
 
     VAddr GetCpuAddr() const override {
         return cpu_addr;
@@ -426,6 +428,7 @@ private:
 
     void EnsureTextureDiscrepantView();
 
+    FramebufferCacheOpenGL framebuffer_cache;
     OGLTexture texture;
     OGLTexture discrepant_view;
     std::vector<std::vector<u8>> gl_buffer;
@@ -434,7 +437,7 @@ private:
     GLenum gl_internal_format{};
     std::size_t cached_size_in_bytes{};
     std::array<GLenum, 4> swizzle{GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA};
-    std::size_t memory_size;
+    std::size_t memory_size{};
     bool reinterpreted = false;
     bool must_reload = false;
     VAddr cpu_addr{};
@@ -442,7 +445,8 @@ private:
 
 class RasterizerCacheOpenGL final : public RasterizerCache<Surface> {
 public:
-    explicit RasterizerCacheOpenGL(RasterizerOpenGL& rasterizer);
+    explicit RasterizerCacheOpenGL(RasterizerOpenGL& rasterizer,
+                                   FramebufferCacheOpenGL framebuffer_cache);
 
     /// Get a surface based on the texture configuration
     Surface GetTextureSurface(const Tegra::Texture::FullTextureInfo& config,
@@ -498,6 +502,8 @@ private:
     /// previously been used. This is to prevent surfaces from being constantly created and
     /// destroyed when used with different surface parameters.
     std::unordered_map<SurfaceReserveKey, Surface> surface_reserve;
+
+    FramebufferCacheOpenGL framebuffer_cache;
 
     OGLFramebuffer read_framebuffer;
     OGLFramebuffer draw_framebuffer;
