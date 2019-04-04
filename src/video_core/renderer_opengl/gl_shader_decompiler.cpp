@@ -426,9 +426,14 @@ private:
     std::string Visit(Node node) {
         if (const auto operation = std::get_if<OperationNode>(node)) {
             const auto operation_index = static_cast<std::size_t>(operation->GetCode());
+            if (operation_index >= operation_decompilers.size()) {
+                UNREACHABLE_MSG("Out of bounds operation: {}", operation_index);
+                return {};
+            }
             const auto decompiler = operation_decompilers[operation_index];
             if (decompiler == nullptr) {
-                UNREACHABLE_MSG("Operation decompiler {} not defined", operation_index);
+                UNREACHABLE_MSG("Undefined operation: {}", operation_index);
+                return {};
             }
             return (this->*decompiler)(*operation);
 
