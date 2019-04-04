@@ -9,7 +9,7 @@
 namespace VideoCommon {
 
 GPUAsynch::GPUAsynch(Core::System& system, VideoCore::RendererBase& renderer)
-    : Tegra::GPU(system, renderer), gpu_thread{renderer, *dma_pusher} {}
+    : Tegra::GPU(system, renderer), gpu_thread{system, renderer, *dma_pusher} {}
 
 GPUAsynch::~GPUAsynch() = default;
 
