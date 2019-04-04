@@ -1,3 +1,28 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: a56c4ac91bbfeb5982fd14f5aa89b666614d3fb6
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2327](https://github.com/yuzu-emu/yuzu/pull/2327)|[06c1f75](https://github.com/yuzu-emu/yuzu/pull/2327/files/)|gl_shader_decompiler: Return early when an operation is invalid|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2321](https://github.com/yuzu-emu/yuzu/pull/2321)|[78bd66d](https://github.com/yuzu-emu/yuzu/pull/2321/files/)|gl_state: Rework to enable individual applies|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2319](https://github.com/yuzu-emu/yuzu/pull/2319)|[d1ba243](https://github.com/yuzu-emu/yuzu/pull/2319/files/)|gl_framebuffer_cache: Move to its own file and implement invalidation|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2306](https://github.com/yuzu-emu/yuzu/pull/2306)|[38658b3](https://github.com/yuzu-emu/yuzu/pull/2306/files/)|shader_ir: Implement AOFFI for TEX and TLD4|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2292](https://github.com/yuzu-emu/yuzu/pull/2292)|[a973271](https://github.com/yuzu-emu/yuzu/pull/2292/files/)|file_sys/control_metadata: Amend naming of members|[lioncash](https://github.com/lioncash)|Yes|
+|[2282](https://github.com/yuzu-emu/yuzu/pull/2282)|[4555b63](https://github.com/yuzu-emu/yuzu/pull/2282/files/)|gpu_thread: Improve synchronization by using CoreTiming.|[bunnei](https://github.com/bunnei)|Yes|
+|[2135](https://github.com/yuzu-emu/yuzu/pull/2135)|[2677cc8](https://github.com/yuzu-emu/yuzu/pull/2135/files/)|DO NOT MERGE Implemented a lil edge case on RecreateSurface.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1340](https://github.com/yuzu-emu/yuzu/pull/1340)|[5c638a6](https://github.com/yuzu-emu/yuzu/pull/1340/files/)|Implement a Better Ignore Assert - DO NOT CHECK IN|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
