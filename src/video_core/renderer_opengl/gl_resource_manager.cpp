@@ -6,6 +6,7 @@
 #include <glad/glad.h>
 #include "common/common_types.h"
 #include "common/microprofile.h"
+#include "video_core/renderer_opengl/gl_framebuffer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_shader_util.h"
 #include "video_core/renderer_opengl/gl_state.h"
@@ -14,6 +15,16 @@ MICROPROFILE_DEFINE(OpenGL_ResourceCreation, "OpenGL", "Resource Creation", MP_R
 MICROPROFILE_DEFINE(OpenGL_ResourceDeletion, "OpenGL", "Resource Deletion", MP_RGB(128, 128, 192));
 
 namespace OpenGL {
+
+OGLTexture::OGLTexture(FramebufferCacheOpenGL framebuffer_cache)
+    : framebuffer_cache{std::move(framebuffer_cache)} {}
+
+OGLTexture::OGLTexture(OGLTexture&& o) noexcept
+    : handle{std::exchange(o.handle, 0)}, framebuffer_cache{std::move(o.framebuffer_cache)} {}
+
+OGLTexture::~OGLTexture() {
+    Release();
+}
 
 void OGLTexture::Create(GLenum target) {
     if (handle != 0)
@@ -28,6 +39,9 @@ void OGLTexture::Release() {
         return;
 
     MICROPROFILE_SCOPE(OpenGL_ResourceDeletion);
+    if (framebuffer_cache) {
+        framebuffer_cache->InvalidateTexture(handle);
+    }
     glDeleteTextures(1, &handle);
     OpenGLState::GetCurState().UnbindTexture(handle).Apply();
     handle = 0;
