@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <memory>
 #include <utility>
 #include <glad/glad.h>
 #include "common/common_types.h"
@@ -11,15 +12,15 @@
 
 namespace OpenGL {
 
+class FramebufferCacheOpenGLImpl;
+using FramebufferCacheOpenGL = std::shared_ptr<FramebufferCacheOpenGLImpl>;
+
 class OGLTexture : private NonCopyable {
 public:
-    OGLTexture() = default;
+    explicit OGLTexture(FramebufferCacheOpenGL framebuffer_cache);
+    OGLTexture(OGLTexture&& o) noexcept;
 
-    OGLTexture(OGLTexture&& o) noexcept : handle(std::exchange(o.handle, 0)) {}
-
-    ~OGLTexture() {
-        Release();
-    }
+    ~OGLTexture();
 
     OGLTexture& operator=(OGLTexture&& o) noexcept {
         Release();
@@ -34,6 +35,9 @@ public:
     void Release();
 
     GLuint handle = 0;
+
+private:
+    FramebufferCacheOpenGL framebuffer_cache;
 };
 
 class OGLSampler : private NonCopyable {
