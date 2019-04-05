@@ -125,6 +125,8 @@ add_library(common STATIC
     uint128.h
     vector_math.h
     web_result.h
+    zstd_compression.cpp
+    zstd_compression.h
 )
 
 if(ARCHITECTURE_x86_64)
@@ -138,4 +140,4 @@ endif()
 create_target_directory_groups(common)
 
 target_link_libraries(common PUBLIC Boost::boost fmt microprofile)
-target_link_libraries(common PRIVATE lz4_static)
+target_link_libraries(common PRIVATE lz4_static libzstd_static)
