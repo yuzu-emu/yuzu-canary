@@ -17,6 +17,7 @@
 #include "core/core_timing.h"
 #include "core/cpu_core_manager.h"
 #include "core/file_sys/mode.h"
+#include "core/file_sys/registered_cache.h"
 #include "core/file_sys/vfs_concat.h"
 #include "core/file_sys/vfs_real.h"
 #include "core/gdbstub/gdbstub.h"
@@ -108,6 +109,8 @@ struct System::Impl {
         // Create a default fs if one doesn't already exist.
         if (virtual_filesystem == nullptr)
             virtual_filesystem = std::make_shared<FileSys::RealVfsFilesystem>();
+        if (content_provider == nullptr)
+            content_provider = std::make_unique<FileSys::ContentProviderUnion>();
 
         /// Create default implementations of applets if one is not provided.
         if (profile_selector == nullptr)
@@ -249,6 +252,8 @@ struct System::Impl {
     Kernel::KernelCore kernel;
     /// RealVfsFilesystem instance
     FileSys::VirtualFilesystem virtual_filesystem;
+    /// ContentProviderUnion instance
+    std::unique_ptr<FileSys::ContentProviderUnion> content_provider;
     /// AppLoader used to load the current executing application
     std::unique_ptr<Loader::AppLoader> app_loader;
     std::unique_ptr<VideoCore::RendererBase> renderer;
@@ -486,6 +491,27 @@ void System::SetSoftwareKeyboard(std::unique_ptr<Frontend::SoftwareKeyboardApple
 
 const Frontend::SoftwareKeyboardApplet& System::GetSoftwareKeyboard() const {
     return *impl->software_keyboard;
+}
+
+void System::SetContentProvider(std::unique_ptr<FileSys::ContentProviderUnion> provider) {
+    impl->content_provider = std::move(provider);
+}
+
+FileSys::ContentProvider& System::GetContentProvider() {
+    return *impl->content_provider;
+}
+
+const FileSys::ContentProvider& System::GetContentProvider() const {
+    return *impl->content_provider;
+}
+
+void System::RegisterContentProvider(FileSys::ContentProviderUnionSlot slot,
+                                     FileSys::ContentProvider* provider) {
+    impl->content_provider->SetSlot(slot, provider);
+}
+
+void System::ClearContentProvider(FileSys::ContentProviderUnionSlot slot) {
+    impl->content_provider->ClearSlot(slot);
 }
 
 void System::SetWebBrowser(std::unique_ptr<Frontend::WebBrowserApplet> applet) {
