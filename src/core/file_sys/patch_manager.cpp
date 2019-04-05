@@ -10,6 +10,7 @@
 #include "common/file_util.h"
 #include "common/hex_util.h"
 #include "common/logging/log.h"
+#include "core/core.h"
 #include "core/file_sys/content_archive.h"
 #include "core/file_sys/control_metadata.h"
 #include "core/file_sys/ips_layer.h"
@@ -69,7 +70,7 @@ VirtualDir PatchManager::PatchExeFS(VirtualDir exefs) const {
         }
     }
 
-    const auto installed = Service::FileSystem::GetUnionContents();
+    const auto& installed = Core::System::GetInstance().GetContentProvider();
 
     const auto& disabled = Settings::values.disabled_addons[title_id];
     const auto update_disabled =
@@ -155,7 +156,7 @@ std::vector<VirtualFile> PatchManager::CollectPatches(const std::vector<VirtualD
     return out;
 }
 
-std::vector<u8> PatchManager::PatchNSO(const std::vector<u8>& nso) const {
+std::vector<u8> PatchManager::PatchNSO(const std::vector<u8>& nso, const std::string& name) const {
     if (nso.size() < sizeof(Loader::NSOHeader)) {
         return nso;
     }
@@ -171,18 +172,19 @@ std::vector<u8> PatchManager::PatchNSO(const std::vector<u8>& nso) const {
     const auto build_id = build_id_raw.substr(0, build_id_raw.find_last_not_of('0') + 1);
 
     if (Settings::values.dump_nso) {
-        LOG_INFO(Loader, "Dumping NSO for build_id={}, title_id={:016X}", build_id, title_id);
+        LOG_INFO(Loader, "Dumping NSO for name={}, build_id={}, title_id={:016X}", name, build_id,
+                 title_id);
         const auto dump_dir = Service::FileSystem::GetModificationDumpRoot(title_id);
         if (dump_dir != nullptr) {
             const auto nso_dir = GetOrCreateDirectoryRelative(dump_dir, "/nso");
-            const auto file = nso_dir->CreateFile(fmt::format("{}.nso", build_id));
+            const auto file = nso_dir->CreateFile(fmt::format("{}-{}.nso", name, build_id));
 
             file->Resize(nso.size());
             file->WriteBytes(nso);
         }
     }
 
-    LOG_INFO(Loader, "Patching NSO for build_id={}", build_id);
+    LOG_INFO(Loader, "Patching NSO for name={}, build_id={}", name, build_id);
 
     const auto load_dir = Service::FileSystem::GetModificationLoadRoot(title_id);
     auto patch_dirs = load_dir->GetSubdirectories();
@@ -345,7 +347,7 @@ VirtualFile PatchManager::PatchRomFS(VirtualFile romfs, u64 ivfc_offset, Content
     if (romfs == nullptr)
         return romfs;
 
-    const auto installed = Service::FileSystem::GetUnionContents();
+    const auto& installed = Core::System::GetInstance().GetContentProvider();
 
     // Game Updates
     const auto update_tid = GetUpdateTitleID(title_id);
@@ -392,7 +394,7 @@ static bool IsDirValidAndNonEmpty(const VirtualDir& dir) {
 std::map<std::string, std::string, std::less<>> PatchManager::GetPatchVersionNames(
     VirtualFile update_raw) const {
     std::map<std::string, std::string, std::less<>> out;
-    const auto installed = Service::FileSystem::GetUnionContents();
+    const auto& installed = Core::System::GetInstance().GetContentProvider();
     const auto& disabled = Settings::values.disabled_addons[title_id];
 
     // Game Updates
@@ -466,10 +468,10 @@ std::map<std::string, std::string, std::less<>> PatchManager::GetPatchVersionNam
 
     // DLC
     const auto dlc_entries = installed.ListEntriesFilter(TitleType::AOC, ContentRecordType::Data);
-    std::vector<RegisteredCacheEntry> dlc_match;
+    std::vector<ContentProviderEntry> dlc_match;
     dlc_match.reserve(dlc_entries.size());
     std::copy_if(dlc_entries.begin(), dlc_entries.end(), std::back_inserter(dlc_match),
-                 [this, &installed](const RegisteredCacheEntry& entry) {
+                 [this, &installed](const ContentProviderEntry& entry) {
                      return (entry.title_id & DLC_BASE_TITLE_ID_MASK) == title_id &&
                             installed.GetEntry(entry)->GetStatus() == Loader::ResultStatus::Success;
                  });
@@ -492,7 +494,7 @@ std::map<std::string, std::string, std::less<>> PatchManager::GetPatchVersionNam
 }
 
 std::pair<std::unique_ptr<NACP>, VirtualFile> PatchManager::GetControlMetadata() const {
-    const auto installed{Service::FileSystem::GetUnionContents()};
+    const auto& installed = Core::System::GetInstance().GetContentProvider();
 
     const auto base_control_nca = installed.GetEntry(title_id, ContentRecordType::Control);
     if (base_control_nca == nullptr)
