@@ -67,7 +67,7 @@ std::string NACP::GetDeveloperName(Language language) const {
 }
 
 u64 NACP::GetTitleId() const {
-    return raw.title_id;
+    return raw.save_data_owner_id;
 }
 
 u64 NACP::GetDLCBaseTitleId() const {
@@ -80,11 +80,11 @@ std::string NACP::GetVersionString() const {
 }
 
 u64 NACP::GetDefaultNormalSaveSize() const {
-    return raw.normal_save_data_size;
+    return raw.user_account_save_data_size;
 }
 
 u64 NACP::GetDefaultJournalSaveSize() const {
-    return raw.journal_sava_data_size;
+    return raw.user_account_save_data_journal_size;
 }
 
 std::vector<u8> NACP::GetRawBytes() const {
