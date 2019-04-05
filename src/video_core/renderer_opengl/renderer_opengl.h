@@ -28,7 +28,7 @@ namespace OpenGL {
 
 /// Structure used for storing information about the textures for the Switch screen
 struct TextureInfo {
-    OGLTexture resource;
+    OGLTexture resource{nullptr};
     GLsizei width;
     GLsizei height;
     GLenum gl_format;

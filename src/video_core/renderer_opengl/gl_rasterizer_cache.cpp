@@ -560,8 +560,9 @@ void RasterizerCacheOpenGL::CopySurface(const Surface& src_surface, const Surfac
     dst_surface->MarkAsModified(true, *this);
 }
 
-CachedSurface::CachedSurface(const SurfaceParams& params)
-    : RasterizerCacheObject{params.host_ptr}, params{params},
+CachedSurface::CachedSurface(const SurfaceParams& params, FramebufferCacheOpenGL framebuffer_cache_)
+    : RasterizerCacheObject{params.host_ptr}, framebuffer_cache{std::move(framebuffer_cache_)},
+      texture{framebuffer_cache}, discrepant_view{framebuffer_cache}, params{params},
       gl_target{SurfaceTargetToGL(params.target)}, cached_size_in_bytes{params.size_in_bytes} {
 
     const auto optional_cpu_addr{
@@ -609,6 +610,8 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
 
     OpenGL::LabelGLObject(GL_TEXTURE, texture.handle, params.gpu_addr, params.IdentityString());
 }
+
+CachedSurface::~CachedSurface() = default;
 
 MICROPROFILE_DEFINE(OpenGL_SurfaceLoad, "OpenGL", "Surface Load", MP_RGB(128, 192, 64));
 void CachedSurface::LoadGLBuffer() {
@@ -851,8 +854,9 @@ void CachedSurface::UpdateSwizzle(Tegra::Texture::SwizzleSource swizzle_x,
     }
 }
 
-RasterizerCacheOpenGL::RasterizerCacheOpenGL(RasterizerOpenGL& rasterizer)
-    : RasterizerCache{rasterizer} {
+RasterizerCacheOpenGL::RasterizerCacheOpenGL(RasterizerOpenGL& rasterizer,
+                                             FramebufferCacheOpenGL framebuffer_cache)
+    : RasterizerCache{rasterizer}, framebuffer_cache{std::move(framebuffer_cache)} {
     read_framebuffer.Create();
     draw_framebuffer.Create();
     copy_pbo.Create();
@@ -960,7 +964,7 @@ Surface RasterizerCacheOpenGL::GetUncachedSurface(const SurfaceParams& params) {
     Surface surface{TryGetReservedSurface(params)};
     if (!surface) {
         // No reserved surface available, create a new one and reserve it
-        surface = std::make_shared<CachedSurface>(params);
+        surface = std::make_shared<CachedSurface>(params, framebuffer_cache);
         ReserveSurface(surface);
     }
     return surface;
