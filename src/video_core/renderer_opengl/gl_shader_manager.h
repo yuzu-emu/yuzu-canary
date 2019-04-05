@@ -62,7 +62,6 @@ public:
         UpdatePipeline();
         state.draw.shader_program = 0;
         state.draw.program_pipeline = pipeline.handle;
-        state.geometry_shaders.enabled = (gs != 0);
     }
 
 private:
