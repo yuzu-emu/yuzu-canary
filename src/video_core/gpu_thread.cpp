@@ -4,6 +4,9 @@
 
 #include "common/assert.h"
 #include "common/microprofile.h"
+#include "core/core.h"
+#include "core/core_timing.h"
+#include "core/core_timing_util.h"
 #include "core/frontend/scope_acquire_window_context.h"
 #include "video_core/dma_pusher.h"
 #include "video_core/gpu.h"
@@ -36,7 +39,6 @@ static void RunThread(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_p
                 dma_pusher.Push(std::move(submit_list->entries));
                 dma_pusher.DispatchCalls();
             } else if (const auto data = std::get_if<SwapBuffersCommand>(&next.data)) {
-                state.DecrementFramesCounter();
                 renderer.SwapBuffers(std::move(data->framebuffer));
             } else if (const auto data = std::get_if<FlushRegionCommand>(&next.data)) {
                 renderer.Rasterizer().FlushRegion(data->addr, data->size);
@@ -47,13 +49,18 @@ static void RunThread(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_p
             } else {
                 UNREACHABLE();
             }
+            state.signaled_fence = next.fence;
+            state.TrySynchronize();
         }
     }
 }
 
-ThreadManager::ThreadManager(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_pusher)
-    : renderer{renderer}, thread{RunThread, std::ref(renderer), std::ref(dma_pusher),
-                                 std::ref(state)} {}
+ThreadManager::ThreadManager(Core::System& system, VideoCore::RendererBase& renderer,
+                             Tegra::DmaPusher& dma_pusher)
+    : system{system}, thread{RunThread, std::ref(renderer), std::ref(dma_pusher), std::ref(state)} {
+    synchronization_event = system.CoreTiming().RegisterEvent(
+        "GPUThreadSynch", [this](u64 fence, int) { state.WaitForSynchronization(fence); });
+}
 
 ThreadManager::~ThreadManager() {
     // Notify GPU thread that a shutdown is pending
@@ -62,14 +69,14 @@ ThreadManager::~ThreadManager() {
 }
 
 void ThreadManager::SubmitList(Tegra::CommandList&& entries) {
-    PushCommand(SubmitListCommand(std::move(entries)));
+    const u64 fence{PushCommand(SubmitListCommand(std::move(entries)))};
+    const s64 synchronization_ticks{Core::Timing::usToCycles(9000)};
+    system.CoreTiming().ScheduleEvent(synchronization_ticks, synchronization_event, fence);
 }
 
 void ThreadManager::SwapBuffers(
     std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) {
-    state.IncrementFramesCounter();
     PushCommand(SwapBuffersCommand(std::move(framebuffer)));
-    state.WaitForFrames();
 }
 
 void ThreadManager::FlushRegion(CacheAddr addr, u64 size) {
@@ -79,7 +86,7 @@ void ThreadManager::FlushRegion(CacheAddr addr, u64 size) {
 void ThreadManager::InvalidateRegion(CacheAddr addr, u64 size) {
     if (state.queue.Empty()) {
         // It's quicker to invalidate a single region on the CPU if the queue is already empty
-        renderer.Rasterizer().InvalidateRegion(addr, size);
+        system.Renderer().Rasterizer().InvalidateRegion(addr, size);
     } else {
         PushCommand(InvalidateRegionCommand(addr, size));
     }
@@ -90,9 +97,25 @@ void ThreadManager::FlushAndInvalidateRegion(CacheAddr addr, u64 size) {
     InvalidateRegion(addr, size);
 }
 
-void ThreadManager::PushCommand(CommandData&& command_data) {
-    state.queue.Push(CommandDataContainer(std::move(command_data)));
+u64 ThreadManager::PushCommand(CommandData&& command_data) {
+    const u64 fence{++state.last_fence};
+    state.queue.Push(CommandDataContainer(std::move(command_data), fence));
     state.SignalCommands();
+    return fence;
+}
+
+MICROPROFILE_DEFINE(GPU_wait, "GPU", "Wait for the GPU", MP_RGB(128, 128, 192));
+void SynchState::WaitForSynchronization(u64 fence) {
+    if (signaled_fence >= fence) {
+        return;
+    }
+
+    // Wait for the GPU to be idle (all commands to be executed)
+    {
+        MICROPROFILE_SCOPE(GPU_wait);
+        std::unique_lock<std::mutex> lock{synchronization_mutex};
+        synchronization_condition.wait(lock, [this, fence] { return signaled_fence >= fence; });
+    }
 }
 
 } // namespace VideoCommon::GPUThread
