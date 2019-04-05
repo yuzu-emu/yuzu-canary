@@ -19,13 +19,18 @@
 #include "core/file_sys/mode.h"
 #include "core/file_sys/vfs_concat.h"
 #include "core/file_sys/vfs_real.h"
+#include "core/frontend/applets/error.h"
+#include "core/frontend/applets/general_frontend.h"
+#include "core/frontend/applets/profile_select.h"
+#include "core/frontend/applets/software_keyboard.h"
+#include "core/frontend/applets/web_browser.h"
 #include "core/gdbstub/gdbstub.h"
 #include "core/hle/kernel/client_port.h"
 #include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/kernel/scheduler.h"
 #include "core/hle/kernel/thread.h"
-#include "core/hle/service/am/applets/software_keyboard.h"
+#include "core/hle/service/am/applets/applets.h"
 #include "core/hle/service/service.h"
 #include "core/hle/service/sm/sm.h"
 #include "core/loader/loader.h"
@@ -110,12 +115,7 @@ struct System::Impl {
             virtual_filesystem = std::make_shared<FileSys::RealVfsFilesystem>();
 
         /// Create default implementations of applets if one is not provided.
-        if (profile_selector == nullptr)
-            profile_selector = std::make_unique<Core::Frontend::DefaultProfileSelectApplet>();
-        if (software_keyboard == nullptr)
-            software_keyboard = std::make_unique<Core::Frontend::DefaultSoftwareKeyboardApplet>();
-        if (web_browser == nullptr)
-            web_browser = std::make_unique<Core::Frontend::DefaultWebBrowserApplet>();
+        applet_manager.SetDefaultAppletsIfMissing();
 
         auto main_process = Kernel::Process::Create(system, "main");
         kernel.MakeCurrentProcess(main_process.get());
@@ -221,9 +221,7 @@ struct System::Impl {
         app_loader.reset();
 
         // Clear all applets
-        profile_selector.reset();
-        software_keyboard.reset();
-        web_browser.reset();
+        applet_manager.ClearAll();
 
         LOG_DEBUG(Core, "Shutdown OK");
     }
@@ -260,9 +258,7 @@ struct System::Impl {
     std::unique_ptr<FileSys::CheatEngine> cheat_engine;
 
     /// Frontend applets
-    std::unique_ptr<Core::Frontend::ProfileSelectApplet> profile_selector;
-    std::unique_ptr<Core::Frontend::SoftwareKeyboardApplet> software_keyboard;
-    std::unique_ptr<Core::Frontend::WebBrowserApplet> web_browser;
+    Service::AM::Applets::AppletManager applet_manager;
 
     /// Service manager
     std::shared_ptr<Service::SM::ServiceManager> service_manager;
@@ -472,32 +468,20 @@ std::shared_ptr<FileSys::VfsFilesystem> System::GetFilesystem() const {
     return impl->virtual_filesystem;
 }
 
-void System::SetProfileSelector(std::unique_ptr<Frontend::ProfileSelectApplet> applet) {
-    impl->profile_selector = std::move(applet);
+void System::SetAppletFrontendSet(Service::AM::Applets::AppletFrontendSet&& set) {
+    impl->applet_manager.SetAppletFrontendSet(std::move(set));
 }
 
-const Frontend::ProfileSelectApplet& System::GetProfileSelector() const {
-    return *impl->profile_selector;
+void System::SetDefaultAppletFrontendSet() {
+    impl->applet_manager.SetDefaultAppletFrontendSet();
 }
 
-void System::SetSoftwareKeyboard(std::unique_ptr<Frontend::SoftwareKeyboardApplet> applet) {
-    impl->software_keyboard = std::move(applet);
+Service::AM::Applets::AppletManager& System::GetAppletManager() {
+    return impl->applet_manager;
 }
 
-const Frontend::SoftwareKeyboardApplet& System::GetSoftwareKeyboard() const {
-    return *impl->software_keyboard;
-}
-
-void System::SetWebBrowser(std::unique_ptr<Frontend::WebBrowserApplet> applet) {
-    impl->web_browser = std::move(applet);
-}
-
-Frontend::WebBrowserApplet& System::GetWebBrowser() {
-    return *impl->web_browser;
-}
-
-const Frontend::WebBrowserApplet& System::GetWebBrowser() const {
-    return *impl->web_browser;
+const Service::AM::Applets::AppletManager& System::GetAppletManager() const {
+    return impl->applet_manager;
 }
 
 System::ResultStatus System::Init(Frontend::EmuWindow& emu_window) {
