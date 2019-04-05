@@ -388,11 +388,6 @@ void WriteSaveDataSize(FileSys::SaveDataType type, u64 title_id, u128 user_id,
         save_data_factory->WriteSaveDataSize(type, title_id, user_id, new_value);
 }
 
-FileSys::RegisteredCacheUnion GetUnionContents() {
-    return FileSys::RegisteredCacheUnion{
-        {GetSystemNANDContents(), GetUserNANDContents(), GetSDMCContents()}};
-}
-
 FileSys::RegisteredCache* GetSystemNANDContents() {
     LOG_TRACE(Service_FS, "Opening System NAND Contents");
 
@@ -457,6 +452,10 @@ void CreateFactories(FileSys::VfsFilesystem& vfs, bool overwrite) {
     if (bis_factory == nullptr) {
         bis_factory =
             std::make_unique<FileSys::BISFactory>(nand_directory, load_directory, dump_directory);
+        Core::System::GetInstance().RegisterContentProvider(
+            FileSys::ContentProviderUnionSlot::SysNAND, bis_factory->GetSystemNANDContents());
+        Core::System::GetInstance().RegisterContentProvider(
+            FileSys::ContentProviderUnionSlot::UserNAND, bis_factory->GetUserNANDContents());
     }
 
     if (save_data_factory == nullptr) {
@@ -465,6 +464,8 @@ void CreateFactories(FileSys::VfsFilesystem& vfs, bool overwrite) {
 
     if (sdmc_factory == nullptr) {
         sdmc_factory = std::make_unique<FileSys::SDMCFactory>(std::move(sd_directory));
+        Core::System::GetInstance().RegisterContentProvider(FileSys::ContentProviderUnionSlot::SDMC,
+                                                            sdmc_factory->GetSDMCContents());
     }
 }
 
