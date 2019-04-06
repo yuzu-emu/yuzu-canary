@@ -5,10 +5,30 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <glad/glad.h>
 #include "common/common_types.h"
 
 namespace OpenGL {
+
+class BindBuffersRangePushBuffer {
+public:
+    BindBuffersRangePushBuffer(GLenum target);
+    ~BindBuffersRangePushBuffer();
+
+    void Setup(GLuint first_);
+
+    void Push(GLuint buffer, GLintptr offset, GLsizeiptr size);
+
+    void Bind() const;
+
+private:
+    GLenum target;
+    GLuint first;
+    std::vector<GLuint> buffers;
+    std::vector<GLintptr> offsets;
+    std::vector<GLsizeiptr> sizes;
+};
 
 void LabelGLObject(GLenum identifier, GLuint handle, VAddr addr, std::string extra_info = "");
 
