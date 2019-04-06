@@ -54,8 +54,6 @@ FileSys::SaveDataSize ReadSaveDataSize(FileSys::SaveDataType type, u64 title_id,
 void WriteSaveDataSize(FileSys::SaveDataType type, u64 title_id, u128 user_id,
                        FileSys::SaveDataSize new_value);
 
-FileSys::RegisteredCacheUnion GetUnionContents();
-
 FileSys::RegisteredCache* GetSystemNANDContents();
 FileSys::RegisteredCache* GetUserNANDContents();
 FileSys::RegisteredCache* GetSDMCContents();
