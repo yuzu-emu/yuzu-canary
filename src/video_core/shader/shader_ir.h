@@ -7,6 +7,7 @@
 #include <array>
 #include <cstring>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <tuple>
@@ -290,6 +291,7 @@ struct MetaTexture {
     const Sampler& sampler;
     Node array{};
     Node depth_compare{};
+    std::vector<Node> aoffi;
     Node bias{};
     Node lod{};
     Node component{};
@@ -741,14 +743,14 @@ private:
 
     Node4 GetTexCode(Tegra::Shader::Instruction instr, Tegra::Shader::TextureType texture_type,
                      Tegra::Shader::TextureProcessMode process_mode, bool depth_compare,
-                     bool is_array);
+                     bool is_array, bool is_aoffi);
 
     Node4 GetTexsCode(Tegra::Shader::Instruction instr, Tegra::Shader::TextureType texture_type,
                       Tegra::Shader::TextureProcessMode process_mode, bool depth_compare,
                       bool is_array);
 
     Node4 GetTld4Code(Tegra::Shader::Instruction instr, Tegra::Shader::TextureType texture_type,
-                      bool depth_compare, bool is_array);
+                      bool depth_compare, bool is_array, bool is_aoffi);
 
     Node4 GetTldsCode(Tegra::Shader::Instruction instr, Tegra::Shader::TextureType texture_type,
                       bool is_array);
@@ -757,9 +759,11 @@ private:
         Tegra::Shader::TextureType texture_type, bool depth_compare, bool is_array,
         bool lod_bias_enabled, std::size_t max_coords, std::size_t max_inputs);
 
+    std::vector<Node> GetAoffiCoordinates(Node aoffi_reg, std::size_t coord_count, bool is_tld4);
+
     Node4 GetTextureCode(Tegra::Shader::Instruction instr, Tegra::Shader::TextureType texture_type,
                          Tegra::Shader::TextureProcessMode process_mode, std::vector<Node> coords,
-                         Node array, Node depth_compare, u32 bias_offset);
+                         Node array, Node depth_compare, u32 bias_offset, std::vector<Node> aoffi);
 
     Node GetVideoOperand(Node op, bool is_chunk, bool is_signed, Tegra::Shader::VideoType type,
                          u64 byte_height);
@@ -772,6 +776,8 @@ private:
                               Node op_c, Node imm_lut, bool sets_cc);
 
     Node TrackCbuf(Node tracked, const NodeBlock& code, s64 cursor);
+
+    std::optional<u32> TrackImmediate(Node tracked, const NodeBlock& code, s64 cursor);
 
     std::pair<Node, s64> TrackRegister(const GprNode* tracked, const NodeBlock& code, s64 cursor);
 
