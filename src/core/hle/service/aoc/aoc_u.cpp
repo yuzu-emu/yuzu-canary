@@ -33,11 +33,11 @@ static bool CheckAOCTitleIDMatchesBase(u64 title_id, u64 base) {
 
 static std::vector<u64> AccumulateAOCTitleIDs() {
     std::vector<u64> add_on_content;
-    const auto rcu = FileSystem::GetUnionContents();
+    const auto& rcu = Core::System::GetInstance().GetContentProvider();
     const auto list =
         rcu.ListEntriesFilter(FileSys::TitleType::AOC, FileSys::ContentRecordType::Data);
     std::transform(list.begin(), list.end(), std::back_inserter(add_on_content),
-                   [](const FileSys::RegisteredCacheEntry& rce) { return rce.title_id; });
+                   [](const FileSys::ContentProviderEntry& rce) { return rce.title_id; });
     add_on_content.erase(
         std::remove_if(
             add_on_content.begin(), add_on_content.end(),
