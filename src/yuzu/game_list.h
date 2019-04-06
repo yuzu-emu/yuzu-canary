@@ -26,8 +26,9 @@ class GameListSearchField;
 class GMainWindow;
 
 namespace FileSys {
+class ManualContentProvider;
 class VfsFilesystem;
-}
+} // namespace FileSys
 
 enum class GameListOpenTarget {
     SaveData,
@@ -47,7 +48,8 @@ public:
         COLUMN_COUNT, // Number of columns
     };
 
-    explicit GameList(std::shared_ptr<FileSys::VfsFilesystem> vfs, GMainWindow* parent = nullptr);
+    explicit GameList(std::shared_ptr<FileSys::VfsFilesystem> vfs,
+                      FileSys::ManualContentProvider* provider, GMainWindow* parent = nullptr);
     ~GameList() override;
 
     void clearFilter();
@@ -86,6 +88,7 @@ private:
     void RefreshGameDirectory();
 
     std::shared_ptr<FileSys::VfsFilesystem> vfs;
+    FileSys::ManualContentProvider* provider;
     GameListSearchField* search_field;
     GMainWindow* main_window = nullptr;
     QVBoxLayout* layout = nullptr;
