@@ -10,8 +10,8 @@
 #include "common/common_types.h"
 #include "common/file_util.h"
 #include "common/logging/log.h"
-#include "common/lz4_compression.h"
 #include "common/scm_rev.h"
+#include "common/zstd_compression.h"
 
 #include "core/core.h"
 #include "core/hle/kernel/process.h"
@@ -259,7 +259,7 @@ ShaderDiskCacheOpenGL::LoadPrecompiledFile(FileUtil::IOFile& file) {
                 return {};
             }
 
-            dump.binary = Common::Compression::DecompressDataLZ4(compressed_binary, binary_length);
+            dump.binary = Common::Compression::DecompressDataZSTD(compressed_binary);
             if (dump.binary.empty()) {
                 return {};
             }
@@ -288,7 +288,7 @@ std::optional<ShaderDiskCacheDecompiled> ShaderDiskCacheOpenGL::LoadDecompiledEn
         return {};
     }
 
-    const std::vector<u8> code = Common::Compression::DecompressDataLZ4(compressed_code, code_size);
+    const std::vector<u8> code = Common::Compression::DecompressDataZSTD(compressed_code);
     if (code.empty()) {
         return {};
     }
@@ -474,8 +474,8 @@ void ShaderDiskCacheOpenGL::SaveDecompiled(u64 unique_identifier, const std::str
     if (!IsUsable())
         return;
 
-    const std::vector<u8> compressed_code{Common::Compression::CompressDataLZ4HC(
-        reinterpret_cast<const u8*>(code.data()), code.size(), 9)};
+    const std::vector<u8> compressed_code{Common::Compression::CompressDataZSTDDefault(
+        reinterpret_cast<const u8*>(code.data()), code.size())};
     if (compressed_code.empty()) {
         LOG_ERROR(Render_OpenGL, "Failed to compress GLSL code - skipping shader {:016x}",
                   unique_identifier);
@@ -506,7 +506,7 @@ void ShaderDiskCacheOpenGL::SaveDump(const ShaderDiskCacheUsage& usage, GLuint p
     glGetProgramBinary(program, binary_length, nullptr, &binary_format, binary.data());
 
     const std::vector<u8> compressed_binary =
-        Common::Compression::CompressDataLZ4HC(binary.data(), binary.size(), 9);
+        Common::Compression::CompressDataZSTDDefault(binary.data(), binary.size());
 
     if (compressed_binary.empty()) {
         LOG_ERROR(Render_OpenGL, "Failed to compress binary program in shader={:016x}",
