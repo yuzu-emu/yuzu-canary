@@ -49,6 +49,10 @@ add_subdirectory(open_source_archives EXCLUDE_FROM_ALL)
 add_library(unicorn-headers INTERFACE)
 target_include_directories(unicorn-headers INTERFACE ./unicorn/include)
 
+# Zstandard
+add_subdirectory(zstd/build/cmake EXCLUDE_FROM_ALL)
+target_include_directories(libzstd_static INTERFACE ./zstd/lib)
+
 # SoundTouch
 add_subdirectory(soundtouch)
 
