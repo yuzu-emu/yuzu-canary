@@ -31,6 +31,8 @@ add_executable(yuzu
     configuration/configure_general.h
     configuration/configure_graphics.cpp
     configuration/configure_graphics.h
+    configuration/configure_hotkeys.cpp
+    configuration/configure_hotkeys.h
     configuration/configure_input.cpp
     configuration/configure_input.h
     configuration/configure_input_player.cpp
@@ -78,6 +80,8 @@ add_executable(yuzu
     ui_settings.h
     util/limitable_input_dialog.cpp
     util/limitable_input_dialog.h
+    util/sequence_dialog/sequence_dialog.cpp
+    util/sequence_dialog/sequence_dialog.h
     util/spinbox.cpp
     util/spinbox.h
     util/util.cpp
@@ -95,6 +99,7 @@ set(UIS
     configuration/configure_gamelist.ui
     configuration/configure_general.ui
     configuration/configure_graphics.ui
+    configuration/configure_hotkeys.ui
     configuration/configure_input.ui
     configuration/configure_input_player.ui
     configuration/configure_input_simple.ui
@@ -105,7 +110,6 @@ set(UIS
     configuration/configure_touchscreen_advanced.ui
     configuration/configure_web.ui
     compatdb.ui
-    hotkeys.ui
     loading_screen.ui
     main.ui
 )
