@@ -171,7 +171,8 @@ static void InitializeLogging() {
 
 GMainWindow::GMainWindow()
     : config(new Config()), emu_thread(nullptr),
-      vfs(std::make_shared<FileSys::RealVfsFilesystem>()) {
+      vfs(std::make_shared<FileSys::RealVfsFilesystem>()),
+      provider(std::make_unique<FileSys::ManualContentProvider>()) {
     InitializeLogging();
 
     debug_context = Tegra::DebugContext::Construct();
@@ -203,11 +204,15 @@ GMainWindow::GMainWindow()
                        .arg(Common::g_build_fullname, Common::g_scm_branch, Common::g_scm_desc));
     show();
 
+    Core::System::GetInstance().SetContentProvider(
+        std::make_unique<FileSys::ContentProviderUnion>());
+    Core::System::GetInstance().RegisterContentProvider(
+        FileSys::ContentProviderUnionSlot::FrontendManual, provider.get());
+    Service::FileSystem::CreateFactories(*vfs);
+
     // Gen keys if necessary
     OnReinitializeKeys(ReinitializeKeyBehavior::NoWarning);
 
-    // Necessary to load titles from nand in gamelist.
-    Service::FileSystem::CreateFactories(*vfs);
     game_list->LoadCompatibilityList();
     game_list->PopulateAsync(UISettings::values.gamedir, UISettings::values.gamedir_deepscan);
 
@@ -419,7 +424,7 @@ void GMainWindow::InitializeWidgets() {
     render_window = new GRenderWindow(this, emu_thread.get());
     render_window->hide();
 
-    game_list = new GameList(vfs, this);
+    game_list = new GameList(vfs, provider.get(), this);
     ui.horizontalLayout->addWidget(game_list);
 
     loading_screen = new LoadingScreen(this);
@@ -1179,7 +1184,7 @@ void GMainWindow::OnGameListDumpRomFS(u64 program_id, const std::string& game_pa
         return;
     }
 
-    const auto installed = Service::FileSystem::GetUnionContents();
+    const auto& installed = Core::System::GetInstance().GetContentProvider();
     const auto romfs_title_id = SelectRomFSDumpTarget(installed, program_id);
 
     if (!romfs_title_id) {
@@ -1925,14 +1930,14 @@ void GMainWindow::OnReinitializeKeys(ReinitializeKeyBehavior behavior) {
     }
 }
 
-std::optional<u64> GMainWindow::SelectRomFSDumpTarget(
-    const FileSys::RegisteredCacheUnion& installed, u64 program_id) {
+std::optional<u64> GMainWindow::SelectRomFSDumpTarget(const FileSys::ContentProvider& installed,
+                                                      u64 program_id) {
     const auto dlc_entries =
         installed.ListEntriesFilter(FileSys::TitleType::AOC, FileSys::ContentRecordType::Data);
-    std::vector<FileSys::RegisteredCacheEntry> dlc_match;
+    std::vector<FileSys::ContentProviderEntry> dlc_match;
     dlc_match.reserve(dlc_entries.size());
     std::copy_if(dlc_entries.begin(), dlc_entries.end(), std::back_inserter(dlc_match),
-                 [&program_id, &installed](const FileSys::RegisteredCacheEntry& entry) {
+                 [&program_id, &installed](const FileSys::ContentProviderEntry& entry) {
                      return (entry.title_id & DLC_BASE_TITLE_ID_MASK) == program_id &&
                             installed.GetEntry(entry)->GetStatus() == Loader::ResultStatus::Success;
                  });

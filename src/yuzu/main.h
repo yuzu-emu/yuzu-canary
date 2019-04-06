@@ -37,7 +37,8 @@ struct SoftwareKeyboardParameters;
 } // namespace Core::Frontend
 
 namespace FileSys {
-class RegisteredCacheUnion;
+class ContentProvider;
+class ManualContentProvider;
 class VfsFilesystem;
 } // namespace FileSys
 
@@ -205,7 +206,7 @@ private slots:
     void OnReinitializeKeys(ReinitializeKeyBehavior behavior);
 
 private:
-    std::optional<u64> SelectRomFSDumpTarget(const FileSys::RegisteredCacheUnion&, u64 program_id);
+    std::optional<u64> SelectRomFSDumpTarget(const FileSys::ContentProvider&, u64 program_id);
     void UpdateStatusBar();
 
     Ui::MainWindow ui;
@@ -233,6 +234,7 @@ private:
 
     // FS
     std::shared_ptr<FileSys::VfsFilesystem> vfs;
+    std::unique_ptr<FileSys::ManualContentProvider> provider;
 
     // Debugger panes
     ProfilerWidget* profilerWidget;
