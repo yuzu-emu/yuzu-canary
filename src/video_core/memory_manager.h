@@ -10,6 +10,10 @@
 #include "common/common_types.h"
 #include "common/page_table.h"
 
+namespace VideoCore {
+class RasterizerInterface;
+}
+
 namespace Tegra {
 
 /**
@@ -43,7 +47,7 @@ struct VirtualMemoryArea {
 
 class MemoryManager final {
 public:
-    MemoryManager();
+    MemoryManager(VideoCore::RasterizerInterface& rasterizer);
 
     GPUVAddr AllocateSpace(u64 size, u64 align);
     GPUVAddr AllocateSpace(GPUVAddr addr, u64 size, u64 align);
@@ -144,6 +148,7 @@ private:
 
     Common::PageTable page_table{page_bits};
     VMAMap vma_map;
+    VideoCore::RasterizerInterface& rasterizer;
 };
 
 } // namespace Tegra
