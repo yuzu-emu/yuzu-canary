@@ -54,10 +54,6 @@ public:
     } depth_clamp; // GL_DEPTH_CLAMP
 
     struct {
-        bool enabled; // viewports arrays are only supported when geometry shaders are enabled.
-    } geometry_shaders;
-
-    struct {
         bool enabled;      // GL_CULL_FACE
         GLenum mode;       // GL_CULL_FACE_MODE
         GLenum front_face; // GL_FRONT_FACE
@@ -184,34 +180,26 @@ public:
     static OpenGLState GetCurState() {
         return cur_state;
     }
+
     static bool GetsRGBUsed() {
         return s_rgb_used;
     }
+
     static void ClearsRGBUsed() {
         s_rgb_used = false;
     }
+
     /// Apply this state as the current OpenGL state
     void Apply() const;
-    /// Apply only the state affecting the framebuffer
-    void ApplyFramebufferState() const;
-    /// Apply only the state affecting the vertex array
-    void ApplyVertexArrayState() const;
-    /// Set the initial OpenGL state
-    static void ApplyDefaultState();
-    /// Resets any references to the given resource
-    OpenGLState& UnbindTexture(GLuint handle);
-    OpenGLState& ResetSampler(GLuint handle);
-    OpenGLState& ResetProgram(GLuint handle);
-    OpenGLState& ResetPipeline(GLuint handle);
-    OpenGLState& ResetVertexArray(GLuint handle);
-    OpenGLState& ResetFramebuffer(GLuint handle);
-    void EmulateViewportWithScissor();
 
-private:
-    static OpenGLState cur_state;
-    // Workaround for sRGB problems caused by
-    // QT not supporting srgb output
-    static bool s_rgb_used;
+    void ApplyFramebufferState() const;
+    void ApplyVertexArrayState() const;
+    void ApplyShaderProgram() const;
+    void ApplyProgramPipeline() const;
+    void ApplyClipDistances() const;
+    void ApplyPointSize() const;
+    void ApplyFragmentColorClamp() const;
+    void ApplyMultisample() const;
     void ApplySRgb() const;
     void ApplyCulling() const;
     void ApplyColorMask() const;
@@ -227,6 +215,26 @@ private:
     void ApplySamplers() const;
     void ApplyDepthClamp() const;
     void ApplyPolygonOffset() const;
+
+    /// Set the initial OpenGL state
+    static void ApplyDefaultState();
+
+    /// Resets any references to the given resource
+    OpenGLState& UnbindTexture(GLuint handle);
+    OpenGLState& ResetSampler(GLuint handle);
+    OpenGLState& ResetProgram(GLuint handle);
+    OpenGLState& ResetPipeline(GLuint handle);
+    OpenGLState& ResetVertexArray(GLuint handle);
+    OpenGLState& ResetFramebuffer(GLuint handle);
+
+    /// Viewport does not affects glClearBuffer so emulate viewport using scissor test
+    void EmulateViewportWithScissor();
+
+private:
+    static OpenGLState cur_state;
+
+    // Workaround for sRGB problems caused by QT not supporting srgb output
+    static bool s_rgb_used;
 };
 
 } // namespace OpenGL
