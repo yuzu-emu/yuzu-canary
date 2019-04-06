@@ -5,16 +5,13 @@
 #include "common/alignment.h"
 #include "common/assert.h"
 #include "common/logging/log.h"
-#include "core/core.h"
 #include "core/memory.h"
-#include "video_core/gpu.h"
 #include "video_core/memory_manager.h"
 #include "video_core/rasterizer_interface.h"
-#include "video_core/renderer_base.h"
 
 namespace Tegra {
 
-MemoryManager::MemoryManager() {
+MemoryManager::MemoryManager(VideoCore::RasterizerInterface& rasterizer) : rasterizer{rasterizer} {
     std::fill(page_table.pointers.begin(), page_table.pointers.end(), nullptr);
     std::fill(page_table.attributes.begin(), page_table.attributes.end(),
               Common::PageType::Unmapped);
@@ -70,8 +67,7 @@ GPUVAddr MemoryManager::UnmapBuffer(GPUVAddr gpu_addr, u64 size) {
     const u64 aligned_size{Common::AlignUp(size, page_size)};
     const CacheAddr cache_addr{ToCacheAddr(GetPointer(gpu_addr))};
 
-    Core::System::GetInstance().Renderer().Rasterizer().FlushAndInvalidateRegion(cache_addr,
-                                                                                 aligned_size);
+    rasterizer.FlushAndInvalidateRegion(cache_addr, aligned_size);
     UnmapRange(gpu_addr, aligned_size);
 
     return gpu_addr;
@@ -204,14 +200,85 @@ const u8* MemoryManager::GetPointer(GPUVAddr addr) const {
 }
 
 void MemoryManager::ReadBlock(GPUVAddr src_addr, void* dest_buffer, std::size_t size) const {
-    std::memcpy(dest_buffer, GetPointer(src_addr), size);
+    std::size_t remaining_size{size};
+    std::size_t page_index{src_addr >> page_bits};
+    std::size_t page_offset{src_addr & page_mask};
+
+    while (remaining_size > 0) {
+        const std::size_t copy_amount{
+            std::min(static_cast<std::size_t>(page_size) - page_offset, remaining_size)};
+
+        switch (page_table.attributes[page_index]) {
+        case Common::PageType::Memory: {
+            const u8* src_ptr{page_table.pointers[page_index] + page_offset};
+            rasterizer.FlushRegion(ToCacheAddr(src_ptr), copy_amount);
+            std::memcpy(dest_buffer, src_ptr, copy_amount);
+            break;
+        }
+        default:
+            UNREACHABLE();
+        }
+
+        page_index++;
+        page_offset = 0;
+        dest_buffer = static_cast<u8*>(dest_buffer) + copy_amount;
+        remaining_size -= copy_amount;
+    }
 }
+
 void MemoryManager::WriteBlock(GPUVAddr dest_addr, const void* src_buffer, std::size_t size) {
-    std::memcpy(GetPointer(dest_addr), src_buffer, size);
+    std::size_t remaining_size{size};
+    std::size_t page_index{dest_addr >> page_bits};
+    std::size_t page_offset{dest_addr & page_mask};
+
+    while (remaining_size > 0) {
+        const std::size_t copy_amount{
+            std::min(static_cast<std::size_t>(page_size) - page_offset, remaining_size)};
+
+        switch (page_table.attributes[page_index]) {
+        case Common::PageType::Memory: {
+            u8* dest_ptr{page_table.pointers[page_index] + page_offset};
+            rasterizer.InvalidateRegion(ToCacheAddr(dest_ptr), copy_amount);
+            std::memcpy(dest_ptr, src_buffer, copy_amount);
+            break;
+        }
+        default:
+            UNREACHABLE();
+        }
+
+        page_index++;
+        page_offset = 0;
+        src_buffer = static_cast<const u8*>(src_buffer) + copy_amount;
+        remaining_size -= copy_amount;
+    }
 }
 
 void MemoryManager::CopyBlock(GPUVAddr dest_addr, GPUVAddr src_addr, std::size_t size) {
-    std::memcpy(GetPointer(dest_addr), GetPointer(src_addr), size);
+    std::size_t remaining_size{size};
+    std::size_t page_index{src_addr >> page_bits};
+    std::size_t page_offset{src_addr & page_mask};
+
+    while (remaining_size > 0) {
+        const std::size_t copy_amount{
+            std::min(static_cast<std::size_t>(page_size) - page_offset, remaining_size)};
+
+        switch (page_table.attributes[page_index]) {
+        case Common::PageType::Memory: {
+            const u8* src_ptr{page_table.pointers[page_index] + page_offset};
+            rasterizer.FlushRegion(ToCacheAddr(src_ptr), copy_amount);
+            WriteBlock(dest_addr, src_ptr, copy_amount);
+            break;
+        }
+        default:
+            UNREACHABLE();
+        }
+
+        page_index++;
+        page_offset = 0;
+        dest_addr += static_cast<VAddr>(copy_amount);
+        src_addr += static_cast<VAddr>(copy_amount);
+        remaining_size -= copy_amount;
+    }
 }
 
 void MemoryManager::MapPages(GPUVAddr base, u64 size, u8* memory, Common::PageType type,
@@ -351,7 +418,7 @@ MemoryManager::VMAIter MemoryManager::CarveVMA(GPUVAddr base, u64 size) {
     const VirtualMemoryArea& vma{vma_handle->second};
     if (vma.type == VirtualMemoryArea::Type::Mapped) {
         // Region is already allocated
-        return {};
+        return vma_handle;
     }
 
     const VAddr start_in_vma{base - vma.base};
