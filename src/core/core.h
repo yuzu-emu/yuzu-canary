@@ -21,6 +21,9 @@ class WebBrowserApplet;
 
 namespace FileSys {
 class CheatList;
+class ContentProvider;
+class ContentProviderUnion;
+enum class ContentProviderUnionSlot;
 class VfsFilesystem;
 } // namespace FileSys
 
@@ -269,6 +272,17 @@ public:
 
     Frontend::WebBrowserApplet& GetWebBrowser();
     const Frontend::WebBrowserApplet& GetWebBrowser() const;
+
+    void SetContentProvider(std::unique_ptr<FileSys::ContentProviderUnion> provider);
+
+    FileSys::ContentProvider& GetContentProvider();
+
+    const FileSys::ContentProvider& GetContentProvider() const;
+
+    void RegisterContentProvider(FileSys::ContentProviderUnionSlot slot,
+                                 FileSys::ContentProvider* provider);
+
+    void ClearContentProvider(FileSys::ContentProviderUnionSlot slot);
 
 private:
     System();
