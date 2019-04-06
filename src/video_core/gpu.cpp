@@ -31,7 +31,7 @@ u32 FramebufferConfig::BytesPerPixel(PixelFormat format) {
 
 GPU::GPU(Core::System& system, VideoCore::RendererBase& renderer) : renderer{renderer} {
     auto& rasterizer{renderer.Rasterizer()};
-    memory_manager = std::make_unique<Tegra::MemoryManager>();
+    memory_manager = std::make_unique<Tegra::MemoryManager>(rasterizer);
     dma_pusher = std::make_unique<Tegra::DmaPusher>(*this);
     maxwell_3d = std::make_unique<Engines::Maxwell3D>(system, rasterizer, *memory_manager);
     fermi_2d = std::make_unique<Engines::Fermi2D>(rasterizer, *memory_manager);
