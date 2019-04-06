@@ -7,7 +7,9 @@
 #include <fmt/format.h>
 
 #include "common/assert.h"
+#include "common/bit_field.h"
 #include "common/common_types.h"
+#include "common/logging/log.h"
 #include "video_core/engines/shader_bytecode.h"
 #include "video_core/shader/shader_ir.h"
 
@@ -41,19 +43,18 @@ u32 ShaderIR::DecodeTexture(NodeBlock& bb, u32 pc) {
 
     switch (opcode->get().GetId()) {
     case OpCode::Id::TEX: {
-        UNIMPLEMENTED_IF_MSG(instr.tex.UsesMiscMode(TextureMiscMode::AOFFI),
-                             "AOFFI is not implemented");
-
         if (instr.tex.UsesMiscMode(TextureMiscMode::NODEP)) {
             LOG_WARNING(HW_GPU, "TEX.NODEP implementation is incomplete");
         }
 
         const TextureType texture_type{instr.tex.texture_type};
         const bool is_array = instr.tex.array != 0;
+        const bool is_aoffi = instr.tex.UsesMiscMode(TextureMiscMode::AOFFI);
         const bool depth_compare = instr.tex.UsesMiscMode(TextureMiscMode::DC);
         const auto process_mode = instr.tex.GetTextureProcessMode();
         WriteTexInstructionFloat(
-            bb, instr, GetTexCode(instr, texture_type, process_mode, depth_compare, is_array));
+            bb, instr,
+            GetTexCode(instr, texture_type, process_mode, depth_compare, is_array, is_aoffi));
         break;
     }
     case OpCode::Id::TEXS: {
@@ -78,8 +79,6 @@ u32 ShaderIR::DecodeTexture(NodeBlock& bb, u32 pc) {
     }
     case OpCode::Id::TLD4: {
         ASSERT(instr.tld4.array == 0);
-        UNIMPLEMENTED_IF_MSG(instr.tld4.UsesMiscMode(TextureMiscMode::AOFFI),
-                             "AOFFI is not implemented");
         UNIMPLEMENTED_IF_MSG(instr.tld4.UsesMiscMode(TextureMiscMode::NDV),
                              "NDV is not implemented");
         UNIMPLEMENTED_IF_MSG(instr.tld4.UsesMiscMode(TextureMiscMode::PTP),
@@ -92,8 +91,9 @@ u32 ShaderIR::DecodeTexture(NodeBlock& bb, u32 pc) {
         const auto texture_type = instr.tld4.texture_type.Value();
         const bool depth_compare = instr.tld4.UsesMiscMode(TextureMiscMode::DC);
         const bool is_array = instr.tld4.array != 0;
-        WriteTexInstructionFloat(bb, instr,
-                                 GetTld4Code(instr, texture_type, depth_compare, is_array));
+        const bool is_aoffi = instr.tld4.UsesMiscMode(TextureMiscMode::AOFFI);
+        WriteTexInstructionFloat(
+            bb, instr, GetTld4Code(instr, texture_type, depth_compare, is_array, is_aoffi));
         break;
     }
     case OpCode::Id::TLD4S: {
@@ -127,7 +127,7 @@ u32 ShaderIR::DecodeTexture(NodeBlock& bb, u32 pc) {
         Node4 values;
         for (u32 element = 0; element < values.size(); ++element) {
             auto coords_copy = coords;
-            MetaTexture meta{sampler, {}, {}, {}, {}, component, element};
+            MetaTexture meta{sampler, {}, {}, {}, {}, {}, component, element};
             values[element] = Operation(OperationCode::TextureGather, meta, std::move(coords_copy));
         }
 
@@ -152,7 +152,7 @@ u32 ShaderIR::DecodeTexture(NodeBlock& bb, u32 pc) {
                 if (!instr.txq.IsComponentEnabled(element)) {
                     continue;
                 }
-                MetaTexture meta{sampler, {}, {}, {}, {}, {}, element};
+                MetaTexture meta{sampler, {}, {}, {}, {}, {}, {}, element};
                 const Node value =
                     Operation(OperationCode::TextureQueryDimensions, meta, GetRegister(instr.gpr8));
                 SetTemporal(bb, indexer++, value);
@@ -202,7 +202,7 @@ u32 ShaderIR::DecodeTexture(NodeBlock& bb, u32 pc) {
 
         for (u32 element = 0; element < 2; ++element) {
             auto params = coords;
-            MetaTexture meta{sampler, {}, {}, {}, {}, {}, element};
+            MetaTexture meta{sampler, {}, {}, {}, {}, {}, {}, element};
             const Node value = Operation(OperationCode::TextureQueryLod, meta, std::move(params));
             SetTemporal(bb, element, value);
         }
@@ -325,7 +325,8 @@ void ShaderIR::WriteTexsInstructionHalfFloat(NodeBlock& bb, Instruction instr,
 
 Node4 ShaderIR::GetTextureCode(Instruction instr, TextureType texture_type,
                                TextureProcessMode process_mode, std::vector<Node> coords,
-                               Node array, Node depth_compare, u32 bias_offset) {
+                               Node array, Node depth_compare, u32 bias_offset,
+                               std::vector<Node> aoffi) {
     const bool is_array = array;
     const bool is_shadow = depth_compare;
 
@@ -374,7 +375,7 @@ Node4 ShaderIR::GetTextureCode(Instruction instr, TextureType texture_type,
     Node4 values;
     for (u32 element = 0; element < values.size(); ++element) {
         auto copy_coords = coords;
-        MetaTexture meta{sampler, array, depth_compare, bias, lod, {}, element};
+        MetaTexture meta{sampler, array, depth_compare, aoffi, bias, lod, {}, element};
         values[element] = Operation(read_method, meta, std::move(copy_coords));
     }
 
@@ -382,9 +383,15 @@ Node4 ShaderIR::GetTextureCode(Instruction instr, TextureType texture_type,
 }
 
 Node4 ShaderIR::GetTexCode(Instruction instr, TextureType texture_type,
-                           TextureProcessMode process_mode, bool depth_compare, bool is_array) {
-    const bool lod_bias_enabled =
-        (process_mode != TextureProcessMode::None && process_mode != TextureProcessMode::LZ);
+                           TextureProcessMode process_mode, bool depth_compare, bool is_array,
+                           bool is_aoffi) {
+    const bool lod_bias_enabled{
+        (process_mode != TextureProcessMode::None && process_mode != TextureProcessMode::LZ)};
+
+    u64 parameter_register = instr.gpr20.Value();
+    if (lod_bias_enabled) {
+        ++parameter_register;
+    }
 
     const auto [coord_count, total_coord_count] = ValidateAndGetCoordinateElement(
         texture_type, depth_compare, is_array, lod_bias_enabled, 4, 5);
@@ -404,15 +411,19 @@ Node4 ShaderIR::GetTexCode(Instruction instr, TextureType texture_type,
 
     const Node array = is_array ? GetRegister(array_register) : nullptr;
 
+    std::vector<Node> aoffi;
+    if (is_aoffi) {
+        aoffi = GetAoffiCoordinates(GetRegister(parameter_register++), coord_count, false);
+    }
+
     Node dc{};
     if (depth_compare) {
         // Depth is always stored in the register signaled by gpr20 or in the next register if lod
         // or bias are used
-        const u64 depth_register = instr.gpr20.Value() + (lod_bias_enabled ? 1 : 0);
-        dc = GetRegister(depth_register);
+        dc = GetRegister(parameter_register++);
     }
 
-    return GetTextureCode(instr, texture_type, process_mode, coords, array, dc, 0);
+    return GetTextureCode(instr, texture_type, process_mode, coords, array, dc, 0, aoffi);
 }
 
 Node4 ShaderIR::GetTexsCode(Instruction instr, TextureType texture_type,
@@ -448,11 +459,11 @@ Node4 ShaderIR::GetTexsCode(Instruction instr, TextureType texture_type,
         dc = GetRegister(depth_register);
     }
 
-    return GetTextureCode(instr, texture_type, process_mode, coords, array, dc, bias_offset);
+    return GetTextureCode(instr, texture_type, process_mode, coords, array, dc, bias_offset, {});
 }
 
 Node4 ShaderIR::GetTld4Code(Instruction instr, TextureType texture_type, bool depth_compare,
-                            bool is_array) {
+                            bool is_array, bool is_aoffi) {
     const std::size_t coord_count = GetCoordCount(texture_type);
     const std::size_t total_coord_count = coord_count + (is_array ? 1 : 0);
     const std::size_t total_reg_count = total_coord_count + (depth_compare ? 1 : 0);
@@ -463,15 +474,27 @@ Node4 ShaderIR::GetTld4Code(Instruction instr, TextureType texture_type, bool de
     const u64 coord_register = array_register + (is_array ? 1 : 0);
 
     std::vector<Node> coords;
-    for (size_t i = 0; i < coord_count; ++i)
+    for (std::size_t i = 0; i < coord_count; ++i) {
         coords.push_back(GetRegister(coord_register + i));
+    }
+
+    u64 parameter_register = instr.gpr20.Value();
+    std::vector<Node> aoffi;
+    if (is_aoffi) {
+        aoffi = GetAoffiCoordinates(GetRegister(parameter_register++), coord_count, true);
+    }
+
+    Node dc{};
+    if (depth_compare) {
+        dc = GetRegister(parameter_register++);
+    }
 
     const auto& sampler = GetSampler(instr.sampler, texture_type, is_array, depth_compare);
 
     Node4 values;
     for (u32 element = 0; element < values.size(); ++element) {
         auto coords_copy = coords;
-        MetaTexture meta{sampler, GetRegister(array_register), {}, {}, {}, {}, element};
+        MetaTexture meta{sampler, GetRegister(array_register), dc, aoffi, {}, {}, {}, element};
         values[element] = Operation(OperationCode::TextureGather, meta, std::move(coords_copy));
     }
 
@@ -507,7 +530,7 @@ Node4 ShaderIR::GetTldsCode(Instruction instr, TextureType texture_type, bool is
     Node4 values;
     for (u32 element = 0; element < values.size(); ++element) {
         auto coords_copy = coords;
-        MetaTexture meta{sampler, array, {}, {}, lod, {}, element};
+        MetaTexture meta{sampler, array, {}, {}, {}, lod, {}, element};
         values[element] = Operation(OperationCode::TexelFetch, meta, std::move(coords_copy));
     }
     return values;
@@ -529,6 +552,47 @@ std::tuple<std::size_t, std::size_t> ShaderIR::ValidateAndGetCoordinateElement(
         (depth_compare && !is_array && texture_type == TextureType::Texture1D) ? 1 : 0;
 
     return {coord_count, total_coord_count};
+}
+
+std::vector<Node> ShaderIR::GetAoffiCoordinates(Node aoffi_reg, std::size_t coord_count,
+                                                bool is_tld4) {
+    const auto [coord_offsets, size, wrap_value,
+                diff_value] = [is_tld4]() -> std::tuple<std::array<u32, 3>, u32, s32, s32> {
+        if (is_tld4) {
+            return {{0, 8, 16}, 6, 32, 64};
+        } else {
+            return {{0, 4, 8}, 4, 8, 16};
+        }
+    }();
+    const u32 mask = (1U << size) - 1;
+
+    std::vector<Node> aoffi;
+    aoffi.reserve(coord_count);
+
+    const auto aoffi_immediate{
+        TrackImmediate(aoffi_reg, global_code, static_cast<s64>(global_code.size()))};
+    if (!aoffi_immediate) {
+        // Variable access, not supported on AMD.
+        LOG_WARNING(HW_GPU,
+                    "AOFFI constant folding failed, some hardware might have graphical issues");
+        for (std::size_t coord = 0; coord < coord_count; ++coord) {
+            const Node value = BitfieldExtract(aoffi_reg, coord_offsets.at(coord), size);
+            const Node condition =
+                Operation(OperationCode::LogicalIGreaterEqual, value, Immediate(wrap_value));
+            const Node negative = Operation(OperationCode::IAdd, value, Immediate(-diff_value));
+            aoffi.push_back(Operation(OperationCode::Select, condition, negative, value));
+        }
+        return aoffi;
+    }
+
+    for (std::size_t coord = 0; coord < coord_count; ++coord) {
+        s32 value = (*aoffi_immediate >> coord_offsets.at(coord)) & mask;
+        if (value >= wrap_value) {
+            value -= diff_value;
+        }
+        aoffi.push_back(Immediate(value));
+    }
+    return aoffi;
 }
 
 } // namespace VideoCommon::Shader
