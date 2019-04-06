@@ -28,6 +28,7 @@
 #include "video_core/renderer_opengl/gl_shader_cache.h"
 #include "video_core/renderer_opengl/gl_shader_manager.h"
 #include "video_core/renderer_opengl/gl_state.h"
+#include "video_core/renderer_opengl/utils.h"
 
 namespace Core {
 class System;
@@ -228,6 +229,9 @@ private:
     OGLBufferCache buffer_cache;
     PrimitiveAssembler primitive_assembler{buffer_cache};
     GLint uniform_buffer_alignment;
+
+    BindBuffersRangePushBuffer bind_ubo_pushbuffer{GL_UNIFORM_BUFFER};
+    BindBuffersRangePushBuffer bind_ssbo_pushbuffer{GL_SHADER_STORAGE_BUFFER};
 
     std::size_t CalculateVertexArraysSize() const;
 
