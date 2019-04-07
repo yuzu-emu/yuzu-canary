@@ -21,6 +21,8 @@
 
 namespace OpenGL::GLShader {
 
+namespace {
+
 using Tegra::Shader::Attribute;
 using Tegra::Shader::AttributeUse;
 using Tegra::Shader::Header;
@@ -34,13 +36,17 @@ using Maxwell = Tegra::Engines::Maxwell3D::Regs;
 using ShaderStage = Tegra::Engines::Maxwell3D::Regs::ShaderStage;
 using Operation = const OperationNode&;
 
+enum class Type { Bool, Bool2, Float, Int, Uint, HalfFloat };
+
+struct TextureAoffi {};
+using TextureArgument = std::pair<Type, Node>;
+using TextureIR = std::variant<TextureAoffi, TextureArgument>;
+
 enum : u32 { POSITION_VARYING_LOCATION = 0, GENERIC_VARYING_START_LOCATION = 1 };
 constexpr u32 MAX_CONSTBUFFER_ELEMENTS =
     static_cast<u32>(RasterizerOpenGL::MaxConstbufferSize) / (4 * sizeof(float));
 constexpr u32 MAX_GLOBALMEMORY_ELEMENTS =
     static_cast<u32>(RasterizerOpenGL::MaxGlobalMemorySize) / sizeof(float);
-
-enum class Type { Bool, Bool2, Float, Int, Uint, HalfFloat };
 
 class ShaderWriter {
 public:
@@ -91,7 +97,7 @@ private:
 };
 
 /// Generates code to use for a swizzle operation.
-static std::string GetSwizzle(u32 elem) {
+std::string GetSwizzle(u32 elem) {
     ASSERT(elem <= 3);
     std::string swizzle = ".";
     swizzle += "xyzw"[elem];
@@ -99,7 +105,7 @@ static std::string GetSwizzle(u32 elem) {
 }
 
 /// Translate topology
-static std::string GetTopologyName(Tegra::Shader::OutputTopology topology) {
+std::string GetTopologyName(Tegra::Shader::OutputTopology topology) {
     switch (topology) {
     case Tegra::Shader::OutputTopology::PointList:
         return "points";
@@ -114,7 +120,7 @@ static std::string GetTopologyName(Tegra::Shader::OutputTopology topology) {
 }
 
 /// Returns true if an object has to be treated as precise
-static bool IsPrecise(Operation operand) {
+bool IsPrecise(Operation operand) {
     const auto& meta = operand.GetMeta();
 
     if (const auto arithmetic = std::get_if<MetaArithmetic>(&meta)) {
@@ -126,7 +132,7 @@ static bool IsPrecise(Operation operand) {
     return false;
 }
 
-static bool IsPrecise(Node node) {
+bool IsPrecise(Node node) {
     if (const auto operation = std::get_if<OperationNode>(node)) {
         return IsPrecise(*operation);
     }
@@ -723,8 +729,8 @@ private:
                                                          result_type));
     }
 
-    std::string GenerateTexture(Operation operation, const std::string& func,
-                                const std::vector<std::pair<Type, Node>>& extras) {
+    std::string GenerateTexture(Operation operation, const std::string& function_suffix,
+                                const std::vector<TextureIR>& extras) {
         constexpr std::array<const char*, 4> coord_constructors = {"float", "vec2", "vec3", "vec4"};
 
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
@@ -734,11 +740,11 @@ private:
         const bool has_array = meta->sampler.IsArray();
         const bool has_shadow = meta->sampler.IsShadow();
 
-        std::string expr = func;
-        expr += '(';
-        expr += GetSampler(meta->sampler);
-        expr += ", ";
-
+        std::string expr = "texture" + function_suffix;
+        if (!meta->aoffi.empty()) {
+            expr += "Offset";
+        }
+        expr += '(' + GetSampler(meta->sampler) + ", ";
         expr += coord_constructors.at(count + (has_array ? 1 : 0) + (has_shadow ? 1 : 0) - 1);
         expr += '(';
         for (std::size_t i = 0; i < count; ++i) {
@@ -756,36 +762,74 @@ private:
         }
         expr += ')';
 
-        for (const auto& extra_pair : extras) {
-            const auto [type, operand] = extra_pair;
-            if (operand == nullptr) {
-                continue;
-            }
-            expr += ", ";
-
-            switch (type) {
-            case Type::Int:
-                if (const auto immediate = std::get_if<ImmediateNode>(operand)) {
-                    // Inline the string as an immediate integer in GLSL (some extra arguments are
-                    // required to be constant)
-                    expr += std::to_string(static_cast<s32>(immediate->GetValue()));
-                } else {
-                    expr += "ftoi(" + Visit(operand) + ')';
-                }
-                break;
-            case Type::Float:
-                expr += Visit(operand);
-                break;
-            default: {
-                const auto type_int = static_cast<u32>(type);
-                UNIMPLEMENTED_MSG("Unimplemented extra type={}", type_int);
-                expr += '0';
-                break;
-            }
+        for (const auto& variant : extras) {
+            if (const auto argument = std::get_if<TextureArgument>(&variant)) {
+                expr += GenerateTextureArgument(*argument);
+            } else if (std::get_if<TextureAoffi>(&variant)) {
+                expr += GenerateTextureAoffi(meta->aoffi);
+            } else {
+                UNREACHABLE();
             }
         }
 
         return expr + ')';
+    }
+
+    std::string GenerateTextureArgument(TextureArgument argument) {
+        const auto [type, operand] = argument;
+        if (operand == nullptr) {
+            return {};
+        }
+
+        std::string expr = ", ";
+        switch (type) {
+        case Type::Int:
+            if (const auto immediate = std::get_if<ImmediateNode>(operand)) {
+                // Inline the string as an immediate integer in GLSL (some extra arguments are
+                // required to be constant)
+                expr += std::to_string(static_cast<s32>(immediate->GetValue()));
+            } else {
+                expr += "ftoi(" + Visit(operand) + ')';
+            }
+            break;
+        case Type::Float:
+            expr += Visit(operand);
+            break;
+        default: {
+            const auto type_int = static_cast<u32>(type);
+            UNIMPLEMENTED_MSG("Unimplemented extra type={}", type_int);
+            expr += '0';
+            break;
+        }
+        }
+        return expr;
+    }
+
+    std::string GenerateTextureAoffi(const std::vector<Node>& aoffi) {
+        if (aoffi.empty()) {
+            return {};
+        }
+        constexpr std::array<const char*, 3> coord_constructors = {"int", "ivec2", "ivec3"};
+        std::string expr = ", ";
+        expr += coord_constructors.at(aoffi.size() - 1);
+        expr += '(';
+
+        for (std::size_t index = 0; index < aoffi.size(); ++index) {
+            const auto operand{aoffi.at(index)};
+            if (const auto immediate = std::get_if<ImmediateNode>(operand)) {
+                // Inline the string as an immediate integer in GLSL (AOFFI arguments are required
+                // to be constant by the standard).
+                expr += std::to_string(static_cast<s32>(immediate->GetValue()));
+            } else {
+                expr += "ftoi(" + Visit(operand) + ')';
+            }
+            if (index + 1 < aoffi.size()) {
+                expr += ", ";
+            }
+        }
+        expr += ')';
+
+        return expr;
     }
 
     std::string Assign(Operation operation) {
@@ -1164,7 +1208,8 @@ private:
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
 
-        std::string expr = GenerateTexture(operation, "texture", {{Type::Float, meta->bias}});
+        std::string expr = GenerateTexture(
+            operation, "", {TextureAoffi{}, TextureArgument{Type::Float, meta->bias}});
         if (meta->sampler.IsShadow()) {
             expr = "vec4(" + expr + ')';
         }
@@ -1175,7 +1220,8 @@ private:
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
 
-        std::string expr = GenerateTexture(operation, "textureLod", {{Type::Float, meta->lod}});
+        std::string expr = GenerateTexture(
+            operation, "Lod", {TextureArgument{Type::Float, meta->lod}, TextureAoffi{}});
         if (meta->sampler.IsShadow()) {
             expr = "vec4(" + expr + ')';
         }
@@ -1187,7 +1233,8 @@ private:
         ASSERT(meta);
 
         const auto type = meta->sampler.IsShadow() ? Type::Float : Type::Int;
-        return GenerateTexture(operation, "textureGather", {{type, meta->component}}) +
+        return GenerateTexture(operation, "Gather",
+                               {TextureArgument{type, meta->component}, TextureAoffi{}}) +
                GetSwizzle(meta->element);
     }
 
@@ -1217,8 +1264,8 @@ private:
         ASSERT(meta);
 
         if (meta->element < 2) {
-            return "itof(int((" + GenerateTexture(operation, "textureQueryLod", {}) +
-                   " * vec2(256))" + GetSwizzle(meta->element) + "))";
+            return "itof(int((" + GenerateTexture(operation, "QueryLod", {}) + " * vec2(256))" +
+                   GetSwizzle(meta->element) + "))";
         }
         return "0";
     }
@@ -1570,6 +1617,8 @@ private:
 
     ShaderWriter code;
 };
+
+} // Anonymous namespace
 
 std::string GetCommonDeclarations() {
     const auto cbuf = std::to_string(MAX_CONSTBUFFER_ELEMENTS);
