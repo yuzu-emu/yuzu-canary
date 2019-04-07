@@ -44,7 +44,7 @@ public:
     // Currently tracked NSO patches:
     // - IPS
     // - IPSwitch
-    std::vector<u8> PatchNSO(const std::vector<u8>& nso) const;
+    std::vector<u8> PatchNSO(const std::vector<u8>& nso, const std::string& name) const;
 
     // Checks to see if PatchNSO() will have any effect given the NSO's build ID.
     // Used to prevent expensive copies in NSO loader.
