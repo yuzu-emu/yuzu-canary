@@ -7,6 +7,7 @@
 #include <vector>
 #include <QDialog>
 #include <QList>
+#include <QTreeView>
 #include "core/frontend/applets/profile_select.h"
 
 class GMainWindow;
@@ -16,7 +17,6 @@ class QLabel;
 class QScrollArea;
 class QStandardItem;
 class QStandardItemModel;
-class QTreeView;
 class QVBoxLayout;
 
 class QtProfileSelectionDialog final : public QDialog {
