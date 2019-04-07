@@ -48,7 +48,7 @@ ResultVal<VirtualFile> RomFSFactory::Open(u64 title_id, StorageId storage, Conte
 
     switch (storage) {
     case StorageId::None:
-        res = Service::FileSystem::GetUnionContents().GetEntry(title_id, type);
+        res = Core::System::GetInstance().GetContentProvider().GetEntry(title_id, type);
         break;
     case StorageId::NandSystem:
         res = Service::FileSystem::GetSystemNANDContents()->GetEntry(title_id, type);
