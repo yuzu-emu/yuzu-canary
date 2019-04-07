@@ -33,7 +33,8 @@ class GameListWorker : public QObject, public QRunnable {
     Q_OBJECT
 
 public:
-    GameListWorker(std::shared_ptr<FileSys::VfsFilesystem> vfs, QString dir_path, bool deep_scan,
+    GameListWorker(std::shared_ptr<FileSys::VfsFilesystem> vfs,
+                   FileSys::ManualContentProvider* provider, QString dir_path, bool deep_scan,
                    const CompatibilityList& compatibility_list);
     ~GameListWorker() override;
 
@@ -58,12 +59,17 @@ signals:
     void Finished(QStringList watch_list);
 
 private:
-    void AddInstalledTitlesToGameList();
-    void FillControlMap(const std::string& dir_path);
-    void AddFstEntriesToGameList(const std::string& dir_path, unsigned int recursion = 0);
+    void AddTitlesToGameList();
+
+    enum class ScanTarget {
+        FillManualContentProvider,
+        PopulateGameList,
+    };
+
+    void ScanFileSystem(ScanTarget target, const std::string& dir_path, unsigned int recursion = 0);
 
     std::shared_ptr<FileSys::VfsFilesystem> vfs;
-    std::map<u64, std::unique_ptr<FileSys::NCA>> nca_control_map;
+    FileSys::ManualContentProvider* provider;
     QStringList watch_list;
     QString dir_path;
     bool deep_scan;
