@@ -21,12 +21,13 @@ class NSP;
 class XCI;
 
 enum class ContentRecordType : u8;
+enum class NCAContentType : u8;
 enum class TitleType : u8;
 
 struct ContentRecord;
 
 using NcaID = std::array<u8, 0x10>;
-using RegisteredCacheParsingFunction = std::function<VirtualFile(const VirtualFile&, const NcaID&)>;
+using ContentProviderParsingFunction = std::function<VirtualFile(const VirtualFile&, const NcaID&)>;
 using VfsCopyFunction = std::function<bool(const VirtualFile&, const VirtualFile&, size_t)>;
 
 enum class InstallResult {
@@ -36,7 +37,7 @@ enum class InstallResult {
     ErrorMetaFailed,
 };
 
-struct RegisteredCacheEntry {
+struct ContentProviderEntry {
     u64 title_id;
     ContentRecordType type;
 
@@ -47,12 +48,46 @@ constexpr u64 GetUpdateTitleID(u64 base_title_id) {
     return base_title_id | 0x800;
 }
 
+ContentRecordType GetCRTypeFromNCAType(NCAContentType type);
+
 // boost flat_map requires operator< for O(log(n)) lookups.
-bool operator<(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs);
+bool operator<(const ContentProviderEntry& lhs, const ContentProviderEntry& rhs);
 
 // std unique requires operator== to identify duplicates.
-bool operator==(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs);
-bool operator!=(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs);
+bool operator==(const ContentProviderEntry& lhs, const ContentProviderEntry& rhs);
+bool operator!=(const ContentProviderEntry& lhs, const ContentProviderEntry& rhs);
+
+class ContentProvider {
+public:
+    virtual ~ContentProvider();
+
+    virtual void Refresh() = 0;
+
+    virtual bool HasEntry(u64 title_id, ContentRecordType type) const = 0;
+    virtual bool HasEntry(ContentProviderEntry entry) const;
+
+    virtual std::optional<u32> GetEntryVersion(u64 title_id) const = 0;
+
+    virtual VirtualFile GetEntryUnparsed(u64 title_id, ContentRecordType type) const = 0;
+    virtual VirtualFile GetEntryUnparsed(ContentProviderEntry entry) const;
+
+    virtual VirtualFile GetEntryRaw(u64 title_id, ContentRecordType type) const = 0;
+    virtual VirtualFile GetEntryRaw(ContentProviderEntry entry) const;
+
+    virtual std::unique_ptr<NCA> GetEntry(u64 title_id, ContentRecordType type) const = 0;
+    virtual std::unique_ptr<NCA> GetEntry(ContentProviderEntry entry) const;
+
+    virtual std::vector<ContentProviderEntry> ListEntries() const;
+
+    // If a parameter is not std::nullopt, it will be filtered for from all entries.
+    virtual std::vector<ContentProviderEntry> ListEntriesFilter(
+        std::optional<TitleType> title_type = {}, std::optional<ContentRecordType> record_type = {},
+        std::optional<u64> title_id = {}) const = 0;
+
+protected:
+    // A single instance of KeyManager to be used by GetEntry()
+    Core::Crypto::KeyManager keys;
+};
 
 /*
  * A class that catalogues NCAs in the registered directory structure.
@@ -67,39 +102,32 @@ bool operator!=(const RegisteredCacheEntry& lhs, const RegisteredCacheEntry& rhs
  * (This impl also supports substituting the nca dir for an nca file, as that's more convenient
  * when 4GB splitting can be ignored.)
  */
-class RegisteredCache {
-    friend class RegisteredCacheUnion;
-
+class RegisteredCache : public ContentProvider {
 public:
     // Parsing function defines the conversion from raw file to NCA. If there are other steps
     // besides creating the NCA from the file (e.g. NAX0 on SD Card), that should go in a custom
     // parsing function.
     explicit RegisteredCache(VirtualDir dir,
-                             RegisteredCacheParsingFunction parsing_function =
+                             ContentProviderParsingFunction parsing_function =
                                  [](const VirtualFile& file, const NcaID& id) { return file; });
-    ~RegisteredCache();
+    ~RegisteredCache() override;
 
-    void Refresh();
+    void Refresh() override;
 
-    bool HasEntry(u64 title_id, ContentRecordType type) const;
-    bool HasEntry(RegisteredCacheEntry entry) const;
+    bool HasEntry(u64 title_id, ContentRecordType type) const override;
 
-    std::optional<u32> GetEntryVersion(u64 title_id) const;
+    std::optional<u32> GetEntryVersion(u64 title_id) const override;
 
-    VirtualFile GetEntryUnparsed(u64 title_id, ContentRecordType type) const;
-    VirtualFile GetEntryUnparsed(RegisteredCacheEntry entry) const;
+    VirtualFile GetEntryUnparsed(u64 title_id, ContentRecordType type) const override;
 
-    VirtualFile GetEntryRaw(u64 title_id, ContentRecordType type) const;
-    VirtualFile GetEntryRaw(RegisteredCacheEntry entry) const;
+    VirtualFile GetEntryRaw(u64 title_id, ContentRecordType type) const override;
 
-    std::unique_ptr<NCA> GetEntry(u64 title_id, ContentRecordType type) const;
-    std::unique_ptr<NCA> GetEntry(RegisteredCacheEntry entry) const;
+    std::unique_ptr<NCA> GetEntry(u64 title_id, ContentRecordType type) const override;
 
-    std::vector<RegisteredCacheEntry> ListEntries() const;
     // If a parameter is not std::nullopt, it will be filtered for from all entries.
-    std::vector<RegisteredCacheEntry> ListEntriesFilter(
+    std::vector<ContentProviderEntry> ListEntriesFilter(
         std::optional<TitleType> title_type = {}, std::optional<ContentRecordType> record_type = {},
-        std::optional<u64> title_id = {}) const;
+        std::optional<u64> title_id = {}) const override;
 
     // Raw copies all the ncas from the xci/nsp to the csache. Does some quick checks to make sure
     // there is a meta NCA and all of them are accessible.
@@ -131,46 +159,70 @@ private:
     bool RawInstallYuzuMeta(const CNMT& cnmt);
 
     VirtualDir dir;
-    RegisteredCacheParsingFunction parser;
-    Core::Crypto::KeyManager keys;
+    ContentProviderParsingFunction parser;
 
     // maps tid -> NcaID of meta
-    boost::container::flat_map<u64, NcaID> meta_id;
+    std::map<u64, NcaID> meta_id;
     // maps tid -> meta
-    boost::container::flat_map<u64, CNMT> meta;
+    std::map<u64, CNMT> meta;
     // maps tid -> meta for CNMT in yuzu_meta
-    boost::container::flat_map<u64, CNMT> yuzu_meta;
+    std::map<u64, CNMT> yuzu_meta;
 };
 
-// Combines multiple RegisteredCaches (i.e. SysNAND, UserNAND, SDMC) into one interface.
-class RegisteredCacheUnion {
+enum class ContentProviderUnionSlot {
+    SysNAND,        ///< System NAND
+    UserNAND,       ///< User NAND
+    SDMC,           ///< SD Card
+    FrontendManual, ///< Frontend-defined game list or similar
+};
+
+// Combines multiple ContentProvider(s) (i.e. SysNAND, UserNAND, SDMC) into one interface.
+class ContentProviderUnion : public ContentProvider {
 public:
-    explicit RegisteredCacheUnion(std::vector<RegisteredCache*> caches);
+    ~ContentProviderUnion() override;
 
-    void Refresh();
+    void SetSlot(ContentProviderUnionSlot slot, ContentProvider* provider);
+    void ClearSlot(ContentProviderUnionSlot slot);
 
-    bool HasEntry(u64 title_id, ContentRecordType type) const;
-    bool HasEntry(RegisteredCacheEntry entry) const;
+    void Refresh() override;
+    bool HasEntry(u64 title_id, ContentRecordType type) const override;
+    std::optional<u32> GetEntryVersion(u64 title_id) const override;
+    VirtualFile GetEntryUnparsed(u64 title_id, ContentRecordType type) const override;
+    VirtualFile GetEntryRaw(u64 title_id, ContentRecordType type) const override;
+    std::unique_ptr<NCA> GetEntry(u64 title_id, ContentRecordType type) const override;
+    std::vector<ContentProviderEntry> ListEntriesFilter(
+        std::optional<TitleType> title_type, std::optional<ContentRecordType> record_type,
+        std::optional<u64> title_id) const override;
 
-    std::optional<u32> GetEntryVersion(u64 title_id) const;
-
-    VirtualFile GetEntryUnparsed(u64 title_id, ContentRecordType type) const;
-    VirtualFile GetEntryUnparsed(RegisteredCacheEntry entry) const;
-
-    VirtualFile GetEntryRaw(u64 title_id, ContentRecordType type) const;
-    VirtualFile GetEntryRaw(RegisteredCacheEntry entry) const;
-
-    std::unique_ptr<NCA> GetEntry(u64 title_id, ContentRecordType type) const;
-    std::unique_ptr<NCA> GetEntry(RegisteredCacheEntry entry) const;
-
-    std::vector<RegisteredCacheEntry> ListEntries() const;
-    // If a parameter is not std::nullopt, it will be filtered for from all entries.
-    std::vector<RegisteredCacheEntry> ListEntriesFilter(
+    std::vector<std::pair<ContentProviderUnionSlot, ContentProviderEntry>> ListEntriesFilterOrigin(
+        std::optional<ContentProviderUnionSlot> origin = {},
         std::optional<TitleType> title_type = {}, std::optional<ContentRecordType> record_type = {},
         std::optional<u64> title_id = {}) const;
 
 private:
-    std::vector<RegisteredCache*> caches;
+    std::map<ContentProviderUnionSlot, ContentProvider*> providers;
+};
+
+class ManualContentProvider : public ContentProvider {
+public:
+    ~ManualContentProvider() override;
+
+    void AddEntry(TitleType title_type, ContentRecordType content_type, u64 title_id,
+                  VirtualFile file);
+    void ClearAllEntries();
+
+    void Refresh() override;
+    bool HasEntry(u64 title_id, ContentRecordType type) const override;
+    std::optional<u32> GetEntryVersion(u64 title_id) const override;
+    VirtualFile GetEntryUnparsed(u64 title_id, ContentRecordType type) const override;
+    VirtualFile GetEntryRaw(u64 title_id, ContentRecordType type) const override;
+    std::unique_ptr<NCA> GetEntry(u64 title_id, ContentRecordType type) const override;
+    std::vector<ContentProviderEntry> ListEntriesFilter(
+        std::optional<TitleType> title_type, std::optional<ContentRecordType> record_type,
+        std::optional<u64> title_id) const override;
+
+private:
+    std::map<std::tuple<TitleType, ContentRecordType, u64>, VirtualFile> entries;
 };
 
 } // namespace FileSys
