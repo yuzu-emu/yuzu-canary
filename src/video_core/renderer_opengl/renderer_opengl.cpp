@@ -97,8 +97,8 @@ static std::array<GLfloat, 3 * 2> MakeOrthographicMatrix(const float width, cons
     return matrix;
 }
 
-RendererOpenGL::RendererOpenGL(Core::Frontend::EmuWindow& window, Core::System& system)
-    : VideoCore::RendererBase{window}, system{system} {}
+RendererOpenGL::RendererOpenGL(Core::Frontend::EmuWindow& emu_window, Core::System& system)
+    : VideoCore::RendererBase{emu_window}, emu_window{emu_window}, system{system} {}
 
 RendererOpenGL::~RendererOpenGL() = default;
 
@@ -265,7 +265,7 @@ void RendererOpenGL::CreateRasterizer() {
     }
     // Initialize sRGB Usage
     OpenGLState::ClearsRGBUsed();
-    rasterizer = std::make_unique<RasterizerOpenGL>(system, screen_info);
+    rasterizer = std::make_unique<RasterizerOpenGL>(system, emu_window, screen_info);
 }
 
 void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
