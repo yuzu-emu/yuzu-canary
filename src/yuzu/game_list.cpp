@@ -18,6 +18,7 @@
 #include "common/common_types.h"
 #include "common/logging/log.h"
 #include "core/file_sys/patch_manager.h"
+#include "core/file_sys/registered_cache.h"
 #include "yuzu/compatibility_list.h"
 #include "yuzu/game_list.h"
 #include "yuzu/game_list_p.h"
@@ -193,8 +194,9 @@ void GameList::onFilterCloseClicked() {
     main_window->filterBarSetChecked(false);
 }
 
-GameList::GameList(FileSys::VirtualFilesystem vfs, GMainWindow* parent)
-    : QWidget{parent}, vfs(std::move(vfs)) {
+GameList::GameList(FileSys::VirtualFilesystem vfs, FileSys::ManualContentProvider* provider,
+                   GMainWindow* parent)
+    : QWidget{parent}, vfs(std::move(vfs)), provider(provider) {
     watcher = new QFileSystemWatcher(this);
     connect(watcher, &QFileSystemWatcher::directoryChanged, this, &GameList::RefreshGameDirectory);
 
@@ -432,7 +434,8 @@ void GameList::PopulateAsync(const QString& dir_path, bool deep_scan) {
 
     emit ShouldCancelWorker();
 
-    GameListWorker* worker = new GameListWorker(vfs, dir_path, deep_scan, compatibility_list);
+    GameListWorker* worker =
+        new GameListWorker(vfs, provider, dir_path, deep_scan, compatibility_list);
 
     connect(worker, &GameListWorker::EntryReady, this, &GameList::AddEntry, Qt::QueuedConnection);
     connect(worker, &GameListWorker::Finished, this, &GameList::DonePopulating,
