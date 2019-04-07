@@ -8,20 +8,22 @@
 #include "ui_configure.h"
 #include "yuzu/configuration/config.h"
 #include "yuzu/configuration/configure_dialog.h"
+#include "yuzu/configuration/configure_input_player.h"
 #include "yuzu/hotkeys.h"
 
-ConfigureDialog::ConfigureDialog(QWidget* parent, const HotkeyRegistry& registry)
-    : QDialog(parent), ui(new Ui::ConfigureDialog) {
+ConfigureDialog::ConfigureDialog(QWidget* parent, HotkeyRegistry& registry)
+    : QDialog(parent), registry(registry), ui(new Ui::ConfigureDialog) {
     ui->setupUi(this);
-    ui->generalTab->PopulateHotkeyList(registry);
+    ui->hotkeysTab->Populate(registry);
     this->setConfiguration();
     this->PopulateSelectionList();
     connect(ui->selectorList, &QListWidget::itemSelectionChanged, this,
             &ConfigureDialog::UpdateVisibleTabs);
-
     adjustSize();
-
     ui->selectorList->setCurrentRow(0);
+
+    // Synchronise lists upon initialisation
+    ui->hotkeysTab->EmitHotkeysChanged();
 }
 
 ConfigureDialog::~ConfigureDialog() = default;
@@ -34,6 +36,7 @@ void ConfigureDialog::applyConfiguration() {
     ui->systemTab->applyConfiguration();
     ui->profileManagerTab->applyConfiguration();
     ui->inputTab->applyConfiguration();
+    ui->hotkeysTab->applyConfiguration(registry);
     ui->graphicsTab->applyConfiguration();
     ui->audioTab->applyConfiguration();
     ui->debugTab->applyConfiguration();
@@ -47,7 +50,7 @@ void ConfigureDialog::PopulateSelectionList() {
         {{tr("General"), {tr("General"), tr("Web"), tr("Debug"), tr("Game List")}},
          {tr("System"), {tr("System"), tr("Profiles"), tr("Audio")}},
          {tr("Graphics"), {tr("Graphics")}},
-         {tr("Controls"), {tr("Input")}}}};
+         {tr("Controls"), {tr("Input"), tr("Hotkeys")}}}};
 
     for (const auto& entry : items) {
         auto* const item = new QListWidgetItem(entry.first);
@@ -66,6 +69,7 @@ void ConfigureDialog::UpdateVisibleTabs() {
                                                  {tr("System"), ui->systemTab},
                                                  {tr("Profiles"), ui->profileManagerTab},
                                                  {tr("Input"), ui->inputTab},
+                                                 {tr("Hotkeys"), ui->hotkeysTab},
                                                  {tr("Graphics"), ui->graphicsTab},
                                                  {tr("Audio"), ui->audioTab},
                                                  {tr("Debug"), ui->debugTab},

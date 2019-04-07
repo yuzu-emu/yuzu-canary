@@ -4,6 +4,7 @@
 
 #include <mutex>
 #include <QDialogButtonBox>
+#include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
 #include <QScrollArea>
