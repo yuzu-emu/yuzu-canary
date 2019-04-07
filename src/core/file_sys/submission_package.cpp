@@ -143,11 +143,12 @@ std::multimap<u64, std::shared_ptr<NCA>> NSP::GetNCAsByTitleID() const {
     return out;
 }
 
-std::map<u64, std::map<ContentRecordType, std::shared_ptr<NCA>>> NSP::GetNCAs() const {
+std::map<u64, std::map<std::pair<TitleType, ContentRecordType>, std::shared_ptr<NCA>>>
+NSP::GetNCAs() const {
     return ncas;
 }
 
-std::shared_ptr<NCA> NSP::GetNCA(u64 title_id, ContentRecordType type) const {
+std::shared_ptr<NCA> NSP::GetNCA(u64 title_id, ContentRecordType type, TitleType title_type) const {
     if (extracted)
         LOG_WARNING(Service_FS, "called on an NSP that is of type extracted.");
 
@@ -155,14 +156,14 @@ std::shared_ptr<NCA> NSP::GetNCA(u64 title_id, ContentRecordType type) const {
     if (title_id_iter == ncas.end())
         return nullptr;
 
-    const auto type_iter = title_id_iter->second.find(type);
+    const auto type_iter = title_id_iter->second.find({title_type, type});
     if (type_iter == title_id_iter->second.end())
         return nullptr;
 
     return type_iter->second;
 }
 
-VirtualFile NSP::GetNCAFile(u64 title_id, ContentRecordType type) const {
+VirtualFile NSP::GetNCAFile(u64 title_id, ContentRecordType type, TitleType title_type) const {
     if (extracted)
         LOG_WARNING(Service_FS, "called on an NSP that is of type extracted.");
     const auto nca = GetNCA(title_id, type);
@@ -240,7 +241,7 @@ void NSP::ReadNCAs(const std::vector<VirtualFile>& files) {
             const CNMT cnmt(inner_file);
             auto& ncas_title = ncas[cnmt.GetTitleID()];
 
-            ncas_title[ContentRecordType::Meta] = nca;
+            ncas_title[{cnmt.GetType(), ContentRecordType::Meta}] = nca;
             for (const auto& rec : cnmt.GetContentRecords()) {
                 const auto id_string = Common::HexArrayToString(rec.nca_id, false);
                 const auto next_file = pfs->GetFile(fmt::format("{}.nca", id_string));
@@ -258,7 +259,7 @@ void NSP::ReadNCAs(const std::vector<VirtualFile>& files) {
                 if (next_nca->GetStatus() == Loader::ResultStatus::Success ||
                     (next_nca->GetStatus() == Loader::ResultStatus::ErrorMissingBKTRBaseRomFS &&
                      (cnmt.GetTitleID() & 0x800) != 0)) {
-                    ncas_title[rec.type] = std::move(next_nca);
+                    ncas_title[{cnmt.GetType(), rec.type}] = std::move(next_nca);
                 }
             }
 
