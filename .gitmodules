@@ -40,3 +40,6 @@
 [submodule "Vulkan-Headers"]
     path = externals/Vulkan-Headers
     url = https://github.com/KhronosGroup/Vulkan-Headers.git
+[submodule "externals/zstd"]
+    path = externals/zstd
+    url = https://github.com/facebook/zstd
