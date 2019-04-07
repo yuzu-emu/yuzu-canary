@@ -7,8 +7,14 @@
     <x>0</x>
     <y>0</y>
     <width>382</width>
-    <height>241</height>
+    <height>650</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>0</width>
+    <height>650</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>yuzu Configuration</string>
@@ -60,6 +66,11 @@
        <widget class="ConfigureInputSimple" name="inputTab">
         <attribute name="title">
          <string>Input</string>
+        </attribute>
+       </widget>
+       <widget class="ConfigureHotkeys" name="hotkeysTab">
+        <attribute name="title">
+         <string>Hotkeys</string>
         </attribute>
        </widget>
        <widget class="ConfigureGraphics" name="graphicsTab">
@@ -148,6 +159,12 @@
    <class>ConfigureInputSimple</class>
    <extends>QWidget</extends>
    <header>configuration/configure_input_simple.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ConfigureHotkeys</class>
+   <extends>QWidget</extends>
+   <header>configuration/configure_hotkeys.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
