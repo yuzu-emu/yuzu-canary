@@ -86,7 +86,7 @@ static FileSys::VirtualFile GetManualRomFS() {
     if (loader.ReadManualRomFS(out) == Loader::ResultStatus::Success)
         return out;
 
-    const auto& installed{FileSystem::GetUnionContents()};
+    const auto& installed{Core::System::GetInstance().GetContentProvider()};
     const auto res = installed.GetEntry(Core::System::GetInstance().CurrentProcess()->GetTitleID(),
                                         FileSys::ContentRecordType::Manual);
 
