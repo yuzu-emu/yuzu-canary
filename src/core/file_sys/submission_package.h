@@ -42,9 +42,12 @@ public:
     // Type 0 Only (Collection of NCAs + Certificate + Ticket + Meta XML)
     std::vector<std::shared_ptr<NCA>> GetNCAsCollapsed() const;
     std::multimap<u64, std::shared_ptr<NCA>> GetNCAsByTitleID() const;
-    std::map<u64, std::map<ContentRecordType, std::shared_ptr<NCA>>> GetNCAs() const;
-    std::shared_ptr<NCA> GetNCA(u64 title_id, ContentRecordType type) const;
-    VirtualFile GetNCAFile(u64 title_id, ContentRecordType type) const;
+    std::map<u64, std::map<std::pair<TitleType, ContentRecordType>, std::shared_ptr<NCA>>> GetNCAs()
+        const;
+    std::shared_ptr<NCA> GetNCA(u64 title_id, ContentRecordType type,
+                                TitleType title_type = TitleType::Application) const;
+    VirtualFile GetNCAFile(u64 title_id, ContentRecordType type,
+                           TitleType title_type = TitleType::Application) const;
     std::vector<Core::Crypto::Key128> GetTitlekey() const;
 
     std::vector<VirtualFile> GetFiles() const override;
@@ -67,7 +70,7 @@ private:
 
     std::shared_ptr<PartitionFilesystem> pfs;
     // Map title id -> {map type -> NCA}
-    std::map<u64, std::map<ContentRecordType, std::shared_ptr<NCA>>> ncas;
+    std::map<u64, std::map<std::pair<TitleType, ContentRecordType>, std::shared_ptr<NCA>>> ncas;
     std::vector<VirtualFile> ticket_files;
 
     Core::Crypto::KeyManager keys;
