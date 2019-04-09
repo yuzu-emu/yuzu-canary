@@ -1,3 +1,26 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 61f63bb994e358b925771bd51898822573e5780e
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2365](https://github.com/yuzu-emu/yuzu/pull/2365)|[739d6d2](https://github.com/yuzu-emu/yuzu/pull/2365/files/)|DO NOT MERGE: Workaround to Mutex Corruption|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2358](https://github.com/yuzu-emu/yuzu/pull/2358)|[435fbe4](https://github.com/yuzu-emu/yuzu/pull/2358/files/)|gl_shader_cache: Use shared contexts to build shaders in parallel at boot|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2357](https://github.com/yuzu-emu/yuzu/pull/2357)|[be6466d](https://github.com/yuzu-emu/yuzu/pull/2357/files/)|Add a toggle to force 30FPS mode|[zarroboogs](https://github.com/zarroboogs)|Yes|
+|[2345](https://github.com/yuzu-emu/yuzu/pull/2345)|[34c3e2c](https://github.com/yuzu-emu/yuzu/pull/2345/files/)|gl_rasterizer: Use ARB_multi_bind to update buffers with a single call per drawcall|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2135](https://github.com/yuzu-emu/yuzu/pull/2135)|[2677cc8](https://github.com/yuzu-emu/yuzu/pull/2135/files/)|DO NOT MERGE Implemented a lil edge case on RecreateSurface.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1340](https://github.com/yuzu-emu/yuzu/pull/1340)|[5c638a6](https://github.com/yuzu-emu/yuzu/pull/1340/files/)|Implement a Better Ignore Assert - DO NOT CHECK IN|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
