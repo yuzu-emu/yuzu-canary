@@ -21,6 +21,8 @@
 #include "core/memory.h"
 #include "core/settings.h"
 
+#pragma optimize("", off)
+
 namespace Loader {
 namespace {
 struct MODHeader {
@@ -136,13 +138,13 @@ std::optional<VAddr> AppLoader_NSO::LoadModule(Kernel::Process& process,
 
     // Apply patches if necessary
     if (pm && (pm->HasNSOPatch(nso_header.build_id) || Settings::values.dump_nso)) {
-        std::vector<u8> pi_header(sizeof(NSOHeader) + program_image.size());
+        std::vector<u8> pi_header;
         pi_header.insert(pi_header.begin(), reinterpret_cast<u8*>(&nso_header),
                          reinterpret_cast<u8*>(&nso_header) + sizeof(NSOHeader));
         pi_header.insert(pi_header.begin() + sizeof(NSOHeader), program_image.begin(),
                          program_image.end());
 
-        pi_header = pm->PatchNSO(pi_header);
+        pi_header = pm->PatchNSO(pi_header, file.GetName());
 
         std::copy(pi_header.begin() + sizeof(NSOHeader), pi_header.end(), program_image.begin());
     }
