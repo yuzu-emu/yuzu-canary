@@ -22,7 +22,11 @@
 
 namespace Core {
 class System;
-} // namespace Core
+}
+
+namespace Core::Frontend {
+class EmuWindow;
+}
 
 namespace OpenGL {
 
@@ -112,7 +116,8 @@ private:
 
 class ShaderCacheOpenGL final : public RasterizerCache<Shader> {
 public:
-    explicit ShaderCacheOpenGL(RasterizerOpenGL& rasterizer, Core::System& system);
+    explicit ShaderCacheOpenGL(RasterizerOpenGL& rasterizer, Core::System& system,
+                               Core::Frontend::EmuWindow& emu_window);
 
     /// Loads disk cache for the current game
     void LoadDiskCache(const std::atomic_bool& stop_loading,
@@ -130,11 +135,12 @@ private:
     CachedProgram GeneratePrecompiledProgram(const ShaderDiskCacheDump& dump,
                                              const std::set<GLenum>& supported_formats);
 
-    std::array<Shader, Maxwell::MaxShaderProgram> last_shaders;
-
+    Core::Frontend::EmuWindow& emu_window;
     ShaderDiskCacheOpenGL disk_cache;
+
     PrecompiledShaders precompiled_shaders;
     PrecompiledPrograms precompiled_programs;
+    std::array<Shader, Maxwell::MaxShaderProgram> last_shaders;
 };
 
 } // namespace OpenGL
