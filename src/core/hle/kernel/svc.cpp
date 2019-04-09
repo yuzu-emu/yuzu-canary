@@ -507,7 +507,7 @@ static ResultCode WaitSynchronization(Handle* index, VAddr handles_address, u64 
     thread->WakeAfterDelay(nano_seconds);
     thread->SetWakeupCallback(DefaultThreadWakeupCallback);
 
-    Core::System::GetInstance().CpuCore(thread->GetProcessorID()).PrepareReschedule();
+    Core::System::GetInstance().PrepareReschedule(thread->GetProcessorID());
 
     return RESULT_TIMEOUT;
 }
@@ -527,6 +527,7 @@ static ResultCode CancelSynchronization(Handle thread_handle) {
     ASSERT(thread->GetStatus() == ThreadStatus::WaitSynchAny);
     thread->SetWaitSynchronizationResult(ERR_SYNCHRONIZATION_CANCELED);
     thread->ResumeFromWait();
+    Core::System::GetInstance().PrepareReschedule(thread->GetProcessorID());
     return RESULT_SUCCESS;
 }
 
@@ -570,7 +571,7 @@ static ResultCode ArbitrateUnlock(VAddr mutex_addr) {
     }
 
     auto* const current_process = Core::System::GetInstance().Kernel().CurrentProcess();
-    return current_process->GetMutex().Release(mutex_addr);
+    return current_process->GetMutex().Release(mutex_addr, GetCurrentThread());
 }
 
 enum class BreakType : u32 {
@@ -956,6 +957,8 @@ static ResultCode SetThreadActivity(Handle handle, u32 activity) {
     }
 
     thread->SetActivity(static_cast<ThreadActivity>(activity));
+
+    Core::System::GetInstance().PrepareReschedule(thread->GetProcessorID());
     return RESULT_SUCCESS;
 }
 
@@ -1037,7 +1040,7 @@ static ResultCode SetThreadPriority(Handle handle, u32 priority) {
 
     thread->SetPriority(priority);
 
-    Core::System::GetInstance().CpuCore(thread->GetProcessorID()).PrepareReschedule();
+    Core::System::GetInstance().PrepareReschedule(thread->GetProcessorID());
     return RESULT_SUCCESS;
 }
 
@@ -1253,7 +1256,7 @@ static ResultCode CreateThread(Handle* out_handle, VAddr entry_point, u64 arg, V
     thread->SetGuestHandle(*new_guest_handle);
     *out_handle = *new_guest_handle;
 
-    Core::System::GetInstance().CpuCore(thread->GetProcessorID()).PrepareReschedule();
+    Core::System::GetInstance().PrepareReschedule(thread->GetProcessorID());
 
     return RESULT_SUCCESS;
 }
@@ -1275,7 +1278,7 @@ static ResultCode StartThread(Handle thread_handle) {
     thread->ResumeFromWait();
 
     if (thread->GetStatus() == ThreadStatus::Ready) {
-        Core::System::GetInstance().CpuCore(thread->GetProcessorID()).PrepareReschedule();
+        Core::System::GetInstance().PrepareReschedule(thread->GetProcessorID());
     }
 
     return RESULT_SUCCESS;
@@ -1289,7 +1292,7 @@ static void ExitThread() {
 
     auto* const current_thread = system.CurrentScheduler().GetCurrentThread();
     current_thread->Stop();
-    system.CurrentScheduler().RemoveThread(current_thread);
+    system.GlobalScheduler().RemoveThread(current_thread);
     system.PrepareReschedule();
 }
 
@@ -1304,19 +1307,18 @@ static void SleepThread(s64 nanoseconds) {
     };
 
     auto& system = Core::System::GetInstance();
-    auto& scheduler = system.CurrentScheduler();
-    auto* const current_thread = scheduler.GetCurrentThread();
+    auto* const current_thread = GetCurrentThread();
 
     if (nanoseconds <= 0) {
         switch (static_cast<SleepType>(nanoseconds)) {
         case SleepType::YieldWithoutLoadBalancing:
-            scheduler.YieldWithoutLoadBalancing(current_thread);
+            current_thread->YieldType0();
             break;
         case SleepType::YieldWithLoadBalancing:
-            scheduler.YieldWithLoadBalancing(current_thread);
+            current_thread->YieldType1();
             break;
         case SleepType::YieldAndWaitForLoadBalancing:
-            scheduler.YieldAndWaitForLoadBalancing(current_thread);
+            current_thread->YieldType2();
             break;
         default:
             UNREACHABLE_MSG("Unimplemented sleep yield type '{:016X}'!", nanoseconds);
@@ -1325,10 +1327,7 @@ static void SleepThread(s64 nanoseconds) {
         current_thread->Sleep(nanoseconds);
     }
 
-    // Reschedule all CPU cores
-    for (std::size_t i = 0; i < Core::NUM_CPU_CORES; ++i) {
-        system.CpuCore(i).PrepareReschedule();
-    }
+    system.PrepareReschedule(current_thread->GetProcessorID());
 }
 
 /// Wait process wide key atomic
@@ -1358,12 +1357,14 @@ static ResultCode WaitProcessWideKeyAtomic(VAddr mutex_addr, VAddr condition_var
     SharedPtr<Thread> thread = handle_table.Get<Thread>(thread_handle);
     ASSERT(thread);
 
-    const auto release_result = current_process->GetMutex().Release(mutex_addr);
+    SharedPtr<Thread> current_thread = GetCurrentThread();
+
+    const auto release_result =
+        current_process->GetMutex().Release(mutex_addr, current_thread.get());
     if (release_result.IsError()) {
         return release_result;
     }
 
-    SharedPtr<Thread> current_thread = GetCurrentThread();
     current_thread->SetCondVarWaitAddress(condition_variable_addr);
     current_thread->SetMutexWaitAddress(mutex_addr);
     current_thread->SetWaitHandle(thread_handle);
@@ -1374,7 +1375,7 @@ static ResultCode WaitProcessWideKeyAtomic(VAddr mutex_addr, VAddr condition_var
 
     // Note: Deliberately don't attempt to inherit the lock owner's priority.
 
-    Core::System::GetInstance().CpuCore(current_thread->GetProcessorID()).PrepareReschedule();
+    Core::System::GetInstance().PrepareReschedule(current_thread->GetProcessorID());
     return RESULT_SUCCESS;
 }
 
@@ -1383,24 +1384,16 @@ static ResultCode SignalProcessWideKey(VAddr condition_variable_addr, s32 target
     LOG_TRACE(Kernel_SVC, "called, condition_variable_addr=0x{:X}, target=0x{:08X}",
               condition_variable_addr, target);
 
-    const auto RetrieveWaitingThreads = [](std::size_t core_index,
-                                           std::vector<SharedPtr<Thread>>& waiting_threads,
-                                           VAddr condvar_addr) {
-        const auto& scheduler = Core::System::GetInstance().Scheduler(core_index);
-        const auto& thread_list = scheduler.GetThreadList();
-
-        for (const auto& thread : thread_list) {
-            if (thread->GetCondVarWaitAddress() == condvar_addr)
-                waiting_threads.push_back(thread);
-        }
-    };
-
     // Retrieve a list of all threads that are waiting for this condition variable.
     std::vector<SharedPtr<Thread>> waiting_threads;
-    RetrieveWaitingThreads(0, waiting_threads, condition_variable_addr);
-    RetrieveWaitingThreads(1, waiting_threads, condition_variable_addr);
-    RetrieveWaitingThreads(2, waiting_threads, condition_variable_addr);
-    RetrieveWaitingThreads(3, waiting_threads, condition_variable_addr);
+    const auto& scheduler = Core::System::GetInstance().GlobalScheduler();
+    const auto& thread_list = scheduler.GetThreadList();
+
+    for (const auto& thread : thread_list) {
+        if (thread->GetCondVarWaitAddress() == condition_variable_addr)
+            waiting_threads.push_back(thread);
+    }
+
     // Sort them by priority, such that the highest priority ones come first.
     std::sort(waiting_threads.begin(), waiting_threads.end(),
               [](const SharedPtr<Thread>& lhs, const SharedPtr<Thread>& rhs) {
@@ -1456,7 +1449,7 @@ static ResultCode SignalProcessWideKey(VAddr condition_variable_addr, s32 target
             thread->SetLockOwner(nullptr);
             thread->SetMutexWaitAddress(0);
             thread->SetWaitHandle(0);
-            Core::System::GetInstance().CpuCore(thread->GetProcessorID()).PrepareReschedule();
+            Core::System::GetInstance().PrepareReschedule(thread->GetProcessorID());
         } else {
             // Atomically signal that the mutex now has a waiting thread.
             do {
@@ -1480,6 +1473,7 @@ static ResultCode SignalProcessWideKey(VAddr condition_variable_addr, s32 target
             thread->SetStatus(ThreadStatus::WaitMutex);
 
             owner->AddMutexWaiter(thread);
+            Core::System::GetInstance().PrepareReschedule(thread->GetProcessorID());
         }
     }
 
@@ -1504,7 +1498,10 @@ static ResultCode WaitForAddress(VAddr address, u32 type, s32 value, s64 timeout
     const auto arbitration_type = static_cast<AddressArbiter::ArbitrationType>(type);
     auto& address_arbiter =
         Core::System::GetInstance().Kernel().CurrentProcess()->GetAddressArbiter();
-    return address_arbiter.WaitForAddress(address, arbitration_type, value, timeout);
+    ResultCode result = address_arbiter.WaitForAddress(address, arbitration_type, value, timeout);
+    if (result == RESULT_SUCCESS)
+        Core::System::GetInstance().PrepareReschedule();
+    return result;
 }
 
 // Signals to an address (via Address Arbiter)
@@ -1775,7 +1772,9 @@ static ResultCode SetThreadCoreMask(Handle thread_handle, u32 core, u64 mask) {
         return ERR_INVALID_COMBINATION;
     }
 
+    Core::System::GetInstance().PrepareReschedule(thread->GetProcessorID());
     thread->ChangeCore(core, mask);
+    Core::System::GetInstance().PrepareReschedule(thread->GetProcessorID());
 
     return RESULT_SUCCESS;
 }
@@ -1887,6 +1886,7 @@ static ResultCode SignalEvent(Handle handle) {
     }
 
     writable_event->Signal();
+    Core::System::GetInstance().PrepareReschedule();
     return RESULT_SUCCESS;
 }
 
