@@ -312,6 +312,11 @@ void System::PrepareReschedule() {
     CurrentCpuCore().PrepareReschedule();
 }
 
+void System::PrepareReschedule(s32 core_index) {
+    if (core_index >= 0)
+        CpuCore(core_index).PrepareReschedule();
+}
+
 PerfStatsResults System::GetAndResetPerfStats() {
     return impl->GetAndResetPerfStats();
 }
@@ -350,6 +355,16 @@ Kernel::Scheduler& System::Scheduler(std::size_t core_index) {
 
 const Kernel::Scheduler& System::Scheduler(std::size_t core_index) const {
     return CpuCore(core_index).Scheduler();
+}
+
+/// Gets the global scheduler
+Kernel::GlobalScheduler& System::GlobalScheduler() {
+    return impl->kernel.GlobalScheduler();
+}
+
+/// Gets the global scheduler
+const Kernel::GlobalScheduler& System::GlobalScheduler() const {
+    return impl->kernel.GlobalScheduler();
 }
 
 Kernel::Process* System::CurrentProcess() {
