@@ -21,12 +21,13 @@
 #include "core/hle/service/vi/display/vi_display.h"
 #include "core/hle/service/vi/layer/vi_layer.h"
 #include "core/perf_stats.h"
+#include "core/settings.h"
 #include "video_core/renderer_base.h"
 
 namespace Service::NVFlinger {
 
-constexpr std::size_t SCREEN_REFRESH_RATE = 60;
-constexpr s64 frame_ticks = static_cast<s64>(Core::Timing::BASE_CLOCK_RATE / SCREEN_REFRESH_RATE);
+constexpr s64 frame_ticks = static_cast<s64>(Core::Timing::BASE_CLOCK_RATE / 60);
+constexpr s64 frame_ticks_30fps = static_cast<s64>(Core::Timing::BASE_CLOCK_RATE / 30);
 
 NVFlinger::NVFlinger(Core::Timing::CoreTiming& core_timing) : core_timing{core_timing} {
     displays.emplace_back(0, "Default");
@@ -36,13 +37,15 @@ NVFlinger::NVFlinger(Core::Timing::CoreTiming& core_timing) : core_timing{core_t
     displays.emplace_back(4, "Null");
 
     // Schedule the screen composition events
-    composition_event =
-        core_timing.RegisterEvent("ScreenComposition", [this](u64 userdata, s64 cycles_late) {
+    const auto ticks = Settings::values.force_30fps_mode ? frame_ticks_30fps : frame_ticks;
+
+    composition_event = core_timing.RegisterEvent(
+        "ScreenComposition", [this, ticks](u64 userdata, s64 cycles_late) {
             Compose();
-            this->core_timing.ScheduleEvent(frame_ticks - cycles_late, composition_event);
+            this->core_timing.ScheduleEvent(ticks - cycles_late, composition_event);
         });
 
-    core_timing.ScheduleEvent(frame_ticks, composition_event);
+    core_timing.ScheduleEvent(ticks, composition_event);
 }
 
 NVFlinger::~NVFlinger() {
@@ -62,6 +65,7 @@ std::optional<u64> NVFlinger::OpenDisplay(std::string_view name) {
     const auto itr =
         std::find_if(displays.begin(), displays.end(),
                      [&](const VI::Display& display) { return display.GetName() == name; });
+
     if (itr == displays.end()) {
         return {};
     }
