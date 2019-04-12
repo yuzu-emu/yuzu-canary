@@ -582,9 +582,6 @@ std::pair<bool, bool> RasterizerOpenGL::ConfigureFramebuffers(
 }
 
 void RasterizerOpenGL::Clear() {
-    const auto prev_state{state};
-    SCOPE_EXIT({ prev_state.Apply(); });
-
     const auto& regs = system.GPU().Maxwell3D().regs;
     bool use_color{};
     bool use_depth{};
@@ -656,7 +653,10 @@ void RasterizerOpenGL::Clear() {
         clear_state.EmulateViewportWithScissor();
     }
 
-    clear_state.Apply();
+    clear_state.ApplyColorMask();
+    clear_state.ApplyDepth();
+    clear_state.ApplyStencilTest();
+    clear_state.ApplyViewport();
 
     if (use_color) {
         glClearBufferfv(GL_COLOR, regs.clear_buffers.RT, regs.clear_color);
