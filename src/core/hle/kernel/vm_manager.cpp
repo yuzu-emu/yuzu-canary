@@ -302,6 +302,86 @@ ResultVal<VAddr> VMManager::SetHeapSize(u64 size) {
     return MakeResult<VAddr>(heap_region_base);
 }
 
+ResultCode VMManager::MapCodeMemory(VAddr dst_address, VAddr src_address, u64 size) {
+    constexpr auto ignore_attribute = MemoryAttribute::LockedForIPC | MemoryAttribute::DeviceMapped;
+    const auto src_check_result = CheckRangeState(
+        src_address, size, MemoryState::All, MemoryState::Heap, VMAPermission::All,
+        VMAPermission::ReadWrite, MemoryAttribute::Mask, MemoryAttribute::None, ignore_attribute);
+
+    if (src_check_result.Failed()) {
+        return src_check_result.Code();
+    }
+
+    const auto mirror_result =
+        MirrorMemory(dst_address, src_address, size, MemoryState::ModuleCode);
+    if (mirror_result.IsError()) {
+        return mirror_result;
+    }
+
+    // Ensure we lock the source memory region.
+    const auto src_vma_result = CarveVMARange(src_address, size);
+    if (src_vma_result.Failed()) {
+        return src_vma_result.Code();
+    }
+    auto src_vma_iter = *src_vma_result;
+    src_vma_iter->second.attribute = MemoryAttribute::Locked;
+    Reprotect(src_vma_iter, VMAPermission::Read);
+
+    // The destination memory region is fine as is, however we need to make it read-only.
+    return ReprotectRange(dst_address, size, VMAPermission::Read);
+}
+
+ResultCode VMManager::UnmapCodeMemory(VAddr dst_address, VAddr src_address, u64 size) {
+    constexpr auto ignore_attribute = MemoryAttribute::LockedForIPC | MemoryAttribute::DeviceMapped;
+    const auto src_check_result = CheckRangeState(
+        src_address, size, MemoryState::All, MemoryState::Heap, VMAPermission::None,
+        VMAPermission::None, MemoryAttribute::Mask, MemoryAttribute::Locked, ignore_attribute);
+
+    if (src_check_result.Failed()) {
+        return src_check_result.Code();
+    }
+
+    // Yes, the kernel only checks the first page of the region.
+    const auto dst_check_result =
+        CheckRangeState(dst_address, Memory::PAGE_SIZE, MemoryState::FlagModule,
+                        MemoryState::FlagModule, VMAPermission::None, VMAPermission::None,
+                        MemoryAttribute::Mask, MemoryAttribute::None, ignore_attribute);
+
+    if (dst_check_result.Failed()) {
+        return dst_check_result.Code();
+    }
+
+    const auto dst_memory_state = std::get<MemoryState>(*dst_check_result);
+    const auto dst_contiguous_check_result = CheckRangeState(
+        dst_address, size, MemoryState::All, dst_memory_state, VMAPermission::None,
+        VMAPermission::None, MemoryAttribute::Mask, MemoryAttribute::None, ignore_attribute);
+
+    if (dst_contiguous_check_result.Failed()) {
+        return dst_contiguous_check_result.Code();
+    }
+
+    const auto unmap_result = UnmapRange(dst_address, size);
+    if (unmap_result.IsError()) {
+        return unmap_result;
+    }
+
+    // With the mirrored portion unmapped, restore the original region's traits.
+    const auto src_vma_result = CarveVMARange(src_address, size);
+    if (src_vma_result.Failed()) {
+        return src_vma_result.Code();
+    }
+    auto src_vma_iter = *src_vma_result;
+    src_vma_iter->second.state = MemoryState::Heap;
+    src_vma_iter->second.attribute = MemoryAttribute::None;
+    Reprotect(src_vma_iter, VMAPermission::ReadWrite);
+
+    if (dst_memory_state == MemoryState::ModuleCode) {
+        Core::System::GetInstance().InvalidateCpuInstructionCaches();
+    }
+
+    return unmap_result;
+}
+
 MemoryInfo VMManager::QueryMemory(VAddr address) const {
     const auto vma = FindVMA(address);
     MemoryInfo memory_info{};

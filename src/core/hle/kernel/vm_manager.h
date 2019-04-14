@@ -43,6 +43,9 @@ enum class VMAPermission : u8 {
     ReadExecute = Read | Execute,
     WriteExecute = Write | Execute,
     ReadWriteExecute = Read | Write | Execute,
+
+    // Used as a wildcard when checking permissions across memory ranges
+    All = 0xFF,
 };
 
 constexpr VMAPermission operator|(VMAPermission lhs, VMAPermission rhs) {
@@ -151,6 +154,9 @@ enum class MemoryState : u32 {
     FlagMapProcess                  = 1U << 23,
     FlagUncached                    = 1U << 24,
     FlagCodeMemory                  = 1U << 25,
+
+    // Wildcard used in range checking to indicate all states.
+    All                             = 0xFFFFFFFF,
 
     // Convenience flag sets to reduce repetition
     IPCFlags = FlagIPC0 | FlagIPC3 | FlagIPC1,
@@ -414,6 +420,49 @@ public:
     ///      being returned as the result.
     ///
     ResultVal<VAddr> SetHeapSize(u64 size);
+
+    /// Maps a region of memory as code memory.
+    ///
+    /// @param dst_address The base address of the region to create the aliasing memory region.
+    /// @param src_address The base address of the region to be aliased.
+    /// @param size        The total amount of memory to map in bytes.
+    ///
+    /// @pre Both memory regions lie within the actual addressable address space.
+    ///
+    /// @post After this function finishes execution, assuming success, then the address range
+    ///       [dst_address, dst_address+size) will alias the memory region,
+    ///       [src_address, src_address+size).
+    ///       <p>
+    ///       What this also entails is as follows:
+    ///          1. The aliased region gains the Locked memory attribute.
+    ///          2. The aliased region becomes read-only.
+    ///          3. The aliasing region becomes read-only.
+    ///          4. The aliasing region is created with a memory state of MemoryState::CodeModule.
+    ///
+    ResultCode MapCodeMemory(VAddr dst_address, VAddr src_address, u64 size);
+
+    /// Unmaps a region of memory designated as code module memory.
+    ///
+    /// @param dst_address The base address of the memory region aliasing the source memory region.
+    /// @param src_address The base address of the memory region being aliased.
+    /// @param size        The size of the memory region to unmap in bytes.
+    ///
+    /// @pre Both memory ranges lie within the actual addressable address space.
+    ///
+    /// @pre The memory region being unmapped has been previously been mapped
+    ///      by a call to MapCodeMemory.
+    ///
+    /// @post After execution of the function, if successful. the aliasing memory region
+    ///       will be unmapped and the aliased region will have various traits about it
+    ///       restored to what they were prior to the original mapping call preceding
+    ///       this function call.
+    ///       <p>
+    ///       What this also entails is as follows:
+    ///           1. The state of the memory region will now indicate a general heap region.
+    ///           2. All memory attributes for the memory region are cleared.
+    ///           3. Memory permissions for the region are restored to user read/write.
+    ///
+    ResultCode UnmapCodeMemory(VAddr dst_address, VAddr src_address, u64 size);
 
     /// Queries the memory manager for information about the given address.
     ///
