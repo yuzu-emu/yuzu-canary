@@ -2031,6 +2031,18 @@ void GMainWindow::dragMoveEvent(QDragMoveEvent* event) {
     event->acceptProposedAction();
 }
 
+void GMainWindow::keyPressEvent(QKeyEvent* event) {
+    if (render_window) {
+        render_window->ForwardKeyPressEvent(event);
+    }
+}
+
+void GMainWindow::keyReleaseEvent(QKeyEvent* event) {
+    if (render_window) {
+        render_window->ForwardKeyReleaseEvent(event);
+    }
+}
+
 bool GMainWindow::ConfirmChangeGame() {
     if (emu_thread == nullptr)
         return true;
@@ -2098,7 +2110,8 @@ int main(int argc, char* argv[]) {
     QCoreApplication::setOrganizationName("yuzu team");
     QCoreApplication::setApplicationName("yuzu");
 
-    QApplication::setAttribute(Qt::AA_DontCheckOpenGLContextThreadAffinity);
+    // Enables the core to make the qt created contexts current on std::threads
+    QCoreApplication::setAttribute(Qt::AA_DontCheckOpenGLContextThreadAffinity);
     QApplication app(argc, argv);
 
     // Qt changes the locale and causes issues in float conversion using std::to_string() when
