@@ -482,19 +482,8 @@ std::vector<Texture::FullTextureInfo> Maxwell3D::GetStageTextures(Regs::ShaderSt
     return textures;
 }
 
-Texture::FullTextureInfo Maxwell3D::GetStageTexture(Regs::ShaderStage stage,
-                                                    std::size_t offset) const {
-    auto& shader = state.shader_stages[static_cast<std::size_t>(stage)];
-    auto& tex_info_buffer = shader.const_buffers[regs.tex_cb_index];
-    ASSERT(tex_info_buffer.enabled && tex_info_buffer.address != 0);
-
-    const GPUVAddr tex_info_address =
-        tex_info_buffer.address + offset * sizeof(Texture::TextureHandle);
-
-    ASSERT(tex_info_address < tex_info_buffer.address + tex_info_buffer.size);
-
-    const Texture::TextureHandle tex_handle{memory_manager.Read<u32>(tex_info_address)};
-
+Texture::FullTextureInfo Maxwell3D::GetTextureInfo(const Texture::TextureHandle tex_handle,
+                                                   std::size_t offset) const {
     Texture::FullTextureInfo tex_info{};
     tex_info.index = static_cast<u32>(offset);
 
@@ -511,6 +500,22 @@ Texture::FullTextureInfo Maxwell3D::GetStageTexture(Regs::ShaderStage stage,
     return tex_info;
 }
 
+Texture::FullTextureInfo Maxwell3D::GetStageTexture(Regs::ShaderStage stage,
+                                                    std::size_t offset) const {
+    const auto& shader = state.shader_stages[static_cast<std::size_t>(stage)];
+    const auto& tex_info_buffer = shader.const_buffers[regs.tex_cb_index];
+    ASSERT(tex_info_buffer.enabled && tex_info_buffer.address != 0);
+
+    const GPUVAddr tex_info_address =
+        tex_info_buffer.address + offset * sizeof(Texture::TextureHandle);
+
+    ASSERT(tex_info_address < tex_info_buffer.address + tex_info_buffer.size);
+
+    const Texture::TextureHandle tex_handle{memory_manager.Read<u32>(tex_info_address)};
+
+    return GetTextureInfo(tex_handle, offset);
+}
+
 u32 Maxwell3D::GetRegisterValue(u32 method) const {
     ASSERT_MSG(method < Regs::NUM_REGS, "Invalid Maxwell3D register");
     return regs.reg_array[method];
@@ -522,6 +527,14 @@ void Maxwell3D::ProcessClearBuffers() {
            regs.clear_buffers.R == regs.clear_buffers.A);
 
     rasterizer.Clear();
+}
+
+u32 Maxwell3D::AccessConstBuffer32(Regs::ShaderStage stage, u64 const_buffer, u64 offset) const {
+    const auto& shader_stage = state.shader_stages[static_cast<std::size_t>(stage)];
+    const auto& buffer = shader_stage.const_buffers[const_buffer];
+    u32 result;
+    std::memcpy(&result, memory_manager.GetPointer(buffer.address + offset), sizeof(u32));
+    return result;
 }
 
 } // namespace Tegra::Engines
