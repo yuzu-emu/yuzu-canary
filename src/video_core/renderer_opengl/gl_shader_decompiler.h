@@ -39,8 +39,9 @@ private:
 
 class GlobalMemoryEntry {
 public:
-    explicit GlobalMemoryEntry(u32 cbuf_index, u32 cbuf_offset)
-        : cbuf_index{cbuf_index}, cbuf_offset{cbuf_offset} {}
+    explicit GlobalMemoryEntry(u32 cbuf_index, u32 cbuf_offset, bool is_read, bool is_written)
+        : cbuf_index{cbuf_index}, cbuf_offset{cbuf_offset}, is_read{is_read}, is_written{
+                                                                                  is_written} {}
 
     u32 GetCbufIndex() const {
         return cbuf_index;
@@ -50,9 +51,19 @@ public:
         return cbuf_offset;
     }
 
+    bool IsRead() const {
+        return is_read;
+    }
+
+    bool IsWritten() const {
+        return is_written;
+    }
+
 private:
     u32 cbuf_index{};
     u32 cbuf_offset{};
+    bool is_read{};
+    bool is_written{};
 };
 
 struct ShaderEntries {
