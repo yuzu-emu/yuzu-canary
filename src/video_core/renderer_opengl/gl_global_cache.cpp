@@ -14,28 +14,28 @@
 
 namespace OpenGL {
 
-CachedGlobalRegion::CachedGlobalRegion(VAddr cpu_addr, u32 size, u8* host_ptr)
-    : RasterizerCacheObject{host_ptr}, cpu_addr{cpu_addr}, size{size} {
+CachedGlobalRegion::CachedGlobalRegion(VAddr cpu_addr, u8* host_ptr, u32 size, u32 max_size)
+    : RasterizerCacheObject{host_ptr}, cpu_addr{cpu_addr}, host_ptr{host_ptr}, size{size},
+      max_size{max_size} {
     buffer.Create();
-    // Bind and unbind the buffer so it gets allocated by the driver
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer.handle);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     LabelGLObject(GL_BUFFER, buffer.handle, cpu_addr, "GlobalMemory");
 }
 
-void CachedGlobalRegion::Reload(u32 size_) {
-    constexpr auto max_size = static_cast<u32>(RasterizerOpenGL::MaxGlobalMemorySize);
+CachedGlobalRegion::~CachedGlobalRegion() = default;
 
+void CachedGlobalRegion::Reload(u32 size_) {
     size = size_;
     if (size > max_size) {
         size = max_size;
-        LOG_CRITICAL(HW_GPU, "Global region size {} exceeded the expected size {}!", size_,
+        LOG_CRITICAL(HW_GPU, "Global region size {} exceeded the supported size {}!", size_,
                      max_size);
     }
+    glNamedBufferData(buffer.handle, size, host_ptr, GL_STREAM_DRAW);
+}
 
-    // TODO(Rodrigo): Get rid of Memory::GetPointer with a staging buffer
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer.handle);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, size, GetHostPtr(), GL_DYNAMIC_DRAW);
+void CachedGlobalRegion::Flush() {
+    LOG_DEBUG(Render_OpenGL, "Flushing {} bytes to CPU memory address 0x{:16}", size, cpu_addr);
+    glGetNamedBufferSubData(buffer.handle, 0, static_cast<GLsizeiptr>(size), host_ptr);
 }
 
 GlobalRegion GlobalRegionCacheOpenGL::TryGetReservedGlobalRegion(CacheAddr addr, u32 size) const {
@@ -46,14 +46,16 @@ GlobalRegion GlobalRegionCacheOpenGL::TryGetReservedGlobalRegion(CacheAddr addr,
     return search->second;
 }
 
-GlobalRegion GlobalRegionCacheOpenGL::GetUncachedGlobalRegion(GPUVAddr addr, u32 size,
-                                                              u8* host_ptr) {
+GlobalRegion GlobalRegionCacheOpenGL::GetUncachedGlobalRegion(GPUVAddr addr, u8* host_ptr,
+                                                              u32 size) {
     GlobalRegion region{TryGetReservedGlobalRegion(ToCacheAddr(host_ptr), size)};
     if (!region) {
         // No reserved surface available, create a new one and reserve it
         auto& memory_manager{Core::System::GetInstance().GPU().MemoryManager()};
-        const auto cpu_addr = *memory_manager.GpuToCpuAddress(addr);
-        region = std::make_shared<CachedGlobalRegion>(cpu_addr, size, host_ptr);
+        const auto cpu_addr{memory_manager.GpuToCpuAddress(addr)};
+        ASSERT(cpu_addr);
+
+        region = std::make_shared<CachedGlobalRegion>(*cpu_addr, host_ptr, size, max_ssbo_size);
         ReserveGlobalRegion(region);
     }
     region->Reload(size);
@@ -65,7 +67,11 @@ void GlobalRegionCacheOpenGL::ReserveGlobalRegion(GlobalRegion region) {
 }
 
 GlobalRegionCacheOpenGL::GlobalRegionCacheOpenGL(RasterizerOpenGL& rasterizer)
-    : RasterizerCache{rasterizer} {}
+    : RasterizerCache{rasterizer} {
+    GLint max_ssbo_size_;
+    glGetIntegerv(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &max_ssbo_size_);
+    max_ssbo_size = static_cast<u32>(max_ssbo_size_);
+}
 
 GlobalRegion GlobalRegionCacheOpenGL::GetGlobalRegion(
     const GLShader::GlobalMemoryEntry& global_region,
@@ -73,7 +79,7 @@ GlobalRegion GlobalRegionCacheOpenGL::GetGlobalRegion(
 
     auto& gpu{Core::System::GetInstance().GPU()};
     auto& memory_manager{gpu.MemoryManager()};
-    const auto cbufs{gpu.Maxwell3D().state.shader_stages[static_cast<u64>(stage)]};
+    const auto cbufs{gpu.Maxwell3D().state.shader_stages[static_cast<std::size_t>(stage)]};
     const auto addr{cbufs.const_buffers[global_region.GetCbufIndex()].address +
                     global_region.GetCbufOffset()};
     const auto actual_addr{memory_manager.Read<u64>(addr)};
@@ -85,7 +91,7 @@ GlobalRegion GlobalRegionCacheOpenGL::GetGlobalRegion(
 
     if (!region) {
         // No global region found - create a new one
-        region = GetUncachedGlobalRegion(actual_addr, size, host_ptr);
+        region = GetUncachedGlobalRegion(actual_addr, host_ptr, size);
         Register(region);
     }
 

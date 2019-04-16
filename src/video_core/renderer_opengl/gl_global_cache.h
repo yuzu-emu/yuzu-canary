@@ -19,7 +19,7 @@ namespace OpenGL {
 
 namespace GLShader {
 class GlobalMemoryEntry;
-} // namespace GLShader
+}
 
 class RasterizerOpenGL;
 class CachedGlobalRegion;
@@ -27,7 +27,8 @@ using GlobalRegion = std::shared_ptr<CachedGlobalRegion>;
 
 class CachedGlobalRegion final : public RasterizerCacheObject {
 public:
-    explicit CachedGlobalRegion(VAddr cpu_addr, u32 size, u8* host_ptr);
+    explicit CachedGlobalRegion(VAddr cpu_addr, u8* host_ptr, u32 size, u32 max_size);
+    ~CachedGlobalRegion();
 
     VAddr GetCpuAddr() const override {
         return cpu_addr;
@@ -45,14 +46,14 @@ public:
     /// Reloads the global region from guest memory
     void Reload(u32 size_);
 
-    // TODO(Rodrigo): When global memory is written (STG), implement flushing
-    void Flush() override {
-        UNIMPLEMENTED();
-    }
+    void Flush() override;
 
 private:
     VAddr cpu_addr{};
+    u8* host_ptr{};
     u32 size{};
+    u32 max_size{};
+
     OGLBuffer buffer;
 };
 
@@ -66,10 +67,11 @@ public:
 
 private:
     GlobalRegion TryGetReservedGlobalRegion(CacheAddr addr, u32 size) const;
-    GlobalRegion GetUncachedGlobalRegion(GPUVAddr addr, u32 size, u8* host_ptr);
+    GlobalRegion GetUncachedGlobalRegion(GPUVAddr addr, u8* host_ptr, u32 size);
     void ReserveGlobalRegion(GlobalRegion region);
 
     std::unordered_map<CacheAddr, GlobalRegion> reserve;
+    u32 max_ssbo_size{};
 };
 
 } // namespace OpenGL

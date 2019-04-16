@@ -340,11 +340,16 @@ std::optional<ShaderDiskCacheDecompiled> ShaderDiskCacheOpenGL::LoadDecompiledEn
     for (u32 i = 0; i < global_memory_count; ++i) {
         u32 cbuf_index{};
         u32 cbuf_offset{};
+        u8 is_read{};
+        u8 is_written{};
         if (file.ReadBytes(&cbuf_index, sizeof(u32)) != sizeof(u32) ||
-            file.ReadBytes(&cbuf_offset, sizeof(u32)) != sizeof(u32)) {
+            file.ReadBytes(&cbuf_offset, sizeof(u32)) != sizeof(u32) ||
+            file.ReadBytes(&is_read, sizeof(u8)) != sizeof(u8) ||
+            file.ReadBytes(&is_written, sizeof(u8)) != sizeof(u8)) {
             return {};
         }
-        entry.entries.global_memory_entries.emplace_back(cbuf_index, cbuf_offset);
+        entry.entries.global_memory_entries.emplace_back(cbuf_index, cbuf_offset, is_read != 0,
+                                                         is_written != 0);
     }
 
     for (auto& clip_distance : entry.entries.clip_distances) {
@@ -401,7 +406,9 @@ bool ShaderDiskCacheOpenGL::SaveDecompiledFile(FileUtil::IOFile& file, u64 uniqu
         return false;
     for (const auto& gmem : entries.global_memory_entries) {
         if (file.WriteObject(static_cast<u32>(gmem.GetCbufIndex())) != 1 ||
-            file.WriteObject(static_cast<u32>(gmem.GetCbufOffset())) != 1) {
+            file.WriteObject(static_cast<u32>(gmem.GetCbufOffset())) != 1 ||
+            file.WriteObject(static_cast<u8>(gmem.IsRead() ? 1 : 0)) != 1 ||
+            file.WriteObject(static_cast<u8>(gmem.IsWritten() ? 1 : 0)) != 1) {
             return false;
         }
     }
