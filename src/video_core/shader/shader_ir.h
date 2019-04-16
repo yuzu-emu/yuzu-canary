@@ -299,6 +299,11 @@ struct GlobalMemoryBase {
     }
 };
 
+struct GlobalMemoryUsage {
+    bool is_read{};
+    bool is_written{};
+};
+
 struct MetaArithmetic {
     bool precise{};
 };
@@ -601,8 +606,8 @@ public:
         return used_clip_distances;
     }
 
-    const std::set<GlobalMemoryBase>& GetGlobalMemoryBases() const {
-        return used_global_memory_bases;
+    const std::map<GlobalMemoryBase, GlobalMemoryUsage>& GetGlobalMemory() const {
+        return used_global_memory;
     }
 
     std::size_t GetLength() const {
@@ -811,6 +816,11 @@ private:
 
     std::pair<Node, s64> TrackRegister(const GprNode* tracked, const NodeBlock& code, s64 cursor);
 
+    std::tuple<Node, Node, GlobalMemoryBase> TrackAndGetGlobalMemory(NodeBlock& bb,
+                                                                     Node addr_register,
+                                                                     u32 immediate_offset,
+                                                                     bool is_write);
+
     template <typename... T>
     Node Operation(OperationCode code, const T*... operands) {
         return StoreNode(OperationNode(code, operands...));
@@ -864,7 +874,7 @@ private:
     std::map<u32, ConstBuffer> used_cbufs;
     std::set<Sampler> used_samplers;
     std::array<bool, Tegra::Engines::Maxwell3D::Regs::NumClipDistances> used_clip_distances{};
-    std::set<GlobalMemoryBase> used_global_memory_bases;
+    std::map<GlobalMemoryBase, GlobalMemoryUsage> used_global_memory;
 
     Tegra::Shader::Header header;
 };
