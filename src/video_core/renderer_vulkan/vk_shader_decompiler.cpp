@@ -191,8 +191,9 @@ public:
         for (const auto& cbuf : ir.GetConstantBuffers()) {
             entries.const_buffers.emplace_back(cbuf.second, cbuf.first);
         }
-        for (const auto& gmem : ir.GetGlobalMemoryBases()) {
-            entries.global_buffers.emplace_back(gmem.cbuf_index, gmem.cbuf_offset);
+        for (const auto& gmem_pair : ir.GetGlobalMemory()) {
+            const auto& [base, usage] = gmem_pair;
+            entries.global_buffers.emplace_back(base.cbuf_index, base.cbuf_offset);
         }
         for (const auto& sampler : ir.GetSamplers()) {
             entries.samplers.emplace_back(sampler);
@@ -225,7 +226,7 @@ private:
             return current_binding;
         };
         const_buffers_base_binding = Allocate(ir.GetConstantBuffers().size());
-        global_buffers_base_binding = Allocate(ir.GetGlobalMemoryBases().size());
+        global_buffers_base_binding = Allocate(ir.GetGlobalMemory().size());
         samplers_base_binding = Allocate(ir.GetSamplers().size());
 
         ASSERT_MSG(binding_iterator - binding_base < STAGE_BINDING_STRIDE,
@@ -390,14 +391,15 @@ private:
 
     void DeclareGlobalBuffers() {
         u32 binding = global_buffers_base_binding;
-        for (const auto& entry : ir.GetGlobalMemoryBases()) {
+        for (const auto& entry : ir.GetGlobalMemory()) {
+            const auto [base, usage] = entry;
             const Id id = OpVariable(t_gmem_ssbo, spv::StorageClass::StorageBuffer);
             AddGlobalVariable(
-                Name(id, fmt::format("gmem_{}_{}", entry.cbuf_index, entry.cbuf_offset)));
+                Name(id, fmt::format("gmem_{}_{}", base.cbuf_index, base.cbuf_offset)));
 
             Decorate(id, spv::Decoration::Binding, binding++);
             Decorate(id, spv::Decoration::DescriptorSet, DESCRIPTOR_SET);
-            global_buffers.emplace(entry, id);
+            global_buffers.emplace(base, id);
         }
     }
 
