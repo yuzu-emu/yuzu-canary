@@ -640,13 +640,16 @@ void CachedSurface::LoadGLBuffer() {
             SwizzleFunc(MortonSwizzleMode::MortonToLinear, params, gl_buffer[i], i);
     } else {
         const u32 bpp = params.GetFormatBpp() / 8;
-        const u32 copy_size = params.width * bpp;
+        const u32 copy_size = (params.width * bpp + GetDefaultBlockWidth(params.pixel_format) - 1) /
+                              GetDefaultBlockWidth(params.pixel_format);
         if (params.pitch == copy_size) {
             std::memcpy(gl_buffer[0].data(), params.host_ptr, params.size_in_bytes_gl);
         } else {
+            const u32 height = (params.height + GetDefaultBlockHeight(params.pixel_format) - 1) /
+                               GetDefaultBlockHeight(params.pixel_format);
             const u8* start{params.host_ptr};
             u8* write_to = gl_buffer[0].data();
-            for (u32 h = params.height; h > 0; h--) {
+            for (u32 h = height; h > 0; h--) {
                 std::memcpy(write_to, start, copy_size);
                 start += params.pitch;
                 write_to += copy_size;
