@@ -25,6 +25,7 @@
 #include "video_core/renderer_opengl/gl_primitive_assembler.h"
 #include "video_core/renderer_opengl/gl_rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
+#include "video_core/renderer_opengl/gl_sampler_cache.h"
 #include "video_core/renderer_opengl/gl_shader_cache.h"
 #include "video_core/renderer_opengl/gl_shader_manager.h"
 #include "video_core/renderer_opengl/gl_state.h"
@@ -72,34 +73,6 @@ public:
                   "The maximum size of a constbuffer must be a multiple of the size of GLvec4");
 
 private:
-    class SamplerInfo {
-    public:
-        OGLSampler sampler;
-
-        /// Creates the sampler object, initializing its state so that it's in sync with the
-        /// SamplerInfo struct.
-        void Create();
-        /// Syncs the sampler object with the config, updating any necessary state.
-        void SyncWithConfig(const Tegra::Texture::TSCEntry& info);
-
-    private:
-        Tegra::Texture::TextureFilter mag_filter = Tegra::Texture::TextureFilter::Nearest;
-        Tegra::Texture::TextureFilter min_filter = Tegra::Texture::TextureFilter::Nearest;
-        Tegra::Texture::TextureMipmapFilter mipmap_filter =
-            Tegra::Texture::TextureMipmapFilter::None;
-        Tegra::Texture::WrapMode wrap_u = Tegra::Texture::WrapMode::ClampToEdge;
-        Tegra::Texture::WrapMode wrap_v = Tegra::Texture::WrapMode::ClampToEdge;
-        Tegra::Texture::WrapMode wrap_p = Tegra::Texture::WrapMode::ClampToEdge;
-        bool use_depth_compare = false;
-        Tegra::Texture::DepthCompareFunc depth_compare_func =
-            Tegra::Texture::DepthCompareFunc::Always;
-        GLvec4 border_color = {};
-        float min_lod = 0.0f;
-        float max_lod = 16.0f;
-        float lod_bias = 0.0f;
-        float max_anisotropic = 1.0f;
-    };
-
     struct FramebufferConfigState {
         bool using_color_fb{};
         bool using_depth_fb{};
@@ -204,6 +177,7 @@ private:
     RasterizerCacheOpenGL res_cache;
     ShaderCacheOpenGL shader_cache;
     GlobalRegionCacheOpenGL global_cache;
+    SamplerCacheOpenGL sampler_cache;
 
     Core::System& system;
 
@@ -218,8 +192,6 @@ private:
     std::map<FramebufferCacheKey, OGLFramebuffer> framebuffer_cache;
     FramebufferConfigState current_framebuffer_config_state;
     std::pair<bool, bool> current_depth_stencil_usage{};
-
-    std::array<SamplerInfo, Tegra::Engines::Maxwell3D::Regs::NumTextureSamplers> texture_samplers;
 
     static constexpr std::size_t STREAM_BUFFER_SIZE = 128 * 1024 * 1024;
     OGLBufferCache buffer_cache;
