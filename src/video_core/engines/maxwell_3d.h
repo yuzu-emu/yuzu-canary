@@ -1131,11 +1131,17 @@ public:
     /// Write the value to the register identified by method.
     void CallMethod(const GPU::MethodCall& method_call);
 
+    /// Given a Texture Handle, returns the TSC and TIC entries.
+    Texture::FullTextureInfo GetTextureInfo(const Texture::TextureHandle tex_handle,
+                                            std::size_t offset) const;
+
     /// Returns a list of enabled textures for the specified shader stage.
     std::vector<Texture::FullTextureInfo> GetStageTextures(Regs::ShaderStage stage) const;
 
     /// Returns the texture information for a specific texture in a specific shader stage.
     Texture::FullTextureInfo GetStageTexture(Regs::ShaderStage stage, std::size_t offset) const;
+
+    u32 AccessConstBuffer32(Regs::ShaderStage stage, u64 const_buffer, u64 offset) const;
 
     /// Memory for macro code - it's undetermined how big this is, however 1MB is much larger than
     /// we've seen used.
