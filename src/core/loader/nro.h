@@ -37,7 +37,7 @@ public:
         return IdentifyType(file);
     }
 
-    ResultStatus Load(Kernel::Process& process) override;
+    LoadResult Load(Kernel::Process& process) override;
 
     ResultStatus ReadIcon(std::vector<u8>& buffer) override;
     ResultStatus ReadProgramId(u64& out_program_id) override;

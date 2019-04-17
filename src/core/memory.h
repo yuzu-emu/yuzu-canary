@@ -40,8 +40,9 @@ enum : VAddr {
     KERNEL_REGION_END = KERNEL_REGION_VADDR + KERNEL_REGION_SIZE,
 };
 
-/// Changes the currently active page table.
-void SetCurrentPageTable(Common::PageTable* page_table);
+/// Changes the currently active page table to that of
+/// the given process instance.
+void SetCurrentPageTable(Kernel::Process& process);
 
 /// Determines if the given VAddr is valid for the specified process.
 bool IsValidVirtualAddress(const Kernel::Process& process, VAddr vaddr);

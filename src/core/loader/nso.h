@@ -84,7 +84,7 @@ public:
                                            VAddr load_base, bool should_pass_arguments,
                                            std::optional<FileSys::PatchManager> pm = {});
 
-    ResultStatus Load(Kernel::Process& process) override;
+    LoadResult Load(Kernel::Process& process) override;
 };
 
 } // namespace Loader

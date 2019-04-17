@@ -225,9 +225,12 @@ public:
     ResultCode LoadFromMetadata(const FileSys::ProgramMetadata& metadata);
 
     /**
-     * Applies address space changes and launches the process main thread.
+     * Starts the main application thread for this process.
+     *
+     * @param main_thread_priority The priority for the main thread.
+     * @param stack_size           The stack size for the main thread in bytes.
      */
-    void Run(VAddr entry_point, s32 main_thread_priority, u64 stack_size);
+    void Run(s32 main_thread_priority, u64 stack_size);
 
     /**
      * Prepares a process for termination by stopping all of its threads

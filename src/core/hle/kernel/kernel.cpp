@@ -182,7 +182,12 @@ void KernelCore::AppendNewProcess(SharedPtr<Process> process) {
 
 void KernelCore::MakeCurrentProcess(Process* process) {
     impl->current_process = process;
-    Memory::SetCurrentPageTable(&process->VMManager().page_table);
+
+    if (process == nullptr) {
+        return;
+    }
+
+    Memory::SetCurrentPageTable(*process);
 }
 
 Process* KernelCore::CurrentProcess() {

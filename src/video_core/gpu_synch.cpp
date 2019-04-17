@@ -8,9 +8,11 @@
 namespace VideoCommon {
 
 GPUSynch::GPUSynch(Core::System& system, VideoCore::RendererBase& renderer)
-    : Tegra::GPU(system, renderer) {}
+    : GPU(system, renderer) {}
 
 GPUSynch::~GPUSynch() = default;
+
+void GPUSynch::Start() {}
 
 void GPUSynch::PushGPUEntries(Tegra::CommandList&& entries) {
     dma_pusher->Push(std::move(entries));

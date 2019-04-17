@@ -131,6 +131,12 @@ std::ostream& operator<<(std::ostream& os, ResultStatus status);
 /// Interface for loading an application
 class AppLoader : NonCopyable {
 public:
+    struct LoadParameters {
+        s32 main_thread_priority;
+        u64 main_thread_stack_size;
+    };
+    using LoadResult = std::pair<ResultStatus, std::optional<LoadParameters>>;
+
     explicit AppLoader(FileSys::VirtualFile file);
     virtual ~AppLoader();
 
@@ -145,7 +151,7 @@ public:
      * @param process The newly created process.
      * @return The status result of the operation.
      */
-    virtual ResultStatus Load(Kernel::Process& process) = 0;
+    virtual LoadResult Load(Kernel::Process& process) = 0;
 
     /**
      * Loads the system mode that this application needs.
