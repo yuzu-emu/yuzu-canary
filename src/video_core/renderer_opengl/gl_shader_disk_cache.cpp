@@ -319,16 +319,19 @@ std::optional<ShaderDiskCacheDecompiled> ShaderDiskCacheOpenGL::LoadDecompiledEn
         u32 type{};
         u8 is_array{};
         u8 is_shadow{};
+        u8 is_bindless{};
         if (file.ReadBytes(&offset, sizeof(u64)) != sizeof(u64) ||
             file.ReadBytes(&index, sizeof(u64)) != sizeof(u64) ||
             file.ReadBytes(&type, sizeof(u32)) != sizeof(u32) ||
             file.ReadBytes(&is_array, sizeof(u8)) != sizeof(u8) ||
-            file.ReadBytes(&is_shadow, sizeof(u8)) != sizeof(u8)) {
+            file.ReadBytes(&is_shadow, sizeof(u8)) != sizeof(u8) ||
+            file.ReadBytes(&is_bindless, sizeof(u8)) != sizeof(u8)) {
             return {};
         }
-        entry.entries.samplers.emplace_back(
-            static_cast<std::size_t>(offset), static_cast<std::size_t>(index),
-            static_cast<Tegra::Shader::TextureType>(type), is_array != 0, is_shadow != 0);
+        entry.entries.samplers.emplace_back(static_cast<std::size_t>(offset),
+                                            static_cast<std::size_t>(index),
+                                            static_cast<Tegra::Shader::TextureType>(type),
+                                            is_array != 0, is_shadow != 0, is_bindless != 0);
     }
 
     u32 global_memory_count{};
@@ -393,7 +396,8 @@ bool ShaderDiskCacheOpenGL::SaveDecompiledFile(FileUtil::IOFile& file, u64 uniqu
             file.WriteObject(static_cast<u64>(sampler.GetIndex())) != 1 ||
             file.WriteObject(static_cast<u32>(sampler.GetType())) != 1 ||
             file.WriteObject(static_cast<u8>(sampler.IsArray() ? 1 : 0)) != 1 ||
-            file.WriteObject(static_cast<u8>(sampler.IsShadow() ? 1 : 0)) != 1) {
+            file.WriteObject(static_cast<u8>(sampler.IsShadow() ? 1 : 0)) != 1 ||
+            file.WriteObject(static_cast<u8>(sampler.IsBindless() ? 1 : 0)) != 1) {
             return false;
         }
     }
