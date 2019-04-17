@@ -19,10 +19,10 @@ u32 ShaderIR::DecodeHalfSetPredicate(NodeBlock& bb, u32 pc) {
 
     UNIMPLEMENTED_IF(instr.hsetp2.ftz != 0);
 
-    Node op_a = GetRegister(instr.gpr8);
+    Node op_a = UnpackHalfFloat(GetRegister(instr.gpr8), instr.hsetp2.type_a);
     op_a = GetOperandAbsNegHalf(op_a, instr.hsetp2.abs_a, instr.hsetp2.negate_a);
 
-    const Node op_b = [&]() {
+    Node op_b = [&]() {
         switch (opcode->get().GetId()) {
         case OpCode::Id::HSETP2_R:
             return GetOperandAbsNegHalf(GetRegister(instr.gpr20), instr.hsetp2.abs_a,
@@ -32,6 +32,7 @@ u32 ShaderIR::DecodeHalfSetPredicate(NodeBlock& bb, u32 pc) {
             return Immediate(0);
         }
     }();
+    op_b = UnpackHalfFloat(op_b, instr.hsetp2.type_b);
 
     // We can't use the constant predicate as destination.
     ASSERT(instr.hsetp2.pred3 != static_cast<u64>(Pred::UnusedIndex));
@@ -42,8 +43,7 @@ u32 ShaderIR::DecodeHalfSetPredicate(NodeBlock& bb, u32 pc) {
     const OperationCode pair_combiner =
         instr.hsetp2.h_and ? OperationCode::LogicalAll2 : OperationCode::LogicalAny2;
 
-    MetaHalfArithmetic meta = {false, {instr.hsetp2.type_a, instr.hsetp2.type_b}};
-    const Node comparison = GetPredicateComparisonHalf(instr.hsetp2.cond, meta, op_a, op_b);
+    const Node comparison = GetPredicateComparisonHalf(instr.hsetp2.cond, op_a, op_b);
     const Node first_pred = Operation(pair_combiner, comparison);
 
     // Set the primary predicate to the result of Predicate OP SecondPredicate
