@@ -18,7 +18,7 @@ class System;
 
 class CpuCoreManager {
 public:
-    CpuCoreManager();
+    explicit CpuCoreManager(System& system);
     CpuCoreManager(const CpuCoreManager&) = delete;
     CpuCoreManager(CpuCoreManager&&) = delete;
 
@@ -27,7 +27,8 @@ public:
     CpuCoreManager& operator=(const CpuCoreManager&) = delete;
     CpuCoreManager& operator=(CpuCoreManager&&) = delete;
 
-    void Initialize(System& system);
+    void Initialize();
+    void StartThreads();
     void Shutdown();
 
     Cpu& GetCore(std::size_t index);
@@ -54,6 +55,8 @@ private:
 
     /// Map of guest threads to CPU cores
     std::map<std::thread::id, Cpu*> thread_to_cpu;
+
+    System& system;
 };
 
 } // namespace Core

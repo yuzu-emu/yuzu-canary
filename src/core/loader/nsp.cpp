@@ -72,37 +72,45 @@ FileType AppLoader_NSP::IdentifyType(const FileSys::VirtualFile& file) {
     return FileType::Error;
 }
 
-ResultStatus AppLoader_NSP::Load(Kernel::Process& process) {
+AppLoader_NSP::LoadResult AppLoader_NSP::Load(Kernel::Process& process) {
     if (is_loaded) {
-        return ResultStatus::ErrorAlreadyLoaded;
+        return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
 
-    if (title_id == 0)
-        return ResultStatus::ErrorNSPMissingProgramNCA;
+    if (title_id == 0) {
+        return {ResultStatus::ErrorNSPMissingProgramNCA, {}};
+    }
 
-    if (nsp->GetStatus() != ResultStatus::Success)
-        return nsp->GetStatus();
+    const auto nsp_status = nsp->GetStatus();
+    if (nsp_status != ResultStatus::Success) {
+        return {nsp_status, {}};
+    }
 
-    if (nsp->GetProgramStatus(title_id) != ResultStatus::Success)
-        return nsp->GetProgramStatus(title_id);
+    const auto nsp_program_status = nsp->GetProgramStatus(title_id);
+    if (nsp_program_status != ResultStatus::Success) {
+        return {nsp_program_status, {}};
+    }
 
     if (nsp->GetNCA(title_id, FileSys::ContentRecordType::Program) == nullptr) {
-        if (!Core::Crypto::KeyManager::KeyFileExists(false))
-            return ResultStatus::ErrorMissingProductionKeyFile;
-        return ResultStatus::ErrorNSPMissingProgramNCA;
+        if (!Core::Crypto::KeyManager::KeyFileExists(false)) {
+            return {ResultStatus::ErrorMissingProductionKeyFile, {}};
+        }
+
+        return {ResultStatus::ErrorNSPMissingProgramNCA, {}};
     }
 
     const auto result = secondary_loader->Load(process);
-    if (result != ResultStatus::Success)
+    if (result.first != ResultStatus::Success) {
         return result;
+    }
 
     FileSys::VirtualFile update_raw;
-    if (ReadUpdateRaw(update_raw) == ResultStatus::Success && update_raw != nullptr)
+    if (ReadUpdateRaw(update_raw) == ResultStatus::Success && update_raw != nullptr) {
         Service::FileSystem::SetPackedUpdate(std::move(update_raw));
+    }
 
     is_loaded = true;
-
-    return ResultStatus::Success;
+    return result;
 }
 
 ResultStatus AppLoader_NSP::ReadRomFS(FileSys::VirtualFile& file) {

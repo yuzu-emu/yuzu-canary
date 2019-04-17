@@ -18,6 +18,7 @@ public:
     explicit GPUSynch(Core::System& system, VideoCore::RendererBase& renderer);
     ~GPUSynch() override;
 
+    void Start() override;
     void PushGPUEntries(Tegra::CommandList&& entries) override;
     void SwapBuffers(
         std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) override;
