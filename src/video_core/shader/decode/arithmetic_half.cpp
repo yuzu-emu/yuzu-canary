@@ -18,7 +18,9 @@ u32 ShaderIR::DecodeArithmeticHalf(NodeBlock& bb, u32 pc) {
 
     if (opcode->get().GetId() == OpCode::Id::HADD2_C ||
         opcode->get().GetId() == OpCode::Id::HADD2_R) {
-        UNIMPLEMENTED_IF(instr.alu_half.ftz != 0);
+        if (instr.alu_half.ftz != 0) {
+            LOG_WARNING(HW_GPU, "{} FTZ not implemented", opcode->get().GetName());
+        }
     }
     UNIMPLEMENTED_IF_MSG(instr.alu_half.saturate != 0, "Half float saturation not implemented");
 
@@ -27,9 +29,8 @@ u32 ShaderIR::DecodeArithmeticHalf(NodeBlock& bb, u32 pc) {
     const bool negate_b =
         opcode->get().GetId() != OpCode::Id::HMUL2_C && instr.alu_half.negate_b != 0;
 
-    const Node op_a = GetOperandAbsNegHalf(GetRegister(instr.gpr8), instr.alu_half.abs_a, negate_a);
-
-    // instr.alu_half.type_a
+    Node op_a = UnpackHalfFloat(GetRegister(instr.gpr8), instr.alu_half.type_a);
+    op_a = GetOperandAbsNegHalf(op_a, instr.alu_half.abs_a, negate_a);
 
     Node op_b = [&]() {
         switch (opcode->get().GetId()) {
@@ -44,17 +45,17 @@ u32 ShaderIR::DecodeArithmeticHalf(NodeBlock& bb, u32 pc) {
             return Immediate(0);
         }
     }();
+    op_b = UnpackHalfFloat(op_b, instr.alu_half.type_b);
     op_b = GetOperandAbsNegHalf(op_b, instr.alu_half.abs_b, negate_b);
 
     Node value = [&]() {
-        MetaHalfArithmetic meta{true, {instr.alu_half_imm.type_a, instr.alu_half.type_b}};
         switch (opcode->get().GetId()) {
         case OpCode::Id::HADD2_C:
         case OpCode::Id::HADD2_R:
-            return Operation(OperationCode::HAdd, meta, op_a, op_b);
+            return Operation(OperationCode::HAdd, PRECISE, op_a, op_b);
         case OpCode::Id::HMUL2_C:
         case OpCode::Id::HMUL2_R:
-            return Operation(OperationCode::HMul, meta, op_a, op_b);
+            return Operation(OperationCode::HMul, PRECISE, op_a, op_b);
         default:
             UNIMPLEMENTED_MSG("Unhandled half float instruction: {}", opcode->get().GetName());
             return Immediate(0);
