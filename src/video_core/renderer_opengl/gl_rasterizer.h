@@ -71,10 +71,6 @@ public:
     static_assert(MaxConstbufferSize % sizeof(GLvec4) == 0,
                   "The maximum size of a constbuffer must be a multiple of the size of GLvec4");
 
-    static constexpr std::size_t MaxGlobalMemorySize = 0x10000;
-    static_assert(MaxGlobalMemorySize % sizeof(float) == 0,
-                  "The maximum size of a global memory must be a multiple of the size of float");
-
 private:
     class SamplerInfo {
     public:

@@ -45,8 +45,6 @@ using TextureIR = std::variant<TextureAoffi, TextureArgument>;
 enum : u32 { POSITION_VARYING_LOCATION = 0, GENERIC_VARYING_START_LOCATION = 1 };
 constexpr u32 MAX_CONSTBUFFER_ELEMENTS =
     static_cast<u32>(RasterizerOpenGL::MaxConstbufferSize) / (4 * sizeof(float));
-constexpr u32 MAX_GLOBALMEMORY_ELEMENTS =
-    static_cast<u32>(RasterizerOpenGL::MaxGlobalMemorySize) / sizeof(float);
 
 class ShaderWriter {
 public:
@@ -208,8 +206,10 @@ public:
         for (const auto& sampler : ir.GetSamplers()) {
             entries.samplers.emplace_back(sampler);
         }
-        for (const auto& gmem : ir.GetGlobalMemoryBases()) {
-            entries.global_memory_entries.emplace_back(gmem.cbuf_index, gmem.cbuf_offset);
+        for (const auto& gmem_pair : ir.GetGlobalMemory()) {
+            const auto& [base, usage] = gmem_pair;
+            entries.global_memory_entries.emplace_back(base.cbuf_index, base.cbuf_offset,
+                                                       usage.is_read, usage.is_written);
         }
         entries.clip_distances = ir.GetClipDistances();
         entries.shader_length = ir.GetLength();
@@ -380,12 +380,22 @@ private:
     }
 
     void DeclareGlobalMemory() {
-        for (const auto& entry : ir.GetGlobalMemoryBases()) {
+        for (const auto& gmem : ir.GetGlobalMemory()) {
+            const auto& [base, usage] = gmem;
+
+            // Since we don't know how the shader will use the shader, hint the driver to disable as
+            // much optimizations as possible
+            std::string qualifier = "coherent volatile";
+            if (usage.is_read && !usage.is_written)
+                qualifier += " readonly";
+            else if (usage.is_written && !usage.is_read)
+                qualifier += " writeonly";
+
             const std::string binding =
-                fmt::format("GMEM_BINDING_{}_{}", entry.cbuf_index, entry.cbuf_offset);
-            code.AddLine("layout (std430, binding = " + binding + ") buffer " +
-                         GetGlobalMemoryBlock(entry) + " {");
-            code.AddLine("    float " + GetGlobalMemory(entry) + "[MAX_GLOBALMEMORY_ELEMENTS];");
+                fmt::format("GMEM_BINDING_{}_{}", base.cbuf_index, base.cbuf_offset);
+            code.AddLine("layout (std430, binding = " + binding + ") " + qualifier + " buffer " +
+                         GetGlobalMemoryBlock(base) + " {");
+            code.AddLine("    float " + GetGlobalMemory(base) + "[];");
             code.AddLine("};");
             code.AddNewLine();
         }
@@ -867,6 +877,12 @@ private:
 
         } else if (const auto lmem = std::get_if<LmemNode>(dest)) {
             target = GetLocalMemory() + "[ftou(" + Visit(lmem->GetAddress()) + ") / 4]";
+
+        } else if (const auto gmem = std::get_if<GmemNode>(dest)) {
+            const std::string real = Visit(gmem->GetRealAddress());
+            const std::string base = Visit(gmem->GetBaseAddress());
+            const std::string final_offset = "(ftou(" + real + ") - ftou(" + base + ")) / 4";
+            target = fmt::format("{}[{}]", GetGlobalMemory(gmem->GetDescriptor()), final_offset);
 
         } else {
             UNREACHABLE_MSG("Assign called without a proper target");
@@ -1621,9 +1637,7 @@ private:
 
 std::string GetCommonDeclarations() {
     const auto cbuf = std::to_string(MAX_CONSTBUFFER_ELEMENTS);
-    const auto gmem = std::to_string(MAX_GLOBALMEMORY_ELEMENTS);
     return "#define MAX_CONSTBUFFER_ELEMENTS " + cbuf + "\n" +
-           "#define MAX_GLOBALMEMORY_ELEMENTS " + gmem + "\n" +
            "#define ftoi floatBitsToInt\n"
            "#define ftou floatBitsToUint\n"
            "#define itof intBitsToFloat\n"
