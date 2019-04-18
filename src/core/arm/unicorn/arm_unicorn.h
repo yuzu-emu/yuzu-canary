@@ -41,7 +41,7 @@ public:
     void Run() override;
     void Step() override;
     void ClearInstructionCache() override;
-    void PageTableChanged() override{};
+    void PageTableChanged(Common::PageTable&, std::size_t) override {}
     void RecordBreak(GDBStub::BreakpointAddress bkpt);
 
 private:

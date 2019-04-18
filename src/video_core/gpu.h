@@ -207,6 +207,11 @@ public:
         };
     } regs{};
 
+    /// Performs any additional setup necessary in order to begin GPU emulation.
+    /// This can be used to launch any necessary threads and register any necessary
+    /// core timing events.
+    virtual void Start() = 0;
+
     /// Push GPU command entries to be processed
     virtual void PushGPUEntries(Tegra::CommandList&& entries) = 0;
 

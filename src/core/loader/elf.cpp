@@ -382,13 +382,15 @@ FileType AppLoader_ELF::IdentifyType(const FileSys::VirtualFile& file) {
     return FileType::Error;
 }
 
-ResultStatus AppLoader_ELF::Load(Kernel::Process& process) {
-    if (is_loaded)
-        return ResultStatus::ErrorAlreadyLoaded;
+AppLoader_ELF::LoadResult AppLoader_ELF::Load(Kernel::Process& process) {
+    if (is_loaded) {
+        return {ResultStatus::ErrorAlreadyLoaded, {}};
+    }
 
     std::vector<u8> buffer = file->ReadAllBytes();
-    if (buffer.size() != file->GetSize())
-        return ResultStatus::ErrorIncorrectELFFileSize;
+    if (buffer.size() != file->GetSize()) {
+        return {ResultStatus::ErrorIncorrectELFFileSize, {}};
+    }
 
     const VAddr base_address = process.VMManager().GetCodeRegionBaseAddress();
     ElfReader elf_reader(&buffer[0]);
@@ -396,10 +398,9 @@ ResultStatus AppLoader_ELF::Load(Kernel::Process& process) {
     const VAddr entry_point = codeset.entrypoint;
 
     process.LoadModule(std::move(codeset), entry_point);
-    process.Run(entry_point, 48, Memory::DEFAULT_STACK_SIZE);
 
     is_loaded = true;
-    return ResultStatus::Success;
+    return {ResultStatus::Success, LoadParameters{48, Memory::DEFAULT_STACK_SIZE}};
 }
 
 } // namespace Loader
