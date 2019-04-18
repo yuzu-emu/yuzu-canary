@@ -27,10 +27,6 @@ u32 ShaderIR::DecodeHfma2(NodeBlock& bb, u32 pc) {
     }
 
     constexpr auto identity = HalfType::H0_H1;
-
-    const HalfType type_a = instr.hfma2.type_a;
-    const Node op_a = GetRegister(instr.gpr8);
-
     bool neg_b{}, neg_c{};
     auto [saturate, type_b, op_b, type_c,
           op_c] = [&]() -> std::tuple<bool, HalfType, Node, HalfType, Node> {
@@ -62,11 +58,11 @@ u32 ShaderIR::DecodeHfma2(NodeBlock& bb, u32 pc) {
     }();
     UNIMPLEMENTED_IF_MSG(saturate, "HFMA2 saturation is not implemented");
 
-    op_b = GetOperandAbsNegHalf(op_b, false, neg_b);
-    op_c = GetOperandAbsNegHalf(op_c, false, neg_c);
+    const Node op_a = UnpackHalfFloat(GetRegister(instr.gpr8), instr.hfma2.type_a);
+    op_b = GetOperandAbsNegHalf(UnpackHalfFloat(op_b, type_b), false, neg_b);
+    op_c = GetOperandAbsNegHalf(UnpackHalfFloat(op_c, type_c), false, neg_c);
 
-    MetaHalfArithmetic meta{true, {type_a, type_b, type_c}};
-    Node value = Operation(OperationCode::HFma, meta, op_a, op_b, op_c);
+    Node value = Operation(OperationCode::HFma, PRECISE, op_a, op_b, op_c);
     value = HalfMerge(GetRegister(instr.gpr0), value, instr.hfma2.merge);
 
     SetRegister(bb, instr.gpr0, value);
