@@ -138,9 +138,11 @@ struct SynchState final {
 /// Class used to manage the GPU thread
 class ThreadManager final {
 public:
-    explicit ThreadManager(Core::System& system, VideoCore::RendererBase& renderer,
-                           Tegra::DmaPusher& dma_pusher);
+    explicit ThreadManager(Core::System& system);
     ~ThreadManager();
+
+    /// Creates and starts the GPU thread.
+    void StartThread(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_pusher);
 
     /// Push GPU command entries to be processed
     void SubmitList(Tegra::CommandList&& entries);

@@ -201,25 +201,25 @@ bool AppLoader_NRO::LoadNro(Kernel::Process& process, const FileSys::VfsFile& fi
     return LoadNroImpl(process, file.ReadAllBytes(), file.GetName(), load_base);
 }
 
-ResultStatus AppLoader_NRO::Load(Kernel::Process& process) {
+AppLoader_NRO::LoadResult AppLoader_NRO::Load(Kernel::Process& process) {
     if (is_loaded) {
-        return ResultStatus::ErrorAlreadyLoaded;
+        return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
 
     // Load NRO
     const VAddr base_address = process.VMManager().GetCodeRegionBaseAddress();
 
     if (!LoadNro(process, *file, base_address)) {
-        return ResultStatus::ErrorLoadingNRO;
+        return {ResultStatus::ErrorLoadingNRO, {}};
     }
 
-    if (romfs != nullptr)
+    if (romfs != nullptr) {
         Service::FileSystem::RegisterRomFS(std::make_unique<FileSys::RomFSFactory>(*this));
-
-    process.Run(base_address, Kernel::THREADPRIO_DEFAULT, Memory::DEFAULT_STACK_SIZE);
+    }
 
     is_loaded = true;
-    return ResultStatus::Success;
+    return {ResultStatus::Success,
+            LoadParameters{Kernel::THREADPRIO_DEFAULT, Memory::DEFAULT_STACK_SIZE}};
 }
 
 ResultStatus AppLoader_NRO::ReadIcon(std::vector<u8>& buffer) {

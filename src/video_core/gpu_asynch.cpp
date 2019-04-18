@@ -9,9 +9,13 @@
 namespace VideoCommon {
 
 GPUAsynch::GPUAsynch(Core::System& system, VideoCore::RendererBase& renderer)
-    : Tegra::GPU(system, renderer), gpu_thread{system, renderer, *dma_pusher} {}
+    : GPU(system, renderer), gpu_thread{system} {}
 
 GPUAsynch::~GPUAsynch() = default;
+
+void GPUAsynch::Start() {
+    gpu_thread.StartThread(renderer, *dma_pusher);
+}
 
 void GPUAsynch::PushGPUEntries(Tegra::CommandList&& entries) {
     gpu_thread.SubmitList(std::move(entries));

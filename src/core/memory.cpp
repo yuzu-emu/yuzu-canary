@@ -26,16 +26,16 @@ namespace Memory {
 
 static Common::PageTable* current_page_table = nullptr;
 
-void SetCurrentPageTable(Common::PageTable* page_table) {
-    current_page_table = page_table;
+void SetCurrentPageTable(Kernel::Process& process) {
+    current_page_table = &process.VMManager().page_table;
+
+    const std::size_t address_space_width = process.VMManager().GetAddressSpaceWidth();
 
     auto& system = Core::System::GetInstance();
-    if (system.IsPoweredOn()) {
-        system.ArmInterface(0).PageTableChanged();
-        system.ArmInterface(1).PageTableChanged();
-        system.ArmInterface(2).PageTableChanged();
-        system.ArmInterface(3).PageTableChanged();
-    }
+    system.ArmInterface(0).PageTableChanged(*current_page_table, address_space_width);
+    system.ArmInterface(1).PageTableChanged(*current_page_table, address_space_width);
+    system.ArmInterface(2).PageTableChanged(*current_page_table, address_space_width);
+    system.ArmInterface(3).PageTableChanged(*current_page_table, address_space_width);
 }
 
 static void MapPages(Common::PageTable& page_table, VAddr base, u64 size, u8* memory,
