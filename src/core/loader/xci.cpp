@@ -48,31 +48,35 @@ FileType AppLoader_XCI::IdentifyType(const FileSys::VirtualFile& file) {
     return FileType::Error;
 }
 
-ResultStatus AppLoader_XCI::Load(Kernel::Process& process) {
+AppLoader_XCI::LoadResult AppLoader_XCI::Load(Kernel::Process& process) {
     if (is_loaded) {
-        return ResultStatus::ErrorAlreadyLoaded;
+        return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
 
-    if (xci->GetStatus() != ResultStatus::Success)
-        return xci->GetStatus();
+    if (xci->GetStatus() != ResultStatus::Success) {
+        return {xci->GetStatus(), {}};
+    }
 
-    if (xci->GetProgramNCAStatus() != ResultStatus::Success)
-        return xci->GetProgramNCAStatus();
+    if (xci->GetProgramNCAStatus() != ResultStatus::Success) {
+        return {xci->GetProgramNCAStatus(), {}};
+    }
 
-    if (!xci->HasProgramNCA() && !Core::Crypto::KeyManager::KeyFileExists(false))
-        return ResultStatus::ErrorMissingProductionKeyFile;
+    if (!xci->HasProgramNCA() && !Core::Crypto::KeyManager::KeyFileExists(false)) {
+        return {ResultStatus::ErrorMissingProductionKeyFile, {}};
+    }
 
     const auto result = nca_loader->Load(process);
-    if (result != ResultStatus::Success)
+    if (result.first != ResultStatus::Success) {
         return result;
+    }
 
     FileSys::VirtualFile update_raw;
-    if (ReadUpdateRaw(update_raw) == ResultStatus::Success && update_raw != nullptr)
+    if (ReadUpdateRaw(update_raw) == ResultStatus::Success && update_raw != nullptr) {
         Service::FileSystem::SetPackedUpdate(std::move(update_raw));
+    }
 
     is_loaded = true;
-
-    return ResultStatus::Success;
+    return result;
 }
 
 ResultStatus AppLoader_XCI::ReadRomFS(FileSys::VirtualFile& file) {

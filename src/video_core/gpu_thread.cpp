@@ -55,17 +55,22 @@ static void RunThread(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_p
     }
 }
 
-ThreadManager::ThreadManager(Core::System& system, VideoCore::RendererBase& renderer,
-                             Tegra::DmaPusher& dma_pusher)
-    : system{system}, thread{RunThread, std::ref(renderer), std::ref(dma_pusher), std::ref(state)} {
-    synchronization_event = system.CoreTiming().RegisterEvent(
-        "GPUThreadSynch", [this](u64 fence, s64) { state.WaitForSynchronization(fence); });
-}
+ThreadManager::ThreadManager(Core::System& system) : system{system} {}
 
 ThreadManager::~ThreadManager() {
+    if (!thread.joinable()) {
+        return;
+    }
+
     // Notify GPU thread that a shutdown is pending
     PushCommand(EndProcessingCommand());
     thread.join();
+}
+
+void ThreadManager::StartThread(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_pusher) {
+    thread = std::thread{RunThread, std::ref(renderer), std::ref(dma_pusher), std::ref(state)};
+    synchronization_event = system.CoreTiming().RegisterEvent(
+        "GPUThreadSynch", [this](u64 fence, s64) { state.WaitForSynchronization(fence); });
 }
 
 void ThreadManager::SubmitList(Tegra::CommandList&& entries) {
