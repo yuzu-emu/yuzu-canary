@@ -8,49 +8,25 @@
 
 #include "common/common_types.h"
 #include "video_core/renderer_vulkan/declarations.h"
+#include "video_core/sampler_cache.h"
 #include "video_core/textures/texture.h"
 
 namespace Vulkan {
 
 class VKDevice;
 
-struct SamplerCacheKey final : public Tegra::Texture::TSCEntry {
-    std::size_t Hash() const;
-
-    bool operator==(const SamplerCacheKey& rhs) const;
-
-    bool operator!=(const SamplerCacheKey& rhs) const {
-        return !operator==(rhs);
-    }
-};
-
-} // namespace Vulkan
-
-namespace std {
-
-template <>
-struct hash<Vulkan::SamplerCacheKey> {
-    std::size_t operator()(const Vulkan::SamplerCacheKey& k) const noexcept {
-        return k.Hash();
-    }
-};
-
-} // namespace std
-
-namespace Vulkan {
-
-class VKSamplerCache {
+class VKSamplerCache final : public VideoCommon::SamplerCache<vk::Sampler, UniqueSampler> {
 public:
     explicit VKSamplerCache(const VKDevice& device);
     ~VKSamplerCache();
 
-    vk::Sampler GetSampler(const Tegra::Texture::TSCEntry& tsc);
+protected:
+    UniqueSampler CreateSampler(const Tegra::Texture::TSCEntry& tsc) const;
+
+    vk::Sampler ToSamplerType(const UniqueSampler& sampler) const;
 
 private:
-    UniqueSampler CreateSampler(const Tegra::Texture::TSCEntry& tsc);
-
     const VKDevice& device;
-    std::unordered_map<SamplerCacheKey, UniqueSampler> cache;
 };
 
 } // namespace Vulkan
