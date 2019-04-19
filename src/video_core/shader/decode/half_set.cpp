@@ -18,11 +18,13 @@ u32 ShaderIR::DecodeHalfSet(NodeBlock& bb, u32 pc) {
     const Instruction instr = {program_code[pc]};
     const auto opcode = OpCode::Decode(instr);
 
-    UNIMPLEMENTED_IF(instr.hset2.ftz != 0);
+    if (instr.hset2.ftz != 0) {
+        LOG_WARNING(HW_GPU, "{} FTZ not implemented", opcode->get().GetName());
+    }
 
-    // instr.hset2.type_a
-    // instr.hset2.type_b
-    Node op_a = GetRegister(instr.gpr8);
+    Node op_a = UnpackHalfFloat(GetRegister(instr.gpr8), instr.hset2.type_a);
+    op_a = GetOperandAbsNegHalf(op_a, instr.hset2.abs_a, instr.hset2.negate_a);
+
     Node op_b = [&]() {
         switch (opcode->get().GetId()) {
         case OpCode::Id::HSET2_R:
@@ -32,14 +34,12 @@ u32 ShaderIR::DecodeHalfSet(NodeBlock& bb, u32 pc) {
             return Immediate(0);
         }
     }();
-
-    op_a = GetOperandAbsNegHalf(op_a, instr.hset2.abs_a, instr.hset2.negate_a);
+    op_b = UnpackHalfFloat(op_b, instr.hset2.type_b);
     op_b = GetOperandAbsNegHalf(op_b, instr.hset2.abs_b, instr.hset2.negate_b);
 
     const Node second_pred = GetPredicate(instr.hset2.pred39, instr.hset2.neg_pred);
 
-    MetaHalfArithmetic meta{false, {instr.hset2.type_a, instr.hset2.type_b}};
-    const Node comparison_pair = GetPredicateComparisonHalf(instr.hset2.cond, meta, op_a, op_b);
+    const Node comparison_pair = GetPredicateComparisonHalf(instr.hset2.cond, op_a, op_b);
 
     const OperationCode combiner = GetPredicateCombiner(instr.hset2.op);
 
