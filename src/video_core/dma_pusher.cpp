@@ -57,8 +57,8 @@ bool DmaPusher::Step() {
 
     // Push buffer non-empty, read a word
     command_headers.resize(command_list_header.size);
-    gpu.MemoryManager().ReadBlock(dma_get, command_headers.data(),
-                                  command_list_header.size * sizeof(u32));
+    gpu.MemoryManager().ReadBlockUnsafe(dma_get, command_headers.data(),
+                                        command_list_header.size * sizeof(u32));
 
     for (const CommandHeader& command_header : command_headers) {
 
