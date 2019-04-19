@@ -28,7 +28,7 @@ static_assert(sizeof(UserSelectionOutput) == 0x18, "UserSelectionOutput has inco
 
 class ProfileSelect final : public Applet {
 public:
-    ProfileSelect();
+    explicit ProfileSelect(const Core::Frontend::ProfileSelectApplet& frontend);
     ~ProfileSelect() override;
 
     void Initialize() override;
@@ -41,6 +41,8 @@ public:
     void SelectionComplete(std::optional<Account::UUID> uuid);
 
 private:
+    const Core::Frontend::ProfileSelectApplet& frontend;
+
     UserSelectionConfig config;
     bool complete = false;
     ResultCode status = RESULT_SUCCESS;

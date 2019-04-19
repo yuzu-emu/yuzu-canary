@@ -102,6 +102,8 @@ signals:
     // Signal that tells widgets to update icons to use the current theme
     void UpdateThemedIcons();
 
+    void ErrorDisplayFinished();
+
     void ProfileSelectorFinishedSelection(std::optional<Service::Account::UUID> uuid);
     void SoftwareKeyboardFinishedText(std::optional<std::u16string> text);
     void SoftwareKeyboardFinishedCheckDialog();
@@ -111,6 +113,7 @@ signals:
 
 public slots:
     void OnLoadComplete();
+    void ErrorDisplayDisplayError(QString body);
     void ProfileSelectorSelectProfile();
     void SoftwareKeyboardGetText(const Core::Frontend::SoftwareKeyboardParameters& parameters);
     void SoftwareKeyboardInvokeCheckDialog(std::u16string error_message);
