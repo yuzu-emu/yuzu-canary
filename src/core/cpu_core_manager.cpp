@@ -19,17 +19,19 @@ void RunCpuCore(const System& system, Cpu& cpu_state) {
 }
 } // Anonymous namespace
 
-CpuCoreManager::CpuCoreManager() = default;
+CpuCoreManager::CpuCoreManager(System& system) : system{system} {}
 CpuCoreManager::~CpuCoreManager() = default;
 
-void CpuCoreManager::Initialize(System& system) {
+void CpuCoreManager::Initialize() {
     barrier = std::make_unique<CpuBarrier>();
     exclusive_monitor = Cpu::MakeExclusiveMonitor(cores.size());
 
     for (std::size_t index = 0; index < cores.size(); ++index) {
         cores[index] = std::make_unique<Cpu>(system, *exclusive_monitor, *barrier, index);
     }
+}
 
+void CpuCoreManager::StartThreads() {
     // Create threads for CPU cores 1-3, and build thread_to_cpu map
     // CPU core 0 is run on the main thread
     thread_to_cpu[std::this_thread::get_id()] = cores[0].get();

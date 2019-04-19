@@ -14,7 +14,6 @@
 #include "core/core_timing.h"
 #include "core/core_timing_util.h"
 #include "core/gdbstub/gdbstub.h"
-#include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/kernel/svc.h"
 #include "core/hle/kernel/vm_manager.h"
@@ -129,18 +128,16 @@ public:
     u64 tpidr_el0 = 0;
 };
 
-std::unique_ptr<Dynarmic::A64::Jit> ARM_Dynarmic::MakeJit() const {
-    auto* current_process = system.Kernel().CurrentProcess();
-    auto** const page_table = current_process->VMManager().page_table.pointers.data();
-
+std::unique_ptr<Dynarmic::A64::Jit> ARM_Dynarmic::MakeJit(Common::PageTable& page_table,
+                                                          std::size_t address_space_bits) const {
     Dynarmic::A64::UserConfig config;
 
     // Callbacks
     config.callbacks = cb.get();
 
     // Memory
-    config.page_table = reinterpret_cast<void**>(page_table);
-    config.page_table_address_space_bits = current_process->VMManager().GetAddressSpaceWidth();
+    config.page_table = reinterpret_cast<void**>(page_table.pointers.data());
+    config.page_table_address_space_bits = address_space_bits;
     config.silently_mirror_page_table = false;
 
     // Multi-process state
@@ -176,12 +173,7 @@ ARM_Dynarmic::ARM_Dynarmic(System& system, ExclusiveMonitor& exclusive_monitor,
                            std::size_t core_index)
     : cb(std::make_unique<ARM_Dynarmic_Callbacks>(*this)), inner_unicorn{system},
       core_index{core_index}, system{system},
-      exclusive_monitor{dynamic_cast<DynarmicExclusiveMonitor&>(exclusive_monitor)} {
-    ThreadContext ctx{};
-    inner_unicorn.SaveContext(ctx);
-    PageTableChanged();
-    LoadContext(ctx);
-}
+      exclusive_monitor{dynamic_cast<DynarmicExclusiveMonitor&>(exclusive_monitor)} {}
 
 ARM_Dynarmic::~ARM_Dynarmic() = default;
 
@@ -276,8 +268,9 @@ void ARM_Dynarmic::ClearExclusiveState() {
     jit->ClearExclusiveState();
 }
 
-void ARM_Dynarmic::PageTableChanged() {
-    jit = MakeJit();
+void ARM_Dynarmic::PageTableChanged(Common::PageTable& page_table,
+                                    std::size_t new_address_space_size_in_bits) {
+    jit = MakeJit(page_table, new_address_space_size_in_bits);
 }
 
 DynarmicExclusiveMonitor::DynarmicExclusiveMonitor(std::size_t core_count) : monitor(core_count) {}

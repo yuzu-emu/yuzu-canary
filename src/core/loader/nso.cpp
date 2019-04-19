@@ -169,22 +169,21 @@ std::optional<VAddr> AppLoader_NSO::LoadModule(Kernel::Process& process,
     return load_base + image_size;
 }
 
-ResultStatus AppLoader_NSO::Load(Kernel::Process& process) {
+AppLoader_NSO::LoadResult AppLoader_NSO::Load(Kernel::Process& process) {
     if (is_loaded) {
-        return ResultStatus::ErrorAlreadyLoaded;
+        return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
 
     // Load module
     const VAddr base_address = process.VMManager().GetCodeRegionBaseAddress();
     if (!LoadModule(process, *file, base_address, true)) {
-        return ResultStatus::ErrorLoadingNSO;
+        return {ResultStatus::ErrorLoadingNSO, {}};
     }
     LOG_DEBUG(Loader, "loaded module {} @ 0x{:X}", file->GetName(), base_address);
 
-    process.Run(base_address, Kernel::THREADPRIO_DEFAULT, Memory::DEFAULT_STACK_SIZE);
-
     is_loaded = true;
-    return ResultStatus::Success;
+    return {ResultStatus::Success,
+            LoadParameters{Kernel::THREADPRIO_DEFAULT, Memory::DEFAULT_STACK_SIZE}};
 }
 
 } // namespace Loader
