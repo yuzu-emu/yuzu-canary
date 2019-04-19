@@ -41,31 +41,37 @@ FileType AppLoader_NAX::GetFileType() const {
     return IdentifyTypeImpl(*nax);
 }
 
-ResultStatus AppLoader_NAX::Load(Kernel::Process& process) {
+AppLoader_NAX::LoadResult AppLoader_NAX::Load(Kernel::Process& process) {
     if (is_loaded) {
-        return ResultStatus::ErrorAlreadyLoaded;
+        return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
 
-    if (nax->GetStatus() != ResultStatus::Success)
-        return nax->GetStatus();
+    const auto nax_status = nax->GetStatus();
+    if (nax_status != ResultStatus::Success) {
+        return {nax_status, {}};
+    }
 
     const auto nca = nax->AsNCA();
     if (nca == nullptr) {
-        if (!Core::Crypto::KeyManager::KeyFileExists(false))
-            return ResultStatus::ErrorMissingProductionKeyFile;
-        return ResultStatus::ErrorNAXInconvertibleToNCA;
+        if (!Core::Crypto::KeyManager::KeyFileExists(false)) {
+            return {ResultStatus::ErrorMissingProductionKeyFile, {}};
+        }
+
+        return {ResultStatus::ErrorNAXInconvertibleToNCA, {}};
     }
 
-    if (nca->GetStatus() != ResultStatus::Success)
-        return nca->GetStatus();
+    const auto nca_status = nca->GetStatus();
+    if (nca_status != ResultStatus::Success) {
+        return {nca_status, {}};
+    }
 
     const auto result = nca_loader->Load(process);
-    if (result != ResultStatus::Success)
+    if (result.first != ResultStatus::Success) {
         return result;
+    }
 
     is_loaded = true;
-
-    return ResultStatus::Success;
+    return result;
 }
 
 ResultStatus AppLoader_NAX::ReadRomFS(FileSys::VirtualFile& dir) {

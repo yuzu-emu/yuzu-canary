@@ -7,6 +7,10 @@
 #include <array>
 #include "common/common_types.h"
 
+namespace Common {
+struct PageTable;
+}
+
 namespace Kernel {
 enum class VMAPermission : u8;
 }
@@ -49,8 +53,14 @@ public:
     /// Clear all instruction cache
     virtual void ClearInstructionCache() = 0;
 
-    /// Notify CPU emulation that page tables have changed
-    virtual void PageTableChanged() = 0;
+    /// Notifies CPU emulation that the current page table has changed.
+    ///
+    /// @param new_page_table                 The new page table.
+    /// @param new_address_space_size_in_bits The new usable size of the address space in bits.
+    ///                                       This can be either 32, 36, or 39 on official software.
+    ///
+    virtual void PageTableChanged(Common::PageTable& new_page_table,
+                                  std::size_t new_address_space_size_in_bits) = 0;
 
     /**
      * Set the Program Counter to an address

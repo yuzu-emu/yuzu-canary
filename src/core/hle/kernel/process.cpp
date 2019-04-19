@@ -28,12 +28,12 @@ namespace {
  *
  * @param owner_process The parent process for the main thread
  * @param kernel The kernel instance to create the main thread under.
- * @param entry_point The address at which the thread should start execution
  * @param priority The priority to give the main thread
  */
-void SetupMainThread(Process& owner_process, KernelCore& kernel, VAddr entry_point, u32 priority) {
-    // Initialize new "main" thread
-    const VAddr stack_top = owner_process.VMManager().GetTLSIORegionEndAddress();
+void SetupMainThread(Process& owner_process, KernelCore& kernel, u32 priority) {
+    const auto& vm_manager = owner_process.VMManager();
+    const VAddr entry_point = vm_manager.GetCodeRegionBaseAddress();
+    const VAddr stack_top = vm_manager.GetTLSIORegionEndAddress();
     auto thread_res = Thread::Create(kernel, "main", entry_point, priority, 0,
                                      owner_process.GetIdealCore(), stack_top, owner_process);
 
@@ -105,8 +105,6 @@ ResultCode Process::LoadFromMetadata(const FileSys::ProgramMetadata& metadata) {
     is_64bit_process = metadata.Is64BitProgram();
 
     vm_manager.Reset(metadata.GetAddressSpaceType());
-    // Ensure that the potentially resized page table is seen by CPU backends.
-    Memory::SetCurrentPageTable(&vm_manager.page_table);
 
     const auto& caps = metadata.GetKernelCapabilities();
     const auto capability_init_result =
@@ -118,7 +116,7 @@ ResultCode Process::LoadFromMetadata(const FileSys::ProgramMetadata& metadata) {
     return handle_table.SetSize(capabilities.GetHandleTableSize());
 }
 
-void Process::Run(VAddr entry_point, s32 main_thread_priority, u64 stack_size) {
+void Process::Run(s32 main_thread_priority, u64 stack_size) {
     // The kernel always ensures that the given stack size is page aligned.
     main_thread_stack_size = Common::AlignUp(stack_size, Memory::PAGE_SIZE);
 
@@ -134,7 +132,7 @@ void Process::Run(VAddr entry_point, s32 main_thread_priority, u64 stack_size) {
     vm_manager.LogLayout();
     ChangeStatus(ProcessStatus::Running);
 
-    SetupMainThread(*this, kernel, entry_point, main_thread_priority);
+    SetupMainThread(*this, kernel, main_thread_priority);
 }
 
 void Process::PrepareForTermination() {
@@ -241,9 +239,6 @@ void Process::LoadModule(CodeSet module_, VAddr base_addr) {
     MapSegment(module_.DataSegment(), VMAPermission::ReadWrite, MemoryState::CodeData);
 
     code_memory_size += module_.memory.size();
-
-    // Clear instruction cache in CPU JIT
-    system.InvalidateCpuInstructionCaches();
 }
 
 Process::Process(Core::System& system)

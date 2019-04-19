@@ -30,36 +30,38 @@ FileType AppLoader_NCA::IdentifyType(const FileSys::VirtualFile& file) {
     return FileType::Error;
 }
 
-ResultStatus AppLoader_NCA::Load(Kernel::Process& process) {
+AppLoader_NCA::LoadResult AppLoader_NCA::Load(Kernel::Process& process) {
     if (is_loaded) {
-        return ResultStatus::ErrorAlreadyLoaded;
+        return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
 
     const auto result = nca->GetStatus();
     if (result != ResultStatus::Success) {
-        return result;
+        return {result, {}};
     }
 
-    if (nca->GetType() != FileSys::NCAContentType::Program)
-        return ResultStatus::ErrorNCANotProgram;
+    if (nca->GetType() != FileSys::NCAContentType::Program) {
+        return {ResultStatus::ErrorNCANotProgram, {}};
+    }
 
     const auto exefs = nca->GetExeFS();
-
-    if (exefs == nullptr)
-        return ResultStatus::ErrorNoExeFS;
+    if (exefs == nullptr) {
+        return {ResultStatus::ErrorNoExeFS, {}};
+    }
 
     directory_loader = std::make_unique<AppLoader_DeconstructedRomDirectory>(exefs, true);
 
     const auto load_result = directory_loader->Load(process);
-    if (load_result != ResultStatus::Success)
+    if (load_result.first != ResultStatus::Success) {
         return load_result;
+    }
 
-    if (nca->GetRomFS() != nullptr && nca->GetRomFS()->GetSize() > 0)
+    if (nca->GetRomFS() != nullptr && nca->GetRomFS()->GetSize() > 0) {
         Service::FileSystem::RegisterRomFS(std::make_unique<FileSys::RomFSFactory>(*this));
+    }
 
     is_loaded = true;
-
-    return ResultStatus::Success;
+    return load_result;
 }
 
 ResultStatus AppLoader_NCA::ReadRomFS(FileSys::VirtualFile& dir) {

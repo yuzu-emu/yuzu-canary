@@ -13,16 +13,13 @@ class RendererBase;
 
 namespace VideoCommon {
 
-namespace GPUThread {
-class ThreadManager;
-} // namespace GPUThread
-
 /// Implementation of GPU interface that runs the GPU asynchronously
 class GPUAsynch : public Tegra::GPU {
 public:
     explicit GPUAsynch(Core::System& system, VideoCore::RendererBase& renderer);
     ~GPUAsynch() override;
 
+    void Start() override;
     void PushGPUEntries(Tegra::CommandList&& entries) override;
     void SwapBuffers(
         std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) override;

@@ -3,9 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <array>
-#include <map>
 #include <memory>
-#include <thread>
 #include <utility>
 
 #include "common/file_util.h"
@@ -38,8 +36,6 @@
 #include "frontend/applets/software_keyboard.h"
 #include "frontend/applets/web_browser.h"
 #include "video_core/debug_utils/debug_utils.h"
-#include "video_core/gpu_asynch.h"
-#include "video_core/gpu_synch.h"
 #include "video_core/renderer_base.h"
 #include "video_core/video_core.h"
 
@@ -81,7 +77,7 @@ FileSys::VirtualFile GetGameFileFromPath(const FileSys::VirtualFilesystem& vfs,
     return vfs->OpenFile(path, FileSys::Mode::Read);
 }
 struct System::Impl {
-    explicit Impl(System& system) : kernel{system} {}
+    explicit Impl(System& system) : kernel{system}, cpu_core_manager{system} {}
 
     Cpu& CurrentCpuCore() {
         return cpu_core_manager.GetCurrentCore();
@@ -99,6 +95,7 @@ struct System::Impl {
         LOG_DEBUG(HW_Memory, "initialized OK");
 
         core_timing.Initialize();
+        cpu_core_manager.Initialize();
         kernel.Initialize();
 
         const auto current_time = std::chrono::duration_cast<std::chrono::seconds>(
@@ -120,9 +117,6 @@ struct System::Impl {
         if (web_browser == nullptr)
             web_browser = std::make_unique<Core::Frontend::DefaultWebBrowserApplet>();
 
-        auto main_process = Kernel::Process::Create(system, "main");
-        kernel.MakeCurrentProcess(main_process.get());
-
         telemetry_session = std::make_unique<Core::TelemetrySession>();
         service_manager = std::make_shared<Service::SM::ServiceManager>();
 
@@ -134,15 +128,9 @@ struct System::Impl {
             return ResultStatus::ErrorVideoCore;
         }
 
+        gpu_core = VideoCore::CreateGPU(system);
+
         is_powered_on = true;
-
-        if (Settings::values.use_asynchronous_gpu_emulation) {
-            gpu_core = std::make_unique<VideoCommon::GPUAsynch>(system, *renderer);
-        } else {
-            gpu_core = std::make_unique<VideoCommon::GPUSynch>(system, *renderer);
-        }
-
-        cpu_core_manager.Initialize(system);
 
         LOG_DEBUG(Core, "Initialized OK");
 
@@ -179,7 +167,8 @@ struct System::Impl {
             return init_result;
         }
 
-        const Loader::ResultStatus load_result{app_loader->Load(*kernel.CurrentProcess())};
+        auto main_process = Kernel::Process::Create(system, "main");
+        const auto [load_result, load_parameters] = app_loader->Load(*main_process);
         if (load_result != Loader::ResultStatus::Success) {
             LOG_CRITICAL(Core, "Failed to load ROM (Error {})!", static_cast<int>(load_result));
             Shutdown();
@@ -187,6 +176,16 @@ struct System::Impl {
             return static_cast<ResultStatus>(static_cast<u32>(ResultStatus::ErrorLoader) +
                                              static_cast<u32>(load_result));
         }
+        kernel.MakeCurrentProcess(main_process.get());
+
+        // Main process has been loaded and been made current.
+        // Begin GPU and CPU execution.
+        gpu_core->Start();
+        cpu_core_manager.StartThreads();
+
+        // All threads are started, begin main process execution, now that we're in the clear.
+        main_process->Run(load_parameters->main_thread_priority,
+                          load_parameters->main_thread_stack_size);
 
         status = ResultStatus::Success;
         return status;

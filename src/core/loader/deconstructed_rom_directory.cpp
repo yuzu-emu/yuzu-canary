@@ -86,25 +86,29 @@ FileType AppLoader_DeconstructedRomDirectory::IdentifyType(const FileSys::Virtua
     return FileType::Error;
 }
 
-ResultStatus AppLoader_DeconstructedRomDirectory::Load(Kernel::Process& process) {
+AppLoader_DeconstructedRomDirectory::LoadResult AppLoader_DeconstructedRomDirectory::Load(
+    Kernel::Process& process) {
     if (is_loaded) {
-        return ResultStatus::ErrorAlreadyLoaded;
+        return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
 
     if (dir == nullptr) {
-        if (file == nullptr)
-            return ResultStatus::ErrorNullFile;
+        if (file == nullptr) {
+            return {ResultStatus::ErrorNullFile, {}};
+        }
+
         dir = file->GetContainingDirectory();
     }
 
     // Read meta to determine title ID
     FileSys::VirtualFile npdm = dir->GetFile("main.npdm");
-    if (npdm == nullptr)
-        return ResultStatus::ErrorMissingNPDM;
+    if (npdm == nullptr) {
+        return {ResultStatus::ErrorMissingNPDM, {}};
+    }
 
-    ResultStatus result = metadata.Load(npdm);
+    const ResultStatus result = metadata.Load(npdm);
     if (result != ResultStatus::Success) {
-        return result;
+        return {result, {}};
     }
 
     if (override_update) {
@@ -114,23 +118,24 @@ ResultStatus AppLoader_DeconstructedRomDirectory::Load(Kernel::Process& process)
 
     // Reread in case PatchExeFS affected the main.npdm
     npdm = dir->GetFile("main.npdm");
-    if (npdm == nullptr)
-        return ResultStatus::ErrorMissingNPDM;
+    if (npdm == nullptr) {
+        return {ResultStatus::ErrorMissingNPDM, {}};
+    }
 
-    ResultStatus result2 = metadata.Load(npdm);
+    const ResultStatus result2 = metadata.Load(npdm);
     if (result2 != ResultStatus::Success) {
-        return result2;
+        return {result2, {}};
     }
     metadata.Print();
 
     const FileSys::ProgramAddressSpaceType arch_bits{metadata.GetAddressSpaceType()};
     if (arch_bits == FileSys::ProgramAddressSpaceType::Is32Bit ||
         arch_bits == FileSys::ProgramAddressSpaceType::Is32BitNoMap) {
-        return ResultStatus::Error32BitISA;
+        return {ResultStatus::Error32BitISA, {}};
     }
 
     if (process.LoadFromMetadata(metadata).IsError()) {
-        return ResultStatus::ErrorUnableToParseKernelMetadata;
+        return {ResultStatus::ErrorUnableToParseKernelMetadata, {}};
     }
 
     const FileSys::PatchManager pm(metadata.GetTitleID());
@@ -150,7 +155,7 @@ ResultStatus AppLoader_DeconstructedRomDirectory::Load(Kernel::Process& process)
         const auto tentative_next_load_addr =
             AppLoader_NSO::LoadModule(process, *module_file, load_addr, should_pass_arguments, pm);
         if (!tentative_next_load_addr) {
-            return ResultStatus::ErrorLoadingNSO;
+            return {ResultStatus::ErrorLoadingNSO, {}};
         }
 
         next_load_addr = *tentative_next_load_addr;
@@ -158,8 +163,6 @@ ResultStatus AppLoader_DeconstructedRomDirectory::Load(Kernel::Process& process)
         // Register module with GDBStub
         GDBStub::RegisterModule(module, load_addr, next_load_addr - 1, false);
     }
-
-    process.Run(base_address, metadata.GetMainThreadPriority(), metadata.GetMainThreadStackSize());
 
     // Find the RomFS by searching for a ".romfs" file in this directory
     const auto& files = dir->GetFiles();
@@ -175,7 +178,8 @@ ResultStatus AppLoader_DeconstructedRomDirectory::Load(Kernel::Process& process)
     }
 
     is_loaded = true;
-    return ResultStatus::Success;
+    return {ResultStatus::Success,
+            LoadParameters{metadata.GetMainThreadPriority(), metadata.GetMainThreadStackSize()}};
 }
 
 ResultStatus AppLoader_DeconstructedRomDirectory::ReadRomFS(FileSys::VirtualFile& dir) {

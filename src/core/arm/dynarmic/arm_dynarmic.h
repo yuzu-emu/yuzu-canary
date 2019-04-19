@@ -48,10 +48,12 @@ public:
     void ClearExclusiveState() override;
 
     void ClearInstructionCache() override;
-    void PageTableChanged() override;
+    void PageTableChanged(Common::PageTable& new_page_table,
+                          std::size_t new_address_space_size_in_bits) override;
 
 private:
-    std::unique_ptr<Dynarmic::A64::Jit> MakeJit() const;
+    std::unique_ptr<Dynarmic::A64::Jit> MakeJit(Common::PageTable& page_table,
+                                                std::size_t address_space_bits) const;
 
     friend class ARM_Dynarmic_Callbacks;
     std::unique_ptr<ARM_Dynarmic_Callbacks> cb;
