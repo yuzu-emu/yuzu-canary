@@ -99,15 +99,13 @@ struct FramebufferCacheKey {
 };
 
 RasterizerOpenGL::RasterizerOpenGL(Core::System& system, ScreenInfo& info)
-    : res_cache{*this}, shader_cache{*this, system}, global_cache{*this}, system{system},
+    : res_cache{*this}, shader_cache{*this, system, device}, global_cache{*this}, system{system},
       screen_info{info}, buffer_cache(*this, STREAM_BUFFER_SIZE) {
     OpenGLState::ApplyDefaultState();
 
     shader_program_manager = std::make_unique<GLShader::ProgramManager>();
     state.draw.shader_program = 0;
     state.Apply();
-
-    glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &uniform_buffer_alignment);
 
     LOG_DEBUG(Render_OpenGL, "Sync fixed function OpenGL state here");
     CheckExtensions();
@@ -315,8 +313,8 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
 
         GLShader::MaxwellUniformData ubo{};
         ubo.SetFromRegs(gpu, stage);
-        const GLintptr offset = buffer_cache.UploadHostMemory(
-            &ubo, sizeof(ubo), static_cast<std::size_t>(uniform_buffer_alignment));
+        const GLintptr offset =
+            buffer_cache.UploadHostMemory(&ubo, sizeof(ubo), device.GetUniformBufferAlignment());
 
         // Bind the emulation info buffer
         bind_ubo_pushbuffer.Push(buffer_cache.GetHandle(), offset,
@@ -700,23 +698,24 @@ void RasterizerOpenGL::DrawArrays() {
     // Add space for index buffer (keeping in mind non-core primitives)
     switch (regs.draw.topology) {
     case Maxwell::PrimitiveTopology::Quads:
-        buffer_size = Common::AlignUp<std::size_t>(buffer_size, 4) +
+        buffer_size = Common::AlignUp(buffer_size, 4) +
                       primitive_assembler.CalculateQuadSize(regs.vertex_buffer.count);
         break;
     default:
         if (is_indexed) {
-            buffer_size = Common::AlignUp<std::size_t>(buffer_size, 4) + CalculateIndexBufferSize();
+            buffer_size = Common::AlignUp(buffer_size, 4) + CalculateIndexBufferSize();
         }
         break;
     }
 
     // Uniform space for the 5 shader stages
-    buffer_size =
-        Common::AlignUp<std::size_t>(buffer_size, 4) +
-        (sizeof(GLShader::MaxwellUniformData) + uniform_buffer_alignment) * Maxwell::MaxShaderStage;
+    buffer_size = Common::AlignUp<std::size_t>(buffer_size, 4) +
+                  (sizeof(GLShader::MaxwellUniformData) + device.GetUniformBufferAlignment()) *
+                      Maxwell::MaxShaderStage;
 
     // Add space for at least 18 constant buffers
-    buffer_size += Maxwell::MaxConstBuffers * (MaxConstbufferSize + uniform_buffer_alignment);
+    buffer_size +=
+        Maxwell::MaxConstBuffers * (MaxConstbufferSize + device.GetUniformBufferAlignment());
 
     const bool invalidate = buffer_cache.Map(buffer_size);
     if (invalidate) {
@@ -848,8 +847,8 @@ void RasterizerOpenGL::SetupConstBuffers(Tegra::Engines::Maxwell3D::Regs::Shader
         size = Common::AlignUp(size, sizeof(GLvec4));
         ASSERT_MSG(size <= MaxConstbufferSize, "Constbuffer too big");
 
-        const GLintptr const_buffer_offset = buffer_cache.UploadMemory(
-            buffer.address, size, static_cast<std::size_t>(uniform_buffer_alignment));
+        const GLintptr const_buffer_offset =
+            buffer_cache.UploadMemory(buffer.address, size, device.GetUniformBufferAlignment());
 
         bind_ubo_pushbuffer.Push(buffer_cache.GetHandle(), const_buffer_offset, size);
     }
