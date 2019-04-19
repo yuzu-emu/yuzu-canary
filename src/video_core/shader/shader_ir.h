@@ -109,11 +109,13 @@ enum class OperationCode {
     UBitfieldExtract, /// (MetaArithmetic, uint value, int offset, int offset) -> uint
     UBitCount,        /// (MetaArithmetic, uint) -> uint
 
-    HAdd,      /// (MetaHalfArithmetic, f16vec2 a, f16vec2 b) -> f16vec2
-    HMul,      /// (MetaHalfArithmetic, f16vec2 a, f16vec2 b) -> f16vec2
-    HFma,      /// (MetaHalfArithmetic, f16vec2 a, f16vec2 b, f16vec2 c) -> f16vec2
+    HAdd,      /// (MetaArithmetic, f16vec2 a, f16vec2 b) -> f16vec2
+    HMul,      /// (MetaArithmetic, f16vec2 a, f16vec2 b) -> f16vec2
+    HFma,      /// (MetaArithmetic, f16vec2 a, f16vec2 b, f16vec2 c) -> f16vec2
     HAbsolute, /// (f16vec2 a) -> f16vec2
     HNegate,   /// (f16vec2 a, bool first, bool second) -> f16vec2
+    HClamp,    /// (f16vec2 src, float min, float max) -> f16vec2
+    HUnpack,   /// (Tegra::Shader::HalfType, T value) -> f16vec2
     HMergeF32, /// (f16vec2 src) -> float
     HMergeH0,  /// (f16vec2 dest, f16vec2 src) -> f16vec2
     HMergeH1,  /// (f16vec2 dest, f16vec2 src) -> f16vec2
@@ -150,12 +152,18 @@ enum class OperationCode {
     LogicalUNotEqual,     /// (uint a, uint b) -> bool
     LogicalUGreaterEqual, /// (uint a, uint b) -> bool
 
-    Logical2HLessThan,     /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
-    Logical2HEqual,        /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
-    Logical2HLessEqual,    /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
-    Logical2HGreaterThan,  /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
-    Logical2HNotEqual,     /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
-    Logical2HGreaterEqual, /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
+    Logical2HLessThan,            /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
+    Logical2HEqual,               /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
+    Logical2HLessEqual,           /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
+    Logical2HGreaterThan,         /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
+    Logical2HNotEqual,            /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
+    Logical2HGreaterEqual,        /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
+    Logical2HLessThanWithNan,     /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
+    Logical2HEqualWithNan,        /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
+    Logical2HLessEqualWithNan,    /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
+    Logical2HGreaterThanWithNan,  /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
+    Logical2HNotEqualWithNan,     /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
+    Logical2HGreaterEqualWithNan, /// (MetaHalfArithmetic, f16vec2 a, f16vec2) -> bool2
 
     Texture,                /// (MetaTexture, float[N] coords) -> float4
     TextureLod,             /// (MetaTexture, float[N] coords) -> float4
@@ -308,13 +316,6 @@ struct MetaArithmetic {
     bool precise{};
 };
 
-struct MetaHalfArithmetic {
-    bool precise{};
-    std::array<Tegra::Shader::HalfType, 3> types = {Tegra::Shader::HalfType::H0_H1,
-                                                    Tegra::Shader::HalfType::H0_H1,
-                                                    Tegra::Shader::HalfType::H0_H1};
-};
-
 struct MetaTexture {
     const Sampler& sampler;
     Node array{};
@@ -326,11 +327,10 @@ struct MetaTexture {
     u32 element{};
 };
 
-constexpr MetaArithmetic PRECISE = {true};
-constexpr MetaArithmetic NO_PRECISE = {false};
-constexpr MetaHalfArithmetic HALF_NO_PRECISE = {false};
+inline constexpr MetaArithmetic PRECISE = {true};
+inline constexpr MetaArithmetic NO_PRECISE = {false};
 
-using Meta = std::variant<MetaArithmetic, MetaHalfArithmetic, MetaTexture>;
+using Meta = std::variant<MetaArithmetic, MetaTexture, Tegra::Shader::HalfType>;
 
 /// Holds any kind of operation that can be done in the IR
 class OperationNode final {
@@ -734,10 +734,14 @@ private:
 
     /// Unpacks a half immediate from an instruction
     Node UnpackHalfImmediate(Tegra::Shader::Instruction instr, bool has_negation);
+    /// Unpacks a binary value into a half float pair with a type format
+    Node UnpackHalfFloat(Node value, Tegra::Shader::HalfType type);
     /// Merges a half pair into another value
     Node HalfMerge(Node dest, Node src, Tegra::Shader::HalfMerge merge);
     /// Conditionally absolute/negated half float pair. Absolute is applied first
     Node GetOperandAbsNegHalf(Node value, bool absolute, bool negate);
+    /// Conditionally saturates a half float pair
+    Node GetSaturatedHalfFloat(Node value, bool saturate = true);
 
     /// Returns a predicate comparing two floats
     Node GetPredicateComparisonFloat(Tegra::Shader::PredCondition condition, Node op_a, Node op_b);
@@ -745,8 +749,7 @@ private:
     Node GetPredicateComparisonInteger(Tegra::Shader::PredCondition condition, bool is_signed,
                                        Node op_a, Node op_b);
     /// Returns a predicate comparing two half floats. meta consumes how both pairs will be compared
-    Node GetPredicateComparisonHalf(Tegra::Shader::PredCondition condition,
-                                    const MetaHalfArithmetic& meta, Node op_a, Node op_b);
+    Node GetPredicateComparisonHalf(Tegra::Shader::PredCondition condition, Node op_a, Node op_b);
 
     /// Returns a predicate combiner operation
     OperationCode GetPredicateCombiner(Tegra::Shader::PredOperation operation);
