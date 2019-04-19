@@ -38,13 +38,15 @@ GPUVAddr GetShaderAddress(Maxwell::ShaderProgram program) {
 }
 
 /// Gets the shader program code from memory for the specified address
-ProgramCode GetShaderCode(const u8* host_ptr) {
+ProgramCode GetShaderCode(Tegra::MemoryManager& memory_manager, const GPUVAddr gpu_addr,
+                          const u8* host_ptr) {
     ProgramCode program_code(VideoCommon::Shader::MAX_PROGRAM_LENGTH);
     ASSERT_OR_EXECUTE(host_ptr != nullptr, {
         std::fill(program_code.begin(), program_code.end(), 0);
         return program_code;
     });
-    std::memcpy(program_code.data(), host_ptr, program_code.size() * sizeof(u64));
+    memory_manager.ReadBlockUnsafe(gpu_addr, program_code.data(),
+                                   program_code.size() * sizeof(u64));
     return program_code;
 }
 
@@ -497,11 +499,12 @@ Shader ShaderCacheOpenGL::GetStageProgram(Maxwell::ShaderProgram program) {
 
     if (!shader) {
         // No shader found - create a new one
-        ProgramCode program_code{GetShaderCode(host_ptr)};
+        ProgramCode program_code{GetShaderCode(memory_manager, program_addr, host_ptr)};
         ProgramCode program_code_b;
         if (program == Maxwell::ShaderProgram::VertexA) {
-            program_code_b = GetShaderCode(
-                memory_manager.GetPointer(GetShaderAddress(Maxwell::ShaderProgram::VertexB)));
+            const GPUVAddr program_addr_b{GetShaderAddress(Maxwell::ShaderProgram::VertexB)};
+            program_code_b = GetShaderCode(memory_manager, program_addr_b,
+                                           memory_manager.GetPointer(program_addr_b));
         }
         const u64 unique_identifier = GetUniqueIdentifier(program, program_code, program_code_b);
         const VAddr cpu_addr{*memory_manager.GpuToCpuAddress(program_addr)};
