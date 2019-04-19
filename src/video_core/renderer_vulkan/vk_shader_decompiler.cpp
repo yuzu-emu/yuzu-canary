@@ -76,13 +76,9 @@ constexpr u32 GetGenericAttributeLocation(Attribute::Index attribute) {
 
 /// Returns true if an object has to be treated as precise
 bool IsPrecise(Operation operand) {
-    const auto& meta = operand.GetMeta();
-
+    const auto& meta{operand.GetMeta()};
     if (std::holds_alternative<MetaArithmetic>(meta)) {
         return std::get<MetaArithmetic>(meta).precise;
-    }
-    if (std::holds_alternative<MetaHalfArithmetic>(meta)) {
-        return std::get<MetaHalfArithmetic>(meta).precise;
     }
     return false;
 }
@@ -746,6 +742,16 @@ private:
         return {};
     }
 
+    Id HClamp(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    Id HUnpack(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
     Id HMergeF32(Operation operation) {
         UNIMPLEMENTED();
         return {};
@@ -1218,6 +1224,8 @@ private:
         &SPIRVDecompiler::Ternary<&Module::OpFma, Type::HalfFloat>,
         &SPIRVDecompiler::Unary<&Module::OpFAbs, Type::HalfFloat>,
         &SPIRVDecompiler::HNegate,
+        &SPIRVDecompiler::HClamp,
+        &SPIRVDecompiler::HUnpack,
         &SPIRVDecompiler::HMergeF32,
         &SPIRVDecompiler::HMergeH0,
         &SPIRVDecompiler::HMergeH1,
@@ -1254,6 +1262,13 @@ private:
         &SPIRVDecompiler::Binary<&Module::OpINotEqual, Type::Bool, Type::Uint>,
         &SPIRVDecompiler::Binary<&Module::OpUGreaterThanEqual, Type::Bool, Type::Uint>,
 
+        &SPIRVDecompiler::Binary<&Module::OpFOrdLessThan, Type::Bool, Type::HalfFloat>,
+        &SPIRVDecompiler::Binary<&Module::OpFOrdEqual, Type::Bool, Type::HalfFloat>,
+        &SPIRVDecompiler::Binary<&Module::OpFOrdLessThanEqual, Type::Bool, Type::HalfFloat>,
+        &SPIRVDecompiler::Binary<&Module::OpFOrdGreaterThan, Type::Bool, Type::HalfFloat>,
+        &SPIRVDecompiler::Binary<&Module::OpFOrdNotEqual, Type::Bool, Type::HalfFloat>,
+        &SPIRVDecompiler::Binary<&Module::OpFOrdGreaterThanEqual, Type::Bool, Type::HalfFloat>,
+        // TODO(Rodrigo): Should these use the OpFUnord* variants?
         &SPIRVDecompiler::Binary<&Module::OpFOrdLessThan, Type::Bool, Type::HalfFloat>,
         &SPIRVDecompiler::Binary<&Module::OpFOrdEqual, Type::Bool, Type::HalfFloat>,
         &SPIRVDecompiler::Binary<&Module::OpFOrdLessThanEqual, Type::Bool, Type::HalfFloat>,

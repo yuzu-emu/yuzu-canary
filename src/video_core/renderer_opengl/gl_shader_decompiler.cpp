@@ -119,13 +119,9 @@ std::string GetTopologyName(Tegra::Shader::OutputTopology topology) {
 
 /// Returns true if an object has to be treated as precise
 bool IsPrecise(Operation operand) {
-    const auto& meta = operand.GetMeta();
-
+    const auto& meta{operand.GetMeta()};
     if (const auto arithmetic = std::get_if<MetaArithmetic>(&meta)) {
         return arithmetic->precise;
-    }
-    if (const auto half_arithmetic = std::get_if<MetaHalfArithmetic>(&meta)) {
-        return half_arithmetic->precise;
     }
     return false;
 }
@@ -627,28 +623,7 @@ private:
     }
 
     std::string VisitOperand(Operation operation, std::size_t operand_index, Type type) {
-        std::string value = VisitOperand(operation, operand_index);
-        switch (type) {
-        case Type::HalfFloat: {
-            const auto half_meta = std::get_if<MetaHalfArithmetic>(&operation.GetMeta());
-            if (!half_meta) {
-                value = "toHalf2(" + value + ')';
-            }
-
-            switch (half_meta->types.at(operand_index)) {
-            case Tegra::Shader::HalfType::H0_H1:
-                return "toHalf2(" + value + ')';
-            case Tegra::Shader::HalfType::F32:
-                return "vec2(" + value + ')';
-            case Tegra::Shader::HalfType::H0_H0:
-                return "vec2(toHalf2(" + value + ")[0])";
-            case Tegra::Shader::HalfType::H1_H1:
-                return "vec2(toHalf2(" + value + ")[1])";
-            }
-        }
-        default:
-            return CastOperand(value, type);
-        }
+        return CastOperand(VisitOperand(operation, operand_index), type);
     }
 
     std::string CastOperand(const std::string& value, Type type) const {
@@ -662,9 +637,7 @@ private:
         case Type::Uint:
             return "ftou(" + value + ')';
         case Type::HalfFloat:
-            // Can't be handled as a stand-alone value
-            UNREACHABLE();
-            return value;
+            return "toHalf2(" + value + ')';
         }
         UNREACHABLE();
         return value;
@@ -1083,13 +1056,40 @@ private:
         return BitwiseCastResult(value, Type::HalfFloat);
     }
 
+    std::string HClamp(Operation operation) {
+        const std::string value = VisitOperand(operation, 0, Type::HalfFloat);
+        const std::string min = VisitOperand(operation, 1, Type::Float);
+        const std::string max = VisitOperand(operation, 2, Type::Float);
+        const std::string clamped = "clamp(" + value + ", vec2(" + min + "), vec2(" + max + "))";
+        return ApplyPrecise(operation, BitwiseCastResult(clamped, Type::HalfFloat));
+    }
+
+    std::string HUnpack(Operation operation) {
+        const std::string operand{VisitOperand(operation, 0, Type::HalfFloat)};
+        const auto value = [&]() -> std::string {
+            switch (std::get<Tegra::Shader::HalfType>(operation.GetMeta())) {
+            case Tegra::Shader::HalfType::H0_H1:
+                return operand;
+            case Tegra::Shader::HalfType::F32:
+                return "vec2(fromHalf2(" + operand + "))";
+            case Tegra::Shader::HalfType::H0_H0:
+                return "vec2(" + operand + "[0])";
+            case Tegra::Shader::HalfType::H1_H1:
+                return "vec2(" + operand + "[1])";
+            }
+            UNREACHABLE();
+            return "0";
+        }();
+        return "fromHalf2(" + value + ')';
+    }
+
     std::string HMergeF32(Operation operation) {
         return "float(toHalf2(" + Visit(operation[0]) + ")[0])";
     }
 
     std::string HMergeH0(Operation operation) {
-        return "fromHalf2(vec2(toHalf2(" + Visit(operation[0]) + ")[1], toHalf2(" +
-               Visit(operation[1]) + ")[0]))";
+        return "fromHalf2(vec2(toHalf2(" + Visit(operation[1]) + ")[0], toHalf2(" +
+               Visit(operation[0]) + ")[1]))";
     }
 
     std::string HMergeH1(Operation operation) {
@@ -1189,34 +1189,46 @@ private:
         return GenerateUnary(operation, "any", Type::Bool, Type::Bool2);
     }
 
+    template <bool with_nan>
+    std::string GenerateHalfComparison(Operation operation, std::string compare_op) {
+        std::string comparison{GenerateBinaryCall(operation, compare_op, Type::Bool2,
+                                                  Type::HalfFloat, Type::HalfFloat)};
+        if constexpr (!with_nan) {
+            return comparison;
+        }
+        return "halfFloatNanComparison(" + comparison + ", " +
+               VisitOperand(operation, 0, Type::HalfFloat) + ", " +
+               VisitOperand(operation, 1, Type::HalfFloat) + ')';
+    }
+
+    template <bool with_nan>
     std::string Logical2HLessThan(Operation operation) {
-        return GenerateBinaryCall(operation, "lessThan", Type::Bool2, Type::HalfFloat,
-                                  Type::HalfFloat);
+        return GenerateHalfComparison<with_nan>(operation, "lessThan");
     }
 
+    template <bool with_nan>
     std::string Logical2HEqual(Operation operation) {
-        return GenerateBinaryCall(operation, "equal", Type::Bool2, Type::HalfFloat,
-                                  Type::HalfFloat);
+        return GenerateHalfComparison<with_nan>(operation, "equal");
     }
 
+    template <bool with_nan>
     std::string Logical2HLessEqual(Operation operation) {
-        return GenerateBinaryCall(operation, "lessThanEqual", Type::Bool2, Type::HalfFloat,
-                                  Type::HalfFloat);
+        return GenerateHalfComparison<with_nan>(operation, "lessThanEqual");
     }
 
+    template <bool with_nan>
     std::string Logical2HGreaterThan(Operation operation) {
-        return GenerateBinaryCall(operation, "greaterThan", Type::Bool2, Type::HalfFloat,
-                                  Type::HalfFloat);
+        return GenerateHalfComparison<with_nan>(operation, "greaterThan");
     }
 
+    template <bool with_nan>
     std::string Logical2HNotEqual(Operation operation) {
-        return GenerateBinaryCall(operation, "notEqual", Type::Bool2, Type::HalfFloat,
-                                  Type::HalfFloat);
+        return GenerateHalfComparison<with_nan>(operation, "notEqual");
     }
 
+    template <bool with_nan>
     std::string Logical2HGreaterEqual(Operation operation) {
-        return GenerateBinaryCall(operation, "greaterThanEqual", Type::Bool2, Type::HalfFloat,
-                                  Type::HalfFloat);
+        return GenerateHalfComparison<with_nan>(operation, "greaterThanEqual");
     }
 
     std::string Texture(Operation operation) {
@@ -1505,6 +1517,8 @@ private:
         &GLSLDecompiler::Fma<Type::HalfFloat>,
         &GLSLDecompiler::Absolute<Type::HalfFloat>,
         &GLSLDecompiler::HNegate,
+        &GLSLDecompiler::HClamp,
+        &GLSLDecompiler::HUnpack,
         &GLSLDecompiler::HMergeF32,
         &GLSLDecompiler::HMergeH0,
         &GLSLDecompiler::HMergeH1,
@@ -1541,12 +1555,18 @@ private:
         &GLSLDecompiler::LogicalNotEqual<Type::Uint>,
         &GLSLDecompiler::LogicalGreaterEqual<Type::Uint>,
 
-        &GLSLDecompiler::Logical2HLessThan,
-        &GLSLDecompiler::Logical2HEqual,
-        &GLSLDecompiler::Logical2HLessEqual,
-        &GLSLDecompiler::Logical2HGreaterThan,
-        &GLSLDecompiler::Logical2HNotEqual,
-        &GLSLDecompiler::Logical2HGreaterEqual,
+        &GLSLDecompiler::Logical2HLessThan<false>,
+        &GLSLDecompiler::Logical2HEqual<false>,
+        &GLSLDecompiler::Logical2HLessEqual<false>,
+        &GLSLDecompiler::Logical2HGreaterThan<false>,
+        &GLSLDecompiler::Logical2HNotEqual<false>,
+        &GLSLDecompiler::Logical2HGreaterEqual<false>,
+        &GLSLDecompiler::Logical2HLessThan<true>,
+        &GLSLDecompiler::Logical2HEqual<true>,
+        &GLSLDecompiler::Logical2HLessEqual<true>,
+        &GLSLDecompiler::Logical2HGreaterThan<true>,
+        &GLSLDecompiler::Logical2HNotEqual<true>,
+        &GLSLDecompiler::Logical2HGreaterEqual<true>,
 
         &GLSLDecompiler::Texture,
         &GLSLDecompiler::TextureLod,
@@ -1647,6 +1667,12 @@ std::string GetCommonDeclarations() {
            "}\n\n"
            "vec2 toHalf2(float value) {\n"
            "    return unpackHalf2x16(ftou(value));\n"
+           "}\n\n"
+           "bvec2 halfFloatNanComparison(bvec2 comparison, vec2 pair1, vec2 pair2) {\n"
+           "    bvec2 is_nan1 = isnan(pair1);\n"
+           "    bvec2 is_nan2 = isnan(pair2);\n"
+           "    return bvec2(comparison.x || is_nan1.x || is_nan2.x, comparison.y || is_nan1.y || "
+           "is_nan2.y);\n"
            "}\n";
 }
 
