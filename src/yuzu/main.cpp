@@ -8,6 +8,7 @@
 #include <thread>
 
 // VFS includes must be before glad as they will conflict with Windows file api, which uses defines.
+#include "applets/error.h"
 #include "applets/profile_select.h"
 #include "applets/software_keyboard.h"
 #include "applets/web_browser.h"
@@ -15,6 +16,7 @@
 #include "configuration/configure_per_general.h"
 #include "core/file_sys/vfs.h"
 #include "core/file_sys/vfs_real.h"
+#include "core/frontend/applets/general_frontend.h"
 #include "core/frontend/scope_acquire_window_context.h"
 #include "core/hle/service/acc/profile_manager.h"
 #include "core/hle/service/am/applets/applets.h"
@@ -795,9 +797,13 @@ bool GMainWindow::LoadROM(const QString& filename) {
 
     system.SetGPUDebugContext(debug_context);
 
-    system.SetProfileSelector(std::make_unique<QtProfileSelector>(*this));
-    system.SetSoftwareKeyboard(std::make_unique<QtSoftwareKeyboard>(*this));
-    system.SetWebBrowser(std::make_unique<QtWebBrowser>(*this));
+    system.SetAppletFrontendSet({
+        std::make_unique<QtErrorDisplay>(*this),
+        nullptr,
+        std::make_unique<QtProfileSelector>(*this),
+        std::make_unique<QtSoftwareKeyboard>(*this),
+        std::make_unique<QtWebBrowser>(*this),
+    });
 
     const Core::System::ResultStatus result{system.Load(*render_window, filename.toStdString())};
 
@@ -1581,6 +1587,11 @@ void GMainWindow::OnStopGame() {
 
 void GMainWindow::OnLoadComplete() {
     loading_screen->OnLoadComplete();
+}
+
+void GMainWindow::ErrorDisplayDisplayError(QString body) {
+    QMessageBox::critical(this, tr("Error Display"), body);
+    emit ErrorDisplayFinished();
 }
 
 void GMainWindow::OnMenuReportCompatibility() {

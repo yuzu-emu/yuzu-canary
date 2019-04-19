@@ -15,7 +15,9 @@ namespace Service::AM::Applets {
 
 constexpr ResultCode ERR_USER_CANCELLED_SELECTION{ErrorModule::Account, 1};
 
-ProfileSelect::ProfileSelect() = default;
+ProfileSelect::ProfileSelect(const Core::Frontend::ProfileSelectApplet& frontend)
+    : frontend(frontend) {}
+
 ProfileSelect::~ProfileSelect() = default;
 
 void ProfileSelect::Initialize() {
@@ -50,8 +52,6 @@ void ProfileSelect::Execute() {
         broker.PushNormalDataFromApplet(IStorage{final_data});
         return;
     }
-
-    const auto& frontend{Core::System::GetInstance().GetProfileSelector()};
 
     frontend.SelectProfile([this](std::optional<Account::UUID> uuid) { SelectionComplete(uuid); });
 }
