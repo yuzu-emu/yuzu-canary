@@ -65,9 +65,32 @@ public:
     u8* GetPointer(GPUVAddr addr);
     const u8* GetPointer(GPUVAddr addr) const;
 
-    void ReadBlock(GPUVAddr src_addr, void* dest_buffer, std::size_t size) const;
-    void WriteBlock(GPUVAddr dest_addr, const void* src_buffer, std::size_t size);
-    void CopyBlock(GPUVAddr dest_addr, GPUVAddr src_addr, std::size_t size);
+    // Returns true if the block is continous in host memory, false otherwise
+    bool IsBlockContinous(const GPUVAddr start, const std::size_t size);
+
+    /**
+     * ReadBlock and WriteBlock are full read and write operations over virtual
+     * GPU Memory. It's important to use these when GPU memory may not be continous
+     * in the Host Memory counterpart. Note: This functions cause Host GPU Memory
+     * Flushes and Invalidations, respectively to each operation.
+     */
+    void ReadBlock(GPUVAddr src_addr, void* dest_buffer, const std::size_t size) const;
+    void WriteBlock(GPUVAddr dest_addr, const void* src_buffer, const std::size_t size);
+    void CopyBlock(GPUVAddr dest_addr, GPUVAddr src_addr, const std::size_t size);
+
+    /**
+     * ReadBlockUnsafe and WriteBlockUnsafe are special versions of ReadBlock and
+     * WriteBlock respectively. In this versions, no flushing or invalidation is actually
+     * done and their performance is similar to a memcpy. This functions can be used
+     * on either of this 2 scenarios instead of their safe counterpart:
+     * - Memory which is sure to never be represented in the Host GPU.
+     * - Memory Managed by a Cache Manager. Example: Texture Flushing should use
+     * WriteBlockUnsafe instead of WriteBlock since it shouldn't invalidate the texture
+     * being flushed.
+     */
+    void ReadBlockUnsafe(GPUVAddr src_addr, void* dest_buffer, const std::size_t size) const;
+    void WriteBlockUnsafe(GPUVAddr dest_addr, const void* src_buffer, const std::size_t size);
+    void CopyBlockUnsafe(GPUVAddr dest_addr, GPUVAddr src_addr, const std::size_t size);
 
 private:
     using VMAMap = std::map<GPUVAddr, VirtualMemoryArea>;
