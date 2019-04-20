@@ -22,7 +22,6 @@
 #include "core/hle/service/am/applets/applets.h"
 #include "core/hle/service/am/applets/profile_select.h"
 #include "core/hle/service/am/applets/software_keyboard.h"
-#include "core/hle/service/am/applets/stub_applet.h"
 #include "core/hle/service/am/applets/web_browser.h"
 #include "core/hle/service/am/idle.h"
 #include "core/hle/service/am/omm.h"
@@ -41,12 +40,6 @@ namespace Service::AM {
 constexpr ResultCode ERR_NO_DATA_IN_CHANNEL{ErrorModule::AM, 0x2};
 constexpr ResultCode ERR_NO_MESSAGES{ErrorModule::AM, 0x3};
 constexpr ResultCode ERR_SIZE_OUT_OF_BOUNDS{ErrorModule::AM, 0x1F7};
-
-enum class AppletId : u32 {
-    ProfileSelect = 0x10,
-    SoftwareKeyboard = 0x11,
-    LibAppletOff = 0x17,
-};
 
 constexpr u32 POP_LAUNCH_PARAMETER_MAGIC = 0xC79497CA;
 
@@ -886,30 +879,16 @@ ILibraryAppletCreator::ILibraryAppletCreator() : ServiceFramework("ILibraryApple
 
 ILibraryAppletCreator::~ILibraryAppletCreator() = default;
 
-static std::shared_ptr<Applets::Applet> GetAppletFromId(AppletId id) {
-    switch (id) {
-    case AppletId::ProfileSelect:
-        return std::make_shared<Applets::ProfileSelect>();
-    case AppletId::SoftwareKeyboard:
-        return std::make_shared<Applets::SoftwareKeyboard>();
-    case AppletId::LibAppletOff:
-        return std::make_shared<Applets::WebBrowser>();
-    default:
-        LOG_ERROR(Service_AM, "Unimplemented AppletId [{:08X}]! -- Falling back to stub!",
-                  static_cast<u32>(id));
-        return std::make_shared<Applets::StubApplet>();
-    }
-}
-
 void ILibraryAppletCreator::CreateLibraryApplet(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp{ctx};
-    const auto applet_id = rp.PopRaw<AppletId>();
+    const auto applet_id = rp.PopRaw<Applets::AppletId>();
     const auto applet_mode = rp.PopRaw<u32>();
 
     LOG_DEBUG(Service_AM, "called with applet_id={:08X}, applet_mode={:08X}",
               static_cast<u32>(applet_id), applet_mode);
 
-    const auto applet = GetAppletFromId(applet_id);
+    const auto& applet_manager{Core::System::GetInstance().GetAppletManager()};
+    const auto applet = applet_manager.GetApplet(applet_id);
 
     if (applet == nullptr) {
         LOG_ERROR(Service_AM, "Applet doesn't exist! applet_id={}", static_cast<u32>(applet_id));
