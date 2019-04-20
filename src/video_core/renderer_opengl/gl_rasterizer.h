@@ -21,6 +21,7 @@
 #include "video_core/rasterizer_cache.h"
 #include "video_core/rasterizer_interface.h"
 #include "video_core/renderer_opengl/gl_buffer_cache.h"
+#include "video_core/renderer_opengl/gl_device.h"
 #include "video_core/renderer_opengl/gl_global_cache.h"
 #include "video_core/renderer_opengl/gl_primitive_assembler.h"
 #include "video_core/renderer_opengl/gl_rasterizer_cache.h"
@@ -172,6 +173,7 @@ private:
     /// but are needed for correct emulation
     void CheckExtensions();
 
+    const Device device;
     OpenGLState state;
 
     RasterizerCacheOpenGL res_cache;
@@ -180,7 +182,6 @@ private:
     SamplerCacheOpenGL sampler_cache;
 
     Core::System& system;
-
     ScreenInfo& screen_info;
 
     std::unique_ptr<GLShader::ProgramManager> shader_program_manager;
@@ -196,7 +197,6 @@ private:
     static constexpr std::size_t STREAM_BUFFER_SIZE = 128 * 1024 * 1024;
     OGLBufferCache buffer_cache;
     PrimitiveAssembler primitive_assembler{buffer_cache};
-    GLint uniform_buffer_alignment;
 
     BindBuffersRangePushBuffer bind_ubo_pushbuffer{GL_UNIFORM_BUFFER};
     BindBuffersRangePushBuffer bind_ssbo_pushbuffer{GL_SHADER_STORAGE_BUFFER};

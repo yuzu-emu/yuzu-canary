@@ -10,6 +10,10 @@
 #include "video_core/renderer_opengl/gl_shader_decompiler.h"
 #include "video_core/shader/shader_ir.h"
 
+namespace OpenGL {
+class Device;
+}
+
 namespace OpenGL::GLShader {
 
 using VideoCommon::Shader::ProgramCode;
@@ -39,22 +43,13 @@ private:
     bool has_program_b{};
 };
 
-/**
- * Generates the GLSL vertex shader program source code for the given VS program
- * @returns String of the shader source code
- */
-ProgramResult GenerateVertexShader(const ShaderSetup& setup);
+/// Generates the GLSL vertex shader program source code for the given VS program
+ProgramResult GenerateVertexShader(const Device& device, const ShaderSetup& setup);
 
-/**
- * Generates the GLSL geometry shader program source code for the given GS program
- * @returns String of the shader source code
- */
-ProgramResult GenerateGeometryShader(const ShaderSetup& setup);
+/// Generates the GLSL geometry shader program source code for the given GS program
+ProgramResult GenerateGeometryShader(const Device& device, const ShaderSetup& setup);
 
-/**
- * Generates the GLSL fragment shader program source code for the given FS program
- * @returns String of the shader source code
- */
-ProgramResult GenerateFragmentShader(const ShaderSetup& setup);
+/// Generates the GLSL fragment shader program source code for the given FS program
+ProgramResult GenerateFragmentShader(const Device& device, const ShaderSetup& setup);
 
 } // namespace OpenGL::GLShader

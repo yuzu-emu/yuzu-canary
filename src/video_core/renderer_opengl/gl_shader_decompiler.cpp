@@ -15,6 +15,7 @@
 #include "common/assert.h"
 #include "common/common_types.h"
 #include "video_core/engines/maxwell_3d.h"
+#include "video_core/renderer_opengl/gl_device.h"
 #include "video_core/renderer_opengl/gl_rasterizer.h"
 #include "video_core/renderer_opengl/gl_shader_decompiler.h"
 #include "video_core/shader/shader_ir.h"
@@ -135,8 +136,9 @@ bool IsPrecise(Node node) {
 
 class GLSLDecompiler final {
 public:
-    explicit GLSLDecompiler(const ShaderIR& ir, ShaderStage stage, std::string suffix)
-        : ir{ir}, stage{stage}, suffix{suffix}, header{ir.GetHeader()} {}
+    explicit GLSLDecompiler(const Device& device, const ShaderIR& ir, ShaderStage stage,
+                            std::string suffix)
+        : device{device}, ir{ir}, stage{stage}, suffix{suffix}, header{ir.GetHeader()} {}
 
     void Decompile() {
         DeclareVertex();
@@ -802,8 +804,12 @@ private:
                 // Inline the string as an immediate integer in GLSL (AOFFI arguments are required
                 // to be constant by the standard).
                 expr += std::to_string(static_cast<s32>(immediate->GetValue()));
-            } else {
+            } else if (device.HasVariableAoffi()) {
+                // Avoid using variable AOFFI on unsupported devices.
                 expr += "ftoi(" + Visit(operand) + ')';
+            } else {
+                // Insert 0 on devices not supporting variable AOFFI.
+                expr += '0';
             }
             if (index + 1 < aoffi.size()) {
                 expr += ", ";
@@ -1645,6 +1651,7 @@ private:
         return name + '_' + std::to_string(index) + '_' + suffix;
     }
 
+    const Device& device;
     const ShaderIR& ir;
     const ShaderStage stage;
     const std::string suffix;
@@ -1676,8 +1683,9 @@ std::string GetCommonDeclarations() {
            "}\n";
 }
 
-ProgramResult Decompile(const ShaderIR& ir, Maxwell::ShaderStage stage, const std::string& suffix) {
-    GLSLDecompiler decompiler(ir, stage, suffix);
+ProgramResult Decompile(const Device& device, const ShaderIR& ir, Maxwell::ShaderStage stage,
+                        const std::string& suffix) {
+    GLSLDecompiler decompiler(device, ir, stage, suffix);
     decompiler.Decompile();
     return {decompiler.GetResult(), decompiler.GetShaderEntries()};
 }
