@@ -16,7 +16,7 @@ using VideoCommon::Shader::ShaderIR;
 
 static constexpr u32 PROGRAM_OFFSET{10};
 
-ProgramResult GenerateVertexShader(const ShaderSetup& setup) {
+ProgramResult GenerateVertexShader(const Device& device, const ShaderSetup& setup) {
     const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
 
     std::string out = "#extension GL_ARB_separate_shader_objects : enable\n\n";
@@ -34,14 +34,15 @@ layout (std140, binding = EMULATION_UBO_BINDING) uniform vs_config {
 
 )";
     ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET);
-    ProgramResult program = Decompile(program_ir, Maxwell3D::Regs::ShaderStage::Vertex, "vertex");
+    ProgramResult program =
+        Decompile(device, program_ir, Maxwell3D::Regs::ShaderStage::Vertex, "vertex");
 
     out += program.first;
 
     if (setup.IsDualProgram()) {
         ShaderIR program_ir_b(setup.program.code_b, PROGRAM_OFFSET);
         ProgramResult program_b =
-            Decompile(program_ir_b, Maxwell3D::Regs::ShaderStage::Vertex, "vertex_b");
+            Decompile(device, program_ir_b, Maxwell3D::Regs::ShaderStage::Vertex, "vertex_b");
 
         out += program_b.first;
     }
@@ -75,7 +76,7 @@ void main() {
     return {out, program.second};
 }
 
-ProgramResult GenerateGeometryShader(const ShaderSetup& setup) {
+ProgramResult GenerateGeometryShader(const Device& device, const ShaderSetup& setup) {
     const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
 
     std::string out = "#extension GL_ARB_separate_shader_objects : enable\n\n";
@@ -95,7 +96,7 @@ layout (std140, binding = EMULATION_UBO_BINDING) uniform gs_config {
 )";
     ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET);
     ProgramResult program =
-        Decompile(program_ir, Maxwell3D::Regs::ShaderStage::Geometry, "geometry");
+        Decompile(device, program_ir, Maxwell3D::Regs::ShaderStage::Geometry, "geometry");
     out += program.first;
 
     out += R"(
@@ -106,7 +107,7 @@ void main() {
     return {out, program.second};
 }
 
-ProgramResult GenerateFragmentShader(const ShaderSetup& setup) {
+ProgramResult GenerateFragmentShader(const Device& device, const ShaderSetup& setup) {
     const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
 
     std::string out = "#extension GL_ARB_separate_shader_objects : enable\n\n";
@@ -158,7 +159,7 @@ bool AlphaFunc(in float value) {
 )";
     ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET);
     ProgramResult program =
-        Decompile(program_ir, Maxwell3D::Regs::ShaderStage::Fragment, "fragment");
+        Decompile(device, program_ir, Maxwell3D::Regs::ShaderStage::Fragment, "fragment");
 
     out += program.first;
 
