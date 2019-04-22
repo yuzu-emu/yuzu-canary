@@ -88,6 +88,10 @@ add_library(core STATIC
     file_sys/vfs_vector.h
     file_sys/xts_archive.cpp
     file_sys/xts_archive.h
+    frontend/applets/error.cpp
+    frontend/applets/error.h
+    frontend/applets/general_frontend.cpp
+    frontend/applets/general_frontend.h
     frontend/applets/profile_select.cpp
     frontend/applets/profile_select.h
     frontend/applets/software_keyboard.cpp
@@ -177,12 +181,14 @@ add_library(core STATIC
     hle/service/am/applet_oe.h
     hle/service/am/applets/applets.cpp
     hle/service/am/applets/applets.h
+    hle/service/am/applets/error.cpp
+    hle/service/am/applets/error.h
+    hle/service/am/applets/general_backend.cpp
+    hle/service/am/applets/general_backend.h
     hle/service/am/applets/profile_select.cpp
     hle/service/am/applets/profile_select.h
     hle/service/am/applets/software_keyboard.cpp
     hle/service/am/applets/software_keyboard.h
-    hle/service/am/applets/stub_applet.cpp
-    hle/service/am/applets/stub_applet.h
     hle/service/am/applets/web_browser.cpp
     hle/service/am/applets/web_browser.h
     hle/service/am/idle.cpp

@@ -12,7 +12,7 @@ namespace Service::AM::Applets {
 
 class WebBrowser final : public Applet {
 public:
-    WebBrowser();
+    WebBrowser(Core::Frontend::WebBrowserApplet& frontend);
     ~WebBrowser() override;
 
     void Initialize() override;
@@ -32,6 +32,8 @@ public:
     void Finalize();
 
 private:
+    Core::Frontend::WebBrowserApplet& frontend;
+
     bool complete = false;
     bool unpacked = false;
     ResultCode status = RESULT_SUCCESS;
