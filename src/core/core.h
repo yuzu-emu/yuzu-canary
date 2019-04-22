@@ -14,9 +14,6 @@
 
 namespace Core::Frontend {
 class EmuWindow;
-class ProfileSelectApplet;
-class SoftwareKeyboardApplet;
-class WebBrowserApplet;
 } // namespace Core::Frontend
 
 namespace FileSys {
@@ -39,9 +36,18 @@ class AppLoader;
 enum class ResultStatus : u16;
 } // namespace Loader
 
-namespace Service::SM {
+namespace Service {
+
+namespace AM::Applets {
+struct AppletFrontendSet;
+class AppletManager;
+} // namespace AM::Applets
+
+namespace SM {
 class ServiceManager;
-} // namespace Service::SM
+} // namespace SM
+
+} // namespace Service
 
 namespace Tegra {
 class DebugContext;
@@ -270,18 +276,13 @@ public:
     void RegisterCheatList(const std::vector<FileSys::CheatList>& list, const std::string& build_id,
                            VAddr code_region_start, VAddr code_region_end);
 
-    void SetProfileSelector(std::unique_ptr<Frontend::ProfileSelectApplet> applet);
+    void SetAppletFrontendSet(Service::AM::Applets::AppletFrontendSet&& set);
 
-    const Frontend::ProfileSelectApplet& GetProfileSelector() const;
+    void SetDefaultAppletFrontendSet();
 
-    void SetSoftwareKeyboard(std::unique_ptr<Frontend::SoftwareKeyboardApplet> applet);
+    Service::AM::Applets::AppletManager& GetAppletManager();
 
-    const Frontend::SoftwareKeyboardApplet& GetSoftwareKeyboard() const;
-
-    void SetWebBrowser(std::unique_ptr<Frontend::WebBrowserApplet> applet);
-
-    Frontend::WebBrowserApplet& GetWebBrowser();
-    const Frontend::WebBrowserApplet& GetWebBrowser() const;
+    const Service::AM::Applets::AppletManager& GetAppletManager() const;
 
     void SetContentProvider(std::unique_ptr<FileSys::ContentProviderUnion> provider);
 
