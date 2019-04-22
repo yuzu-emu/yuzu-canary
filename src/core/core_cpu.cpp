@@ -52,7 +52,8 @@ bool CpuBarrier::Rendezvous() {
 
 Cpu::Cpu(System& system, ExclusiveMonitor& exclusive_monitor, CpuBarrier& cpu_barrier,
          std::size_t core_index)
-    : cpu_barrier{cpu_barrier}, core_timing{system.CoreTiming()}, core_index{core_index} {
+    : cpu_barrier{cpu_barrier}, global_scheduler{system.GlobalScheduler()},
+      core_timing{system.CoreTiming()}, core_index{core_index} {
     if (Settings::values.use_cpu_jit) {
 #ifdef ARCHITECTURE_x86_64
         arm_interface = std::make_unique<ARM_Dynarmic>(system, exclusive_monitor, core_index);
@@ -64,7 +65,7 @@ Cpu::Cpu(System& system, ExclusiveMonitor& exclusive_monitor, CpuBarrier& cpu_ba
         arm_interface = std::make_unique<ARM_Unicorn>(system);
     }
 
-    scheduler = std::make_unique<Kernel::Scheduler>(system, *arm_interface);
+    scheduler = std::make_unique<Kernel::Scheduler>(system, *arm_interface, core_index);
 }
 
 Cpu::~Cpu() = default;
@@ -88,6 +89,8 @@ void Cpu::RunLoop(bool tight_loop) {
         return;
     }
 
+    Reschedule();
+
     // If we don't have a currently active thread then don't execute instructions,
     // instead advance to the next event and try to yield to the next thread
     if (Kernel::GetCurrentThread() == nullptr) {
@@ -99,7 +102,6 @@ void Cpu::RunLoop(bool tight_loop) {
             core_timing.Advance();
         }
 
-        PrepareReschedule();
     } else {
         if (IsMainCore()) {
             core_timing.Advance();
@@ -121,18 +123,14 @@ void Cpu::SingleStep() {
 
 void Cpu::PrepareReschedule() {
     arm_interface->PrepareReschedule();
-    reschedule_pending = true;
 }
 
 void Cpu::Reschedule() {
-    if (!reschedule_pending) {
-        return;
-    }
-
-    reschedule_pending = false;
     // Lock the global kernel mutex when we manipulate the HLE state
-    std::lock_guard lock{HLE::g_hle_lock};
-    scheduler->Reschedule();
+    std::lock_guard<std::recursive_mutex> lock(HLE::g_hle_lock);
+
+    global_scheduler.SelectThread(core_index);
+    scheduler->TryDoContextSwitch();
 }
 
 } // namespace Core
