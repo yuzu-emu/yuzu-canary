@@ -27,6 +27,7 @@ class System;
 namespace OpenGL {
 
 class CachedShader;
+class Device;
 class RasterizerOpenGL;
 struct UnspecializedShader;
 
@@ -38,7 +39,7 @@ using PrecompiledShaders = std::unordered_map<u64, GLShader::ProgramResult>;
 
 class CachedShader final : public RasterizerCacheObject {
 public:
-    explicit CachedShader(VAddr cpu_addr, u64 unique_identifier,
+    explicit CachedShader(const Device& device, VAddr cpu_addr, u64 unique_identifier,
                           Maxwell::ShaderProgram program_type, ShaderDiskCacheOpenGL& disk_cache,
                           const PrecompiledPrograms& precompiled_programs,
                           ProgramCode&& program_code, ProgramCode&& program_code_b, u8* host_ptr);
@@ -112,7 +113,8 @@ private:
 
 class ShaderCacheOpenGL final : public RasterizerCache<Shader> {
 public:
-    explicit ShaderCacheOpenGL(RasterizerOpenGL& rasterizer, Core::System& system);
+    explicit ShaderCacheOpenGL(RasterizerOpenGL& rasterizer, Core::System& system,
+                               const Device& device);
 
     /// Loads disk cache for the current game
     void LoadDiskCache(const std::atomic_bool& stop_loading,
@@ -129,6 +131,8 @@ private:
 
     CachedProgram GeneratePrecompiledProgram(const ShaderDiskCacheDump& dump,
                                              const std::set<GLenum>& supported_formats);
+
+    const Device& device;
 
     std::array<Shader, Maxwell::MaxShaderProgram> last_shaders;
 
