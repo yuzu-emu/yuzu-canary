@@ -389,6 +389,8 @@ void Config::ReadValues() {
     Settings::values.resolution_factor = ReadSetting("resolution_factor", 1.0).toFloat();
     Settings::values.use_frame_limit = ReadSetting("use_frame_limit", true).toBool();
     Settings::values.frame_limit = ReadSetting("frame_limit", 100).toInt();
+    Settings::values.use_compatibility_profile =
+        ReadSetting("use_compatibility_profile", true).toBool();
     Settings::values.use_disk_shader_cache = ReadSetting("use_disk_shader_cache", true).toBool();
     Settings::values.use_accurate_gpu_emulation =
         ReadSetting("use_accurate_gpu_emulation", false).toBool();
@@ -661,6 +663,7 @@ void Config::SaveValues() {
     WriteSetting("resolution_factor", (double)Settings::values.resolution_factor, 1.0);
     WriteSetting("use_frame_limit", Settings::values.use_frame_limit, true);
     WriteSetting("frame_limit", Settings::values.frame_limit, 100);
+    WriteSetting("use_compatibility_profile", Settings::values.use_compatibility_profile, true);
     WriteSetting("use_disk_shader_cache", Settings::values.use_disk_shader_cache, true);
     WriteSetting("use_accurate_gpu_emulation", Settings::values.use_accurate_gpu_emulation, false);
     WriteSetting("use_asynchronous_gpu_emulation", Settings::values.use_asynchronous_gpu_emulation,
