@@ -418,7 +418,7 @@ Texture::TICEntry Maxwell3D::GetTICEntry(u32 tic_index) const {
     const GPUVAddr tic_address_gpu{regs.tic.TICAddress() + tic_index * sizeof(Texture::TICEntry)};
 
     Texture::TICEntry tic_entry;
-    memory_manager.ReadBlock(tic_address_gpu, &tic_entry, sizeof(Texture::TICEntry));
+    memory_manager.ReadBlockUnsafe(tic_address_gpu, &tic_entry, sizeof(Texture::TICEntry));
 
     ASSERT_MSG(tic_entry.header_version == Texture::TICHeaderVersion::BlockLinear ||
                    tic_entry.header_version == Texture::TICHeaderVersion::Pitch,
@@ -439,7 +439,7 @@ Texture::TSCEntry Maxwell3D::GetTSCEntry(u32 tsc_index) const {
     const GPUVAddr tsc_address_gpu{regs.tsc.TSCAddress() + tsc_index * sizeof(Texture::TSCEntry)};
 
     Texture::TSCEntry tsc_entry;
-    memory_manager.ReadBlock(tsc_address_gpu, &tsc_entry, sizeof(Texture::TSCEntry));
+    memory_manager.ReadBlockUnsafe(tsc_address_gpu, &tsc_entry, sizeof(Texture::TSCEntry));
     return tsc_entry;
 }
 
