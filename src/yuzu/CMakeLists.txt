@@ -7,6 +7,8 @@ add_executable(yuzu
     Info.plist
     about_dialog.cpp
     about_dialog.h
+    applets/error.cpp
+    applets/error.h
     applets/profile_select.cpp
     applets/profile_select.h
     applets/software_keyboard.cpp

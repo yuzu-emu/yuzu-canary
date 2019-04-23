@@ -95,7 +95,7 @@ static FileSys::VirtualFile GetManualRomFS() {
     return nullptr;
 }
 
-WebBrowser::WebBrowser() = default;
+WebBrowser::WebBrowser(Core::Frontend::WebBrowserApplet& frontend) : frontend(frontend) {}
 
 WebBrowser::~WebBrowser() = default;
 
@@ -151,8 +151,6 @@ void WebBrowser::Execute() {
         complete = true;
         return;
     }
-
-    auto& frontend{Core::System::GetInstance().GetWebBrowser()};
 
     frontend.OpenPage(filename, [this] { UnpackRomFS(); }, [this] { Finalize(); });
 }
