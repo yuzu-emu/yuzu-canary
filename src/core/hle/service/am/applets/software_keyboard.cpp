@@ -39,7 +39,8 @@ static Core::Frontend::SoftwareKeyboardParameters ConvertToFrontendParameters(
     return params;
 }
 
-SoftwareKeyboard::SoftwareKeyboard() = default;
+SoftwareKeyboard::SoftwareKeyboard(const Core::Frontend::SoftwareKeyboardApplet& frontend)
+    : frontend(frontend) {}
 
 SoftwareKeyboard::~SoftwareKeyboard() = default;
 
@@ -90,8 +91,6 @@ void SoftwareKeyboard::ExecuteInteractive() {
     if (status == INTERACTIVE_STATUS_OK) {
         complete = true;
     } else {
-        const auto& frontend{Core::System::GetInstance().GetSoftwareKeyboard()};
-
         std::array<char16_t, SWKBD_OUTPUT_INTERACTIVE_BUFFER_SIZE / 2 - 2> string;
         std::memcpy(string.data(), data.data() + 4, string.size() * 2);
         frontend.SendTextCheckDialog(
@@ -105,8 +104,6 @@ void SoftwareKeyboard::Execute() {
         broker.PushNormalDataFromApplet(IStorage{final_data});
         return;
     }
-
-    const auto& frontend{Core::System::GetInstance().GetSoftwareKeyboard()};
 
     const auto parameters = ConvertToFrontendParameters(config, initial_text);
 
