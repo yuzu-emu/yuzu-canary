@@ -90,6 +90,7 @@ void LogSettings() {
     LogSetting("Renderer_UseResolutionFactor", Settings::values.resolution_factor);
     LogSetting("Renderer_UseFrameLimit", Settings::values.use_frame_limit);
     LogSetting("Renderer_FrameLimit", Settings::values.frame_limit);
+    LogSetting("Renderer_UseCompatibilityProfile", Settings::values.use_compatibility_profile);
     LogSetting("Renderer_UseDiskShaderCache", Settings::values.use_disk_shader_cache);
     LogSetting("Renderer_UseAccurateGpuEmulation", Settings::values.use_accurate_gpu_emulation);
     LogSetting("Renderer_UseAsynchronousGpuEmulation",
