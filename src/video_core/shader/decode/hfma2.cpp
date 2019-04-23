@@ -34,15 +34,14 @@ u32 ShaderIR::DecodeHfma2(NodeBlock& bb, u32 pc) {
         case OpCode::Id::HFMA2_CR:
             neg_b = instr.hfma2.negate_b;
             neg_c = instr.hfma2.negate_c;
-            return {instr.hfma2.saturate, instr.hfma2.type_b,
+            return {instr.hfma2.saturate, HalfType::F32,
                     GetConstBuffer(instr.cbuf34.index, instr.cbuf34.GetOffset()),
                     instr.hfma2.type_reg39, GetRegister(instr.gpr39)};
         case OpCode::Id::HFMA2_RC:
             neg_b = instr.hfma2.negate_b;
             neg_c = instr.hfma2.negate_c;
             return {instr.hfma2.saturate, instr.hfma2.type_reg39, GetRegister(instr.gpr39),
-                    instr.hfma2.type_b,
-                    GetConstBuffer(instr.cbuf34.index, instr.cbuf34.GetOffset())};
+                    HalfType::F32, GetConstBuffer(instr.cbuf34.index, instr.cbuf34.GetOffset())};
         case OpCode::Id::HFMA2_RR:
             neg_b = instr.hfma2.rr.negate_b;
             neg_c = instr.hfma2.rr.negate_c;
@@ -56,13 +55,13 @@ u32 ShaderIR::DecodeHfma2(NodeBlock& bb, u32 pc) {
             return {false, identity, Immediate(0), identity, Immediate(0)};
         }
     }();
-    UNIMPLEMENTED_IF_MSG(saturate, "HFMA2 saturation is not implemented");
 
     const Node op_a = UnpackHalfFloat(GetRegister(instr.gpr8), instr.hfma2.type_a);
     op_b = GetOperandAbsNegHalf(UnpackHalfFloat(op_b, type_b), false, neg_b);
     op_c = GetOperandAbsNegHalf(UnpackHalfFloat(op_c, type_c), false, neg_c);
 
     Node value = Operation(OperationCode::HFma, PRECISE, op_a, op_b, op_c);
+    value = GetSaturatedHalfFloat(value, saturate);
     value = HalfMerge(GetRegister(instr.gpr0), value, instr.hfma2.merge);
 
     SetRegister(bb, instr.gpr0, value);
