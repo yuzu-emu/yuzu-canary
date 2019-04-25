@@ -21,6 +21,12 @@ class RasterizerInterface;
 
 namespace Tegra::Engines {
 
+/**
+ * This Engine is known as G80_2D. Documentation can be found in:
+ * https://github.com/envytools/envytools/blob/master/rnndb/graph/g80_2d.xml
+ * https://cgit.freedesktop.org/mesa/mesa/tree/src/gallium/drivers/nouveau/nv50/nv50_2d.xml.h
+ */
+
 #define FERMI2D_REG_INDEX(field_name)                                                              \
     (offsetof(Tegra::Engines::Fermi2D::Regs, field_name) / sizeof(u32))
 
