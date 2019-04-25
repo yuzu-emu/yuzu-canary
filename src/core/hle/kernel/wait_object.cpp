@@ -6,6 +6,8 @@
 #include "common/assert.h"
 #include "common/common_types.h"
 #include "common/logging/log.h"
+#include "core/core.h"
+#include "core/core_cpu.h"
 #include "core/hle/kernel/object.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/kernel/thread.h"
@@ -93,8 +95,10 @@ void WaitObject::WakeupWaitingThread(SharedPtr<Thread> thread) {
     if (thread->HasWakeupCallback())
         resume = thread->InvokeWakeupCallback(ThreadWakeupReason::Signal, thread, this, index);
 
-    if (resume)
+    if (resume) {
         thread->ResumeFromWait();
+        Core::System::GetInstance().PrepareReschedule(thread->GetProcessorID());
+    }
 }
 
 void WaitObject::WakeupAllWaitingThreads() {
