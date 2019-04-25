@@ -1,3 +1,26 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: ee2252b6e13237f9c80a40379a18455832d01e33
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2424](https://github.com/yuzu-emu/yuzu/pull/2424)|[788497f](https://github.com/yuzu-emu/yuzu/pull/2424/files/)|Allow picking a Compatibility Profile for OpenGL.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2423](https://github.com/yuzu-emu/yuzu/pull/2423)|[623b2e4](https://github.com/yuzu-emu/yuzu/pull/2423/files/)|Corrections on Half Float operations: HADD2 HMUL2 and HFMA2|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2365](https://github.com/yuzu-emu/yuzu/pull/2365)|[ac249f1](https://github.com/yuzu-emu/yuzu/pull/2365/files/)|DO NOT MERGE: Workaround to Mutex Corruption|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2135](https://github.com/yuzu-emu/yuzu/pull/2135)|[2677cc8](https://github.com/yuzu-emu/yuzu/pull/2135/files/)|DO NOT MERGE Implemented a lil edge case on RecreateSurface.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2100](https://github.com/yuzu-emu/yuzu/pull/2100)|[1a3ff25](https://github.com/yuzu-emu/yuzu/pull/2100/files/)|gl_shader_disk_cache: Improve precompiled shader cache generation speed and size|[FreddyFunk](https://github.com/FreddyFunk)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1340](https://github.com/yuzu-emu/yuzu/pull/1340)|[5c638a6](https://github.com/yuzu-emu/yuzu/pull/1340/files/)|Implement a Better Ignore Assert - DO NOT CHECK IN|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
