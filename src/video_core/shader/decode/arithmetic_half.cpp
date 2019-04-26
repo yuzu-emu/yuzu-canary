@@ -9,6 +9,7 @@
 
 namespace VideoCommon::Shader {
 
+using Tegra::Shader::HalfType;
 using Tegra::Shader::Instruction;
 using Tegra::Shader::OpCode;
 
@@ -22,7 +23,6 @@ u32 ShaderIR::DecodeArithmeticHalf(NodeBlock& bb, u32 pc) {
             LOG_WARNING(HW_GPU, "{} FTZ not implemented", opcode->get().GetName());
         }
     }
-    UNIMPLEMENTED_IF_MSG(instr.alu_half.saturate != 0, "Half float saturation not implemented");
 
     const bool negate_a =
         opcode->get().GetId() != OpCode::Id::HMUL2_R && instr.alu_half.negate_a != 0;
@@ -32,35 +32,37 @@ u32 ShaderIR::DecodeArithmeticHalf(NodeBlock& bb, u32 pc) {
     Node op_a = UnpackHalfFloat(GetRegister(instr.gpr8), instr.alu_half.type_a);
     op_a = GetOperandAbsNegHalf(op_a, instr.alu_half.abs_a, negate_a);
 
-    Node op_b = [&]() {
+    auto [type_b, op_b] = [&]() -> std::tuple<HalfType, Node> {
         switch (opcode->get().GetId()) {
         case OpCode::Id::HADD2_C:
         case OpCode::Id::HMUL2_C:
-            return GetConstBuffer(instr.cbuf34.index, instr.cbuf34.GetOffset());
+            return {HalfType::F32, GetConstBuffer(instr.cbuf34.index, instr.cbuf34.GetOffset())};
         case OpCode::Id::HADD2_R:
         case OpCode::Id::HMUL2_R:
-            return GetRegister(instr.gpr20);
+            return {instr.alu_half.type_b, GetRegister(instr.gpr20)};
         default:
             UNREACHABLE();
-            return Immediate(0);
+            return {HalfType::F32, Immediate(0)};
         }
     }();
-    op_b = UnpackHalfFloat(op_b, instr.alu_half.type_b);
-    op_b = GetOperandAbsNegHalf(op_b, instr.alu_half.abs_b, negate_b);
+    op_b = UnpackHalfFloat(op_b, type_b);
+    // redeclaration to avoid a bug in clang with reusing local bindings in lambdas
+    Node op_b_alt = GetOperandAbsNegHalf(op_b, instr.alu_half.abs_b, negate_b);
 
     Node value = [&]() {
         switch (opcode->get().GetId()) {
         case OpCode::Id::HADD2_C:
         case OpCode::Id::HADD2_R:
-            return Operation(OperationCode::HAdd, PRECISE, op_a, op_b);
+            return Operation(OperationCode::HAdd, PRECISE, op_a, op_b_alt);
         case OpCode::Id::HMUL2_C:
         case OpCode::Id::HMUL2_R:
-            return Operation(OperationCode::HMul, PRECISE, op_a, op_b);
+            return Operation(OperationCode::HMul, PRECISE, op_a, op_b_alt);
         default:
             UNIMPLEMENTED_MSG("Unhandled half float instruction: {}", opcode->get().GetName());
             return Immediate(0);
         }
     }();
+    value = GetSaturatedHalfFloat(value, instr.alu_half.saturate);
     value = HalfMerge(GetRegister(instr.gpr0), value, instr.alu_half.merge);
 
     SetRegister(bb, instr.gpr0, value);
