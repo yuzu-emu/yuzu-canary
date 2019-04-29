@@ -1,3 +1,3 @@
 #!/bin/sh -ex
 
-docker pull ubuntu:18.04
+docker pull yuzuemu/build-environments:linux-mingw
