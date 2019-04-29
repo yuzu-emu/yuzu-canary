@@ -20,8 +20,8 @@ constexpr u32 MacroRegistersStart = 0xE00;
 
 Maxwell3D::Maxwell3D(Core::System& system, VideoCore::RasterizerInterface& rasterizer,
                      MemoryManager& memory_manager)
-    : system{system}, rasterizer{rasterizer}, memory_manager{memory_manager}, macro_interpreter{
-                                                                                  *this} {
+    : system{system}, rasterizer{rasterizer}, memory_manager{memory_manager},
+      macro_interpreter{*this}, upload_state{memory_manager, regs.upload} {
     InitializeRegisterDefaults();
 }
 
@@ -251,6 +251,18 @@ void Maxwell3D::CallMethod(const GPU::MethodCall& method_call) {
     }
     case MAXWELL3D_REG_INDEX(sync_info): {
         ProcessSyncPoint();
+        break;
+    }
+    case MAXWELL3D_REG_INDEX(exec_upload): {
+        upload_state.ProcessExec(regs.exec_upload.linear != 0);
+        break;
+    }
+    case MAXWELL3D_REG_INDEX(data_upload): {
+        const bool is_last_call = method_call.IsLastCall();
+        upload_state.ProcessData(method_call.argument, is_last_call);
+        if (is_last_call) {
+            dirty_flags.OnMemoryWrite();
+        }
         break;
     }
     default:
