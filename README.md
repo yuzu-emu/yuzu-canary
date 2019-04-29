@@ -1,3 +1,28 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: c52233ec8b26d5dc8cdca746fc181191c99fb33b
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2434](https://github.com/yuzu-emu/yuzu/pull/2434)|[477aa36](https://github.com/yuzu-emu/yuzu/pull/2434/files/)|Disable Fast Depth->Color Copies in Turing+ GPUs.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2429](https://github.com/yuzu-emu/yuzu/pull/2429)|[54e573a](https://github.com/yuzu-emu/yuzu/pull/2429/files/)|Corrections and Implementation on GPU Engines|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2408](https://github.com/yuzu-emu/yuzu/pull/2408)|[1f3cc03](https://github.com/yuzu-emu/yuzu/pull/2408/files/)|Port citra-emu/citra#4215: "travis: Use Ninja for Travis builds"|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[2406](https://github.com/yuzu-emu/yuzu/pull/2406)|[b67be71](https://github.com/yuzu-emu/yuzu/pull/2406/files/)|Port citra-emu/citra#3839: "travis: use prebuilt image"|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[2365](https://github.com/yuzu-emu/yuzu/pull/2365)|[4ddddbe](https://github.com/yuzu-emu/yuzu/pull/2365/files/)|DO NOT MERGE: Workaround to Mutex Corruption|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2135](https://github.com/yuzu-emu/yuzu/pull/2135)|[2677cc8](https://github.com/yuzu-emu/yuzu/pull/2135/files/)|DO NOT MERGE Implemented a lil edge case on RecreateSurface.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2100](https://github.com/yuzu-emu/yuzu/pull/2100)|[1a3ff25](https://github.com/yuzu-emu/yuzu/pull/2100/files/)|gl_shader_disk_cache: Improve precompiled shader cache generation speed and size|[FreddyFunk](https://github.com/FreddyFunk)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1340](https://github.com/yuzu-emu/yuzu/pull/1340)|[5c638a6](https://github.com/yuzu-emu/yuzu/pull/1340/files/)|Implement a Better Ignore Assert - DO NOT CHECK IN|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
