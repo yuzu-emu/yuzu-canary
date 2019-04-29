@@ -1,16 +1,6 @@
 #!/bin/bash -ex
 
 cd /yuzu
-MINGW_PACKAGES="sdl2-mingw-w64 qt5base-mingw-w64 qt5tools-mingw-w64 libsamplerate-mingw-w64 qt5multimedia-mingw-w64"
-apt-get update
-apt-get install -y gpg wget git python3-pip python ccache g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 mingw-w64-tools cmake
-echo 'deb http://ppa.launchpad.net/tobydox/mingw-w64/ubuntu bionic main ' > /etc/apt/sources.list.d/extras.list
-apt-key adv --keyserver keyserver.ubuntu.com --recv '72931B477E22FEFD47F8DECE02FE5F12ADDE29B2'
-apt-get update
-apt-get install -y ${MINGW_PACKAGES}
-
-# fix a problem in current MinGW headers
-wget -q https://raw.githubusercontent.com/Alexpux/mingw-w64/d0d7f784833bbb0b2d279310ddc6afb52fe47a46/mingw-w64-headers/crt/errno.h -O /usr/x86_64-w64-mingw32/include/errno.h
 # override Travis CI unreasonable ccache size
 echo 'max_size = 3.0G' > "$HOME/.ccache/ccache.conf"
 
