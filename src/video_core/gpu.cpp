@@ -35,9 +35,9 @@ GPU::GPU(Core::System& system, VideoCore::RendererBase& renderer) : renderer{ren
     dma_pusher = std::make_unique<Tegra::DmaPusher>(*this);
     maxwell_3d = std::make_unique<Engines::Maxwell3D>(system, rasterizer, *memory_manager);
     fermi_2d = std::make_unique<Engines::Fermi2D>(rasterizer, *memory_manager);
-    kepler_compute = std::make_unique<Engines::KeplerCompute>(*memory_manager);
+    kepler_compute = std::make_unique<Engines::KeplerCompute>(system, rasterizer, *memory_manager);
     maxwell_dma = std::make_unique<Engines::MaxwellDMA>(system, rasterizer, *memory_manager);
-    kepler_memory = std::make_unique<Engines::KeplerMemory>(system, rasterizer, *memory_manager);
+    kepler_memory = std::make_unique<Engines::KeplerMemory>(system, *memory_manager);
 }
 
 GPU::~GPU() = default;
