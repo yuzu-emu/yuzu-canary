@@ -13,8 +13,8 @@ echo '' >> /bin/cmd
 chmod +x /bin/cmd
 
 mkdir build && cd build
-cmake .. -DCMAKE_TOOLCHAIN_FILE="$(pwd)/../CMakeModules/MinGWCross.cmake" -DUSE_CCACHE=ON -DYUZU_USE_BUNDLED_UNICORN=ON -DENABLE_COMPATIBILITY_LIST_DOWNLOAD=ON -DCMAKE_BUILD_TYPE=Release
-make -j4
+cmake .. -G Ninja -DCMAKE_TOOLCHAIN_FILE="$(pwd)/../CMakeModules/MinGWCross.cmake" -DUSE_CCACHE=ON -DYUZU_USE_BUNDLED_UNICORN=ON -DENABLE_COMPATIBILITY_LIST_DOWNLOAD=ON -DCMAKE_BUILD_TYPE=Release
+ninja
 
 # Clean up the dirty hacks
 rm /bin/uname && mv /bin/uname1 /bin/uname
