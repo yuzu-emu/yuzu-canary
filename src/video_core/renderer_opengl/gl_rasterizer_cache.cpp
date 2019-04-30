@@ -872,7 +872,7 @@ void CachedSurface::UpdateSwizzle(Tegra::Texture::SwizzleSource swizzle_x,
 }
 
 RasterizerCacheOpenGL::RasterizerCacheOpenGL(RasterizerOpenGL& rasterizer)
-    : RasterizerCache{rasterizer} {
+    : RasterizerCache{rasterizer}, rasterizer{rasterizer} {
     read_framebuffer.Create();
     draw_framebuffer.Create();
     copy_pbo.Create();
@@ -1198,9 +1198,12 @@ Surface RasterizerCacheOpenGL::RecreateSurface(const Surface& old_surface,
         GetFormatTuple(old_params.pixel_format, old_params.component_type).compressed;
     const bool new_compressed =
         GetFormatTuple(new_params.pixel_format, new_params.component_type).compressed;
-    const bool compatible_formats =
+    bool compatible_formats =
         GetFormatBpp(old_params.pixel_format) == GetFormatBpp(new_params.pixel_format) &&
         !(old_compressed || new_compressed);
+    if (rasterizer.GetDevice().IsTuringGPU()) {
+        compatible_formats &= old_params.type == new_params.type;
+    }
     // For compatible surfaces, we can just do fast glCopyImageSubData based copy
     if (old_params.target == new_params.target && old_params.depth == new_params.depth &&
         old_params.depth == 1 && compatible_formats) {

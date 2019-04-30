@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <glad/glad.h>
 
 namespace OpenGL {
 
@@ -18,6 +19,10 @@ public:
 
     bool HasVariableAoffi() const {
         return has_variable_aoffi;
+    }
+
+    bool IsTuringGPU() const {
+        return GLAD_GL_NV_mesh_shader;
     }
 
 private:
