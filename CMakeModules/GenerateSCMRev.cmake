@@ -19,7 +19,7 @@ set(BUILD_VERSION "0")
 if (BUILD_REPOSITORY)
   # regex capture the string nightly or canary into CMAKE_MATCH_1
   string(REGEX MATCH "yuzu-emu/yuzu-?(.*)" OUTVAR ${BUILD_REPOSITORY})
-  if (${CMAKE_MATCH_COUNT} GREATER 0)
+  if ("${CMAKE_MATCH_COUNT}" GREATER 0)
     # capitalize the first letter of each word in the repo name.
     string(REPLACE "-" ";" REPO_NAME_LIST ${CMAKE_MATCH_1})
     foreach(WORD ${REPO_NAME_LIST})
