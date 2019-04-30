@@ -14,6 +14,7 @@
 #include "common/common_funcs.h"
 #include "common/common_types.h"
 #include "common/math_util.h"
+#include "video_core/engines/engine_upload.h"
 #include "video_core/gpu.h"
 #include "video_core/macro_interpreter.h"
 #include "video_core/textures/texture.h"
@@ -31,6 +32,12 @@ class RasterizerInterface;
 }
 
 namespace Tegra::Engines {
+
+/**
+ * This Engine is known as GF100_3D. Documentation can be found in:
+ * https://github.com/envytools/envytools/blob/master/rnndb/graph/gf100_3d.xml
+ * https://cgit.freedesktop.org/mesa/mesa/tree/src/gallium/drivers/nouveau/nvc0/nvc0_3d.xml.h
+ */
 
 #define MAXWELL3D_REG_INDEX(field_name)                                                            \
     (offsetof(Tegra::Engines::Maxwell3D::Regs, field_name) / sizeof(u32))
@@ -580,7 +587,18 @@ public:
                     u32 bind;
                 } macros;
 
-                INSERT_PADDING_WORDS(0x69);
+                INSERT_PADDING_WORDS(0x17);
+
+                Upload::Registers upload;
+                struct {
+                    union {
+                        BitField<0, 1, u32> linear;
+                    };
+                } exec_upload;
+
+                u32 data_upload;
+
+                INSERT_PADDING_WORDS(0x44);
 
                 struct {
                     union {
@@ -1176,6 +1194,8 @@ private:
     /// Interpreter for the macro codes uploaded to the GPU.
     MacroInterpreter macro_interpreter;
 
+    Upload::State upload_state;
+
     /// Retrieves information about a specific TIC entry from the TIC buffer.
     Texture::TICEntry GetTICEntry(u32 tic_index) const;
 
@@ -1219,6 +1239,9 @@ private:
                   "Field " #field_name " has invalid position")
 
 ASSERT_REG_POSITION(macros, 0x45);
+ASSERT_REG_POSITION(upload, 0x60);
+ASSERT_REG_POSITION(exec_upload, 0x6C);
+ASSERT_REG_POSITION(data_upload, 0x6D);
 ASSERT_REG_POSITION(sync_info, 0xB2);
 ASSERT_REG_POSITION(tfb_enabled, 0x1D1);
 ASSERT_REG_POSITION(rt, 0x200);
