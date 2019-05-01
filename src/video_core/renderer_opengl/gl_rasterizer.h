@@ -73,6 +73,10 @@ public:
     static_assert(MaxConstbufferSize % sizeof(GLvec4) == 0,
                   "The maximum size of a constbuffer must be a multiple of the size of GLvec4");
 
+    const Device& GetDevice() const {
+        return device;
+    }
+
 private:
     struct FramebufferConfigState {
         bool using_color_fb{};
