@@ -46,7 +46,7 @@ public:
     /// Reloads the global region from guest memory
     void Reload(u32 size_);
 
-    void Flush() override;
+    void Flush();
 
 private:
     VAddr cpu_addr{};
@@ -64,6 +64,11 @@ public:
     /// Gets the current specified shader stage program
     GlobalRegion GetGlobalRegion(const GLShader::GlobalMemoryEntry& descriptor,
                                  Tegra::Engines::Maxwell3D::Regs::ShaderStage stage);
+
+protected:
+    void FlushObjectInner(const GlobalRegion& object) override {
+        object->Flush();
+    }
 
 private:
     GlobalRegion TryGetReservedGlobalRegion(CacheAddr addr, u32 size) const;
