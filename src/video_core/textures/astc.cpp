@@ -1616,6 +1616,7 @@ namespace Tegra::Texture::ASTC {
 std::vector<uint8_t> Decompress(const uint8_t* data, uint32_t width, uint32_t height,
                                 uint32_t depth, uint32_t block_width, uint32_t block_height) {
     uint32_t blockIdx = 0;
+    std::size_t depth_offset = 0;
     std::vector<uint8_t> outData(height * width * depth * 4);
     for (uint32_t k = 0; k < depth; k++) {
         for (uint32_t j = 0; j < height; j += block_height) {
@@ -1630,7 +1631,7 @@ std::vector<uint8_t> Decompress(const uint8_t* data, uint32_t width, uint32_t he
                 uint32_t decompWidth = std::min(block_width, width - i);
                 uint32_t decompHeight = std::min(block_height, height - j);
 
-                uint8_t* outRow = outData.data() + (j * width + i) * 4;
+                uint8_t* outRow = depth_offset + outData.data() + (j * width + i) * 4;
                 for (uint32_t jj = 0; jj < decompHeight; jj++) {
                     memcpy(outRow + jj * width * 4, uncompData + jj * block_width, decompWidth * 4);
                 }
@@ -1638,6 +1639,7 @@ std::vector<uint8_t> Decompress(const uint8_t* data, uint32_t width, uint32_t he
                 blockIdx++;
             }
         }
+        depth_offset += height * width * 4;
     }
 
     return outData;
