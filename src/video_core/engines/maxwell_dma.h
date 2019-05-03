@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstddef>
+#include <vector>
 #include "common/bit_field.h"
 #include "common/common_funcs.h"
 #include "common/common_types.h"
@@ -24,6 +25,11 @@ class RasterizerInterface;
 }
 
 namespace Tegra::Engines {
+
+/**
+ * This Engine is known as GK104_Copy. Documentation can be found in:
+ * https://github.com/envytools/envytools/blob/master/rnndb/fifo/gk104_copy.xml
+ */
 
 class MaxwellDMA final {
 public:
@@ -62,6 +68,16 @@ public:
         };
 
         static_assert(sizeof(Parameters) == 24, "Parameters has wrong size");
+
+        enum class ComponentMode : u32 {
+            Src0 = 0,
+            Src1 = 1,
+            Src2 = 2,
+            Src3 = 3,
+            Const0 = 4,
+            Const1 = 5,
+            Zero = 6,
+        };
 
         enum class CopyMode : u32 {
             None = 0,
@@ -128,7 +144,26 @@ public:
                 u32 x_count;
                 u32 y_count;
 
-                INSERT_PADDING_WORDS(0xBB);
+                INSERT_PADDING_WORDS(0xB8);
+
+                u32 const0;
+                u32 const1;
+                union {
+                    BitField<0, 4, ComponentMode> component0;
+                    BitField<4, 4, ComponentMode> component1;
+                    BitField<8, 4, ComponentMode> component2;
+                    BitField<12, 4, ComponentMode> component3;
+                    BitField<16, 2, u32> component_size;
+                    BitField<20, 3, u32> src_num_components;
+                    BitField<24, 3, u32> dst_num_components;
+
+                    u32 SrcBytePerPixel() const {
+                        return src_num_components.Value() * component_size.Value();
+                    }
+                    u32 DstBytePerPixel() const {
+                        return dst_num_components.Value() * component_size.Value();
+                    }
+                } swizzle_config;
 
                 Parameters dst_params;
 
@@ -149,6 +184,9 @@ private:
 
     MemoryManager& memory_manager;
 
+    std::vector<u8> read_buffer;
+    std::vector<u8> write_buffer;
+
     /// Performs the copy from the source buffer to the destination buffer as configured in the
     /// registers.
     void HandleCopy();
@@ -165,6 +203,9 @@ ASSERT_REG_POSITION(src_pitch, 0x104);
 ASSERT_REG_POSITION(dst_pitch, 0x105);
 ASSERT_REG_POSITION(x_count, 0x106);
 ASSERT_REG_POSITION(y_count, 0x107);
+ASSERT_REG_POSITION(const0, 0x1C0);
+ASSERT_REG_POSITION(const1, 0x1C1);
+ASSERT_REG_POSITION(swizzle_config, 0x1C2);
 ASSERT_REG_POSITION(dst_params, 0x1C3);
 ASSERT_REG_POSITION(src_params, 0x1CA);
 
