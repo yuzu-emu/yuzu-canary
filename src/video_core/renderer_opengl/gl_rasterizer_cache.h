@@ -501,6 +501,8 @@ private:
                      const GLuint copy_pbo_handle, const GLenum src_attachment = 0,
                      const GLenum dst_attachment = 0, const std::size_t cubemap_face = 0);
 
+    RasterizerOpenGL& rasterizer;
+
     /// The surface reserve is a "backup" cache, this is where we put unique surfaces that have
     /// previously been used. This is to prevent surfaces from being constantly created and
     /// destroyed when used with different surface parameters.
