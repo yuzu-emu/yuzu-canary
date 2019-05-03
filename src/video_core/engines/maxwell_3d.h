@@ -51,6 +51,7 @@ public:
         static constexpr std::size_t NumCBData = 16;
         static constexpr std::size_t NumVertexArrays = 32;
         static constexpr std::size_t NumVertexAttributes = 32;
+        static constexpr std::size_t NumVaryings = 31;
         static constexpr std::size_t NumTextureSamplers = 32;
         static constexpr std::size_t NumClipDistances = 8;
         static constexpr std::size_t MaxShaderProgram = 6;
