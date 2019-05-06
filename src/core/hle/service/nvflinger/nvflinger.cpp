@@ -27,7 +27,7 @@
 namespace Service::NVFlinger {
 
 constexpr s64 frame_ticks = static_cast<s64>(Core::Timing::BASE_CLOCK_RATE / 60);
-constexpr s64 frame_ticks_30fps = static_cast<s64>(Core::Timing::BASE_CLOCK_RATE / 30);
+constexpr s64 frame_ticks_30fps = static_cast<s64>(Core::Timing::BASE_CLOCK_RATE / fps_mode);
 
 NVFlinger::NVFlinger(Core::Timing::CoreTiming& core_timing) : core_timing{core_timing} {
     displays.emplace_back(0, "Default");

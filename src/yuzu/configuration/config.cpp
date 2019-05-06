@@ -397,6 +397,7 @@ void Config::ReadValues() {
     Settings::values.use_asynchronous_gpu_emulation =
         ReadSetting("use_asynchronous_gpu_emulation", false).toBool();
     Settings::values.force_30fps_mode = ReadSetting("force_30fps_mode", false).toBool();
+    Settings::values.fps_mode = ReadSetting("fps_mode", 60).toInt();
 
     Settings::values.bg_red = ReadSetting("bg_red", 0.0).toFloat();
     Settings::values.bg_green = ReadSetting("bg_green", 0.0).toFloat();
@@ -669,6 +670,7 @@ void Config::SaveValues() {
     WriteSetting("use_asynchronous_gpu_emulation", Settings::values.use_asynchronous_gpu_emulation,
                  false);
     WriteSetting("force_30fps_mode", Settings::values.force_30fps_mode, false);
+    WriteSetting("fps_mode", Settings::values.fps_mode, 60);
 
     // Cast to double because Qt's written float values are not human-readable
     WriteSetting("bg_red", (double)Settings::values.bg_red, 0.0);
