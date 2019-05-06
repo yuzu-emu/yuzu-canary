@@ -14,9 +14,8 @@
 
 namespace Tegra::Engines {
 
-KeplerMemory::KeplerMemory(Core::System& system, VideoCore::RasterizerInterface& rasterizer,
-                           MemoryManager& memory_manager)
-    : system{system}, rasterizer{rasterizer}, memory_manager{memory_manager} {}
+KeplerMemory::KeplerMemory(Core::System& system, MemoryManager& memory_manager)
+    : system{system}, memory_manager{memory_manager}, upload_state{memory_manager, regs.upload} {}
 
 KeplerMemory::~KeplerMemory() = default;
 
@@ -28,45 +27,17 @@ void KeplerMemory::CallMethod(const GPU::MethodCall& method_call) {
 
     switch (method_call.method) {
     case KEPLERMEMORY_REG_INDEX(exec): {
-        ProcessExec();
+        upload_state.ProcessExec(regs.exec.linear != 0);
         break;
     }
     case KEPLERMEMORY_REG_INDEX(data): {
-        ProcessData(method_call.argument, method_call.IsLastCall());
+        const bool is_last_call = method_call.IsLastCall();
+        upload_state.ProcessData(method_call.argument, is_last_call);
+        if (is_last_call) {
+            system.GPU().Maxwell3D().dirty_flags.OnMemoryWrite();
+        }
         break;
     }
-    }
-}
-
-void KeplerMemory::ProcessExec() {
-    state.write_offset = 0;
-    state.copy_size = regs.line_length_in * regs.line_count;
-    state.inner_buffer.resize(state.copy_size);
-}
-
-void KeplerMemory::ProcessData(u32 data, bool is_last_call) {
-    const u32 sub_copy_size = std::min(4U, state.copy_size - state.write_offset);
-    std::memcpy(&state.inner_buffer[state.write_offset], &regs.data, sub_copy_size);
-    state.write_offset += sub_copy_size;
-    if (is_last_call) {
-        const GPUVAddr address{regs.dest.Address()};
-        if (regs.exec.linear != 0) {
-            memory_manager.WriteBlock(address, state.inner_buffer.data(), state.copy_size);
-        } else {
-            UNIMPLEMENTED_IF(regs.dest.z != 0);
-            UNIMPLEMENTED_IF(regs.dest.depth != 1);
-            UNIMPLEMENTED_IF(regs.dest.BlockWidth() != 1);
-            UNIMPLEMENTED_IF(regs.dest.BlockDepth() != 1);
-            const std::size_t dst_size = Tegra::Texture::CalculateSize(
-                true, 1, regs.dest.width, regs.dest.height, 1, regs.dest.BlockHeight(), 1);
-            std::vector<u8> tmp_buffer(dst_size);
-            memory_manager.ReadBlock(address, tmp_buffer.data(), dst_size);
-            Tegra::Texture::SwizzleKepler(regs.dest.width, regs.dest.height, regs.dest.x,
-                                          regs.dest.y, regs.dest.BlockHeight(), state.copy_size,
-                                          state.inner_buffer.data(), tmp_buffer.data());
-            memory_manager.WriteBlock(address, tmp_buffer.data(), dst_size);
-        }
-        system.GPU().Maxwell3D().dirty_flags.OnMemoryWrite();
     }
 }
 
