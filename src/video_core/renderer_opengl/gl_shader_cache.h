@@ -57,9 +57,6 @@ public:
         return shader_length;
     }
 
-    // We do not have to flush this cache as things in it are never modified by us.
-    void Flush() override {}
-
     /// Gets the shader entries for the shader
     const GLShader::ShaderEntries& GetShaderEntries() const {
         return entries;
@@ -122,6 +119,10 @@ public:
 
     /// Gets the current specified shader stage program
     Shader GetStageProgram(Maxwell::ShaderProgram program);
+
+protected:
+    // We do not have to flush this cache as things in it are never modified by us.
+    void FlushObjectInner(const Shader& object) override {}
 
 private:
     std::unordered_map<u64, UnspecializedShader> GenerateUnspecializedShaders(
