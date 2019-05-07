@@ -7,16 +7,16 @@ include(DownloadExternals)
 add_library(catch-single-include INTERFACE)
 target_include_directories(catch-single-include INTERFACE catch/single_include)
 
+# libfmt
+add_subdirectory(fmt)
+add_library(fmt::fmt ALIAS fmt)
+
 # Dynarmic
 if (ARCHITECTURE_x86_64)
     set(DYNARMIC_TESTS OFF)
     set(DYNARMIC_NO_BUNDLED_FMT ON)
     add_subdirectory(dynarmic)
 endif()
-
-# libfmt
-add_subdirectory(fmt)
-add_library(fmt::fmt ALIAS fmt)
 
 # getopt
 if (MSVC)
