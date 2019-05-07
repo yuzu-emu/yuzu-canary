@@ -475,7 +475,10 @@ void ShaderDiskCacheOpenGL::SaveUsage(const ShaderDiskCacheUsage& usage) {
     ASSERT_MSG(it != transferable.end(), "Saving shader usage without storing raw previously");
 
     auto& usages{it->second};
-    ASSERT(usages.find(usage) == usages.end());
+    if (usages.find(usage) != usages.end()) {
+        // Skip this variant since the shader is already stored.
+        return;
+    }
     usages.insert(usage);
 
     FileUtil::IOFile file = AppendTransferableFile();
