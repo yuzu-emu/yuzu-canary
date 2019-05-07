@@ -1,3 +1,30 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: c63e68c48015bf9dff5ef53b0f14d18e7e214107
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2443](https://github.com/yuzu-emu/yuzu/pull/2443)|[4aa081b](https://github.com/yuzu-emu/yuzu/pull/2443/files/)|gl_shader_disk_cache: Skip stored shader variants instead of asserting|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2442](https://github.com/yuzu-emu/yuzu/pull/2442)|[9526163](https://github.com/yuzu-emu/yuzu/pull/2442/files/)|Fix Layered ASTC Textures|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2441](https://github.com/yuzu-emu/yuzu/pull/2441)|[d4df803](https://github.com/yuzu-emu/yuzu/pull/2441/files/)|shader: Implement AL2P and ALD.PHYS|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2440](https://github.com/yuzu-emu/yuzu/pull/2440)|[0964444](https://github.com/yuzu-emu/yuzu/pull/2440/files/)|externals: Update dynarmic to master|[lioncash](https://github.com/lioncash)|Yes|
+|[2439](https://github.com/yuzu-emu/yuzu/pull/2439)|[2bcb8a2](https://github.com/yuzu-emu/yuzu/pull/2439/files/)|service/audren_u: Get rid of magic values within GetAudioRendererWorkBufferSize|[lioncash](https://github.com/lioncash)|Yes|
+|[2429](https://github.com/yuzu-emu/yuzu/pull/2429)|[e64c41e](https://github.com/yuzu-emu/yuzu/pull/2429/files/)|Corrections and Implementation on GPU Engines|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2413](https://github.com/yuzu-emu/yuzu/pull/2413)|[4c36b78](https://github.com/yuzu-emu/yuzu/pull/2413/files/)|Rasterizer Cache: refactor flushing & optimize memory usage of surfaces|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2365](https://github.com/yuzu-emu/yuzu/pull/2365)|[4ddddbe](https://github.com/yuzu-emu/yuzu/pull/2365/files/)|DO NOT MERGE: Workaround to Mutex Corruption|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2135](https://github.com/yuzu-emu/yuzu/pull/2135)|[2677cc8](https://github.com/yuzu-emu/yuzu/pull/2135/files/)|DO NOT MERGE Implemented a lil edge case on RecreateSurface.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|[DO NOT MERGE] nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1340](https://github.com/yuzu-emu/yuzu/pull/1340)|[5c638a6](https://github.com/yuzu-emu/yuzu/pull/1340/files/)|Implement a Better Ignore Assert - DO NOT CHECK IN|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
