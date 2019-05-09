@@ -49,9 +49,6 @@ public:
         return alignment;
     }
 
-    // We do not have to flush this cache as things in it are never modified by us.
-    void Flush() override {}
-
 private:
     VAddr cpu_addr{};
     std::size_t size{};
@@ -86,6 +83,10 @@ public:
     vk::Buffer GetBuffer() const {
         return buffer_handle;
     }
+
+protected:
+    // We do not have to flush this cache as things in it are never modified by us.
+    void FlushObjectInner(const std::shared_ptr<CachedBufferEntry>& object) override {}
 
 private:
     void AlignBuffer(std::size_t alignment);
