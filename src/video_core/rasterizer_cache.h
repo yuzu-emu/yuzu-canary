@@ -37,9 +37,6 @@ public:
     /// Gets the size of the shader in guest memory, required for cache management
     virtual std::size_t GetSizeInBytes() const = 0;
 
-    /// Wriets any cached resources back to memory
-    virtual void Flush() = 0;
-
     /// Sets whether the cached object should be considered registered
     void SetIsRegistered(bool registered) {
         is_registered = registered;
@@ -158,6 +155,8 @@ protected:
         return ++modified_ticks;
     }
 
+    virtual void FlushObjectInner(const T& object) = 0;
+
     /// Flushes the specified object, updating appropriate cache state as needed
     void FlushObject(const T& object) {
         std::lock_guard lock{mutex};
@@ -165,7 +164,7 @@ protected:
         if (!object->IsDirty()) {
             return;
         }
-        object->Flush();
+        FlushObjectInner(object);
         object->MarkAsModified(false, *this);
     }
 
