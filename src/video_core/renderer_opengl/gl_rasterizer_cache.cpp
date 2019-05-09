@@ -628,9 +628,11 @@ CachedSurface::CachedSurface(const SurfaceParams& params)
 }
 
 MICROPROFILE_DEFINE(OpenGL_SurfaceLoad, "OpenGL", "Surface Load", MP_RGB(128, 192, 64));
-void CachedSurface::LoadGLBuffer() {
+void CachedSurface::LoadGLBuffer(RasterizerTemporaryMemory& res_cache_tmp_mem) {
     MICROPROFILE_SCOPE(OpenGL_SurfaceLoad);
-    gl_buffer.resize(params.max_mip_level);
+    auto& gl_buffer = res_cache_tmp_mem.gl_buffer;
+    if (gl_buffer.size() < params.max_mip_level)
+        gl_buffer.resize(params.max_mip_level);
     for (u32 i = 0; i < params.max_mip_level; i++)
         gl_buffer[i].resize(params.GetMipmapSizeGL(i));
     if (params.is_tiled) {
@@ -671,13 +673,13 @@ void CachedSurface::LoadGLBuffer() {
 }
 
 MICROPROFILE_DEFINE(OpenGL_SurfaceFlush, "OpenGL", "Surface Flush", MP_RGB(128, 192, 64));
-void CachedSurface::FlushGLBuffer() {
+void CachedSurface::FlushGLBuffer(RasterizerTemporaryMemory& res_cache_tmp_mem) {
     MICROPROFILE_SCOPE(OpenGL_SurfaceFlush);
 
     ASSERT_MSG(!IsPixelFormatASTC(params.pixel_format), "Unimplemented");
 
+    auto& gl_buffer = res_cache_tmp_mem.gl_buffer;
     // OpenGL temporary buffer needs to be big enough to store raw texture size
-    gl_buffer.resize(1);
     gl_buffer[0].resize(GetSizeInBytes());
 
     const FormatTuple& tuple = GetFormatTuple(params.pixel_format, params.component_type);
@@ -713,9 +715,11 @@ void CachedSurface::FlushGLBuffer() {
     }
 }
 
-void CachedSurface::UploadGLMipmapTexture(u32 mip_map, GLuint read_fb_handle,
-                                          GLuint draw_fb_handle) {
+void CachedSurface::UploadGLMipmapTexture(RasterizerTemporaryMemory& res_cache_tmp_mem, u32 mip_map,
+                                          GLuint read_fb_handle, GLuint draw_fb_handle) {
     const auto& rect{params.GetRect(mip_map)};
+
+    auto& gl_buffer = res_cache_tmp_mem.gl_buffer;
 
     // Load data from memory to the surface
     const auto x0 = static_cast<GLint>(rect.left);
@@ -845,11 +849,12 @@ void CachedSurface::EnsureTextureDiscrepantView() {
 }
 
 MICROPROFILE_DEFINE(OpenGL_TextureUL, "OpenGL", "Texture Upload", MP_RGB(128, 192, 64));
-void CachedSurface::UploadGLTexture(GLuint read_fb_handle, GLuint draw_fb_handle) {
+void CachedSurface::UploadGLTexture(RasterizerTemporaryMemory& res_cache_tmp_mem,
+                                    GLuint read_fb_handle, GLuint draw_fb_handle) {
     MICROPROFILE_SCOPE(OpenGL_TextureUL);
 
     for (u32 i = 0; i < params.max_mip_level; i++)
-        UploadGLMipmapTexture(i, read_fb_handle, draw_fb_handle);
+        UploadGLMipmapTexture(res_cache_tmp_mem, i, read_fb_handle, draw_fb_handle);
 }
 
 void CachedSurface::UpdateSwizzle(Tegra::Texture::SwizzleSource swizzle_x,
@@ -929,8 +934,8 @@ Surface RasterizerCacheOpenGL::GetColorBufferSurface(std::size_t index, bool pre
 }
 
 void RasterizerCacheOpenGL::LoadSurface(const Surface& surface) {
-    surface->LoadGLBuffer();
-    surface->UploadGLTexture(read_framebuffer.handle, draw_framebuffer.handle);
+    surface->LoadGLBuffer(temporal_memory);
+    surface->UploadGLTexture(temporal_memory, read_framebuffer.handle, draw_framebuffer.handle);
     surface->MarkAsModified(false, *this);
     surface->MarkForReload(false);
 }
