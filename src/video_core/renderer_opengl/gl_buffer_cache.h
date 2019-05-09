@@ -42,9 +42,6 @@ public:
         return alignment;
     }
 
-    // We do not have to flush this cache as things in it are never modified by us.
-    void Flush() override {}
-
 private:
     VAddr cpu_addr{};
     std::size_t size{};
@@ -74,6 +71,9 @@ public:
 
 protected:
     void AlignBuffer(std::size_t alignment);
+
+    // We do not have to flush this cache as things in it are never modified by us.
+    void FlushObjectInner(const std::shared_ptr<CachedBufferEntry>& object) override {}
 
 private:
     OGLStreamBuffer stream_buffer;
