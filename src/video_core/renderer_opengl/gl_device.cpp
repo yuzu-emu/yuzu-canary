@@ -21,7 +21,16 @@ T GetInteger(GLenum pname) {
 
 Device::Device() {
     uniform_buffer_alignment = GetInteger<std::size_t>(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
+    max_vertex_attributes = GetInteger<u32>(GL_MAX_VERTEX_ATTRIBS);
+    max_varyings = GetInteger<u32>(GL_MAX_VARYING_VECTORS);
     has_variable_aoffi = TestVariableAoffi();
+}
+
+Device::Device(std::nullptr_t) {
+    uniform_buffer_alignment = 0;
+    max_vertex_attributes = 16;
+    max_varyings = 15;
+    has_variable_aoffi = true;
 }
 
 bool Device::TestVariableAoffi() {
