@@ -194,8 +194,8 @@ public:
         for (const auto& sampler : ir.GetSamplers()) {
             entries.samplers.emplace_back(sampler);
         }
-        for (const auto& attr : ir.GetInputAttributes()) {
-            entries.attributes.insert(GetGenericAttributeLocation(attr.first));
+        for (const auto& attribute : ir.GetInputAttributes()) {
+            entries.attributes.insert(GetGenericAttributeLocation(attribute));
         }
         entries.clip_distances = ir.GetClipDistances();
         entries.shader_length = ir.GetLength();
@@ -321,8 +321,7 @@ private:
     }
 
     void DeclareInputAttributes() {
-        for (const auto element : ir.GetInputAttributes()) {
-            const Attribute::Index index = element.first;
+        for (const auto index : ir.GetInputAttributes()) {
             if (!IsGenericAttribute(index)) {
                 continue;
             }
