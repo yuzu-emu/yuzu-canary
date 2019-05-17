@@ -222,6 +222,7 @@ int main(int argc, char** argv) {
 
     system.TelemetrySession().AddField(Telemetry::FieldType::App, "Frontend", "SDL");
 
+    emu_window->MakeCurrent();
     system.Renderer().Rasterizer().LoadDiskResources();
 
     while (emu_window->IsOpen()) {
