@@ -379,6 +379,7 @@ void GRenderWindow::InitRenderTarget() {
     fmt.setVersion(4, 3);
     if (Settings::values.use_compatibility_profile) {
         fmt.setProfile(QSurfaceFormat::CompatibilityProfile);
+        fmt.setOption(QSurfaceFormat::FormatOption::DeprecatedFunctions);
     } else {
         fmt.setProfile(QSurfaceFormat::CoreProfile);
     }
