@@ -134,6 +134,19 @@ bool IsPrecise(Node node) {
     return false;
 }
 
+constexpr bool IsGenericAttribute(Attribute::Index index) {
+    return index >= Attribute::Index::Attribute_0 && index <= Attribute::Index::Attribute_31;
+}
+
+constexpr Attribute::Index ToGenericAttribute(u32 value) {
+    return static_cast<Attribute::Index>(value + static_cast<u32>(Attribute::Index::Attribute_0));
+}
+
+u32 GetGenericAttributeIndex(Attribute::Index index) {
+    ASSERT(IsGenericAttribute(index));
+    return static_cast<u32>(index) - static_cast<u32>(Attribute::Index::Attribute_0);
+}
+
 class GLSLDecompiler final {
 public:
     explicit GLSLDecompiler(const Device& device, const ShaderIR& ir, ShaderStage stage,
@@ -152,6 +165,7 @@ public:
         DeclareConstantBuffers();
         DeclareGlobalMemory();
         DeclareSamplers();
+        DeclarePhysicalAttributeReader();
 
         code.AddLine("void execute_" + suffix + "() {");
         ++code.scope;
@@ -296,74 +310,93 @@ private:
     }
 
     std::string GetInputFlags(AttributeUse attribute) {
-        std::string out;
-
         switch (attribute) {
-        case AttributeUse::Constant:
-            out += "flat ";
-            break;
-        case AttributeUse::ScreenLinear:
-            out += "noperspective ";
-            break;
         case AttributeUse::Perspective:
             // Default, Smooth
-            break;
+            return {};
+        case AttributeUse::Constant:
+            return "flat ";
+        case AttributeUse::ScreenLinear:
+            return "noperspective ";
         default:
-            LOG_CRITICAL(HW_GPU, "Unused attribute being fetched");
-            UNREACHABLE();
+        case AttributeUse::Unused:
+            UNREACHABLE_MSG("Unused attribute being fetched");
+            return {};
+            UNIMPLEMENTED_MSG("Unknown attribute usage index={}", static_cast<u32>(attribute));
+            return {};
         }
-        return out;
     }
 
     void DeclareInputAttributes() {
+        if (ir.HasPhysicalAttributes()) {
+            const u32 num_inputs{GetNumPhysicalInputAttributes()};
+            for (u32 i = 0; i < num_inputs; ++i) {
+                DeclareInputAttribute(ToGenericAttribute(i), true);
+            }
+            code.AddNewLine();
+            return;
+        }
+
         const auto& attributes = ir.GetInputAttributes();
-        for (const auto element : attributes) {
-            const Attribute::Index index = element.first;
-            if (index < Attribute::Index::Attribute_0 || index > Attribute::Index::Attribute_31) {
-                // Skip when it's not a generic attribute
-                continue;
+        for (const auto index : attributes) {
+            if (IsGenericAttribute(index)) {
+                DeclareInputAttribute(index, false);
             }
-
-            // TODO(bunnei): Use proper number of elements for these
-            u32 idx = static_cast<u32>(index) - static_cast<u32>(Attribute::Index::Attribute_0);
-            if (stage != ShaderStage::Vertex) {
-                // If inputs are varyings, add an offset
-                idx += GENERIC_VARYING_START_LOCATION;
-            }
-
-            std::string attr = GetInputAttribute(index);
-            if (stage == ShaderStage::Geometry) {
-                attr = "gs_" + attr + "[]";
-            }
-            std::string suffix;
-            if (stage == ShaderStage::Fragment) {
-                const auto input_mode =
-                    header.ps.GetAttributeUse(idx - GENERIC_VARYING_START_LOCATION);
-                suffix = GetInputFlags(input_mode);
-            }
-            code.AddLine("layout (location = " + std::to_string(idx) + ") " + suffix + "in vec4 " +
-                         attr + ';');
         }
         if (!attributes.empty())
             code.AddNewLine();
     }
 
+    void DeclareInputAttribute(Attribute::Index index, bool skip_unused) {
+        const u32 generic_index{GetGenericAttributeIndex(index)};
+
+        std::string name{GetInputAttribute(index)};
+        if (stage == ShaderStage::Geometry) {
+            name = "gs_" + name + "[]";
+        }
+
+        std::string suffix;
+        if (stage == ShaderStage::Fragment) {
+            const auto input_mode{header.ps.GetAttributeUse(generic_index)};
+            if (skip_unused && input_mode == AttributeUse::Unused) {
+                return;
+            }
+            suffix = GetInputFlags(input_mode);
+        }
+
+        u32 location = generic_index;
+        if (stage != ShaderStage::Vertex) {
+            // If inputs are varyings, add an offset
+            location += GENERIC_VARYING_START_LOCATION;
+        }
+
+        code.AddLine("layout (location = " + std::to_string(location) + ") " + suffix + "in vec4 " +
+                     name + ';');
+    }
+
     void DeclareOutputAttributes() {
+        if (ir.HasPhysicalAttributes() && stage != ShaderStage::Fragment) {
+            for (u32 i = 0; i < GetNumPhysicalVaryings(); ++i) {
+                DeclareOutputAttribute(ToGenericAttribute(i));
+            }
+            code.AddNewLine();
+            return;
+        }
+
         const auto& attributes = ir.GetOutputAttributes();
         for (const auto index : attributes) {
-            if (index < Attribute::Index::Attribute_0 || index > Attribute::Index::Attribute_31) {
-                // Skip when it's not a generic attribute
-                continue;
+            if (IsGenericAttribute(index)) {
+                DeclareOutputAttribute(index);
             }
-            // TODO(bunnei): Use proper number of elements for these
-            const auto idx = static_cast<u32>(index) -
-                             static_cast<u32>(Attribute::Index::Attribute_0) +
-                             GENERIC_VARYING_START_LOCATION;
-            code.AddLine("layout (location = " + std::to_string(idx) + ") out vec4 " +
-                         GetOutputAttribute(index) + ';');
         }
         if (!attributes.empty())
             code.AddNewLine();
+    }
+
+    void DeclareOutputAttribute(Attribute::Index index) {
+        const u32 location{GetGenericAttributeIndex(index) + GENERIC_VARYING_START_LOCATION};
+        code.AddLine("layout (location = " + std::to_string(location) + ") out vec4 " +
+                     GetOutputAttribute(index) + ';');
     }
 
     void DeclareConstantBuffers() {
@@ -429,6 +462,39 @@ private:
             code.AddNewLine();
     }
 
+    void DeclarePhysicalAttributeReader() {
+        if (!ir.HasPhysicalAttributes()) {
+            return;
+        }
+        code.AddLine("float readPhysicalAttribute(uint physical_address) {");
+        ++code.scope;
+        code.AddLine("switch (physical_address) {");
+
+        // Just declare generic attributes for now.
+        const auto num_attributes{static_cast<u32>(GetNumPhysicalInputAttributes())};
+        for (u32 index = 0; index < num_attributes; ++index) {
+            const auto attribute{ToGenericAttribute(index)};
+            for (u32 element = 0; element < 4; ++element) {
+                constexpr u32 generic_base{0x80};
+                constexpr u32 generic_stride{16};
+                constexpr u32 element_stride{4};
+                const u32 address{generic_base + index * generic_stride + element * element_stride};
+
+                const bool declared{stage != ShaderStage::Fragment ||
+                                    header.ps.GetAttributeUse(index) != AttributeUse::Unused};
+                const std::string value{declared ? ReadAttribute(attribute, element) : "0"};
+                code.AddLine(fmt::format("case 0x{:x}: return {};", address, value));
+            }
+        }
+
+        code.AddLine("default: return 0;");
+
+        code.AddLine('}');
+        --code.scope;
+        code.AddLine('}');
+        code.AddNewLine();
+    }
+
     void VisitBlock(const NodeBlock& bb) {
         for (const Node node : bb) {
             if (const std::string expr = Visit(node); !expr.empty()) {
@@ -483,70 +549,12 @@ private:
             return value;
 
         } else if (const auto abuf = std::get_if<AbufNode>(node)) {
-            const auto attribute = abuf->GetIndex();
-            const auto element = abuf->GetElement();
-
-            const auto GeometryPass = [&](const std::string& name) {
-                if (stage == ShaderStage::Geometry && abuf->GetBuffer()) {
-                    // TODO(Rodrigo): Guard geometry inputs against out of bound reads. Some games
-                    // set an 0x80000000 index for those and the shader fails to build. Find out why
-                    // this happens and what's its intent.
-                    return "gs_" + name + "[ftou(" + Visit(abuf->GetBuffer()) +
-                           ") % MAX_VERTEX_INPUT]";
-                }
-                return name;
-            };
-
-            switch (attribute) {
-            case Attribute::Index::Position:
-                if (stage != ShaderStage::Fragment) {
-                    return GeometryPass("position") + GetSwizzle(element);
-                } else {
-                    return element == 3 ? "1.0f" : "gl_FragCoord" + GetSwizzle(element);
-                }
-            case Attribute::Index::PointCoord:
-                switch (element) {
-                case 0:
-                    return "gl_PointCoord.x";
-                case 1:
-                    return "gl_PointCoord.y";
-                case 2:
-                case 3:
-                    return "0";
-                }
-                UNREACHABLE();
-                return "0";
-            case Attribute::Index::TessCoordInstanceIDVertexID:
-                // TODO(Subv): Find out what the values are for the first two elements when inside a
-                // vertex shader, and what's the value of the fourth element when inside a Tess Eval
-                // shader.
-                ASSERT(stage == ShaderStage::Vertex);
-                switch (element) {
-                case 2:
-                    // Config pack's first value is instance_id.
-                    return "uintBitsToFloat(config_pack[0])";
-                case 3:
-                    return "uintBitsToFloat(gl_VertexID)";
-                }
-                UNIMPLEMENTED_MSG("Unmanaged TessCoordInstanceIDVertexID element={}", element);
-                return "0";
-            case Attribute::Index::FrontFacing:
-                // TODO(Subv): Find out what the values are for the other elements.
-                ASSERT(stage == ShaderStage::Fragment);
-                switch (element) {
-                case 3:
-                    return "itof(gl_FrontFacing ? -1 : 0)";
-                }
-                UNIMPLEMENTED_MSG("Unmanaged FrontFacing element={}", element);
-                return "0";
-            default:
-                if (attribute >= Attribute::Index::Attribute_0 &&
-                    attribute <= Attribute::Index::Attribute_31) {
-                    return GeometryPass(GetInputAttribute(attribute)) + GetSwizzle(element);
-                }
-                break;
+            UNIMPLEMENTED_IF_MSG(abuf->IsPhysicalBuffer() && stage == ShaderStage::Geometry,
+                                 "Physical attributes in geometry shaders are not implemented");
+            if (abuf->IsPhysicalBuffer()) {
+                return "readPhysicalAttribute(ftou(" + Visit(abuf->GetPhysicalAddress()) + "))";
             }
-            UNIMPLEMENTED_MSG("Unhandled input attribute: {}", static_cast<u32>(attribute));
+            return ReadAttribute(abuf->GetIndex(), abuf->GetElement(), abuf->GetBuffer());
 
         } else if (const auto cbuf = std::get_if<CbufNode>(node)) {
             const Node offset = cbuf->GetOffset();
@@ -596,6 +604,69 @@ private:
         }
         UNREACHABLE();
         return {};
+    }
+
+    std::string ReadAttribute(Attribute::Index attribute, u32 element, Node buffer = {}) {
+        const auto GeometryPass = [&](std::string name) {
+            if (stage == ShaderStage::Geometry && buffer) {
+                // TODO(Rodrigo): Guard geometry inputs against out of bound reads. Some games
+                // set an 0x80000000 index for those and the shader fails to build. Find out why
+                // this happens and what's its intent.
+                return "gs_" + std::move(name) + "[ftou(" + Visit(buffer) + ") % MAX_VERTEX_INPUT]";
+            }
+            return name;
+        };
+
+        switch (attribute) {
+        case Attribute::Index::Position:
+            if (stage != ShaderStage::Fragment) {
+                return GeometryPass("position") + GetSwizzle(element);
+            } else {
+                return element == 3 ? "1.0f" : "gl_FragCoord" + GetSwizzle(element);
+            }
+        case Attribute::Index::PointCoord:
+            switch (element) {
+            case 0:
+                return "gl_PointCoord.x";
+            case 1:
+                return "gl_PointCoord.y";
+            case 2:
+            case 3:
+                return "0";
+            }
+            UNREACHABLE();
+            return "0";
+        case Attribute::Index::TessCoordInstanceIDVertexID:
+            // TODO(Subv): Find out what the values are for the first two elements when inside a
+            // vertex shader, and what's the value of the fourth element when inside a Tess Eval
+            // shader.
+            ASSERT(stage == ShaderStage::Vertex);
+            switch (element) {
+            case 2:
+                // Config pack's first value is instance_id.
+                return "uintBitsToFloat(config_pack[0])";
+            case 3:
+                return "uintBitsToFloat(gl_VertexID)";
+            }
+            UNIMPLEMENTED_MSG("Unmanaged TessCoordInstanceIDVertexID element={}", element);
+            return "0";
+        case Attribute::Index::FrontFacing:
+            // TODO(Subv): Find out what the values are for the other elements.
+            ASSERT(stage == ShaderStage::Fragment);
+            switch (element) {
+            case 3:
+                return "itof(gl_FrontFacing ? -1 : 0)";
+            }
+            UNIMPLEMENTED_MSG("Unmanaged FrontFacing element={}", element);
+            return "0";
+        default:
+            if (IsGenericAttribute(attribute)) {
+                return GeometryPass(GetInputAttribute(attribute)) + GetSwizzle(element);
+            }
+            break;
+        }
+        UNIMPLEMENTED_MSG("Unhandled input attribute: {}", static_cast<u32>(attribute));
+        return "0";
     }
 
     std::string ApplyPrecise(Operation operation, const std::string& value) {
@@ -833,6 +904,8 @@ private:
             target = GetRegister(gpr->GetIndex());
 
         } else if (const auto abuf = std::get_if<AbufNode>(dest)) {
+            UNIMPLEMENTED_IF(abuf->IsPhysicalBuffer());
+
             target = [&]() -> std::string {
                 switch (const auto attribute = abuf->GetIndex(); abuf->GetIndex()) {
                 case Attribute::Index::Position:
@@ -844,8 +917,7 @@ private:
                 case Attribute::Index::ClipDistances4567:
                     return "gl_ClipDistance[" + std::to_string(abuf->GetElement() + 4) + ']';
                 default:
-                    if (attribute >= Attribute::Index::Attribute_0 &&
-                        attribute <= Attribute::Index::Attribute_31) {
+                    if (IsGenericAttribute(attribute)) {
                         return GetOutputAttribute(attribute) + GetSwizzle(abuf->GetElement());
                     }
                     UNIMPLEMENTED_MSG("Unhandled output attribute: {}",
@@ -1591,15 +1663,11 @@ private:
     }
 
     std::string GetInputAttribute(Attribute::Index attribute) const {
-        const auto index{static_cast<u32>(attribute) -
-                         static_cast<u32>(Attribute::Index::Attribute_0)};
-        return GetDeclarationWithSuffix(index, "input_attr");
+        return GetDeclarationWithSuffix(GetGenericAttributeIndex(attribute), "input_attr");
     }
 
     std::string GetOutputAttribute(Attribute::Index attribute) const {
-        const auto index{static_cast<u32>(attribute) -
-                         static_cast<u32>(Attribute::Index::Attribute_0)};
-        return GetDeclarationWithSuffix(index, "output_attr");
+        return GetDeclarationWithSuffix(GetGenericAttributeIndex(attribute), "output_attr");
     }
 
     std::string GetConstBuffer(u32 index) const {
@@ -1638,6 +1706,19 @@ private:
 
     std::string GetDeclarationWithSuffix(u32 index, const std::string& name) const {
         return name + '_' + std::to_string(index) + '_' + suffix;
+    }
+
+    u32 GetNumPhysicalInputAttributes() const {
+        return stage == ShaderStage::Vertex ? GetNumPhysicalAttributes() : GetNumPhysicalVaryings();
+    }
+
+    u32 GetNumPhysicalAttributes() const {
+        return std::min<u32>(device.GetMaxVertexAttributes(), Maxwell::NumVertexAttributes);
+    }
+
+    u32 GetNumPhysicalVaryings() const {
+        return std::min<u32>(device.GetMaxVaryings() - GENERIC_VARYING_START_LOCATION,
+                             Maxwell::NumVaryings);
     }
 
     const Device& device;
