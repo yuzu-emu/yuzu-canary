@@ -456,17 +456,14 @@ private:
 /// Attribute buffer memory (known as attributes or varyings in GLSL terms)
 class AbufNode final {
 public:
-    explicit constexpr AbufNode(Tegra::Shader::Attribute::Index index, u32 element,
-                                const Tegra::Shader::IpaMode& input_mode, Node buffer = {})
-        : input_mode{input_mode}, buffer{buffer}, index{index}, element{element} {}
-
+    // Initialize for standard attributes (index is explicit).
     explicit constexpr AbufNode(Tegra::Shader::Attribute::Index index, u32 element,
                                 Node buffer = {})
-        : input_mode{}, buffer{buffer}, index{index}, element{element} {}
+        : buffer{buffer}, index{index}, element{element} {}
 
-    Tegra::Shader::IpaMode GetInputMode() const {
-        return input_mode;
-    }
+    // Initialize for physical attributes (index is a variable value).
+    explicit constexpr AbufNode(Node physical_address, Node buffer = {})
+        : physical_address{physical_address}, buffer{buffer} {}
 
     Tegra::Shader::Attribute::Index GetIndex() const {
         return index;
@@ -480,11 +477,19 @@ public:
         return buffer;
     }
 
+    bool IsPhysicalBuffer() const {
+        return physical_address != nullptr;
+    }
+
+    Node GetPhysicalAddress() const {
+        return physical_address;
+    }
+
 private:
-    const Tegra::Shader::IpaMode input_mode;
-    const Node buffer;
-    const Tegra::Shader::Attribute::Index index;
-    const u32 element;
+    Node physical_address{};
+    Node buffer{};
+    Tegra::Shader::Attribute::Index index{};
+    u32 element{};
 };
 
 /// Constant buffer node, usually mapped to uniform buffers in GLSL
@@ -573,8 +578,7 @@ public:
         return used_predicates;
     }
 
-    const std::map<Tegra::Shader::Attribute::Index, std::set<Tegra::Shader::IpaMode>>&
-    GetInputAttributes() const {
+    const std::set<Tegra::Shader::Attribute::Index>& GetInputAttributes() const {
         return used_input_attributes;
     }
 
@@ -601,6 +605,10 @@ public:
 
     std::size_t GetLength() const {
         return static_cast<std::size_t>(coverage_end * sizeof(u64));
+    }
+
+    bool HasPhysicalAttributes() const {
+        return uses_physical_attributes;
     }
 
     const Tegra::Shader::Header& GetHeader() const {
@@ -684,8 +692,9 @@ private:
     /// Generates a predicate node for an immediate true or false value
     Node GetPredicate(bool immediate);
     /// Generates a node representing an input attribute. Keeps track of used attributes.
-    Node GetInputAttribute(Tegra::Shader::Attribute::Index index, u64 element,
-                           const Tegra::Shader::IpaMode& input_mode, Node buffer = {});
+    Node GetInputAttribute(Tegra::Shader::Attribute::Index index, u64 element, Node buffer = {});
+    /// Generates a node representing a physical input attribute.
+    Node GetPhysicalInputAttribute(Tegra::Shader::Register physical_address, Node buffer = {});
     /// Generates a node representing an output attribute. Keeps track of used attributes.
     Node GetOutputAttribute(Tegra::Shader::Attribute::Index index, u64 element, Node buffer);
     /// Generates a node representing an internal flag
@@ -859,13 +868,13 @@ private:
 
     std::set<u32> used_registers;
     std::set<Tegra::Shader::Pred> used_predicates;
-    std::map<Tegra::Shader::Attribute::Index, std::set<Tegra::Shader::IpaMode>>
-        used_input_attributes;
+    std::set<Tegra::Shader::Attribute::Index> used_input_attributes;
     std::set<Tegra::Shader::Attribute::Index> used_output_attributes;
     std::map<u32, ConstBuffer> used_cbufs;
     std::set<Sampler> used_samplers;
     std::array<bool, Tegra::Engines::Maxwell3D::Regs::NumClipDistances> used_clip_distances{};
     std::map<GlobalMemoryBase, GlobalMemoryUsage> used_global_memory;
+    bool uses_physical_attributes{}; // Shader uses AL2P or physical attribute read/writes
 
     Tegra::Shader::Header header;
 };
