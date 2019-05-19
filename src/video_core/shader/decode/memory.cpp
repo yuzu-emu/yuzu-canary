@@ -12,6 +12,8 @@
 #include "video_core/engines/shader_bytecode.h"
 #include "video_core/shader/shader_ir.h"
 
+#pragma optimize("", off)
+
 namespace VideoCommon::Shader {
 
 using Tegra::Shader::Attribute;
@@ -47,17 +49,20 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
                              "Indirect attribute loads are not supported");
         UNIMPLEMENTED_IF_MSG((instr.attribute.fmt20.immediate.Value() % sizeof(u32)) != 0,
                              "Unaligned attribute loads are not supported");
+        UNIMPLEMENTED_IF_MSG(instr.attribute.fmt20.IsPhysical() &&
+                                 instr.attribute.fmt20.size != Tegra::Shader::AttributeSize::Word,
+                             "Non-32 bits PHYS reads are not implemented");
 
-        Tegra::Shader::IpaMode input_mode{Tegra::Shader::IpaInterpMode::Pass,
-                                          Tegra::Shader::IpaSampleMode::Default};
+        const Node buffer{GetRegister(instr.gpr39)};
 
         u64 next_element = instr.attribute.fmt20.element;
         auto next_index = static_cast<u64>(instr.attribute.fmt20.index.Value());
 
         const auto LoadNextElement = [&](u32 reg_offset) {
-            const Node buffer = GetRegister(instr.gpr39);
-            const Node attribute = GetInputAttribute(static_cast<Attribute::Index>(next_index),
-                                                     next_element, input_mode, buffer);
+            const Node attribute{instr.attribute.fmt20.IsPhysical()
+                                     ? GetPhysicalInputAttribute(instr.gpr8, buffer)
+                                     : GetInputAttribute(static_cast<Attribute::Index>(next_index),
+                                                         next_element, buffer)};
 
             SetRegister(bb, instr.gpr0.Value() + reg_offset, attribute);
 
@@ -237,6 +242,21 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
             UNIMPLEMENTED_MSG("ST_L Unhandled type: {}",
                               static_cast<u32>(instr.ldst_sl.type.Value()));
         }
+        break;
+    }
+    case OpCode::Id::AL2P: {
+        // Ignore al2p.direction since we don't care about it.
+
+        // Calculate emulation fake physical address.
+        const Node fixed_address{Immediate(static_cast<u32>(instr.al2p.address))};
+        const Node reg{GetRegister(instr.gpr8)};
+        const Node fake_address{Operation(OperationCode::IAdd, NO_PRECISE, reg, fixed_address)};
+
+        // Set the fake address to target register.
+        SetRegister(bb, instr.gpr0, fake_address);
+
+        // Signal the shader IR to declare all possible attributes and varyings
+        uses_physical_attributes = true;
         break;
     }
     default:
