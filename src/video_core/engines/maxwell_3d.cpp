@@ -442,7 +442,7 @@ Texture::TICEntry Maxwell3D::GetTICEntry(u32 tic_index) const {
     const auto a_type = tic_entry.a_type.Value();
 
     // TODO(Subv): Different data types for separate components are not supported
-    ASSERT(r_type == g_type && r_type == b_type && r_type == a_type);
+    DEBUG_ASSERT(r_type == g_type && r_type == b_type && r_type == a_type);
 
     return tic_entry;
 }
