@@ -98,6 +98,10 @@ union Attribute {
         BitField<22, 2, u64> element;
         BitField<24, 6, Index> index;
         BitField<47, 3, AttributeSize> size;
+
+        bool IsPhysical() const {
+            return element == 0 && static_cast<u64>(index.Value()) == 0;
+        }
     } fmt20;
 
     union {
@@ -499,6 +503,11 @@ enum class SystemVariable : u64 {
     CircularQueueEntryAddressHigh = 0x63,
 };
 
+enum class PhysicalAttributeDirection : u64 {
+    Input = 0,
+    Output = 1,
+};
+
 union Instruction {
     Instruction& operator=(const Instruction& instr) {
         value = instr.value;
@@ -587,6 +596,7 @@ union Instruction {
     } alu;
 
     union {
+        BitField<38, 1, u64> idx;
         BitField<51, 1, u64> saturate;
         BitField<52, 2, IpaSampleMode> sample_mode;
         BitField<54, 2, IpaInterpMode> interp_mode;
@@ -810,6 +820,12 @@ union Instruction {
         BitField<46, 2, u64> cache_mode;
         BitField<20, 24, s64> immediate_offset;
     } stg;
+
+    union {
+        BitField<32, 1, PhysicalAttributeDirection> direction;
+        BitField<47, 3, AttributeSize> size;
+        BitField<20, 11, u64> address;
+    } al2p;
 
     union {
         BitField<0, 3, u64> pred0;
@@ -1374,8 +1390,9 @@ public:
         ST_A,
         ST_L,
         ST_S,
-        LDG, // Load from global memory
-        STG, // Store in global memory
+        LDG,  // Load from global memory
+        STG,  // Store in global memory
+        AL2P, // Transforms attribute memory into physical memory
         TEX,
         TEX_B,  // Texture Load Bindless
         TXQ,    // Texture Query
@@ -1646,6 +1663,7 @@ private:
             INST("1110111101010---", Id::ST_L, Type::Memory, "ST_L"),
             INST("1110111011010---", Id::LDG, Type::Memory, "LDG"),
             INST("1110111011011---", Id::STG, Type::Memory, "STG"),
+            INST("1110111110100---", Id::AL2P, Type::Memory, "AL2P"),
             INST("110000----111---", Id::TEX, Type::Texture, "TEX"),
             INST("1101111010111---", Id::TEX_B, Type::Texture, "TEX_B"),
             INST("1101111101001---", Id::TXQ, Type::Texture, "TXQ"),

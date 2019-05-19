@@ -96,13 +96,14 @@ Node ShaderIR::GetPredicate(bool immediate) {
     return GetPredicate(static_cast<u64>(immediate ? Pred::UnusedIndex : Pred::NeverExecute));
 }
 
-Node ShaderIR::GetInputAttribute(Attribute::Index index, u64 element,
-                                 const Tegra::Shader::IpaMode& input_mode, Node buffer) {
-    const auto [entry, is_new] =
-        used_input_attributes.emplace(std::make_pair(index, std::set<Tegra::Shader::IpaMode>{}));
-    entry->second.insert(input_mode);
+Node ShaderIR::GetInputAttribute(Attribute::Index index, u64 element, Node buffer) {
+    used_input_attributes.emplace(index);
+    return StoreNode(AbufNode(index, static_cast<u32>(element), buffer));
+}
 
-    return StoreNode(AbufNode(index, static_cast<u32>(element), input_mode, buffer));
+Node ShaderIR::GetPhysicalInputAttribute(Tegra::Shader::Register physical_address, Node buffer) {
+    uses_physical_attributes = true;
+    return StoreNode(AbufNode(GetRegister(physical_address), buffer));
 }
 
 Node ShaderIR::GetOutputAttribute(Attribute::Index index, u64 element, Node buffer) {
