@@ -130,15 +130,18 @@ u32 ShaderIR::DecodeOther(NodeBlock& bb, u32 pc) {
         break;
     }
     case OpCode::Id::IPA: {
-        const auto& attribute = instr.attribute.fmt28;
+        const bool is_physical = instr.ipa.idx && instr.gpr8.Value() != 0xff;
+
+        const auto attribute = instr.attribute.fmt28;
         const Tegra::Shader::IpaMode input_mode{instr.ipa.interp_mode.Value(),
                                                 instr.ipa.sample_mode.Value()};
 
-        const Node attr = GetInputAttribute(attribute.index, attribute.element, input_mode);
-        Node value = attr;
+        Node value = is_physical ? GetPhysicalInputAttribute(instr.gpr8)
+                                 : GetInputAttribute(attribute.index, attribute.element);
         const Tegra::Shader::Attribute::Index index = attribute.index.Value();
-        if (index >= Tegra::Shader::Attribute::Index::Attribute_0 &&
-            index <= Tegra::Shader::Attribute::Index::Attribute_31) {
+        const bool is_generic = index >= Tegra::Shader::Attribute::Index::Attribute_0 &&
+                                index <= Tegra::Shader::Attribute::Index::Attribute_31;
+        if (is_generic || is_physical) {
             // TODO(Blinkhawk): There are cases where a perspective attribute use PASS.
             // In theory by setting them as perspective, OpenGL does the perspective correction.
             // A way must figured to reverse the last step of it.
