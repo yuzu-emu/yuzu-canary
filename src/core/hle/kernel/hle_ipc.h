@@ -97,7 +97,7 @@ protected:
  */
 class HLERequestContext {
 public:
-    explicit HLERequestContext(SharedPtr<ServerSession> session);
+    explicit HLERequestContext(SharedPtr<ServerSession> session, SharedPtr<Thread> thread);
     ~HLERequestContext();
 
     /// Returns a pointer to the IPC command buffer for this request.
@@ -119,7 +119,6 @@ public:
     /**
      * Puts the specified guest thread to sleep until the returned event is signaled or until the
      * specified timeout expires.
-     * @param thread Thread to be put to sleep.
      * @param reason Reason for pausing the thread, to be used for debugging purposes.
      * @param timeout Timeout in nanoseconds after which the thread will be awoken and the callback
      * invoked with a Timeout reason.
@@ -130,8 +129,8 @@ public:
      * created.
      * @returns Event that when signaled will resume the thread and call the callback function.
      */
-    SharedPtr<WritableEvent> SleepClientThread(SharedPtr<Thread> thread, const std::string& reason,
-                                               u64 timeout, WakeupCallback&& callback,
+    SharedPtr<WritableEvent> SleepClientThread(const std::string& reason, u64 timeout,
+                                               WakeupCallback&& callback,
                                                SharedPtr<WritableEvent> writable_event = nullptr);
 
     /// Populates this context with data from the requesting process/thread.
@@ -268,6 +267,7 @@ private:
 
     std::array<u32, IPC::COMMAND_BUFFER_LENGTH> cmd_buf;
     SharedPtr<Kernel::ServerSession> server_session;
+    SharedPtr<Thread> thread;
     // TODO(yuriks): Check common usage of this and optimize size accordingly
     boost::container::small_vector<SharedPtr<Object>, 8> move_objects;
     boost::container::small_vector<SharedPtr<Object>, 8> copy_objects;
