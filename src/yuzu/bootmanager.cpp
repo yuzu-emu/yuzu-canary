@@ -91,25 +91,25 @@ void EmuThread::run() {
 
 class GGLContext : public Core::Frontend::GraphicsContext {
 public:
-    explicit GGLContext(QOpenGLContext* shared_context)
-        : context{std::make_unique<QOpenGLContext>(shared_context)} {
-        surface.setFormat(shared_context->format());
-        surface.create();
+    explicit GGLContext(QOpenGLContext* shared_context) : shared_context{shared_context} {
+        context.setFormat(shared_context->format());
+        context.setShareContext(shared_context);
+        context.create();
     }
 
     void MakeCurrent() override {
-        context->makeCurrent(&surface);
+        context.makeCurrent(shared_context->surface());
     }
 
     void DoneCurrent() override {
-        context->doneCurrent();
+        context.doneCurrent();
     }
 
     void SwapBuffers() override {}
 
 private:
-    std::unique_ptr<QOpenGLContext> context;
-    QOffscreenSurface surface;
+    QOpenGLContext* shared_context;
+    QOpenGLContext context;
 };
 
 // This class overrides paintEvent and resizeEvent to prevent the GUI thread from stealing GL
@@ -358,7 +358,7 @@ void GRenderWindow::OnClientAreaResized(unsigned width, unsigned height) {
 }
 
 std::unique_ptr<Core::Frontend::GraphicsContext> GRenderWindow::CreateSharedContext() const {
-    return std::make_unique<GGLContext>(shared_context.get());
+    return std::make_unique<GGLContext>(context.get());
 }
 
 void GRenderWindow::InitRenderTarget() {
