@@ -45,7 +45,7 @@ struct ScreenInfo {
 
 class RendererOpenGL : public VideoCore::RendererBase {
 public:
-    explicit RendererOpenGL(Core::Frontend::EmuWindow& window, Core::System& system);
+    explicit RendererOpenGL(Core::Frontend::EmuWindow& emu_window, Core::System& system);
     ~RendererOpenGL() override;
 
     /// Swap buffers (render frame)
@@ -77,6 +77,7 @@ private:
     void LoadColorToActiveGLTexture(u8 color_r, u8 color_g, u8 color_b, u8 color_a,
                                     const TextureInfo& texture);
 
+    Core::Frontend::EmuWindow& emu_window;
     Core::System& system;
 
     OpenGLState state;

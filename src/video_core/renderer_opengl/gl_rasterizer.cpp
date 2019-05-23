@@ -98,9 +98,11 @@ struct FramebufferCacheKey {
     }
 };
 
-RasterizerOpenGL::RasterizerOpenGL(Core::System& system, ScreenInfo& info)
-    : res_cache{*this}, shader_cache{*this, system, device}, global_cache{*this}, system{system},
-      screen_info{info}, buffer_cache(*this, STREAM_BUFFER_SIZE) {
+RasterizerOpenGL::RasterizerOpenGL(Core::System& system, Core::Frontend::EmuWindow& emu_window,
+                                   ScreenInfo& info)
+    : res_cache{*this}, shader_cache{*this, system, emu_window, device},
+      global_cache{*this}, system{system}, screen_info{info},
+      buffer_cache(*this, STREAM_BUFFER_SIZE) {
     OpenGLState::ApplyDefaultState();
 
     shader_program_manager = std::make_unique<GLShader::ProgramManager>();
