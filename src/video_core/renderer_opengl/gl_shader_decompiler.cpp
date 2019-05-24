@@ -31,6 +31,8 @@ using Tegra::Shader::IpaInterpMode;
 using Tegra::Shader::IpaMode;
 using Tegra::Shader::IpaSampleMode;
 using Tegra::Shader::Register;
+
+using namespace std::string_literals;
 using namespace VideoCommon::Shader;
 
 using Maxwell = Tegra::Engines::Maxwell3D::Regs;
@@ -93,11 +95,9 @@ private:
 };
 
 /// Generates code to use for a swizzle operation.
-std::string GetSwizzle(u32 elem) {
-    ASSERT(elem <= 3);
-    std::string swizzle = ".";
-    swizzle += "xyzw"[elem];
-    return swizzle;
+constexpr const char* GetSwizzle(u32 element) {
+    constexpr std::array<const char*, 4> swizzle = {".x", ".y", ".z", ".w"};
+    return swizzle.at(element);
 }
 
 /// Translate topology
@@ -653,7 +653,7 @@ private:
             if (stage != ShaderStage::Fragment) {
                 return GeometryPass("position") + GetSwizzle(element);
             } else {
-                return element == 3 ? "1.0f" : "gl_FragCoord" + GetSwizzle(element);
+                return element == 3 ? "1.0f" : ("gl_FragCoord"s + GetSwizzle(element));
             }
         case Attribute::Index::PointCoord:
             switch (element) {
@@ -938,7 +938,7 @@ private:
             target = [&]() -> std::string {
                 switch (const auto attribute = abuf->GetIndex(); abuf->GetIndex()) {
                 case Attribute::Index::Position:
-                    return "position" + GetSwizzle(abuf->GetElement());
+                    return "position"s + GetSwizzle(abuf->GetElement());
                 case Attribute::Index::PointSize:
                     return "gl_PointSize";
                 case Attribute::Index::ClipDistances0123:
@@ -1543,6 +1543,16 @@ private:
         return "uintBitsToFloat(config_pack[2])";
     }
 
+    template <u32 element>
+    std::string LocalInvocationId(Operation) {
+        return "utof(gl_LocalInvocationID"s + GetSwizzle(element) + ')';
+    }
+
+    template <u32 element>
+    std::string WorkGroupId(Operation) {
+        return "utof(gl_WorkGroupID"s + GetSwizzle(element) + ')';
+    }
+
     static constexpr OperationDecompilersArray operation_decompilers = {
         &GLSLDecompiler::Assign,
 
@@ -1682,6 +1692,12 @@ private:
         &GLSLDecompiler::EndPrimitive,
 
         &GLSLDecompiler::YNegate,
+        &GLSLDecompiler::LocalInvocationId<0>,
+        &GLSLDecompiler::LocalInvocationId<1>,
+        &GLSLDecompiler::LocalInvocationId<2>,
+        &GLSLDecompiler::WorkGroupId<0>,
+        &GLSLDecompiler::WorkGroupId<1>,
+        &GLSLDecompiler::WorkGroupId<2>,
     };
 
     std::string GetRegister(u32 index) const {
