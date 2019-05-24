@@ -33,6 +33,11 @@ namespace OpenGL {
 using ProgramCode = std::vector<u64>;
 using Maxwell = Tegra::Engines::Maxwell3D::Regs;
 
+struct ShaderDiskCacheUsage;
+struct ShaderDiskCacheDump;
+
+using ShaderDumpsMap = std::unordered_map<ShaderDiskCacheUsage, ShaderDiskCacheDump>;
+
 /// Allocated bindings used by an OpenGL shader program
 struct BaseBindings {
     u32 cbuf{};

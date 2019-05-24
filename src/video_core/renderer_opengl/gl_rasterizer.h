@@ -48,7 +48,8 @@ struct FramebufferCacheKey;
 
 class RasterizerOpenGL : public VideoCore::RasterizerInterface {
 public:
-    explicit RasterizerOpenGL(Core::System& system, ScreenInfo& info);
+    explicit RasterizerOpenGL(Core::System& system, Core::Frontend::EmuWindow& emu_window,
+                              ScreenInfo& info);
     ~RasterizerOpenGL() override;
 
     void DrawArrays() override;
