@@ -2,10 +2,14 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <mutex>
+#include <thread>
 #include <boost/functional/hash.hpp>
 #include "common/assert.h"
 #include "common/hash.h"
+#include "common/scope_exit.h"
 #include "core/core.h"
+#include "core/frontend/emu_window.h"
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/memory_manager.h"
 #include "video_core/renderer_opengl/gl_rasterizer.h"
@@ -344,8 +348,8 @@ ShaderDiskCacheUsage CachedShader::GetUsage(GLenum primitive_mode,
 }
 
 ShaderCacheOpenGL::ShaderCacheOpenGL(RasterizerOpenGL& rasterizer, Core::System& system,
-                                     const Device& device)
-    : RasterizerCache{rasterizer}, device{device}, disk_cache{system} {}
+                                     Core::Frontend::EmuWindow& emu_window, const Device& device)
+    : RasterizerCache{rasterizer}, emu_window{emu_window}, device{device}, disk_cache{system} {}
 
 void ShaderCacheOpenGL::LoadDiskCache(const std::atomic_bool& stop_loading,
                                       const VideoCore::DiskResourceLoadCallback& callback) {
@@ -353,62 +357,107 @@ void ShaderCacheOpenGL::LoadDiskCache(const std::atomic_bool& stop_loading,
     if (!transferable) {
         return;
     }
-    const auto [raws, usages] = *transferable;
+    const auto [raws, shader_usages] = *transferable;
 
     auto [decompiled, dumps] = disk_cache.LoadPrecompiled();
 
     const auto supported_formats{GetSupportedFormats()};
-    const auto unspecialized{
+    const auto unspecialized_shaders{
         GenerateUnspecializedShaders(stop_loading, callback, raws, decompiled)};
-    if (stop_loading)
+    if (stop_loading) {
         return;
+    }
 
     // Track if precompiled cache was altered during loading to know if we have to serialize the
     // virtual precompiled cache file back to the hard drive
     bool precompiled_cache_altered = false;
 
-    // Build shaders
-    if (callback)
-        callback(VideoCore::LoadCallbackStage::Build, 0, usages.size());
-    for (std::size_t i = 0; i < usages.size(); ++i) {
-        if (stop_loading)
-            return;
+    // Inform the frontend about shader build initialization
+    if (callback) {
+        callback(VideoCore::LoadCallbackStage::Build, 0, shader_usages.size());
+    }
 
-        const auto& usage{usages[i]};
-        LOG_INFO(Render_OpenGL, "Building shader {:016x} ({} of {})", usage.unique_identifier,
-                 i + 1, usages.size());
+    std::mutex mutex;
+    std::size_t built_shaders = 0; // It doesn't have be atomic since it's used behind a mutex
+    std::atomic_bool compilation_failed = false;
 
-        const auto& unspec{unspecialized.at(usage.unique_identifier)};
-        const auto dump_it = dumps.find(usage);
+    const auto Worker = [&](Core::Frontend::GraphicsContext* context, std::size_t begin,
+                            std::size_t end, const std::vector<ShaderDiskCacheUsage>& shader_usages,
+                            const ShaderDumpsMap& dumps) {
+        context->MakeCurrent();
+        SCOPE_EXIT({ return context->DoneCurrent(); });
 
-        CachedProgram shader;
-        if (dump_it != dumps.end()) {
-            // If the shader is dumped, attempt to load it with
-            shader = GeneratePrecompiledProgram(dump_it->second, supported_formats);
-            if (!shader) {
-                // Invalidate the precompiled cache if a shader dumped shader was rejected
-                disk_cache.InvalidatePrecompiled();
-                precompiled_cache_altered = true;
-                dumps.clear();
+        for (std::size_t i = begin; i < end; ++i) {
+            if (stop_loading || compilation_failed) {
+                return;
             }
-        }
-        if (!shader) {
-            shader = SpecializeShader(unspec.code, unspec.entries, unspec.program_type,
-                                      usage.bindings, usage.primitive, true);
-        }
-        precompiled_programs.insert({usage, std::move(shader)});
+            const auto& usage{shader_usages[i]};
+            LOG_INFO(Render_OpenGL, "Building shader {:016x} (index {} of {})",
+                     usage.unique_identifier, i, shader_usages.size());
 
-        if (callback)
-            callback(VideoCore::LoadCallbackStage::Build, i + 1, usages.size());
+            const auto& unspecialized{unspecialized_shaders.at(usage.unique_identifier)};
+            const auto dump{dumps.find(usage)};
+
+            CachedProgram shader;
+            if (dump != dumps.end()) {
+                // If the shader is dumped, attempt to load it with
+                shader = GeneratePrecompiledProgram(dump->second, supported_formats);
+                if (!shader) {
+                    compilation_failed = true;
+                    return;
+                }
+            }
+            if (!shader) {
+                shader = SpecializeShader(unspecialized.code, unspecialized.entries,
+                                          unspecialized.program_type, usage.bindings,
+                                          usage.primitive, true);
+            }
+
+            std::scoped_lock lock(mutex);
+            if (callback) {
+                callback(VideoCore::LoadCallbackStage::Build, ++built_shaders,
+                         shader_usages.size());
+            }
+
+            precompiled_programs.emplace(usage, std::move(shader));
+        }
+    };
+
+    const auto num_workers{static_cast<std::size_t>(std::thread::hardware_concurrency() + 1)};
+    const std::size_t bucket_size{shader_usages.size() / num_workers};
+    std::vector<std::unique_ptr<Core::Frontend::GraphicsContext>> contexts(num_workers);
+    std::vector<std::thread> threads(num_workers);
+    for (std::size_t i = 0; i < num_workers; ++i) {
+        const bool is_last_worker = i + 1 == num_workers;
+        const std::size_t start{bucket_size * i};
+        const std::size_t end{is_last_worker ? shader_usages.size() : start + bucket_size};
+
+        // On some platforms the shared context has to be created from the GUI thread
+        contexts[i] = emu_window.CreateSharedContext();
+        threads[i] = std::thread(Worker, contexts[i].get(), start, end, shader_usages, dumps);
+    }
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    if (compilation_failed) {
+        // Invalidate the precompiled cache if a shader dumped shader was rejected
+        disk_cache.InvalidatePrecompiled();
+        dumps.clear();
+        precompiled_cache_altered = true;
+        return;
+    }
+    if (stop_loading) {
+        return;
     }
 
     // TODO(Rodrigo): Do state tracking for transferable shaders and do a dummy draw before
     // precompiling them
 
-    for (std::size_t i = 0; i < usages.size(); ++i) {
-        const auto& usage{usages[i]};
+    for (std::size_t i = 0; i < shader_usages.size(); ++i) {
+        const auto& usage{shader_usages[i]};
         if (dumps.find(usage) == dumps.end()) {
-            const auto& program = precompiled_programs.at(usage);
+            const auto& program{precompiled_programs.at(usage)};
             disk_cache.SaveDump(usage, program->handle);
             precompiled_cache_altered = true;
         }
