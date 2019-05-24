@@ -18,6 +18,7 @@
 #include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/kernel/resource_limit.h"
+#include "core/hle/kernel/scheduler.h"
 #include "core/hle/kernel/thread.h"
 #include "core/hle/lock.h"
 #include "core/hle/result.h"
@@ -138,6 +139,7 @@ struct KernelCore::Impl {
     // Lists all processes that exist in the current session.
     std::vector<SharedPtr<Process>> process_list;
     Process* current_process = nullptr;
+    Kernel::GlobalScheduler global_scheduler;
 
     SharedPtr<ResourceLimit> system_resource_limit;
 
@@ -199,6 +201,14 @@ const Process* KernelCore::CurrentProcess() const {
 
 const std::vector<SharedPtr<Process>>& KernelCore::GetProcessList() const {
     return impl->process_list;
+}
+
+Kernel::GlobalScheduler& KernelCore::GlobalScheduler() {
+    return impl->global_scheduler;
+}
+
+const Kernel::GlobalScheduler& KernelCore::GlobalScheduler() const {
+    return impl->global_scheduler;
 }
 
 void KernelCore::AddNamedPort(std::string name, SharedPtr<ClientPort> port) {
