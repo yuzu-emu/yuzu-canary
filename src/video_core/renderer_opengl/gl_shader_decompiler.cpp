@@ -577,9 +577,26 @@ private:
             if (std::holds_alternative<OperationNode>(*offset)) {
                 // Indirect access
                 const std::string final_offset = code.GenerateTemporary();
-                code.AddLine("uint {} = (ftou({}) / 4);", final_offset, Visit(offset));
-                return fmt::format("{}[{} / 4][{} % 4]", GetConstBuffer(cbuf->GetIndex()),
-                                   final_offset, final_offset);
+                code.AddLine("uint {} = ftou({}) >> 2;", final_offset, Visit(offset));
+
+                if (!device.HasComponentIndexingBug()) {
+                    return fmt::format("{}[{} >> 2][{} & 3]", GetConstBuffer(cbuf->GetIndex()),
+                                       final_offset, final_offset);
+                }
+
+                // AMD's proprietary GLSL compiler emits ill code for variable component access.
+                // To bypass this driver bug generate 4 ifs, one per each component.
+                const std::string pack = code.GenerateTemporary();
+                code.AddLine("vec4 {} = {}[{} >> 2];", pack, GetConstBuffer(cbuf->GetIndex()),
+                             final_offset);
+
+                const std::string result = code.GenerateTemporary();
+                code.AddLine("float {};", result);
+                for (u32 swizzle = 0; swizzle < 4; ++swizzle) {
+                    code.AddLine("if (({} & 3) == {}) {} = {}{};", final_offset, swizzle, result,
+                                 pack, GetSwizzle(swizzle));
+                }
+                return result;
             }
 
             UNREACHABLE_MSG("Unmanaged offset node type");
