@@ -130,7 +130,7 @@ ResultCode ServerSession::HandleSyncRequest(SharedPtr<Thread> thread) {
     // The ServerSession received a sync request, this means that there's new data available
     // from its ClientSession, so wake up any threads that may be waiting on a svcReplyAndReceive or
     // similar.
-    Kernel::HLERequestContext context(this);
+    Kernel::HLERequestContext context(this, thread);
     u32* cmd_buf = (u32*)Memory::GetPointer(thread->GetTLSAddress());
     context.PopulateFromIncomingCommandBuffer(kernel.CurrentProcess()->GetHandleTable(), cmd_buf);
 
