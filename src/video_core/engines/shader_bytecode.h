@@ -530,6 +530,11 @@ union Instruction {
     BitField<48, 16, u64> opcode;
 
     union {
+        BitField<8, 8, Register> gpr;
+        BitField<20, 24, s64> offset;
+    } gmem;
+
+    union {
         BitField<20, 16, u64> imm20_16;
         BitField<20, 19, u64> imm20_19;
         BitField<20, 32, s64> imm20_32;
@@ -812,13 +817,11 @@ union Instruction {
     union {
         BitField<48, 3, UniformType> type;
         BitField<46, 2, u64> cache_mode;
-        BitField<20, 24, s64> immediate_offset;
     } ldg;
 
     union {
         BitField<48, 3, UniformType> type;
         BitField<46, 2, u64> cache_mode;
-        BitField<20, 24, s64> immediate_offset;
     } stg;
 
     union {
@@ -826,6 +829,11 @@ union Instruction {
         BitField<47, 3, AttributeSize> size;
         BitField<20, 11, u64> address;
     } al2p;
+
+    union {
+        BitField<53, 3, UniformType> type;
+        BitField<52, 1, u64> extended;
+    } generic;
 
     union {
         BitField<0, 3, u64> pred0;
@@ -1387,10 +1395,12 @@ public:
         LD_L,
         LD_S,
         LD_C,
+        LD,  // Load from generic memory
+        LDG, // Load from global memory
         ST_A,
         ST_L,
         ST_S,
-        LDG,  // Load from global memory
+        ST,   // Store in generic memory
         STG,  // Store in global memory
         AL2P, // Transforms attribute memory into physical memory
         TEX,
@@ -1658,10 +1668,12 @@ private:
             INST("1110111101001---", Id::LD_S, Type::Memory, "LD_S"),
             INST("1110111101000---", Id::LD_L, Type::Memory, "LD_L"),
             INST("1110111110010---", Id::LD_C, Type::Memory, "LD_C"),
+            INST("100-------------", Id::LD, Type::Memory, "LD"),
+            INST("1110111011010---", Id::LDG, Type::Memory, "LDG"),
             INST("1110111111110---", Id::ST_A, Type::Memory, "ST_A"),
             INST("1110111101011---", Id::ST_S, Type::Memory, "ST_S"),
             INST("1110111101010---", Id::ST_L, Type::Memory, "ST_L"),
-            INST("1110111011010---", Id::LDG, Type::Memory, "LDG"),
+            INST("101-------------", Id::ST, Type::Memory, "ST"),
             INST("1110111011011---", Id::STG, Type::Memory, "STG"),
             INST("1110111110100---", Id::AL2P, Type::Memory, "AL2P"),
             INST("110000----111---", Id::TEX, Type::Texture, "TEX"),
