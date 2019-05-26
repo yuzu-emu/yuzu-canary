@@ -13,6 +13,8 @@
 
 namespace Service::Account {
 
+using Common::UUID;
+
 struct UserRaw {
     UUID uuid;
     UUID uuid2;
@@ -34,26 +36,6 @@ constexpr ResultCode ERROR_USER_ALREADY_EXISTS(ErrorModule::Account, -2);
 constexpr ResultCode ERROR_ARGUMENT_IS_NULL(ErrorModule::Account, 20);
 
 constexpr char ACC_SAVE_AVATORS_BASE_PATH[] = "/system/save/8000000000000010/su/avators/";
-
-UUID UUID::Generate() {
-    std::random_device device;
-    std::mt19937 gen(device());
-    std::uniform_int_distribution<u64> distribution(1, std::numeric_limits<u64>::max());
-    return UUID{distribution(gen), distribution(gen)};
-}
-
-std::string UUID::Format() const {
-    return fmt::format("0x{:016X}{:016X}", uuid[1], uuid[0]);
-}
-
-std::string UUID::FormatSwitch() const {
-    std::array<u8, 16> s{};
-    std::memcpy(s.data(), uuid.data(), sizeof(u128));
-    return fmt::format("{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{"
-                       ":02x}{:02x}{:02x}{:02x}{:02x}",
-                       s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8], s[9], s[10], s[11],
-                       s[12], s[13], s[14], s[15]);
-}
 
 ProfileManager::ProfileManager() {
     ParseUserSaveFile();
@@ -217,7 +199,7 @@ bool ProfileManager::UserExists(UUID uuid) const {
 bool ProfileManager::UserExistsIndex(std::size_t index) const {
     if (index >= MAX_USERS)
         return false;
-    return profiles[index].user_uuid.uuid != INVALID_UUID;
+    return profiles[index].user_uuid.uuid != Common::INVALID_UUID;
 }
 
 /// Opens a specific user
@@ -311,7 +293,7 @@ bool ProfileManager::RemoveUser(UUID uuid) {
 
 bool ProfileManager::SetProfileBase(UUID uuid, const ProfileBase& profile_new) {
     const auto index = GetUserIndex(uuid);
-    if (!index || profile_new.user_uuid == UUID(INVALID_UUID)) {
+    if (!index || profile_new.user_uuid == UUID(Common::INVALID_UUID)) {
         return false;
     }
 
@@ -342,7 +324,7 @@ void ProfileManager::ParseUserSaveFile() {
     }
 
     for (const auto& user : data.users) {
-        if (user.uuid == UUID(INVALID_UUID)) {
+        if (user.uuid == UUID(Common::INVALID_UUID)) {
             continue;
         }
 
