@@ -19,8 +19,7 @@ static constexpr u32 PROGRAM_OFFSET{10};
 ProgramResult GenerateVertexShader(const Device& device, const ShaderSetup& setup) {
     const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
 
-    std::string out = "#extension GL_ARB_separate_shader_objects : enable\n\n";
-    out += "// Shader Unique Id: VS" + id + "\n\n";
+    std::string out = "// Shader Unique Id: VS" + id + "\n\n";
     out += GetCommonDeclarations();
 
     out += R"(
@@ -82,8 +81,7 @@ void main() {
 ProgramResult GenerateGeometryShader(const Device& device, const ShaderSetup& setup) {
     const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
 
-    std::string out = "#extension GL_ARB_separate_shader_objects : enable\n\n";
-    out += "// Shader Unique Id: GS" + id + "\n\n";
+    std::string out = "// Shader Unique Id: GS" + id + "\n\n";
     out += GetCommonDeclarations();
 
     out += R"(
@@ -113,8 +111,7 @@ void main() {
 ProgramResult GenerateFragmentShader(const Device& device, const ShaderSetup& setup) {
     const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
 
-    std::string out = "#extension GL_ARB_separate_shader_objects : enable\n\n";
-    out += "// Shader Unique Id: FS" + id + "\n\n";
+    std::string out = "// Shader Unique Id: FS" + id + "\n\n";
     out += GetCommonDeclarations();
 
     out += R"(

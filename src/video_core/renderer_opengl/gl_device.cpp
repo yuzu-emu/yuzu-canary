@@ -35,6 +35,7 @@ Device::Device(std::nullptr_t) {
 
 bool Device::TestVariableAoffi() {
     const GLchar* AOFFI_TEST = R"(#version 430 core
+// This is a unit test, please ignore me on apitrace bug reports.
 uniform sampler2D tex;
 uniform ivec2 variable_offset;
 void main() {

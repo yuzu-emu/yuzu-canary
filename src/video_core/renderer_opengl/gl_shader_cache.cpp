@@ -170,7 +170,8 @@ GLShader::ProgramResult CreateProgram(const Device& device, Maxwell::ShaderProgr
 CachedProgram SpecializeShader(const std::string& code, const GLShader::ShaderEntries& entries,
                                Maxwell::ShaderProgram program_type, BaseBindings base_bindings,
                                GLenum primitive_mode, bool hint_retrievable = false) {
-    std::string source = "#version 430 core\n";
+    std::string source = "#version 430 core\n"
+                         "#extension GL_ARB_separate_shader_objects : enable\n\n";
     source += fmt::format("#define EMULATION_UBO_BINDING {}\n", base_bindings.cbuf++);
 
     for (const auto& cbuf : entries.const_buffers) {
