@@ -30,13 +30,19 @@ public:
         return has_variable_aoffi;
     }
 
+    bool HasComponentIndexingBug() const {
+        return has_component_indexing_bug;
+    }
+
 private:
     static bool TestVariableAoffi();
+    static bool TestComponentIndexingBug();
 
     std::size_t uniform_buffer_alignment{};
     u32 max_vertex_attributes{};
     u32 max_varyings{};
     bool has_variable_aoffi{};
+    bool has_component_indexing_bug{};
 };
 
 } // namespace OpenGL
