@@ -8,6 +8,8 @@
 #include <cstring>
 #include "audio_core/audio_renderer.h"
 #include "core/core.h"
+#include "core/file_sys/control_metadata.h"
+#include "core/file_sys/patch_manager.h"
 #include "core/file_sys/savedata_factory.h"
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/kernel/kernel.h"
@@ -29,9 +31,11 @@
 #include "core/hle/service/am/tcap.h"
 #include "core/hle/service/apm/apm.h"
 #include "core/hle/service/filesystem/filesystem.h"
+#include "core/hle/service/ns/ns.h"
 #include "core/hle/service/nvflinger/nvflinger.h"
 #include "core/hle/service/pm/pm.h"
 #include "core/hle/service/set/set.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/hle/service/vi/vi.h"
 #include "core/settings.h"
 
@@ -1100,10 +1104,42 @@ void IApplicationFunctions::GetDesiredLanguage(Kernel::HLERequestContext& ctx) {
     // TODO(bunnei): This should be configurable
     LOG_DEBUG(Service_AM, "called");
 
+    // Get supported languages from NACP, if possible
+    // Default to 0 (all languages supported)
+    u32 supported_languages = 0;
+    FileSys::PatchManager pm{Core::System::GetInstance().CurrentProcess()->GetTitleID()};
+
+    const auto res = pm.GetControlMetadata();
+    if (res.first != nullptr) {
+        supported_languages = res.first->GetSupportedLanguages();
+    }
+
+    // Call IApplicationManagerInterface implementation.
+    auto& service_manager = Core::System::GetInstance().ServiceManager();
+    auto ns_am2 = service_manager.GetService<Service::NS::NS>("ns:am2");
+    auto app_man = ns_am2->GetApplicationManagerInterface();
+
+    // Get desired application language
+    const auto res_lang = app_man->GetApplicationDesiredLanguage(supported_languages);
+    if (res_lang.Failed()) {
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(res_lang.Code());
+        return;
+    }
+
+    // Convert to settings language code.
+    const auto res_code = app_man->ConvertApplicationLanguageToLanguageCode(*res_lang);
+    if (res_code.Failed()) {
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(res_code.Code());
+        return;
+    }
+
+    LOG_DEBUG(Service_AM, "got desired_language={:016X}", *res_code);
+
     IPC::ResponseBuilder rb{ctx, 4};
     rb.Push(RESULT_SUCCESS);
-    rb.Push(
-        static_cast<u64>(Service::Set::GetLanguageCodeFromIndex(Settings::values.language_index)));
+    rb.Push(*res_code);
 }
 
 void IApplicationFunctions::InitializeGamePlayRecording(Kernel::HLERequestContext& ctx) {
