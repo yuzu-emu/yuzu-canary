@@ -14,6 +14,7 @@ using Tegra::Shader::ConditionCode;
 using Tegra::Shader::Instruction;
 using Tegra::Shader::OpCode;
 using Tegra::Shader::Register;
+using Tegra::Shader::SystemVariable;
 
 u32 ShaderIR::DecodeOther(NodeBlock& bb, u32 pc) {
     const Instruction instr = {program_code[pc]};
@@ -59,20 +60,33 @@ u32 ShaderIR::DecodeOther(NodeBlock& bb, u32 pc) {
         break;
     }
     case OpCode::Id::MOV_SYS: {
-        switch (instr.sys20) {
-        case Tegra::Shader::SystemVariable::InvocationInfo: {
-            LOG_WARNING(HW_GPU, "MOV_SYS instruction with InvocationInfo is incomplete");
-            SetRegister(bb, instr.gpr0, Immediate(0u));
-            break;
-        }
-        case Tegra::Shader::SystemVariable::Ydirection: {
-            // Config pack's third value is Y_NEGATE's state.
-            SetRegister(bb, instr.gpr0, Operation(OperationCode::YNegate));
-            break;
-        }
-        default:
-            UNIMPLEMENTED_MSG("Unhandled system move: {}", static_cast<u32>(instr.sys20.Value()));
-        }
+        const Node value = [&]() {
+            switch (instr.sys20) {
+            case SystemVariable::Ydirection:
+                return Operation(OperationCode::YNegate);
+            case SystemVariable::InvocationInfo:
+                LOG_WARNING(HW_GPU, "MOV_SYS instruction with InvocationInfo is incomplete");
+                return Immediate(0u);
+            case SystemVariable::TidX:
+                return Operation(OperationCode::LocalInvocationIdX);
+            case SystemVariable::TidY:
+                return Operation(OperationCode::LocalInvocationIdY);
+            case SystemVariable::TidZ:
+                return Operation(OperationCode::LocalInvocationIdZ);
+            case SystemVariable::CtaIdX:
+                return Operation(OperationCode::WorkGroupIdX);
+            case SystemVariable::CtaIdY:
+                return Operation(OperationCode::WorkGroupIdY);
+            case SystemVariable::CtaIdZ:
+                return Operation(OperationCode::WorkGroupIdZ);
+            default:
+                UNIMPLEMENTED_MSG("Unhandled system move: {}",
+                                  static_cast<u32>(instr.sys20.Value()));
+                return Immediate(0u);
+            }
+        }();
+        SetRegister(bb, instr.gpr0, value);
+
         break;
     }
     case OpCode::Id::BRA: {
