@@ -104,7 +104,7 @@ signals:
 
     void ErrorDisplayFinished();
 
-    void ProfileSelectorFinishedSelection(std::optional<Service::Account::UUID> uuid);
+    void ProfileSelectorFinishedSelection(std::optional<Common::UUID> uuid);
     void SoftwareKeyboardFinishedText(std::optional<std::u16string> text);
     void SoftwareKeyboardFinishedCheckDialog();
 
