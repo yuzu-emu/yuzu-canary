@@ -1035,6 +1035,18 @@ private:
         return {};
     }
 
+    template <u32 element>
+    Id LocalInvocationId(Operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    template <u32 element>
+    Id WorkGroupId(Operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
     Id DeclareBuiltIn(spv::BuiltIn builtin, spv::StorageClass storage, Id type,
                       const std::string& name) {
         const Id id = OpVariable(type, storage);
@@ -1291,6 +1303,12 @@ private:
         &SPIRVDecompiler::EndPrimitive,
 
         &SPIRVDecompiler::YNegate,
+        &SPIRVDecompiler::LocalInvocationId<0>,
+        &SPIRVDecompiler::LocalInvocationId<1>,
+        &SPIRVDecompiler::LocalInvocationId<2>,
+        &SPIRVDecompiler::WorkGroupId<0>,
+        &SPIRVDecompiler::WorkGroupId<1>,
+        &SPIRVDecompiler::WorkGroupId<2>,
     };
 
     const ShaderIR& ir;
