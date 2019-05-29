@@ -123,6 +123,8 @@ add_library(common STATIC
     timer.h
     uint128.cpp
     uint128.h
+    uuid.cpp
+    uuid.h
     vector_math.h
     web_result.h
     zstd_compression.cpp
