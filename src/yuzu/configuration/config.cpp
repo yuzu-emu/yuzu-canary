@@ -645,6 +645,8 @@ void Config::ReadUIGamelistValues() {
     UISettings::values.icon_size = ReadSetting(QStringLiteral("icon_size"), 64).toUInt();
     UISettings::values.row_1_text_id = ReadSetting(QStringLiteral("row_1_text_id"), 3).toUInt();
     UISettings::values.row_2_text_id = ReadSetting(QStringLiteral("row_2_text_id"), 2).toUInt();
+    UISettings::values.cache_game_list =
+        ReadSetting(QStringLiteral("cache_game_list"), true).toBool();
 
     qt_config->endGroup();
 }
@@ -1009,6 +1011,7 @@ void Config::SaveUIGamelistValues() {
     WriteSetting(QStringLiteral("icon_size"), UISettings::values.icon_size, 64);
     WriteSetting(QStringLiteral("row_1_text_id"), UISettings::values.row_1_text_id, 3);
     WriteSetting(QStringLiteral("row_2_text_id"), UISettings::values.row_2_text_id, 2);
+    WriteSetting(QStringLiteral("cache_game_list"), UISettings::values.cache_game_list, true);
 
     qt_config->endGroup();
 }
