@@ -109,6 +109,7 @@ public:
     std::string GetVersionString() const;
     u64 GetDefaultNormalSaveSize() const;
     u64 GetDefaultJournalSaveSize() const;
+    u32 GetSupportedLanguages() const;
     std::vector<u8> GetRawBytes() const;
 
 private:
