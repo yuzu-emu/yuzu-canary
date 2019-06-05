@@ -125,6 +125,10 @@ AppletManager::AppletManager() = default;
 
 AppletManager::~AppletManager() = default;
 
+const AppletFrontendSet& AppletManager::GetAppletFrontendSet() const {
+    return frontend;
+}
+
 void AppletManager::SetAppletFrontendSet(AppletFrontendSet set) {
     if (set.error != nullptr)
         frontend.error = std::move(set.error);
