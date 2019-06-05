@@ -251,7 +251,7 @@ enum class WrapMode : u32 {
     Mirror = 1,
     ClampToEdge = 2,
     Border = 3,
-    ClampOGL = 4,
+    Clamp = 4,
     MirrorOnceClampToEdge = 5,
     MirrorOnceBorder = 6,
     MirrorOnceClampOGL = 7,
