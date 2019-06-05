@@ -64,6 +64,8 @@ ConfigureGraphics::ConfigureGraphics(QWidget* parent)
             return;
         UpdateBackgroundColorButton(new_bg_color);
     });
+    connect(ui->brightness_reset, &QPushButton::pressed, this,
+            [this] { ui->brightness_slider->setValue(100); });
 }
 
 ConfigureGraphics::~ConfigureGraphics() = default;
@@ -86,6 +88,7 @@ void ConfigureGraphics::setConfiguration() {
     ui->force_30fps_mode->setChecked(Settings::values.force_30fps_mode);
     UpdateBackgroundColorButton(QColor::fromRgbF(Settings::values.bg_red, Settings::values.bg_green,
                                                  Settings::values.bg_blue));
+    ui->brightness_slider->setValue(Settings::values.backlight_brightness * 100 + 50);
 }
 
 void ConfigureGraphics::applyConfiguration() {
@@ -102,6 +105,7 @@ void ConfigureGraphics::applyConfiguration() {
     Settings::values.bg_red = static_cast<float>(bg_color.redF());
     Settings::values.bg_green = static_cast<float>(bg_color.greenF());
     Settings::values.bg_blue = static_cast<float>(bg_color.blueF());
+    Settings::values.backlight_brightness = (ui->brightness_slider->value() - 50.0f) / 100.0f;
 }
 
 void ConfigureGraphics::UpdateBackgroundColorButton(QColor color) {
