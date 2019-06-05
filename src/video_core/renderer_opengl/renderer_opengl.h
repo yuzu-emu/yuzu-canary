@@ -70,6 +70,7 @@ private:
     void UpdateFramerate();
 
     void CaptureScreenshot();
+    void UpdateBacklight();
 
     // Loads framebuffer from emulated memory into the display information structure
     void LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuffer);
@@ -97,6 +98,7 @@ private:
     // Shader uniform location indices
     GLuint uniform_modelview_matrix;
     GLuint uniform_color_texture;
+    GLuint uniform_backlight;
 
     // Shader attribute input indices
     GLuint attrib_position;
@@ -105,6 +107,10 @@ private:
     /// Used for transforming the framebuffer orientation
     Tegra::FramebufferConfig::TransformFlags framebuffer_transform_flags;
     Common::Rectangle<int> framebuffer_crop_rect;
+
+    // Used for backlight transitions
+    u64 fade_time_max = 0;
+    f32 value_max = 0;
 };
 
 } // namespace OpenGL
