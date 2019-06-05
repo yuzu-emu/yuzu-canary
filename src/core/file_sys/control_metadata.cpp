@@ -87,6 +87,10 @@ u64 NACP::GetDefaultJournalSaveSize() const {
     return raw.user_account_save_data_journal_size;
 }
 
+u32 NACP::GetSupportedLanguages() const {
+    return raw.supported_languages;
+}
+
 std::vector<u8> NACP::GetRawBytes() const {
     std::vector<u8> out(sizeof(RawNACP));
     std::memcpy(out.data(), &raw, sizeof(RawNACP));
