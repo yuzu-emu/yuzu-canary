@@ -48,17 +48,6 @@ void MaxwellUniformData::SetFromRegs(const Maxwell3D& maxwell, std::size_t shade
     viewport_flip[0] = regs.viewport_transform[0].scale_x < 0.0 ? -1.0f : 1.0f;
     viewport_flip[1] = regs.viewport_transform[0].scale_y < 0.0 ? -1.0f : 1.0f;
 
-    auto func{static_cast<u32>(regs.alpha_test_func)};
-    // Normalize the gl variants of opCompare to be the same as the normal variants
-    const u32 op_gl_variant_base = static_cast<u32>(Maxwell3D::Regs::ComparisonOp::Never);
-    if (func >= op_gl_variant_base) {
-        func = func - op_gl_variant_base + 1U;
-    }
-
-    alpha_test.enabled = regs.alpha_test_enabled;
-    alpha_test.func = func;
-    alpha_test.ref = regs.alpha_test_ref;
-
     instance_id = state.current_instance;
 
     // Assign in which stage the position has to be flipped
