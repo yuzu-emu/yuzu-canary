@@ -21,6 +21,8 @@ option(YUZU_USE_BUNDLED_UNICORN "Build/Download bundled Unicorn" ON)
 
 option(YUZU_USE_QT_WEB_ENGINE "Use QtWebEngine for web applet implementation" OFF)
 
+option(YUZU_ENABLE_BOXCAT "Enable the Boxcat service, a yuzu high-level implementation of BCAT" ON)
+
 option(ENABLE_CUBEB "Enables the cubeb audio backend" ON)
 
 option(ENABLE_VULKAN "Enables Vulkan backend" ON)

@@ -419,6 +419,10 @@ struct Values {
     bool dump_exefs;
     bool dump_nso;
 
+    // BCAT
+    std::string bcat_backend;
+    bool bcat_boxcat_local;
+
     // WebService
     bool enable_telemetry;
     std::string web_api_url;
