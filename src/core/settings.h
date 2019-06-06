@@ -390,7 +390,6 @@ struct Values {
     float resolution_factor;
     bool use_frame_limit;
     u16 frame_limit;
-    bool use_compatibility_profile;
     bool use_disk_shader_cache;
     bool use_accurate_gpu_emulation;
     bool use_asynchronous_gpu_emulation;
