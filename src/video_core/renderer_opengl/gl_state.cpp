@@ -156,6 +156,10 @@ OpenGLState::OpenGLState() {
     polygon_offset.factor = 0.0f;
     polygon_offset.units = 0.0f;
     polygon_offset.clamp = 0.0f;
+
+    alpha_test.enabled = false;
+    alpha_test.func = GL_ALWAYS;
+    alpha_test.ref = 0.0f;
 }
 
 void OpenGLState::ApplyDefaultState() {
@@ -461,6 +465,14 @@ void OpenGLState::ApplyPolygonOffset() const {
     }
 }
 
+void OpenGLState::ApplyAlphaTest() const {
+    Enable(GL_ALPHA_TEST, cur_state.alpha_test.enabled, alpha_test.enabled);
+    if (UpdateTie(std::tie(cur_state.alpha_test.func, cur_state.alpha_test.ref),
+                  std::tie(alpha_test.func, alpha_test.ref))) {
+        glAlphaFunc(alpha_test.func, alpha_test.ref);
+    }
+}
+
 void OpenGLState::ApplyTextures() const {
     bool has_delta{};
     std::size_t first{};
@@ -533,6 +545,7 @@ void OpenGLState::Apply() const {
     ApplyTextures();
     ApplySamplers();
     ApplyPolygonOffset();
+    ApplyAlphaTest();
 }
 
 void OpenGLState::EmulateViewportWithScissor() {
