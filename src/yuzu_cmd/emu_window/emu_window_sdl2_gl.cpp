@@ -74,13 +74,9 @@ bool EmuWindow_SDL2_GL::SupportsRequiredGLExtensions() {
 }
 
 EmuWindow_SDL2_GL::EmuWindow_SDL2_GL(bool fullscreen) : EmuWindow_SDL2(fullscreen) {
-    const SDL_GLprofile profile = Settings::values.use_compatibility_profile
-                                      ? SDL_GL_CONTEXT_PROFILE_COMPATIBILITY
-                                      : SDL_GL_CONTEXT_PROFILE_CORE;
-
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, profile);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);

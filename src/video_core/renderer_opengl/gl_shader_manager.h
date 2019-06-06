@@ -27,14 +27,8 @@ struct MaxwellUniformData {
         GLuint flip_stage;
         GLfloat y_direction;
     };
-    struct alignas(16) {
-        GLuint enabled;
-        GLuint func;
-        GLfloat ref;
-        GLuint padding;
-    } alpha_test;
 };
-static_assert(sizeof(MaxwellUniformData) == 48, "MaxwellUniformData structure size is incorrect");
+static_assert(sizeof(MaxwellUniformData) == 32, "MaxwellUniformData structure size is incorrect");
 static_assert(sizeof(MaxwellUniformData) < 16384,
               "MaxwellUniformData structure must be less than 16kb as per the OpenGL spec");
 
