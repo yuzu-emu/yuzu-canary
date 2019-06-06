@@ -172,6 +172,12 @@ public:
         GLfloat clamp;
     } polygon_offset;
 
+    struct {
+        bool enabled; // GL_ALPHA_TEST
+        GLenum func;  // GL_ALPHA_TEST_FUNC
+        GLfloat ref;  // GL_ALPHA_TEST_REF
+    } alpha_test;
+
     std::array<bool, 8> clip_distance; // GL_CLIP_DISTANCE
 
     OpenGLState();
@@ -215,6 +221,7 @@ public:
     void ApplySamplers() const;
     void ApplyDepthClamp() const;
     void ApplyPolygonOffset() const;
+    void ApplyAlphaTest() const;
 
     /// Set the initial OpenGL state
     static void ApplyDefaultState();
