@@ -39,4 +39,9 @@ VirtualDir BISFactory::GetModificationDumpRoot(u64 title_id) const {
     return GetOrCreateDirectoryRelative(dump_root, fmt::format("/{:016X}", title_id));
 }
 
+VirtualDir BISFactory::GetBCATDirectory(u64 title_id) const {
+    return GetOrCreateDirectoryRelative(nand_root,
+                                        fmt::format("/system/save/bcat/{:016X}", title_id));
+}
+
 } // namespace FileSys

@@ -232,6 +232,9 @@ private:
     void BeginBlockingHomeButton(Kernel::HLERequestContext& ctx);
     void EndBlockingHomeButton(Kernel::HLERequestContext& ctx);
     void EnableApplicationCrashReport(Kernel::HLERequestContext& ctx);
+
+    bool launch_popped_application_specific = false;
+    bool launch_popped_account_preselect = false;
 };
 
 class IHomeMenuFunctions final : public ServiceFramework<IHomeMenuFunctions> {
