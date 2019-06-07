@@ -1,3 +1,27 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 357ea15a39645213ee52fe8fcf8cd06f7eea208e
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2548](https://github.com/yuzu-emu/yuzu/pull/2548)|[3938c78](https://github.com/yuzu-emu/yuzu/pull/2548/files/)|applets: Implement backend and default frontend for Parental Controls and EShop (ShopN) applets|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[2546](https://github.com/yuzu-emu/yuzu/pull/2546)|[9db119f](https://github.com/yuzu-emu/yuzu/pull/2546/files/)|loader, file_sys: Add support for parsing and loading KIP (Kernel Internal Process) files|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[2542](https://github.com/yuzu-emu/yuzu/pull/2542)|[7aeb676](https://github.com/yuzu-emu/yuzu/pull/2542/files/)|lbl: Implement brightness and backlight services|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[2539](https://github.com/yuzu-emu/yuzu/pull/2539)|[843414c](https://github.com/yuzu-emu/yuzu/pull/2539/files/)|bcat: Implement BCAT service and connect to yuzu Boxcat server|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[2538](https://github.com/yuzu-emu/yuzu/pull/2538)|[fe8e661](https://github.com/yuzu-emu/yuzu/pull/2538/files/)|shader: Split SSY and PBK stack|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2135](https://github.com/yuzu-emu/yuzu/pull/2135)|[2677cc8](https://github.com/yuzu-emu/yuzu/pull/2135/files/)|Implemented a lil edge case on RecreateSurface.|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1340](https://github.com/yuzu-emu/yuzu/pull/1340)|[5c638a6](https://github.com/yuzu-emu/yuzu/pull/1340/files/)|Implement a Better Ignore Assert - DO NOT CHECK IN|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
