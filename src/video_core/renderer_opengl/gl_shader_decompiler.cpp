@@ -143,6 +143,24 @@ u32 GetGenericAttributeIndex(Attribute::Index index) {
     return static_cast<u32>(index) - static_cast<u32>(Attribute::Index::Attribute_0);
 }
 
+constexpr const char* GetFlowStackPrefix(MetaStackClass stack) {
+    switch (stack) {
+    case MetaStackClass::Ssy:
+        return "ssy";
+    case MetaStackClass::Pbk:
+        return "pbk";
+    }
+    return {};
+}
+
+std::string FlowStackName(MetaStackClass stack) {
+    return fmt::format("{}_flow_stack", GetFlowStackPrefix(stack));
+}
+
+std::string FlowStackTopName(MetaStackClass stack) {
+    return fmt::format("{}_flow_stack_top", GetFlowStackPrefix(stack));
+}
+
 class GLSLDecompiler final {
 public:
     explicit GLSLDecompiler(const Device& device, const ShaderIR& ir, ShaderStage stage,
@@ -173,8 +191,10 @@ public:
         // TODO(Subv): Figure out the actual depth of the flow stack, for now it seems
         // unlikely that shaders will use 20 nested SSYs and PBKs.
         constexpr u32 FLOW_STACK_SIZE = 20;
-        code.AddLine("uint flow_stack[{}];", FLOW_STACK_SIZE);
-        code.AddLine("uint flow_stack_top = 0u;");
+        for (const auto stack : std::array{MetaStackClass::Ssy, MetaStackClass::Pbk}) {
+            code.AddLine("uint {}[{}];", FlowStackName(stack), FLOW_STACK_SIZE);
+            code.AddLine("uint {} = 0u;", FlowStackTopName(stack));
+        }
 
         code.AddLine("while (true) {{");
         ++code.scope;
@@ -1438,15 +1458,18 @@ private:
     }
 
     std::string PushFlowStack(Operation operation) {
+        const auto stack = std::get<MetaStackClass>(operation.GetMeta());
         const auto target = std::get_if<ImmediateNode>(&*operation[0]);
         UNIMPLEMENTED_IF(!target);
 
-        code.AddLine("flow_stack[flow_stack_top++] = 0x{:x}u;", target->GetValue());
+        code.AddLine("{}[{}++] = 0x{:x}u;", FlowStackName(stack), FlowStackTopName(stack),
+                     target->GetValue());
         return {};
     }
 
     std::string PopFlowStack(Operation operation) {
-        code.AddLine("jmp_to = flow_stack[--flow_stack_top];");
+        const auto stack = std::get<MetaStackClass>(operation.GetMeta());
+        code.AddLine("jmp_to = {}[--{}];", FlowStackName(stack), FlowStackTopName(stack));
         code.AddLine("break;");
         return {};
     }

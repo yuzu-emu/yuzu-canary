@@ -173,8 +173,8 @@ enum class OperationCode {
     TexelFetch,             /// (MetaTexture, int[N], int) -> float4
 
     Branch,        /// (uint branch_target) -> void
-    PushFlowStack, /// (uint branch_target) -> void
-    PopFlowStack,  /// () -> void
+    PushFlowStack, /// (MetaStackClass, uint branch_target) -> void
+    PopFlowStack,  /// (MetaStackClass) -> void
     Exit,          /// () -> void
     Discard,       /// () -> void
 
@@ -334,10 +334,15 @@ struct MetaTexture {
     u32 element{};
 };
 
+enum class MetaStackClass {
+    Ssy,
+    Pbk,
+};
+
 constexpr MetaArithmetic PRECISE = {true};
 constexpr MetaArithmetic NO_PRECISE = {false};
 
-using Meta = std::variant<MetaArithmetic, MetaTexture, Tegra::Shader::HalfType>;
+using Meta = std::variant<MetaArithmetic, MetaTexture, MetaStackClass, Tegra::Shader::HalfType>;
 
 /// Holds any kind of operation that can be done in the IR
 class OperationNode final {
