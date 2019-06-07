@@ -477,6 +477,17 @@ void Config::ReadDebuggingValues() {
     qt_config->endGroup();
 }
 
+void Config::ReadServiceValues() {
+    qt_config->beginGroup(QStringLiteral("Services"));
+    Settings::values.bcat_backend =
+        ReadSetting(QStringLiteral("bcat_backend"), QStringLiteral("boxcat"))
+            .toString()
+            .toStdString();
+    Settings::values.bcat_boxcat_local =
+        ReadSetting(QStringLiteral("bcat_boxcat_local"), false).toBool();
+    qt_config->endGroup();
+}
+
 void Config::ReadDisabledAddOnValues() {
     const auto size = qt_config->beginReadArray(QStringLiteral("DisabledAddOns"));
 
@@ -693,6 +704,7 @@ void Config::ReadValues() {
     ReadMiscellaneousValues();
     ReadDebugValues();
     ReadWebServiceValues();
+    ReadServiceValues();
     ReadDisabledAddOnValues();
     ReadUIValues();
 }
@@ -790,6 +802,7 @@ void Config::SaveValues() {
     SaveMiscellaneousValues();
     SaveDebuggingValues();
     SaveWebServiceValues();
+    SaveServiceValues();
     SaveDisabledAddOnValues();
     SaveUIValues();
 }
@@ -857,6 +870,14 @@ void Config::SaveDebuggingValues() {
     WriteSetting(QStringLiteral("dump_exefs"), Settings::values.dump_exefs, false);
     WriteSetting(QStringLiteral("dump_nso"), Settings::values.dump_nso, false);
 
+    qt_config->endGroup();
+}
+
+void Config::SaveServiceValues() {
+    qt_config->beginGroup(QStringLiteral("Services"));
+    WriteSetting(QStringLiteral("bcat_backend"),
+                 QString::fromStdString(Settings::values.bcat_backend), QStringLiteral("null"));
+    WriteSetting(QStringLiteral("bcat_boxcat_local"), Settings::values.bcat_boxcat_local, false);
     qt_config->endGroup();
 }
 
