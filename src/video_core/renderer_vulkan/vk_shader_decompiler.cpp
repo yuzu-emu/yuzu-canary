@@ -132,20 +132,16 @@ public:
             branch_labels.push_back(label);
         }
 
-        // TODO(Rodrigo): Figure out the actual depth of the flow stack, for now it seems unlikely
-        // that shaders will use 20 nested SSYs and PBKs.
-        constexpr u32 FLOW_STACK_SIZE = 20;
-        const Id flow_stack_type = TypeArray(t_uint, Constant(t_uint, FLOW_STACK_SIZE));
         jmp_to = Emit(OpVariable(TypePointer(spv::StorageClass::Function, t_uint),
                                  spv::StorageClass::Function, Constant(t_uint, first_address)));
-        flow_stack = Emit(OpVariable(TypePointer(spv::StorageClass::Function, flow_stack_type),
-                                     spv::StorageClass::Function, ConstantNull(flow_stack_type)));
-        flow_stack_top =
-            Emit(OpVariable(t_func_uint, spv::StorageClass::Function, Constant(t_uint, 0)));
+        std::tie(ssy_flow_stack, ssy_flow_stack_top) = CreateFlowStack();
+        std::tie(pbk_flow_stack, pbk_flow_stack_top) = CreateFlowStack();
 
         Name(jmp_to, "jmp_to");
-        Name(flow_stack, "flow_stack");
-        Name(flow_stack_top, "flow_stack_top");
+        Name(ssy_flow_stack, "ssy_flow_stack");
+        Name(ssy_flow_stack_top, "ssy_flow_stack_top");
+        Name(pbk_flow_stack, "pbk_flow_stack");
+        Name(pbk_flow_stack_top, "pbk_flow_stack_top");
 
         Emit(OpBranch(loop_label));
         Emit(loop_label);
@@ -952,6 +948,7 @@ private:
         const auto target = std::get_if<ImmediateNode>(&*operation[0]);
         ASSERT(target);
 
+        const auto [flow_stack, flow_stack_top] = GetFlowStack(operation);
         const Id current = Emit(OpLoad(t_uint, flow_stack_top));
         const Id next = Emit(OpIAdd(t_uint, current, Constant(t_uint, 1)));
         const Id access = Emit(OpAccessChain(t_func_uint, flow_stack, current));
@@ -962,6 +959,7 @@ private:
     }
 
     Id PopFlowStack(Operation operation) {
+        const auto [flow_stack, flow_stack_top] = GetFlowStack(operation);
         const Id current = Emit(OpLoad(t_uint, flow_stack_top));
         const Id previous = Emit(OpISub(t_uint, current, Constant(t_uint, 1)));
         const Id access = Emit(OpAccessChain(t_func_uint, flow_stack, previous));
@@ -1170,6 +1168,31 @@ private:
         call();
 
         Emit(skip_label);
+    }
+
+    std::tuple<Id, Id> CreateFlowStack() {
+        // TODO(Rodrigo): Figure out the actual depth of the flow stack, for now it seems unlikely
+        // that shaders will use 20 nested SSYs and PBKs.
+        constexpr u32 FLOW_STACK_SIZE = 20;
+        constexpr auto storage_class = spv::StorageClass::Function;
+
+        const Id flow_stack_type = TypeArray(t_uint, Constant(t_uint, FLOW_STACK_SIZE));
+        const Id stack = Emit(OpVariable(TypePointer(storage_class, flow_stack_type), storage_class,
+                                         ConstantNull(flow_stack_type)));
+        const Id top = Emit(OpVariable(t_func_uint, storage_class, Constant(t_uint, 0)));
+        return std::tie(stack, top);
+    }
+
+    std::pair<Id, Id> GetFlowStack(Operation operation) {
+        const auto stack_class = std::get<MetaStackClass>(operation.GetMeta());
+        switch (stack_class) {
+        case MetaStackClass::Ssy:
+            return {ssy_flow_stack, ssy_flow_stack_top};
+        case MetaStackClass::Pbk:
+            return {pbk_flow_stack, pbk_flow_stack_top};
+        }
+        UNREACHABLE();
+        return {};
     }
 
     static constexpr OperationDecompilersArray operation_decompilers = {
@@ -1414,8 +1437,10 @@ private:
 
     Id execute_function{};
     Id jmp_to{};
-    Id flow_stack_top{};
-    Id flow_stack{};
+    Id ssy_flow_stack_top{};
+    Id pbk_flow_stack_top{};
+    Id ssy_flow_stack{};
+    Id pbk_flow_stack{};
     Id continue_label{};
     std::map<u32, Id> labels;
 };
