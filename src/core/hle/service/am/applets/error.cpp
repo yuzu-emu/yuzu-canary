@@ -9,8 +9,10 @@
 #include "common/string_util.h"
 #include "core/core.h"
 #include "core/frontend/applets/error.h"
+#include "core/hle/kernel/process.h"
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/am/applets/error.h"
+#include "core/reporter.h"
 
 namespace Service::AM::Applets {
 
@@ -143,9 +145,12 @@ void Error::Execute() {
     }
 
     const auto callback = [this] { DisplayCompleted(); };
+    const auto title_id = Core::CurrentProcess()->GetTitleID();
+    const auto& reporter{Core::System::GetInstance().GetReporter()};
 
     switch (mode) {
     case ErrorAppletMode::ShowError:
+        reporter.SaveErrorReport(title_id, error_code);
         frontend.ShowError(error_code, callback);
         break;
     case ErrorAppletMode::ShowSystemError:
@@ -156,14 +161,18 @@ void Error::Execute() {
         const auto& detail_text =
             system ? args->system_error.detail_text : args->application_error.detail_text;
 
-        frontend.ShowCustomErrorText(
-            error_code,
-            Common::StringFromFixedZeroTerminatedBuffer(main_text.data(), main_text.size()),
-            Common::StringFromFixedZeroTerminatedBuffer(detail_text.data(), detail_text.size()),
-            callback);
+        const auto main_text_string =
+            Common::StringFromFixedZeroTerminatedBuffer(main_text.data(), main_text.size());
+        const auto detail_text_string =
+            Common::StringFromFixedZeroTerminatedBuffer(detail_text.data(), detail_text.size());
+
+        reporter.SaveErrorReport(title_id, error_code, main_text_string, detail_text_string);
+        frontend.ShowCustomErrorText(error_code, main_text_string, detail_text_string, callback);
         break;
     }
     case ErrorAppletMode::ShowErrorRecord:
+        reporter.SaveErrorReport(title_id, error_code,
+                                 fmt::format("{:016X}", args->error_record.posix_time));
         frontend.ShowErrorWithTimestamp(
             error_code, std::chrono::seconds{args->error_record.posix_time}, callback);
         break;

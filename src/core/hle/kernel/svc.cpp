@@ -38,6 +38,7 @@
 #include "core/hle/result.h"
 #include "core/hle/service/service.h"
 #include "core/memory.h"
+#include "core/reporter.h"
 
 namespace Kernel {
 namespace {
@@ -594,6 +595,7 @@ struct BreakReason {
 static void Break(Core::System& system, u32 reason, u64 info1, u64 info2) {
     BreakReason break_reason{reason};
     bool has_dumped_buffer{};
+    std::vector<u8> debug_buffer;
 
     const auto handle_debug_buffer = [&](VAddr addr, u64 sz) {
         if (sz == 0 || addr == 0 || has_dumped_buffer) {
@@ -605,7 +607,7 @@ static void Break(Core::System& system, u32 reason, u64 info1, u64 info2) {
             LOG_CRITICAL(Debug_Emulated, "debug_buffer_err_code={:X}", Memory::Read32(addr));
         } else {
             // We don't know what's in here so we'll hexdump it
-            std::vector<u8> debug_buffer(sz);
+            debug_buffer.resize(sz);
             Memory::ReadBlock(addr, debug_buffer.data(), sz);
             std::string hexdump;
             for (std::size_t i = 0; i < debug_buffer.size(); i++) {
@@ -663,6 +665,10 @@ static void Break(Core::System& system, u32 reason, u64 info1, u64 info2) {
         handle_debug_buffer(info1, info2);
         break;
     }
+
+    system.GetReporter().SaveSvcBreakReport(
+        static_cast<u32>(break_reason.break_type.Value()), break_reason.signal_debugger, info1,
+        info2, has_dumped_buffer ? std::make_optional(debug_buffer) : std::nullopt);
 
     if (!break_reason.signal_debugger) {
         LOG_CRITICAL(

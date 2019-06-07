@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <vector>
 #include "common/common_types.h"
 
 namespace Common {
@@ -151,6 +152,16 @@ public:
 
     /// Prepare core for thread reschedule (if needed to correctly handle state)
     virtual void PrepareReschedule() = 0;
+
+    struct BacktraceEntry {
+        std::string module;
+        u64 address;
+        u64 original_address;
+        u64 offset;
+        std::string name;
+    };
+
+    std::vector<BacktraceEntry> GetBacktrace() const;
 
     /// fp (= r29) points to the last frame record.
     /// Note that this is the frame record for the *previous* frame, not the current one.

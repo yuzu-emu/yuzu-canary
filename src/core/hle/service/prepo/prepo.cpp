@@ -2,10 +2,18 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <json.hpp>
+#include "common/file_util.h"
+#include "common/hex_util.h"
 #include "common/logging/log.h"
+#include "common/scm_rev.h"
 #include "core/hle/ipc_helpers.h"
+#include "core/hle/kernel/process.h"
+#include "core/hle/service/acc/profile_manager.h"
 #include "core/hle/service/prepo/prepo.h"
 #include "core/hle/service/service.h"
+#include "core/reporter.h"
+#include "core/settings.h"
 
 namespace Service::PlayReport {
 
@@ -40,8 +48,21 @@ public:
 
 private:
     void SaveReportWithUserOld(Kernel::HLERequestContext& ctx) {
-        // TODO(ogniK): Do we want to add play report?
-        LOG_WARNING(Service_PREPO, "(STUBBED) called");
+        IPC::RequestParser rp{ctx};
+        const auto user_id = rp.PopRaw<u128>();
+        const auto process_id = rp.PopRaw<u64>();
+
+        const auto data1 = ctx.ReadBuffer(0);
+        const auto data2 = ctx.ReadBuffer(1);
+
+        LOG_DEBUG(
+            Service_PREPO,
+            "called, user_id={:016X}{:016X}, unk1={:016X}, data1_size={:016X}, data2_size={:016X}",
+            user_id[1], user_id[0], process_id, data1.size(), data2.size());
+
+        const auto& reporter{Core::System::GetInstance().GetReporter()};
+        reporter.SavePlayReport(Core::CurrentProcess()->GetTitleID(), process_id, {data1, data2},
+                                user_id);
 
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);

@@ -45,6 +45,8 @@ public:
     ResultStatus ReadTitle(std::string& title) override;
     bool IsRomFSUpdatable() const override;
 
+    ResultStatus ReadNSOModules(Modules& modules) override;
+
 private:
     FileSys::ProgramMetadata metadata;
     FileSys::VirtualFile romfs;
@@ -54,6 +56,8 @@ private:
     std::string name;
     u64 title_id{};
     bool override_update;
+
+    Modules modules;
 };
 
 } // namespace Loader

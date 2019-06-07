@@ -54,6 +54,14 @@ public:
     AppletDataBroker();
     ~AppletDataBroker();
 
+    struct RawChannelData {
+        std::vector<std::vector<u8>> normal;
+        std::vector<std::vector<u8>> interactive;
+    };
+
+    // Retrieves but does not pop the data sent to applet.
+    RawChannelData PeekDataToAppletForDebug() const;
+
     std::unique_ptr<IStorage> PopNormalDataToGame();
     std::unique_ptr<IStorage> PopNormalDataToApplet();
 
@@ -76,16 +84,16 @@ private:
     // Queues are named from applet's perspective
 
     // PopNormalDataToApplet and PushNormalDataFromGame
-    std::queue<std::unique_ptr<IStorage>> in_channel;
+    std::deque<std::unique_ptr<IStorage>> in_channel;
 
     // PopNormalDataToGame and PushNormalDataFromApplet
-    std::queue<std::unique_ptr<IStorage>> out_channel;
+    std::deque<std::unique_ptr<IStorage>> out_channel;
 
     // PopInteractiveDataToApplet and PushInteractiveDataFromGame
-    std::queue<std::unique_ptr<IStorage>> in_interactive_channel;
+    std::deque<std::unique_ptr<IStorage>> in_interactive_channel;
 
     // PopInteractiveDataToGame and PushInteractiveDataFromApplet
-    std::queue<std::unique_ptr<IStorage>> out_interactive_channel;
+    std::deque<std::unique_ptr<IStorage>> out_interactive_channel;
 
     Kernel::EventPair state_changed_event;
 

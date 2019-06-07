@@ -457,6 +457,8 @@ add_library(core STATIC
     memory_setup.h
     perf_stats.cpp
     perf_stats.h
+    reporter.cpp
+    reporter.h
     settings.cpp
     settings.h
     telemetry_session.cpp
@@ -469,7 +471,7 @@ add_library(core STATIC
 create_target_directory_groups(core)
 
 target_link_libraries(core PUBLIC common PRIVATE audio_core video_core)
-target_link_libraries(core PUBLIC Boost::boost PRIVATE fmt mbedtls opus unicorn open_source_archives)
+target_link_libraries(core PUBLIC Boost::boost PRIVATE fmt json-headers mbedtls opus unicorn open_source_archives)
 if (ENABLE_WEB_SERVICE)
     target_compile_definitions(core PRIVATE -DENABLE_WEB_SERVICE)
     target_link_libraries(core PRIVATE web_service)

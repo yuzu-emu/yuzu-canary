@@ -49,6 +49,8 @@ public:
     ResultStatus ReadBanner(std::vector<u8>& buffer) override;
     ResultStatus ReadLogo(std::vector<u8>& buffer) override;
 
+    ResultStatus ReadNSOModules(Modules& modules) override;
+
 private:
     std::unique_ptr<FileSys::NSP> nsp;
     std::unique_ptr<AppLoader> secondary_loader;

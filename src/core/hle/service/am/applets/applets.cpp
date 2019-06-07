@@ -35,12 +35,28 @@ AppletDataBroker::AppletDataBroker() {
 
 AppletDataBroker::~AppletDataBroker() = default;
 
+AppletDataBroker::RawChannelData AppletDataBroker::PeekDataToAppletForDebug() const {
+    std::vector<std::vector<u8>> out_normal;
+
+    for (const auto& storage : in_channel) {
+        out_normal.push_back(storage->GetData());
+    }
+
+    std::vector<std::vector<u8>> out_interactive;
+
+    for (const auto& storage : in_interactive_channel) {
+        out_interactive.push_back(storage->GetData());
+    }
+
+    return {std::move(out_normal), std::move(out_interactive)};
+}
+
 std::unique_ptr<IStorage> AppletDataBroker::PopNormalDataToGame() {
     if (out_channel.empty())
         return nullptr;
 
     auto out = std::move(out_channel.front());
-    out_channel.pop();
+    out_channel.pop_front();
     return out;
 }
 
@@ -49,7 +65,7 @@ std::unique_ptr<IStorage> AppletDataBroker::PopNormalDataToApplet() {
         return nullptr;
 
     auto out = std::move(in_channel.front());
-    in_channel.pop();
+    in_channel.pop_front();
     return out;
 }
 
@@ -58,7 +74,7 @@ std::unique_ptr<IStorage> AppletDataBroker::PopInteractiveDataToGame() {
         return nullptr;
 
     auto out = std::move(out_interactive_channel.front());
-    out_interactive_channel.pop();
+    out_interactive_channel.pop_front();
     return out;
 }
 
@@ -67,25 +83,25 @@ std::unique_ptr<IStorage> AppletDataBroker::PopInteractiveDataToApplet() {
         return nullptr;
 
     auto out = std::move(in_interactive_channel.front());
-    in_interactive_channel.pop();
+    in_interactive_channel.pop_front();
     return out;
 }
 
 void AppletDataBroker::PushNormalDataFromGame(IStorage storage) {
-    in_channel.push(std::make_unique<IStorage>(storage));
+    in_channel.push_back(std::make_unique<IStorage>(storage));
 }
 
 void AppletDataBroker::PushNormalDataFromApplet(IStorage storage) {
-    out_channel.push(std::make_unique<IStorage>(storage));
+    out_channel.push_back(std::make_unique<IStorage>(storage));
     pop_out_data_event.writable->Signal();
 }
 
 void AppletDataBroker::PushInteractiveDataFromGame(IStorage storage) {
-    in_interactive_channel.push(std::make_unique<IStorage>(storage));
+    in_interactive_channel.push_back(std::make_unique<IStorage>(storage));
 }
 
 void AppletDataBroker::PushInteractiveDataFromApplet(IStorage storage) {
-    out_interactive_channel.push(std::make_unique<IStorage>(storage));
+    out_interactive_channel.push_back(std::make_unique<IStorage>(storage));
     pop_interactive_out_data_event.writable->Signal();
 }
 
@@ -204,7 +220,7 @@ std::shared_ptr<Applet> AppletManager::GetApplet(AppletId id) const {
         UNIMPLEMENTED_MSG(
             "No backend implementation exists for applet_id={:02X}! Falling back to stub applet.",
             static_cast<u8>(id));
-        return std::make_shared<StubApplet>();
+        return std::make_shared<StubApplet>(id);
     }
 }
 

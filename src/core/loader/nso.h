@@ -85,6 +85,11 @@ public:
                                            std::optional<FileSys::PatchManager> pm = {});
 
     LoadResult Load(Kernel::Process& process) override;
+
+    ResultStatus ReadNSOModules(Modules& modules) override;
+
+private:
+    Modules modules;
 };
 
 } // namespace Loader

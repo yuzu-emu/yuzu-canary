@@ -149,4 +149,8 @@ ResultStatus AppLoader_XCI::ReadLogo(std::vector<u8>& buffer) {
     return nca_loader->ReadLogo(buffer);
 }
 
+ResultStatus AppLoader_XCI::ReadNSOModules(Modules& modules) {
+    return nca_loader->ReadNSOModules(modules);
+}
+
 } // namespace Loader

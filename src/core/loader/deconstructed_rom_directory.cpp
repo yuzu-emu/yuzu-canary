@@ -141,6 +141,7 @@ AppLoader_DeconstructedRomDirectory::LoadResult AppLoader_DeconstructedRomDirect
     const FileSys::PatchManager pm(metadata.GetTitleID());
 
     // Load NSO modules
+    modules.clear();
     const VAddr base_address = process.VMManager().GetCodeRegionBaseAddress();
     VAddr next_load_addr = base_address;
     for (const auto& module : {"rtld", "main", "subsdk0", "subsdk1", "subsdk2", "subsdk3",
@@ -159,6 +160,7 @@ AppLoader_DeconstructedRomDirectory::LoadResult AppLoader_DeconstructedRomDirect
         }
 
         next_load_addr = *tentative_next_load_addr;
+        modules.insert_or_assign(load_addr, module);
         LOG_DEBUG(Loader, "loaded module {} @ 0x{:X}", module, load_addr);
         // Register module with GDBStub
         GDBStub::RegisterModule(module, load_addr, next_load_addr - 1, false);
@@ -210,6 +212,15 @@ ResultStatus AppLoader_DeconstructedRomDirectory::ReadTitle(std::string& title) 
 
 bool AppLoader_DeconstructedRomDirectory::IsRomFSUpdatable() const {
     return false;
+}
+
+ResultStatus AppLoader_DeconstructedRomDirectory::ReadNSOModules(Modules& modules) {
+    if (!is_loaded) {
+        return ResultStatus::ErrorNotInitialized;
+    }
+
+    modules = this->modules;
+    return ResultStatus::Success;
 }
 
 } // namespace Loader

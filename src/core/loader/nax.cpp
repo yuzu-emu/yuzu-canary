@@ -94,4 +94,8 @@ ResultStatus AppLoader_NAX::ReadLogo(std::vector<u8>& buffer) {
     return nca_loader->ReadLogo(buffer);
 }
 
+ResultStatus AppLoader_NAX::ReadNSOModules(Modules& modules) {
+    return nca_loader->ReadNSOModules(modules);
+}
+
 } // namespace Loader

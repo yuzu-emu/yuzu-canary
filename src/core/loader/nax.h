@@ -42,6 +42,8 @@ public:
     ResultStatus ReadBanner(std::vector<u8>& buffer) override;
     ResultStatus ReadLogo(std::vector<u8>& buffer) override;
 
+    ResultStatus ReadNSOModules(Modules& modules) override;
+
 private:
     std::unique_ptr<FileSys::NAX> nax;
     std::unique_ptr<AppLoader_NCA> nca_loader;

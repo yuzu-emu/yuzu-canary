@@ -68,6 +68,7 @@
 #include "core/hle/service/usb/usb.h"
 #include "core/hle/service/vi/vi.h"
 #include "core/hle/service/wlan/wlan.h"
+#include "core/reporter.h"
 
 namespace Service {
 
@@ -148,6 +149,8 @@ void ServiceFrameworkBase::ReportUnimplementedFunction(Kernel::HLERequestContext
     }
     buf.push_back('}');
 
+    Core::System::GetInstance().GetReporter().SaveUnimplementedFunctionReport(
+        ctx, ctx.GetCommand(), function_name, service_name);
     UNIMPLEMENTED_MSG("Unknown / unimplemented {}", fmt::to_string(buf));
 }
 

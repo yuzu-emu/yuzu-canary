@@ -13,6 +13,7 @@
 #include "core/hle/result.h"
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/am/applets/general_backend.h"
+#include "core/reporter.h"
 
 namespace Service::AM::Applets {
 
@@ -83,13 +84,20 @@ void PhotoViewer::ViewFinished() {
     broker.SignalStateChanged();
 }
 
-StubApplet::StubApplet() = default;
+StubApplet::StubApplet(AppletId id) : id(id) {}
 
 StubApplet::~StubApplet() = default;
 
 void StubApplet::Initialize() {
     LOG_WARNING(Service_AM, "called (STUBBED)");
     Applet::Initialize();
+
+    const auto data = broker.PeekDataToAppletForDebug();
+    Core::System::GetInstance().GetReporter().SaveUnimplementedAppletReport(
+        static_cast<u32>(id), common_args.arguments_version, common_args.library_version,
+        common_args.theme_color, common_args.play_startup_sound, common_args.system_tick,
+        data.normal, data.interactive);
+
     LogCurrentStorage(broker, "Initialize");
 }
 

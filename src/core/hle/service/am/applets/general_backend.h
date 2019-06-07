@@ -34,7 +34,7 @@ private:
 
 class StubApplet final : public Applet {
 public:
-    StubApplet();
+    explicit StubApplet(AppletId id);
     ~StubApplet() override;
 
     void Initialize() override;
@@ -43,6 +43,9 @@ public:
     ResultCode GetStatus() const override;
     void ExecuteInteractive() override;
     void Execute() override;
+
+private:
+    AppletId id;
 };
 
 } // namespace Service::AM::Applets

@@ -16,6 +16,7 @@
 #include "core/hle/service/fatal/fatal.h"
 #include "core/hle/service/fatal/fatal_p.h"
 #include "core/hle/service/fatal/fatal_u.h"
+#include "core/reporter.h"
 
 namespace Service::Fatal {
 
@@ -100,27 +101,10 @@ static void GenerateErrorReport(ResultCode error_code, const FatalInfo& info) {
 
     LOG_ERROR(Service_Fatal, "{}", crash_report);
 
-    const std::string crashreport_dir =
-        FileUtil::GetUserPath(FileUtil::UserPath::LogDir) + "crash_logs";
-
-    if (!FileUtil::CreateFullPath(crashreport_dir)) {
-        LOG_ERROR(
-            Service_Fatal,
-            "Unable to create crash report directory. Possible log directory permissions issue.");
-        return;
-    }
-
-    const std::time_t t = std::time(nullptr);
-    const std::string crashreport_filename =
-        fmt::format("{}/{:016x}-{:%F-%H%M%S}.log", crashreport_dir, title_id, *std::localtime(&t));
-
-    auto file = FileUtil::IOFile(crashreport_filename, "wb");
-    if (file.IsOpen()) {
-        file.WriteString(crash_report);
-        LOG_ERROR(Service_Fatal, "Saving error report to {}", crashreport_filename);
-    } else {
-        LOG_ERROR(Service_Fatal, "Failed to save error report to {}", crashreport_filename);
-    }
+    Core::System::GetInstance().GetReporter().SaveCrashReport(
+        title_id, error_code, info.set_flags, info.program_entry_point, info.sp, info.pc,
+        info.pstate, info.afsr0, info.afsr1, info.esr, info.far, info.registers, info.backtrace,
+        info.backtrace_size, info.ArchAsString(), info.unk10);
 }
 
 static void ThrowFatalError(ResultCode error_code, FatalType fatal_type, const FatalInfo& info) {

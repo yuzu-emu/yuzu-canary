@@ -183,4 +183,8 @@ ResultStatus AppLoader_NSP::ReadLogo(std::vector<u8>& buffer) {
     return secondary_loader->ReadLogo(buffer);
 }
 
+ResultStatus AppLoader_NSP::ReadNSOModules(Modules& modules) {
+    return secondary_loader->ReadNSOModules(modules);
+}
+
 } // namespace Loader

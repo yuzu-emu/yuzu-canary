@@ -105,4 +105,13 @@ ResultStatus AppLoader_NCA::ReadLogo(std::vector<u8>& buffer) {
     buffer = logo->GetFile("NintendoLogo.png")->ReadAllBytes();
     return ResultStatus::Success;
 }
+
+ResultStatus AppLoader_NCA::ReadNSOModules(Modules& modules) {
+    if (directory_loader == nullptr) {
+        return ResultStatus::ErrorNotInitialized;
+    }
+
+    return directory_loader->ReadNSOModules(modules);
+}
+
 } // namespace Loader
