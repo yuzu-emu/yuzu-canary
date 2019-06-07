@@ -52,7 +52,7 @@ vk::SamplerAddressMode WrapMode(Tegra::Texture::WrapMode wrap_mode) {
         return vk::SamplerAddressMode::eClampToEdge;
     case Tegra::Texture::WrapMode::Border:
         return vk::SamplerAddressMode::eClampToBorder;
-    case Tegra::Texture::WrapMode::ClampOGL:
+    case Tegra::Texture::WrapMode::Clamp:
         // TODO(Rodrigo): GL_CLAMP was removed as of OpenGL 3.1, to implement GL_CLAMP, we can use
         // eClampToBorder to get the border color of the texture, and then sample the edge to
         // manually mix them. However the shader part of this is not yet implemented.
