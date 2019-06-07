@@ -26,7 +26,6 @@ ProgramResult GenerateVertexShader(const Device& device, const ShaderSetup& setu
 layout (std140, binding = EMULATION_UBO_BINDING) uniform vs_config {
     vec4 viewport_flip;
     uvec4 config_pack; // instance_id, flip_stage, y_direction, padding
-    uvec4 alpha_test;
 };
 
 )";
@@ -78,7 +77,6 @@ ProgramResult GenerateGeometryShader(const Device& device, const ShaderSetup& se
 layout (std140, binding = EMULATION_UBO_BINDING) uniform gs_config {
     vec4 viewport_flip;
     uvec4 config_pack; // instance_id, flip_stage, y_direction, padding
-    uvec4 alpha_test;
 };
 
 )";
@@ -114,32 +112,7 @@ layout (location = 7) out vec4 FragColor7;
 layout (std140, binding = EMULATION_UBO_BINDING) uniform fs_config {
     vec4 viewport_flip;
     uvec4 config_pack; // instance_id, flip_stage, y_direction, padding
-    uvec4 alpha_test;
 };
-
-bool AlphaFunc(in float value) {
-    float ref = uintBitsToFloat(alpha_test[2]);
-    switch (alpha_test[1]) {
-        case 1:
-            return false;
-        case 2:
-            return value < ref;
-        case 3:
-            return value == ref;
-        case 4:
-            return value <= ref;
-        case 5:
-            return value > ref;
-        case 6:
-            return value != ref;
-        case 7:
-            return value >= ref;
-        case 8:
-            return true;
-        default:
-            return false;
-    }
-}
 
 )";
     const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET);

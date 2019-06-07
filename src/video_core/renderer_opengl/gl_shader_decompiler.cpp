@@ -1467,27 +1467,9 @@ private:
 
         UNIMPLEMENTED_IF_MSG(header.ps.omap.sample_mask != 0, "Sample mask write is unimplemented");
 
-        code.AddLine("if (alpha_test[0] != 0) {{");
-        ++code.scope;
-        // We start on the register containing the alpha value in the first RT.
-        u32 current_reg = 3;
-        for (u32 render_target = 0; render_target < Maxwell::NumRenderTargets; ++render_target) {
-            // TODO(Blinkhawk): verify the behavior of alpha testing on hardware when
-            // multiple render targets are used.
-            if (header.ps.IsColorComponentOutputEnabled(render_target, 0) ||
-                header.ps.IsColorComponentOutputEnabled(render_target, 1) ||
-                header.ps.IsColorComponentOutputEnabled(render_target, 2) ||
-                header.ps.IsColorComponentOutputEnabled(render_target, 3)) {
-                code.AddLine("if (!AlphaFunc({})) discard;", SafeGetRegister(current_reg));
-                current_reg += 4;
-            }
-        }
-        --code.scope;
-        code.AddLine("}}");
-
         // Write the color outputs using the data in the shader registers, disabled
         // rendertargets/components are skipped in the register assignment.
-        current_reg = 0;
+        u32 current_reg = 0;
         for (u32 render_target = 0; render_target < Maxwell::NumRenderTargets; ++render_target) {
             // TODO(Subv): Figure out how dual-source blending is configured in the Switch.
             for (u32 component = 0; component < 4; ++component) {

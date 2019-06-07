@@ -50,13 +50,6 @@
          </layout>
         </item>
         <item>
-         <widget class="QCheckBox" name="use_compatibility_profile">
-          <property name="text">
-           <string>Use OpenGL compatibility profile</string>
-          </property>
-         </widget>
-        </item>
-        <item>
          <widget class="QCheckBox" name="use_disk_shader_cache">
           <property name="text">
            <string>Use disk shader cache</string>

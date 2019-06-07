@@ -23,7 +23,6 @@
 #include "video_core/renderer_opengl/gl_buffer_cache.h"
 #include "video_core/renderer_opengl/gl_device.h"
 #include "video_core/renderer_opengl/gl_global_cache.h"
-#include "video_core/renderer_opengl/gl_primitive_assembler.h"
 #include "video_core/renderer_opengl/gl_rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_sampler_cache.h"
@@ -167,8 +166,8 @@ private:
     /// Syncs the polygon offsets
     void SyncPolygonOffset();
 
-    /// Check asserts for alpha testing.
-    void CheckAlphaTests();
+    /// Syncs the alpha test state to match the guest state
+    void SyncAlphaTest();
 
     /// Check for extension that are not strictly required
     /// but are needed for correct emulation
@@ -197,7 +196,6 @@ private:
 
     static constexpr std::size_t STREAM_BUFFER_SIZE = 128 * 1024 * 1024;
     OGLBufferCache buffer_cache;
-    PrimitiveAssembler primitive_assembler{buffer_cache};
 
     BindBuffersRangePushBuffer bind_ubo_pushbuffer{GL_UNIFORM_BUFFER};
     BindBuffersRangePushBuffer bind_ssbo_pushbuffer{GL_SHADER_STORAGE_BUFFER};
