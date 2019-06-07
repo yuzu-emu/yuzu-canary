@@ -61,9 +61,6 @@ public:
     /// Uploads from a host memory. Returns host's buffer offset where it's been allocated.
     GLintptr UploadHostMemory(const void* raw_pointer, std::size_t size, std::size_t alignment = 4);
 
-    /// Reserves memory to be used by host's CPU. Returns mapped address and offset.
-    std::tuple<u8*, GLintptr> ReserveMemory(std::size_t size, std::size_t alignment = 4);
-
     bool Map(std::size_t max_size);
     void Unmap();
 
