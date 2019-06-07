@@ -18,7 +18,7 @@ namespace AM {
 class AppletOE final : public ServiceFramework<AppletOE> {
 public:
     explicit AppletOE(std::shared_ptr<NVFlinger::NVFlinger> nvflinger,
-                      std::shared_ptr<AppletMessageQueue> msg_queue);
+                      std::shared_ptr<AppletMessageQueue> msg_queue, Core::System& system);
     ~AppletOE() override;
 
     const std::shared_ptr<AppletMessageQueue>& GetMessageQueue() const;
@@ -28,6 +28,7 @@ private:
 
     std::shared_ptr<NVFlinger::NVFlinger> nvflinger;
     std::shared_ptr<AppletMessageQueue> msg_queue;
+    Core::System& system;
 };
 
 } // namespace AM
