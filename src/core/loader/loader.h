@@ -37,6 +37,7 @@ enum class FileType {
     NSP,
     XCI,
     NAX,
+    KIP,
     DeconstructedRomDirectory,
 };
 
@@ -124,6 +125,10 @@ enum class ResultStatus : u16 {
     ErrorBadSubsectionBuckets,
     ErrorMissingBKTRBaseRomFS,
     ErrorNoPackedUpdate,
+    ErrorBadKIPHeader,
+    ErrorBLZDecompressionFailed,
+    ErrorBadINIHeader,
+    ErrorINITooManyKIPs,
 };
 
 std::ostream& operator<<(std::ostream& os, ResultStatus status);
