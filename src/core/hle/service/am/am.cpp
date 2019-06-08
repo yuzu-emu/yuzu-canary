@@ -871,7 +871,9 @@ void IStorageAccessor::Read(Kernel::HLERequestContext& ctx) {
     rb.Push(RESULT_SUCCESS);
 }
 
-ILibraryAppletCreator::ILibraryAppletCreator() : ServiceFramework("ILibraryAppletCreator") {
+ILibraryAppletCreator::ILibraryAppletCreator(u64 current_process_title_id)
+    : ServiceFramework("ILibraryAppletCreator"),
+      current_process_title_id(current_process_title_id) {
     static const FunctionInfo functions[] = {
         {0, &ILibraryAppletCreator::CreateLibraryApplet, "CreateLibraryApplet"},
         {1, nullptr, "TerminateAllLibraryApplets"},
@@ -894,7 +896,7 @@ void ILibraryAppletCreator::CreateLibraryApplet(Kernel::HLERequestContext& ctx) 
               static_cast<u32>(applet_id), applet_mode);
 
     const auto& applet_manager{Core::System::GetInstance().GetAppletManager()};
-    const auto applet = applet_manager.GetApplet(applet_id);
+    const auto applet = applet_manager.GetApplet(applet_id, current_process_title_id);
 
     if (applet == nullptr) {
         LOG_ERROR(Service_AM, "Applet doesn't exist! applet_id={}", static_cast<u32>(applet_id));
@@ -1218,13 +1220,13 @@ void IApplicationFunctions::GetSaveDataSize(Kernel::HLERequestContext& ctx) {
 }
 
 void InstallInterfaces(SM::ServiceManager& service_manager,
-                       std::shared_ptr<NVFlinger::NVFlinger> nvflinger) {
+                       std::shared_ptr<NVFlinger::NVFlinger> nvflinger, Core::System& system) {
     auto message_queue = std::make_shared<AppletMessageQueue>();
     message_queue->PushMessage(AppletMessageQueue::AppletMessage::FocusStateChanged); // Needed on
                                                                                       // game boot
 
-    std::make_shared<AppletAE>(nvflinger, message_queue)->InstallAsService(service_manager);
-    std::make_shared<AppletOE>(nvflinger, message_queue)->InstallAsService(service_manager);
+    std::make_shared<AppletAE>(nvflinger, message_queue, system)->InstallAsService(service_manager);
+    std::make_shared<AppletOE>(nvflinger, message_queue, system)->InstallAsService(service_manager);
     std::make_shared<IdleSys>()->InstallAsService(service_manager);
     std::make_shared<OMM>()->InstallAsService(service_manager);
     std::make_shared<SPSM>()->InstallAsService(service_manager);

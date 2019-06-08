@@ -198,13 +198,15 @@ private:
 
 class ILibraryAppletCreator final : public ServiceFramework<ILibraryAppletCreator> {
 public:
-    ILibraryAppletCreator();
+    ILibraryAppletCreator(u64 current_process_title_id);
     ~ILibraryAppletCreator() override;
 
 private:
     void CreateLibraryApplet(Kernel::HLERequestContext& ctx);
     void CreateStorage(Kernel::HLERequestContext& ctx);
     void CreateTransferMemoryStorage(Kernel::HLERequestContext& ctx);
+
+    u64 current_process_title_id;
 };
 
 class IApplicationFunctions final : public ServiceFramework<IApplicationFunctions> {
@@ -261,7 +263,7 @@ public:
 
 /// Registers all AM services with the specified service manager.
 void InstallInterfaces(SM::ServiceManager& service_manager,
-                       std::shared_ptr<NVFlinger::NVFlinger> nvflinger);
+                       std::shared_ptr<NVFlinger::NVFlinger> nvflinger, Core::System& system);
 
 } // namespace AM
 } // namespace Service
