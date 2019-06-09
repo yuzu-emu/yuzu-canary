@@ -4,6 +4,7 @@
 
 #include "common/logging/log.h"
 #include "core/hle/ipc_helpers.h"
+#include "core/hle/kernel/process.h"
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/am/applet_oe.h"
 #include "core/hle/service/nvflinger/nvflinger.h"
@@ -13,9 +14,9 @@ namespace Service::AM {
 class IApplicationProxy final : public ServiceFramework<IApplicationProxy> {
 public:
     explicit IApplicationProxy(std::shared_ptr<NVFlinger::NVFlinger> nvflinger,
-                               std::shared_ptr<AppletMessageQueue> msg_queue)
+                               std::shared_ptr<AppletMessageQueue> msg_queue, Core::System& system)
         : ServiceFramework("IApplicationProxy"), nvflinger(std::move(nvflinger)),
-          msg_queue(std::move(msg_queue)) {
+          msg_queue(std::move(msg_queue)), system(system) {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &IApplicationProxy::GetCommonStateGetter, "GetCommonStateGetter"},
@@ -87,7 +88,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ILibraryAppletCreator>();
+        rb.PushIpcInterface<ILibraryAppletCreator>(system.CurrentProcess()->GetTitleID());
     }
 
     void GetApplicationFunctions(Kernel::HLERequestContext& ctx) {
@@ -100,6 +101,7 @@ private:
 
     std::shared_ptr<NVFlinger::NVFlinger> nvflinger;
     std::shared_ptr<AppletMessageQueue> msg_queue;
+    Core::System& system;
 };
 
 void AppletOE::OpenApplicationProxy(Kernel::HLERequestContext& ctx) {
@@ -107,13 +109,13 @@ void AppletOE::OpenApplicationProxy(Kernel::HLERequestContext& ctx) {
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<IApplicationProxy>(nvflinger, msg_queue);
+    rb.PushIpcInterface<IApplicationProxy>(nvflinger, msg_queue, system);
 }
 
 AppletOE::AppletOE(std::shared_ptr<NVFlinger::NVFlinger> nvflinger,
-                   std::shared_ptr<AppletMessageQueue> msg_queue)
+                   std::shared_ptr<AppletMessageQueue> msg_queue, Core::System& system)
     : ServiceFramework("appletOE"), nvflinger(std::move(nvflinger)),
-      msg_queue(std::move(msg_queue)) {
+      msg_queue(std::move(msg_queue)), system(system) {
     static const FunctionInfo functions[] = {
         {0, &AppletOE::OpenApplicationProxy, "OpenApplicationProxy"},
     };
