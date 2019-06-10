@@ -174,6 +174,11 @@ enum class InternalFlag {
     Amount = 4,
 };
 
+enum class MetaStackClass {
+    Ssy,
+    Pbk,
+};
+
 class OperationNode;
 class ConditionalNode;
 class GprNode;
@@ -285,7 +290,7 @@ struct MetaTexture {
 };
 
 /// Parameters that modify an operation but are not part of any particular operand
-using Meta = std::variant<MetaArithmetic, MetaTexture, Tegra::Shader::HalfType>;
+using Meta = std::variant<MetaArithmetic, MetaTexture, MetaStackClass, Tegra::Shader::HalfType>;
 
 /// Holds any kind of operation that can be done in the IR
 class OperationNode final {
