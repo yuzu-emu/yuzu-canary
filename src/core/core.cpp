@@ -243,6 +243,7 @@ struct System::Impl {
     bool is_powered_on = false;
 
     std::unique_ptr<FileSys::CheatEngine> cheat_engine;
+    std::array<u8, 0x20> build_id{};
 
     /// Frontend applets
     Service::AM::Applets::AppletManager applet_manager;
@@ -490,6 +491,14 @@ void System::RegisterContentProvider(FileSys::ContentProviderUnionSlot slot,
 
 void System::ClearContentProvider(FileSys::ContentProviderUnionSlot slot) {
     impl->content_provider->ClearSlot(slot);
+}
+
+void System::SetCurrentProcessBuildID(std::array<u8, 32> id) {
+    impl->build_id = id;
+}
+
+const std::array<u8, 32>& System::GetCurrentProcessBuildID() const {
+    return impl->build_id;
 }
 
 System::ResultStatus System::Init(Frontend::EmuWindow& emu_window) {
