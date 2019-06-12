@@ -45,6 +45,8 @@ add_executable(yuzu
     configuration/configure_mouse_advanced.h
     configuration/configure_profile_manager.cpp
     configuration/configure_profile_manager.h
+    configuration/configure_service.cpp
+    configuration/configure_service.h
     configuration/configure_system.cpp
     configuration/configure_system.h
     configuration/configure_per_general.cpp
@@ -104,6 +106,7 @@ set(UIS
     configuration/configure_mouse_advanced.ui
     configuration/configure_per_general.ui
     configuration/configure_profile_manager.ui
+    configuration/configure_service.ui
     configuration/configure_system.ui
     configuration/configure_touchscreen_advanced.ui
     configuration/configure_web.ui
@@ -186,6 +189,10 @@ endif()
 if (YUZU_USE_QT_WEB_ENGINE)
     target_link_libraries(yuzu PRIVATE Qt5::WebEngineCore Qt5::WebEngineWidgets)
     target_compile_definitions(yuzu PRIVATE -DYUZU_USE_QT_WEB_ENGINE)
+endif ()
+
+if (YUZU_ENABLE_BOXCAT)
+    target_compile_definitions(yuzu PRIVATE -DYUZU_ENABLE_BOXCAT)
 endif ()
 
 if(UNIX AND NOT APPLE)

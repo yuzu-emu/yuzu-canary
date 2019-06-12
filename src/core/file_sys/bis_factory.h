@@ -26,6 +26,8 @@ public:
     VirtualDir GetModificationLoadRoot(u64 title_id) const;
     VirtualDir GetModificationDumpRoot(u64 title_id) const;
 
+    VirtualDir GetBCATDirectory(u64 title_id) const;
+
 private:
     VirtualDir nand_root;
     VirtualDir load_root;
