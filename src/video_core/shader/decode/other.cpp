@@ -109,22 +109,20 @@ u32 ShaderIR::DecodeOther(NodeBlock& bb, u32 pc) {
         UNIMPLEMENTED_IF_MSG(instr.bra.constant_buffer != 0,
                              "Constant buffer flow is not supported");
 
-        // The SSY opcode tells the GPU where to re-converge divergent execution paths, it sets the
-        // target of the jump that the SYNC instruction will make. The SSY opcode has a similar
-        // structure to the BRA opcode.
+        // The SSY opcode tells the GPU where to re-converge divergent execution paths with SYNC.
         const u32 target = pc + instr.bra.GetBranchTarget();
-        bb.push_back(Operation(OperationCode::PushFlowStack, Immediate(target)));
+        bb.push_back(
+            Operation(OperationCode::PushFlowStack, MetaStackClass::Ssy, Immediate(target)));
         break;
     }
     case OpCode::Id::PBK: {
         UNIMPLEMENTED_IF_MSG(instr.bra.constant_buffer != 0,
                              "Constant buffer PBK is not supported");
 
-        // PBK pushes to a stack the address where BRK will jump to. This shares stack with SSY but
-        // using SYNC on a PBK address will kill the shader execution. We don't emulate this because
-        // it's very unlikely a driver will emit such invalid shader.
+        // PBK pushes to a stack the address where BRK will jump to.
         const u32 target = pc + instr.bra.GetBranchTarget();
-        bb.push_back(Operation(OperationCode::PushFlowStack, Immediate(target)));
+        bb.push_back(
+            Operation(OperationCode::PushFlowStack, MetaStackClass::Pbk, Immediate(target)));
         break;
     }
     case OpCode::Id::SYNC: {
@@ -133,7 +131,7 @@ u32 ShaderIR::DecodeOther(NodeBlock& bb, u32 pc) {
                              static_cast<u32>(cc));
 
         // The SYNC opcode jumps to the address previously set by the SSY opcode
-        bb.push_back(Operation(OperationCode::PopFlowStack));
+        bb.push_back(Operation(OperationCode::PopFlowStack, MetaStackClass::Ssy));
         break;
     }
     case OpCode::Id::BRK: {
@@ -142,7 +140,7 @@ u32 ShaderIR::DecodeOther(NodeBlock& bb, u32 pc) {
                              static_cast<u32>(cc));
 
         // The BRK opcode jumps to the address previously set by the PBK opcode
-        bb.push_back(Operation(OperationCode::PopFlowStack));
+        bb.push_back(Operation(OperationCode::PopFlowStack, MetaStackClass::Pbk));
         break;
     }
     case OpCode::Id::IPA: {
