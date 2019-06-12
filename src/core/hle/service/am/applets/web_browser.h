@@ -4,15 +4,22 @@
 
 #pragma once
 
+#include <map>
 #include "core/file_sys/vfs_types.h"
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/am/applets/applets.h"
 
 namespace Service::AM::Applets {
 
+enum class ShimKind : u32;
+enum class ShopWebTarget;
+enum class WebArgTLVType : u16;
+
 class WebBrowser final : public Applet {
 public:
-    WebBrowser(Core::Frontend::WebBrowserApplet& frontend);
+    WebBrowser(Core::Frontend::WebBrowserApplet& frontend, u64 current_process_title_id,
+               Core::Frontend::ECommerceApplet* frontend_e_commerce = nullptr);
+
     ~WebBrowser() override;
 
     void Initialize() override;
@@ -32,15 +39,41 @@ public:
     void Finalize();
 
 private:
+    void InitializeInternal();
+    void ExecuteInternal();
+
+    // Specific initializers for the types of web applets
+    void InitializeShop();
+    void InitializeOffline();
+
+    // Specific executors for the types of web applets
+    void ExecuteShop();
+    void ExecuteOffline();
+
     Core::Frontend::WebBrowserApplet& frontend;
+
+    // Extra frontends for specialized functions
+    Core::Frontend::ECommerceApplet* frontend_e_commerce;
 
     bool complete = false;
     bool unpacked = false;
     ResultCode status = RESULT_SUCCESS;
 
-    FileSys::VirtualFile manual_romfs;
+    u64 current_process_title_id;
+
+    ShimKind kind;
+    std::map<WebArgTLVType, std::vector<u8>> args;
+
+    FileSys::VirtualFile offline_romfs;
     std::string temporary_dir;
     std::string filename;
+
+    ShopWebTarget shop_web_target;
+    std::map<std::string, std::string, std::less<>> shop_query;
+    std::optional<u64> title_id = 0;
+    std::optional<u128> user_id;
+    std::optional<bool> shop_full_display;
+    std::string shop_extra_parameter;
 };
 
 } // namespace Service::AM::Applets

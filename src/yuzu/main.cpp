@@ -814,11 +814,13 @@ bool GMainWindow::LoadROM(const QString& filename) {
     system.SetGPUDebugContext(debug_context);
 
     system.SetAppletFrontendSet({
-        std::make_unique<QtErrorDisplay>(*this),
-        nullptr,
-        std::make_unique<QtProfileSelector>(*this),
-        std::make_unique<QtSoftwareKeyboard>(*this),
-        std::make_unique<QtWebBrowser>(*this),
+        nullptr,                                     // Parental Controls
+        std::make_unique<QtErrorDisplay>(*this),     //
+        nullptr,                                     // Photo Viewer
+        std::make_unique<QtProfileSelector>(*this),  //
+        std::make_unique<QtSoftwareKeyboard>(*this), //
+        std::make_unique<QtWebBrowser>(*this),       //
+        nullptr,                                     // E-Commerce
     });
 
     const Core::System::ResultStatus result{system.Load(*render_window, filename.toStdString())};
