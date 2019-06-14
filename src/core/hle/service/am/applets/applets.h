@@ -13,7 +13,9 @@
 union ResultCode;
 
 namespace Core::Frontend {
+class ECommerceApplet;
 class ErrorApplet;
+class ParentalControlsApplet;
 class PhotoViewerApplet;
 class ProfileSelectApplet;
 class SoftwareKeyboardApplet;
@@ -137,15 +139,19 @@ protected:
 };
 
 struct AppletFrontendSet {
+    using ParentalControlsApplet = std::unique_ptr<Core::Frontend::ParentalControlsApplet>;
     using ErrorApplet = std::unique_ptr<Core::Frontend::ErrorApplet>;
     using PhotoViewer = std::unique_ptr<Core::Frontend::PhotoViewerApplet>;
     using ProfileSelect = std::unique_ptr<Core::Frontend::ProfileSelectApplet>;
     using SoftwareKeyboard = std::unique_ptr<Core::Frontend::SoftwareKeyboardApplet>;
     using WebBrowser = std::unique_ptr<Core::Frontend::WebBrowserApplet>;
+    using ECommerceApplet = std::unique_ptr<Core::Frontend::ECommerceApplet>;
 
     AppletFrontendSet();
-    AppletFrontendSet(ErrorApplet error, PhotoViewer photo_viewer, ProfileSelect profile_select,
-                      SoftwareKeyboard software_keyboard, WebBrowser web_browser);
+    AppletFrontendSet(ParentalControlsApplet parental_controls, ErrorApplet error,
+                      PhotoViewer photo_viewer, ProfileSelect profile_select,
+                      SoftwareKeyboard software_keyboard, WebBrowser web_browser,
+                      ECommerceApplet e_commerce);
     ~AppletFrontendSet();
 
     AppletFrontendSet(const AppletFrontendSet&) = delete;
@@ -154,11 +160,13 @@ struct AppletFrontendSet {
     AppletFrontendSet(AppletFrontendSet&&) noexcept;
     AppletFrontendSet& operator=(AppletFrontendSet&&) noexcept;
 
+    ParentalControlsApplet parental_controls;
     ErrorApplet error;
     PhotoViewer photo_viewer;
     ProfileSelect profile_select;
     SoftwareKeyboard software_keyboard;
     WebBrowser web_browser;
+    ECommerceApplet e_commerce;
 };
 
 class AppletManager {
@@ -171,7 +179,7 @@ public:
     void SetDefaultAppletsIfMissing();
     void ClearAll();
 
-    std::shared_ptr<Applet> GetApplet(AppletId id) const;
+    std::shared_ptr<Applet> GetApplet(AppletId id, u64 current_process_title_id) const;
 
 private:
     AppletFrontendSet frontend;

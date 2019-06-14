@@ -37,8 +37,8 @@ public:
     explicit QtWebBrowser(GMainWindow& main_window);
     ~QtWebBrowser() override;
 
-    void OpenPage(std::string_view url, std::function<void()> unpack_romfs_callback,
-                  std::function<void()> finished_callback) override;
+    void OpenPageLocal(std::string_view url, std::function<void()> unpack_romfs_callback,
+                       std::function<void()> finished_callback) override;
 
 signals:
     void MainWindowOpenPage(std::string_view filename, std::string_view additional_args) const;

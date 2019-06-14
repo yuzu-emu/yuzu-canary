@@ -8,6 +8,36 @@
 
 namespace Service::AM::Applets {
 
+enum class AuthAppletType : u32 {
+    ShowParentalAuthentication,
+    RegisterParentalPasscode,
+    ChangeParentalPasscode,
+};
+
+class Auth final : public Applet {
+public:
+    explicit Auth(Core::Frontend::ParentalControlsApplet& frontend);
+    ~Auth() override;
+
+    void Initialize() override;
+    bool TransactionComplete() const override;
+    ResultCode GetStatus() const override;
+    void ExecuteInteractive() override;
+    void Execute() override;
+
+    void AuthFinished(bool successful = true);
+
+private:
+    Core::Frontend::ParentalControlsApplet& frontend;
+    bool complete = false;
+    bool successful = false;
+
+    AuthAppletType type = AuthAppletType::ShowParentalAuthentication;
+    u8 arg0 = 0;
+    u8 arg1 = 0;
+    u8 arg2 = 0;
+};
+
 enum class PhotoViewerAppletMode : u8 {
     CurrentApp = 0,
     AllApps = 1,
