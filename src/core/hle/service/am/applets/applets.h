@@ -174,6 +174,8 @@ public:
     AppletManager();
     ~AppletManager();
 
+    const AppletFrontendSet& GetAppletFrontendSet() const;
+
     void SetAppletFrontendSet(AppletFrontendSet set);
     void SetDefaultAppletFrontendSet();
     void SetDefaultAppletsIfMissing();
