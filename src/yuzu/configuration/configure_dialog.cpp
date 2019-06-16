@@ -43,6 +43,7 @@ void ConfigureDialog::ApplyConfiguration() {
     ui->audioTab->ApplyConfiguration();
     ui->debugTab->ApplyConfiguration();
     ui->webTab->ApplyConfiguration();
+    ui->serviceTab->ApplyConfiguration();
     Settings::Apply();
     Settings::LogSettings();
 }
@@ -71,7 +72,7 @@ void ConfigureDialog::RetranslateUI() {
 void ConfigureDialog::PopulateSelectionList() {
     const std::array<std::pair<QString, QStringList>, 4> items{
         {{tr("General"), {tr("General"), tr("Web"), tr("Debug"), tr("Game List")}},
-         {tr("System"), {tr("System"), tr("Profiles"), tr("Audio")}},
+         {tr("System"), {tr("System"), tr("Services"), tr("Profiles"), tr("Audio")}},
          {tr("Graphics"), {tr("Graphics")}},
          {tr("Controls"), {tr("Input"), tr("Hotkeys")}}},
     };
@@ -104,6 +105,7 @@ void ConfigureDialog::UpdateVisibleTabs() {
         {tr("Debug"), ui->debugTab},
         {tr("Web"), ui->webTab},
         {tr("Game List"), ui->gameListTab},
+        {tr("Services"), ui->serviceTab},
     };
 
     [[maybe_unused]] const QSignalBlocker blocker(ui->tabWidget);
