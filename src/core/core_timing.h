@@ -6,6 +6,7 @@
 
 #include <chrono>
 #include <functional>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -67,7 +68,7 @@ public:
     ///
     EventType* RegisterEvent(const std::string& name, TimedCallback callback);
 
-    /// Unregisters all registered events thus far.
+    /// Unregisters all registered events thus far. Note: not thread unsafe
     void UnregisterAllEvents();
 
     /// After the first Advance, the slice lengths and the downcount will be reduced whenever an
@@ -76,20 +77,10 @@ public:
     /// Scheduling from a callback will not update the downcount until the Advance() completes.
     void ScheduleEvent(s64 cycles_into_future, const EventType* event_type, u64 userdata = 0);
 
-    /// This is to be called when outside of hle threads, such as the graphics thread, wants to
-    /// schedule things to be executed on the main thread.
-    ///
-    /// @note This doesn't change slice_length and thus events scheduled by this might be
-    /// called with a delay of up to MAX_SLICE_LENGTH
-    void ScheduleEventThreadsafe(s64 cycles_into_future, const EventType* event_type,
-                                 u64 userdata = 0);
-
     void UnscheduleEvent(const EventType* event_type, u64 userdata);
-    void UnscheduleEventThreadsafe(const EventType* event_type, u64 userdata);
 
     /// We only permit one event of each type in the queue at a time.
     void RemoveEvent(const EventType* event_type);
-    void RemoveNormalAndThreadsafeEvent(const EventType* event_type);
 
     void ForceExceptionCheck(s64 cycles);
 
@@ -120,7 +111,6 @@ private:
 
     /// Clear all pending events. This should ONLY be done on exit.
     void ClearPendingEvents();
-    void MoveEvents();
 
     s64 global_timer = 0;
     s64 idled_cycles = 0;
@@ -143,14 +133,9 @@ private:
     // remain stable regardless of rehashes/resizing.
     std::unordered_map<std::string, EventType> event_types;
 
-    // The queue for storing the events from other threads threadsafe until they will be added
-    // to the event_queue by the emu thread
-    Common::MPSCQueue<Event> ts_queue;
-
-    // The queue for unscheduling the events from other threads threadsafe
-    Common::MPSCQueue<std::pair<const EventType*, u64>> unschedule_queue;
-
     EventType* ev_lost = nullptr;
+
+    std::mutex inner_mutex;
 };
 
 } // namespace Core::Timing
