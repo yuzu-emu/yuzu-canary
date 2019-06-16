@@ -124,7 +124,7 @@ bool NullBackend::Clear(u64 title_id) {
 
 void NullBackend::SetPassphrase(u64 title_id, const Passphrase& passphrase) {
     LOG_DEBUG(Service_BCAT, "called, title_id={:016X}, passphrase = {}", title_id,
-              Common::HexArrayToString(passphrase));
+              Common::HexToString(passphrase));
 }
 
 std::optional<std::vector<u8>> NullBackend::GetLaunchParameter(TitleIDVersion title) {

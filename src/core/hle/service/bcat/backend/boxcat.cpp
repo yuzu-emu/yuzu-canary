@@ -215,7 +215,7 @@ private:
                 file.ReadBytes(bytes.data(), bytes.size());
                 const auto digest = DigestFile(bytes);
                 headers.insert(
-                    {std::string("If-None-Match"), Common::HexArrayToString(digest, false)});
+                    {std::string("If-None-Match"), Common::HexToString(digest, false)});
             }
         }
 
@@ -402,7 +402,7 @@ bool Boxcat::Clear(u64 title_id) {
 
 void Boxcat::SetPassphrase(u64 title_id, const Passphrase& passphrase) {
     LOG_DEBUG(Service_BCAT, "called, title_id={:016X}, passphrase={}", title_id,
-              Common::HexArrayToString(passphrase));
+              Common::HexToString(passphrase));
 }
 
 std::optional<std::vector<u8>> Boxcat::GetLaunchParameter(TitleIDVersion title) {

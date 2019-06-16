@@ -195,7 +195,7 @@ private:
         const auto passphrase_raw = ctx.ReadBuffer();
 
         LOG_DEBUG(Service_BCAT, "called, title_id={:016X}, passphrase={}", title_id,
-                  Common::HexVectorToString(passphrase_raw));
+                  Common::HexToString(passphrase_raw));
 
         if (title_id == 0) {
             LOG_ERROR(Service_BCAT, "Invalid title ID!");
