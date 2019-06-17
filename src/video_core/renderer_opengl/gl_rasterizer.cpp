@@ -950,13 +950,21 @@ void RasterizerOpenGL::SyncPrimitiveRestart() {
 void RasterizerOpenGL::SyncDepthTestState() {
     const auto& regs = system.GPU().Maxwell3D().regs;
 
-    state.depth.test_enabled = regs.depth_test_enable != 0;
     state.depth.write_mask = regs.depth_write_enabled ? GL_TRUE : GL_FALSE;
 
-    if (!state.depth.test_enabled)
+    // Workaround OpenGL's weird design choice where depth testing needs to be enabled to be able to
+    // write to the depth buffer, regardless of glDepthMask state.
+    if (state.depth.write_mask && state.depth.test_enabled == 0) {
+        state.depth.test_enabled = true;
+        state.depth.test_func = GL_ALWAYS;
         return;
+    }
 
-    state.depth.test_func = MaxwellToGL::ComparisonOp(regs.depth_test_func);
+    // Otherwise use what the game is explicitly asking
+    state.depth.test_enabled = regs.depth_test_enable != 0;
+    if (state.depth.test_enabled) {
+        state.depth.test_func = MaxwellToGL::ComparisonOp(regs.depth_test_func);
+    }
 }
 
 void RasterizerOpenGL::SyncStencilTestState() {
