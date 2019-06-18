@@ -40,4 +40,35 @@ void RendererBase::RequestScreenshot(void* data, std::function<void()> callback,
     renderer_settings.screenshot_requested = true;
 }
 
+f32 RendererBase::GetCurrentResultantBrightness() const {
+    return renderer_settings.current_brightness / 2.0f;
+}
+
+void RendererBase::SetBacklightStatus(bool enabled, u64 fade_transition_time) {
+    if (fade_transition_time == 0) {
+        // Needed to ensure the renderer recognizes that a change must occur.
+        fade_transition_time = 1;
+    }
+
+    if (enabled && renderer_settings.current_brightness == 0) {
+        renderer_settings.current_brightness = current_brightness_backup;
+        renderer_settings.backlight_fade_time = fade_transition_time;
+    } else if (!enabled && renderer_settings.current_brightness != 0) {
+        current_brightness_backup = renderer_settings.current_brightness;
+        renderer_settings.current_brightness = 0;
+        renderer_settings.backlight_fade_time = fade_transition_time;
+    }
+}
+
+bool RendererBase::GetBacklightStatus() const {
+    return renderer_settings.current_brightness != 0;
+}
+
+void RendererBase::SetCurrentBrightness(f32 value) {
+    if (value != renderer_settings.current_brightness) {
+        renderer_settings.current_brightness = value * 2.0f;
+        renderer_settings.backlight_fade_time = 1;
+    }
+}
+
 } // namespace VideoCore
