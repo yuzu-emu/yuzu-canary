@@ -105,7 +105,7 @@ void Stream::PlayNextBuffer() {
 
     sink_stream.EnqueueSamples(GetNumChannels(), active_buffer->GetSamples());
 
-    core_timing.ScheduleEventThreadsafe(GetBufferReleaseCycles(*active_buffer), release_event, {});
+    core_timing.ScheduleEvent(GetBufferReleaseCycles(*active_buffer), release_event, {});
 }
 
 void Stream::ReleaseActiveBuffer() {
