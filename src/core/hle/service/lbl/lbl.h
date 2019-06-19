@@ -10,6 +10,9 @@ class ServiceManager;
 
 namespace Service::LBL {
 
+// Requests the LBL service passed to load brightness values from Settings
+void RequestLoadCurrentSetting(SM::ServiceManager& sm);
+
 void InstallInterfaces(SM::ServiceManager& sm);
 
 } // namespace Service::LBL
