@@ -56,12 +56,12 @@ void CoreTiming::Initialize() {
 }
 
 void CoreTiming::Shutdown() {
-    MoveEvents();
     ClearPendingEvents();
     UnregisterAllEvents();
 }
 
 EventType* CoreTiming::RegisterEvent(const std::string& name, TimedCallback callback) {
+    std::lock_guard guard{inner_mutex};
     // check for existing type with same name.
     // we want event type names to remain unique so that we can use them for serialization.
     ASSERT_MSG(event_types.find(name) == event_types.end(),
@@ -82,6 +82,7 @@ void CoreTiming::UnregisterAllEvents() {
 
 void CoreTiming::ScheduleEvent(s64 cycles_into_future, const EventType* event_type, u64 userdata) {
     ASSERT(event_type != nullptr);
+    std::lock_guard guard{inner_mutex};
     const s64 timeout = GetTicks() + cycles_into_future;
 
     // If this event needs to be scheduled before the next advance(), force one early
@@ -93,12 +94,8 @@ void CoreTiming::ScheduleEvent(s64 cycles_into_future, const EventType* event_ty
     std::push_heap(event_queue.begin(), event_queue.end(), std::greater<>());
 }
 
-void CoreTiming::ScheduleEventThreadsafe(s64 cycles_into_future, const EventType* event_type,
-                                         u64 userdata) {
-    ts_queue.Push(Event{global_timer + cycles_into_future, 0, userdata, event_type});
-}
-
 void CoreTiming::UnscheduleEvent(const EventType* event_type, u64 userdata) {
+    std::lock_guard guard{inner_mutex};
     const auto itr = std::remove_if(event_queue.begin(), event_queue.end(), [&](const Event& e) {
         return e.type == event_type && e.userdata == userdata;
     });
@@ -108,10 +105,6 @@ void CoreTiming::UnscheduleEvent(const EventType* event_type, u64 userdata) {
         event_queue.erase(itr, event_queue.end());
         std::make_heap(event_queue.begin(), event_queue.end(), std::greater<>());
     }
-}
-
-void CoreTiming::UnscheduleEventThreadsafe(const EventType* event_type, u64 userdata) {
-    unschedule_queue.Push(std::make_pair(event_type, userdata));
 }
 
 u64 CoreTiming::GetTicks() const {
@@ -135,6 +128,7 @@ void CoreTiming::ClearPendingEvents() {
 }
 
 void CoreTiming::RemoveEvent(const EventType* event_type) {
+    std::lock_guard guard{inner_mutex};
     const auto itr = std::remove_if(event_queue.begin(), event_queue.end(),
                                     [&](const Event& e) { return e.type == event_type; });
 
@@ -143,11 +137,6 @@ void CoreTiming::RemoveEvent(const EventType* event_type) {
         event_queue.erase(itr, event_queue.end());
         std::make_heap(event_queue.begin(), event_queue.end(), std::greater<>());
     }
-}
-
-void CoreTiming::RemoveNormalAndThreadsafeEvent(const EventType* event_type) {
-    MoveEvents();
-    RemoveEvent(event_type);
 }
 
 void CoreTiming::ForceExceptionCheck(s64 cycles) {
@@ -162,19 +151,8 @@ void CoreTiming::ForceExceptionCheck(s64 cycles) {
     downcount = static_cast<int>(cycles);
 }
 
-void CoreTiming::MoveEvents() {
-    for (Event ev; ts_queue.Pop(ev);) {
-        ev.fifo_order = event_fifo_id++;
-        event_queue.emplace_back(std::move(ev));
-        std::push_heap(event_queue.begin(), event_queue.end(), std::greater<>());
-    }
-}
-
 void CoreTiming::Advance() {
-    MoveEvents();
-    for (std::pair<const EventType*, u64> ev; unschedule_queue.Pop(ev);) {
-        UnscheduleEvent(ev.first, ev.second);
-    }
+    std::unique_lock<std::mutex> guard(inner_mutex);
 
     const int cycles_executed = slice_length - downcount;
     global_timer += cycles_executed;
@@ -186,7 +164,9 @@ void CoreTiming::Advance() {
         Event evt = std::move(event_queue.front());
         std::pop_heap(event_queue.begin(), event_queue.end(), std::greater<>());
         event_queue.pop_back();
+        inner_mutex.unlock();
         evt.type->callback(evt.userdata, global_timer - evt.time);
+        inner_mutex.lock();
     }
 
     is_global_timer_sane = false;
