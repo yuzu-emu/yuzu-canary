@@ -22,8 +22,10 @@
 #include "core/crypto/key_manager.h"
 #include "core/crypto/partition_data_manager.h"
 #include "core/crypto/xts_encryption_layer.h"
+#include "core/file_sys/kernel_executable.h"
 #include "core/file_sys/vfs.h"
 #include "core/file_sys/vfs_offset.h"
+#include "core/file_sys/vfs_vector.h"
 
 using namespace Common;
 
@@ -44,36 +46,6 @@ struct Package2Header {
     std::array<SHA256Hash, 4> section_hash;
 };
 static_assert(sizeof(Package2Header) == 0x200, "Package2Header has incorrect size.");
-
-struct INIHeader {
-    u32_le magic;
-    u32_le size;
-    u32_le process_count;
-    INSERT_PADDING_BYTES(4);
-};
-static_assert(sizeof(INIHeader) == 0x10, "INIHeader has incorrect size.");
-
-struct SectionHeader {
-    u32_le offset;
-    u32_le size_decompressed;
-    u32_le size_compressed;
-    u32_le attribute;
-};
-static_assert(sizeof(SectionHeader) == 0x10, "SectionHeader has incorrect size.");
-
-struct KIPHeader {
-    u32_le magic;
-    std::array<char, 12> name;
-    u64_le title_id;
-    u32_le category;
-    u8 priority;
-    u8 core;
-    INSERT_PADDING_BYTES(1);
-    u8 flags;
-    std::array<SectionHeader, 6> sections;
-    std::array<u32, 0x20> capabilities;
-};
-static_assert(sizeof(KIPHeader) == 0x100, "KIPHeader has incorrect size.");
 
 const std::array<SHA256Hash, 0x10> source_hashes{
     "B24BD293259DBC7AC5D63F88E60C59792498E6FC5443402C7FFE87EE8B61A3F0"_array32, // keyblob_mac_key_source
@@ -169,65 +141,6 @@ const std::array<SHA256Hash, 0x20> master_key_hashes{
     "0000000000000000000000000000000000000000000000000000000000000000"_array32, // master_key_1E
     "0000000000000000000000000000000000000000000000000000000000000000"_array32, // master_key_1F
 };
-
-static std::vector<u8> DecompressBLZ(const std::vector<u8>& in) {
-    const auto data_size = in.size() - 0xC;
-
-    u32 compressed_size{};
-    u32 init_index{};
-    u32 additional_size{};
-    std::memcpy(&compressed_size, in.data() + data_size, sizeof(u32));
-    std::memcpy(&init_index, in.data() + data_size + 0x4, sizeof(u32));
-    std::memcpy(&additional_size, in.data() + data_size + 0x8, sizeof(u32));
-
-    std::vector<u8> out(in.size() + additional_size);
-
-    if (compressed_size == in.size())
-        std::memcpy(out.data(), in.data() + in.size() - compressed_size, compressed_size);
-    else
-        std::memcpy(out.data(), in.data(), compressed_size);
-
-    auto index = in.size() - init_index;
-    auto out_index = out.size();
-
-    while (out_index > 0) {
-        --index;
-        auto control = in[index];
-        for (size_t i = 0; i < 8; ++i) {
-            if ((control & 0x80) > 0) {
-                ASSERT(index >= 2);
-                index -= 2;
-                u64 segment_offset = in[index] | in[index + 1] << 8;
-                u64 segment_size = ((segment_offset >> 12) & 0xF) + 3;
-                segment_offset &= 0xFFF;
-                segment_offset += 3;
-
-                if (out_index < segment_size)
-                    segment_size = out_index;
-
-                ASSERT(out_index >= segment_size);
-
-                out_index -= segment_size;
-
-                for (size_t j = 0; j < segment_size; ++j) {
-                    ASSERT(out_index + j + segment_offset < out.size());
-                    out[out_index + j] = out[out_index + j + segment_offset];
-                }
-            } else {
-                ASSERT(out_index >= 1);
-                --out_index;
-                --index;
-                out[out_index] = in[index];
-            }
-
-            control <<= 1;
-            if (out_index == 0)
-                return out;
-        }
-    }
-
-    return out;
-}
 
 static u8 CalculateMaxKeyblobSourceHash() {
     for (s8 i = 0x1F; i >= 0; --i) {
@@ -478,37 +391,22 @@ void PartitionDataManager::DecryptPackage2(const std::array<Key128, 0x20>& packa
     cipher.SetIV({header.section_ctr[1].begin(), header.section_ctr[1].end()});
     cipher.Transcode(c.data(), c.size(), c.data(), Op::Decrypt);
 
-    INIHeader ini;
-    std::memcpy(&ini, c.data(), sizeof(INIHeader));
-    if (ini.magic != Common::MakeMagic('I', 'N', 'I', '1'))
+    const auto ini_file = std::make_shared<FileSys::VectorVfsFile>(c);
+    const FileSys::INI ini{ini_file};
+    if (ini.GetStatus() != Loader::ResultStatus::Success)
         return;
 
-    u64 offset = sizeof(INIHeader);
-    for (size_t i = 0; i < ini.process_count; ++i) {
-        KIPHeader kip;
-        std::memcpy(&kip, c.data() + offset, sizeof(KIPHeader));
-        if (kip.magic != Common::MakeMagic('K', 'I', 'P', '1'))
+    for (const auto& kip : ini.GetKIPs()) {
+        if (kip.GetStatus() != Loader::ResultStatus::Success)
             return;
 
-        const auto name =
-            Common::StringFromFixedZeroTerminatedBuffer(kip.name.data(), kip.name.size());
-
-        if (name != "FS" && name != "spl") {
-            offset += sizeof(KIPHeader) + kip.sections[0].size_compressed +
-                      kip.sections[1].size_compressed + kip.sections[2].size_compressed;
+        if (kip.GetName() != "FS" && kip.GetName() != "spl") {
             continue;
         }
 
-        const u64 initial_offset = sizeof(KIPHeader) + offset;
-        const auto text_begin = c.cbegin() + initial_offset;
-        const auto text_end = text_begin + kip.sections[0].size_compressed;
-        const std::vector<u8> text = DecompressBLZ({text_begin, text_end});
-
-        const auto rodata_end = text_end + kip.sections[1].size_compressed;
-        const std::vector<u8> rodata = DecompressBLZ({text_end, rodata_end});
-
-        const auto data_end = rodata_end + kip.sections[2].size_compressed;
-        const std::vector<u8> data = DecompressBLZ({rodata_end, data_end});
+        const auto& text = kip.GetTextSection();
+        const auto& rodata = kip.GetRODataSection();
+        const auto& data = kip.GetDataSection();
 
         std::vector<u8> out;
         out.reserve(text.size() + rodata.size() + data.size());
@@ -516,12 +414,9 @@ void PartitionDataManager::DecryptPackage2(const std::array<Key128, 0x20>& packa
         out.insert(out.end(), rodata.begin(), rodata.end());
         out.insert(out.end(), data.begin(), data.end());
 
-        offset += sizeof(KIPHeader) + kip.sections[0].size_compressed +
-                  kip.sections[1].size_compressed + kip.sections[2].size_compressed;
-
-        if (name == "FS")
+        if (kip.GetName() == "FS")
             package2_fs[static_cast<size_t>(type)] = std::move(out);
-        else if (name == "spl")
+        else if (kip.GetName() == "spl")
             package2_spl[static_cast<size_t>(type)] = std::move(out);
     }
 }
