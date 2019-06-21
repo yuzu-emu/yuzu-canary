@@ -76,13 +76,13 @@ void Thread::WakeAfterDelay(s64 nanoseconds) {
     // This function might be called from any thread so we have to be cautious and use the
     // thread-safe version of ScheduleEvent.
     const s64 cycles = Core::Timing::nsToCycles(std::chrono::nanoseconds{nanoseconds});
-    Core::System::GetInstance().CoreTiming().ScheduleEventThreadsafe(
+    Core::System::GetInstance().CoreTiming().ScheduleEvent(
         cycles, kernel.ThreadWakeupCallbackEventType(), callback_handle);
 }
 
 void Thread::CancelWakeupTimer() {
-    Core::System::GetInstance().CoreTiming().UnscheduleEventThreadsafe(
-        kernel.ThreadWakeupCallbackEventType(), callback_handle);
+    Core::System::GetInstance().CoreTiming().UnscheduleEvent(kernel.ThreadWakeupCallbackEventType(),
+                                                             callback_handle);
 }
 
 static std::optional<s32> GetNextProcessorId(u64 mask) {
