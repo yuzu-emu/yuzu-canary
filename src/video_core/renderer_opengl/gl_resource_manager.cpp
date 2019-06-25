@@ -33,6 +33,24 @@ void OGLTexture::Release() {
     handle = 0;
 }
 
+void OGLTextureView::Create() {
+    if (handle != 0)
+        return;
+
+    MICROPROFILE_SCOPE(OpenGL_ResourceCreation);
+    glGenTextures(1, &handle);
+}
+
+void OGLTextureView::Release() {
+    if (handle == 0)
+        return;
+
+    MICROPROFILE_SCOPE(OpenGL_ResourceDeletion);
+    glDeleteTextures(1, &handle);
+    OpenGLState::GetCurState().UnbindTexture(handle).Apply();
+    handle = 0;
+}
+
 void OGLSampler::Create() {
     if (handle != 0)
         return;
@@ -128,6 +146,13 @@ void OGLBuffer::Release() {
     MICROPROFILE_SCOPE(OpenGL_ResourceDeletion);
     glDeleteBuffers(1, &handle);
     handle = 0;
+}
+
+void OGLBuffer::MakeStreamCopy(std::size_t buffer_size) {
+    if (handle == 0 || buffer_size == 0)
+        return;
+
+    glNamedBufferData(handle, buffer_size, nullptr, GL_STREAM_COPY);
 }
 
 void OGLSync::Create() {
