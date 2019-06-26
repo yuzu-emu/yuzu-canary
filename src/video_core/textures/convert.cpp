@@ -62,19 +62,19 @@ static void ConvertZ24S8ToS8Z24(u8* data, u32 width, u32 height) {
     SwapS8Z24ToZ24S8<true>(data, width, height);
 }
 
-void ConvertFromGuestToHost(u8* data, PixelFormat pixel_format, u32 width, u32 height, u32 depth,
-                            bool convert_astc, bool convert_s8z24) {
+void ConvertFromGuestToHost(u8* in_data, u8* out_data, PixelFormat pixel_format, u32 width,
+                            u32 height, u32 depth, bool convert_astc, bool convert_s8z24) {
     if (convert_astc && IsPixelFormatASTC(pixel_format)) {
         // Convert ASTC pixel formats to RGBA8, as most desktop GPUs do not support ASTC.
         u32 block_width{};
         u32 block_height{};
         std::tie(block_width, block_height) = GetASTCBlockSize(pixel_format);
-        const std::vector<u8> rgba8_data =
-            Tegra::Texture::ASTC::Decompress(data, width, height, depth, block_width, block_height);
-        std::copy(rgba8_data.begin(), rgba8_data.end(), data);
+        const std::vector<u8> rgba8_data = Tegra::Texture::ASTC::Decompress(
+            in_data, width, height, depth, block_width, block_height);
+        std::copy(rgba8_data.begin(), rgba8_data.end(), out_data);
 
     } else if (convert_s8z24 && pixel_format == PixelFormat::S8Z24) {
-        Tegra::Texture::ConvertS8Z24ToZ24S8(data, width, height);
+        Tegra::Texture::ConvertS8Z24ToZ24S8(in_data, width, height);
     }
 }
 
