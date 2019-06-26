@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <bitset>
 #include <optional>
 #include <tuple>
@@ -124,6 +125,15 @@ union Sampler {
 
     BitField<36, 13, Index> index;
     u64 value{};
+};
+
+union Image {
+    Image() = default;
+
+    constexpr explicit Image(u64 value) : value{value} {}
+
+    BitField<36, 13, u64> index;
+    u64 value;
 };
 
 } // namespace Tegra::Shader
@@ -344,6 +354,26 @@ enum class TextureMiscMode : u64 {
     PTP,
 };
 
+enum class SurfaceDataMode : u64 {
+    P = 0,
+    D_BA = 1,
+};
+
+enum class OutOfBoundsStore : u64 {
+    Ignore = 0,
+    Clamp = 1,
+    Trap = 2,
+};
+
+enum class ImageType : u64 {
+    Texture1D = 0,
+    TextureBuffer = 1,
+    Texture1DArray = 2,
+    Texture2D = 3,
+    Texture2DArray = 4,
+    Texture3D = 5,
+};
+
 enum class IsberdMode : u64 {
     None = 0,
     Patch = 1,
@@ -398,7 +428,7 @@ enum class LmemLoadCacheManagement : u64 {
     CV = 3,
 };
 
-enum class LmemStoreCacheManagement : u64 {
+enum class StoreCacheManagement : u64 {
     Default = 0,
     CG = 1,
     CS = 2,
@@ -811,7 +841,7 @@ union Instruction {
     } ld_l;
 
     union {
-        BitField<44, 2, LmemStoreCacheManagement> cache_management;
+        BitField<44, 2, StoreCacheManagement> cache_management;
     } st_l;
 
     union {
@@ -1232,6 +1262,20 @@ union Instruction {
     } texs;
 
     union {
+        BitField<28, 1, u64> is_array;
+        BitField<29, 2, TextureType> texture_type;
+        BitField<35, 1, u64> aoffi;
+        BitField<49, 1, u64> nodep_flag;
+        BitField<50, 1, u64> ms; // Multisample?
+        BitField<54, 1, u64> cl;
+        BitField<55, 1, u64> process_mode;
+
+        TextureProcessMode GetTextureProcessMode() const {
+            return process_mode == 0 ? TextureProcessMode::LZ : TextureProcessMode::LL;
+        }
+    } tld;
+
+    union {
         BitField<49, 1, u64> nodep_flag;
         BitField<53, 4, u64> texture_info;
 
@@ -1279,6 +1323,35 @@ union Instruction {
             return texture_info == 8;
         }
     } tlds;
+
+    union {
+        BitField<24, 2, StoreCacheManagement> cache_management;
+        BitField<33, 3, ImageType> image_type;
+        BitField<49, 2, OutOfBoundsStore> out_of_bounds_store;
+        BitField<51, 1, u64> is_immediate;
+        BitField<52, 1, SurfaceDataMode> mode;
+
+        BitField<20, 3, StoreType> store_data_layout;
+        BitField<20, 4, u64> component_mask_selector;
+
+        bool IsComponentEnabled(std::size_t component) const {
+            ASSERT(mode == SurfaceDataMode::P);
+            constexpr u8 R = 0b0001;
+            constexpr u8 G = 0b0010;
+            constexpr u8 B = 0b0100;
+            constexpr u8 A = 0b1000;
+            constexpr std::array<u8, 16> mask = {
+                0,       (R),         (G),         (R | G),        (B),     (R | B),
+                (G | B), (R | G | B), (A),         (R | A),        (G | A), (R | G | A),
+                (B | A), (R | B | A), (G | B | A), (R | G | B | A)};
+            return std::bitset<4>{mask.at(component_mask_selector)}.test(component);
+        }
+
+        StoreType GetStoreDataLayout() const {
+            ASSERT(mode == SurfaceDataMode::D_BA);
+            return store_data_layout;
+        }
+    } sust;
 
     union {
         BitField<20, 24, u64> target;
@@ -1371,6 +1444,7 @@ union Instruction {
 
     Attribute attribute;
     Sampler sampler;
+    Image image;
 
     u64 value;
 };
@@ -1408,11 +1482,13 @@ public:
         TXQ,    // Texture Query
         TXQ_B,  // Texture Query Bindless
         TEXS,   // Texture Fetch with scalar/non-vec4 source/destinations
+        TLD,    // Texture Load
         TLDS,   // Texture Load with scalar/non-vec4 source/destinations
         TLD4,   // Texture Load 4
         TLD4S,  // Texture Load 4 with scalar / non - vec4 source / destinations
         TMML_B, // Texture Mip Map Level
         TMML,   // Texture Mip Map Level
+        SUST,   // Surface Store
         EXIT,
         IPA,
         OUT_R, // Emit vertex/primitive
@@ -1543,6 +1619,7 @@ public:
         Synch,
         Memory,
         Texture,
+        Image,
         FloatSet,
         FloatSetPredicate,
         IntegerSet,
@@ -1682,11 +1759,13 @@ private:
             INST("1101111101001---", Id::TXQ, Type::Texture, "TXQ"),
             INST("1101111101010---", Id::TXQ_B, Type::Texture, "TXQ_B"),
             INST("1101-00---------", Id::TEXS, Type::Texture, "TEXS"),
+            INST("11011100--11----", Id::TLD, Type::Texture, "TLD"),
             INST("1101101---------", Id::TLDS, Type::Texture, "TLDS"),
             INST("110010----111---", Id::TLD4, Type::Texture, "TLD4"),
             INST("1101111100------", Id::TLD4S, Type::Texture, "TLD4S"),
             INST("110111110110----", Id::TMML_B, Type::Texture, "TMML_B"),
             INST("1101111101011---", Id::TMML, Type::Texture, "TMML"),
+            INST("11101011001-----", Id::SUST, Type::Image, "SUST"),
             INST("11100000--------", Id::IPA, Type::Trivial, "IPA"),
             INST("1111101111100---", Id::OUT_R, Type::Trivial, "OUT_R"),
             INST("1110111111010---", Id::ISBERD, Type::Trivial, "ISBERD"),

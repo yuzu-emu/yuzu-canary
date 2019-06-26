@@ -36,6 +36,31 @@ public:
     GLuint handle = 0;
 };
 
+class OGLTextureView : private NonCopyable {
+public:
+    OGLTextureView() = default;
+
+    OGLTextureView(OGLTextureView&& o) noexcept : handle(std::exchange(o.handle, 0)) {}
+
+    ~OGLTextureView() {
+        Release();
+    }
+
+    OGLTextureView& operator=(OGLTextureView&& o) noexcept {
+        Release();
+        handle = std::exchange(o.handle, 0);
+        return *this;
+    }
+
+    /// Creates a new internal OpenGL resource and stores the handle
+    void Create();
+
+    /// Deletes the internal OpenGL resource
+    void Release();
+
+    GLuint handle = 0;
+};
+
 class OGLSampler : private NonCopyable {
 public:
     OGLSampler() = default;
@@ -160,6 +185,9 @@ public:
 
     /// Deletes the internal OpenGL resource
     void Release();
+
+    // Converts the buffer into a stream copy buffer with a fixed size
+    void MakeStreamCopy(std::size_t buffer_size);
 
     GLuint handle = 0;
 };
