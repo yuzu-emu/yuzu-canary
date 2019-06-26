@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <string>
 
 #if !defined(ARCHITECTURE_x86_64)
@@ -58,6 +59,16 @@ namespace Common {
 
 constexpr u32 MakeMagic(char a, char b, char c, char d) {
     return a | b << 8 | c << 16 | d << 24;
+}
+
+template <class ForwardIt, class T, class Compare = std::less<>>
+ForwardIt BinaryFind(ForwardIt first, ForwardIt last, const T& value, Compare comp = {}) {
+    // Note: BOTH type T and the type after ForwardIt is dereferenced
+    // must be implicitly convertible to BOTH Type1 and Type2, used in Compare.
+    // This is stricter than lower_bound requirement (see above)
+
+    first = std::lower_bound(first, last, value, comp);
+    return first != last && !comp(value, *first) ? first : last;
 }
 
 } // namespace Common
