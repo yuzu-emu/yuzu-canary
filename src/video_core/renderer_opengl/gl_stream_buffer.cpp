@@ -15,7 +15,8 @@ MICROPROFILE_DEFINE(OpenGL_StreamBuffer, "OpenGL", "Stream Buffer Orphaning",
 
 namespace OpenGL {
 
-OGLStreamBuffer::OGLStreamBuffer(GLsizeiptr size, bool vertex_data_usage, bool prefer_coherent)
+OGLStreamBuffer::OGLStreamBuffer(GLsizeiptr size, bool vertex_data_usage, bool prefer_coherent,
+                                 bool use_persistent)
     : buffer_size(size) {
     gl_buffer.Create();
 
@@ -29,7 +30,7 @@ OGLStreamBuffer::OGLStreamBuffer(GLsizeiptr size, bool vertex_data_usage, bool p
         allocate_size *= 2;
     }
 
-    if (GLAD_GL_ARB_buffer_storage) {
+    if (use_persistent) {
         persistent = true;
         coherent = prefer_coherent;
         const GLbitfield flags =

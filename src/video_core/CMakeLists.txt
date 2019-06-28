@@ -41,12 +41,12 @@ add_library(video_core STATIC
     renderer_opengl/gl_buffer_cache.h
     renderer_opengl/gl_device.cpp
     renderer_opengl/gl_device.h
+    renderer_opengl/gl_framebuffer_cache.cpp
+    renderer_opengl/gl_framebuffer_cache.h
     renderer_opengl/gl_global_cache.cpp
     renderer_opengl/gl_global_cache.h
     renderer_opengl/gl_rasterizer.cpp
     renderer_opengl/gl_rasterizer.h
-    renderer_opengl/gl_rasterizer_cache.cpp
-    renderer_opengl/gl_rasterizer_cache.h
     renderer_opengl/gl_resource_manager.cpp
     renderer_opengl/gl_resource_manager.h
     renderer_opengl/gl_sampler_cache.cpp
@@ -67,6 +67,8 @@ add_library(video_core STATIC
     renderer_opengl/gl_state.h
     renderer_opengl/gl_stream_buffer.cpp
     renderer_opengl/gl_stream_buffer.h
+    renderer_opengl/gl_texture_cache.cpp
+    renderer_opengl/gl_texture_cache.h
     renderer_opengl/maxwell_to_gl.h
     renderer_opengl/renderer_opengl.cpp
     renderer_opengl/renderer_opengl.h
@@ -88,6 +90,7 @@ add_library(video_core STATIC
     shader/decode/conversion.cpp
     shader/decode/memory.cpp
     shader/decode/texture.cpp
+    shader/decode/image.cpp
     shader/decode/float_set_predicate.cpp
     shader/decode/integer_set_predicate.cpp
     shader/decode/half_set_predicate.cpp
@@ -109,6 +112,13 @@ add_library(video_core STATIC
     shader/track.cpp
     surface.cpp
     surface.h
+    texture_cache/surface_base.cpp
+    texture_cache/surface_base.h
+    texture_cache/surface_params.cpp
+    texture_cache/surface_params.h
+    texture_cache/surface_view.cpp
+    texture_cache/surface_view.h
+    texture_cache/texture_cache.h
     textures/astc.cpp
     textures/astc.h
     textures/convert.cpp
@@ -116,8 +126,6 @@ add_library(video_core STATIC
     textures/decoders.cpp
     textures/decoders.h
     textures/texture.h
-    texture_cache.cpp
-    texture_cache.h
     video_core.cpp
     video_core.h
 )
