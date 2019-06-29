@@ -249,7 +249,7 @@ void Init(std::shared_ptr<SM::ServiceManager>& sm, Core::System& system,
     Sockets::InstallInterfaces(*sm);
     SPL::InstallInterfaces(*sm);
     SSL::InstallInterfaces(*sm);
-    Time::InstallInterfaces(*sm);
+    Time::InstallInterfaces(system);
     USB::InstallInterfaces(*sm);
     VI::InstallInterfaces(*sm, nv_flinger);
     WLAN::InstallInterfaces(*sm);
