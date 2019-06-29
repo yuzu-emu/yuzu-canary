@@ -9,6 +9,7 @@
 #include "common/bit_field.h"
 #include "common/common_funcs.h"
 #include "common/common_types.h"
+#include "common/math_util.h"
 #include "video_core/gpu.h"
 
 namespace Tegra {
@@ -38,6 +39,26 @@ public:
     /// Write the value to the register identified by method.
     void CallMethod(const GPU::MethodCall& method_call);
 
+    enum class Origin : u32 {
+        Center = 0,
+        Corner = 1,
+    };
+
+    enum class Filter : u32 {
+        PointSample = 0, // Nearest
+        Linear = 1,
+    };
+
+    enum class Operation : u32 {
+        SrcCopyAnd = 0,
+        ROPAnd = 1,
+        Blend = 2,
+        SrcCopy = 3,
+        ROP = 4,
+        SrcCopyPremult = 5,
+        BlendPremult = 6,
+    };
+
     struct Regs {
         static constexpr std::size_t NUM_REGS = 0x258;
 
@@ -63,31 +84,18 @@ public:
             }
 
             u32 BlockWidth() const {
-                // The block width is stored in log2 format.
-                return 1 << block_width;
+                return block_width.Value();
             }
 
             u32 BlockHeight() const {
-                // The block height is stored in log2 format.
-                return 1 << block_height;
+                return block_height.Value();
             }
 
             u32 BlockDepth() const {
-                // The block depth is stored in log2 format.
-                return 1 << block_depth;
+                return block_depth.Value();
             }
         };
         static_assert(sizeof(Surface) == 0x28, "Surface has incorrect size");
-
-        enum class Operation : u32 {
-            SrcCopyAnd = 0,
-            ROPAnd = 1,
-            Blend = 2,
-            SrcCopy = 3,
-            ROP = 4,
-            SrcCopyPremult = 5,
-            BlendPremult = 6,
-        };
 
         union {
             struct {
@@ -105,7 +113,11 @@ public:
 
                 INSERT_PADDING_WORDS(0x177);
 
-                u32 blit_control;
+                union {
+                    u32 raw;
+                    BitField<0, 1, Origin> origin;
+                    BitField<4, 1, Filter> filter;
+                } blit_control;
 
                 INSERT_PADDING_WORDS(0x8);
 
@@ -123,6 +135,13 @@ public:
             std::array<u32, NUM_REGS> reg_array;
         };
     } regs{};
+
+    struct Config {
+        Operation operation;
+        Filter filter;
+        Common::Rectangle<u32> src_rect;
+        Common::Rectangle<u32> dst_rect;
+    };
 
 private:
     VideoCore::RasterizerInterface& rasterizer;
