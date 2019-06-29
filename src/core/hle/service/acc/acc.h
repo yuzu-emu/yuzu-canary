@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "core/hle/service/glue/manager.h"
 #include "core/hle/service/service.h"
 
 namespace Service::Account {
@@ -25,11 +26,32 @@ public:
         void ListOpenUsers(Kernel::HLERequestContext& ctx);
         void GetLastOpenedUser(Kernel::HLERequestContext& ctx);
         void GetProfile(Kernel::HLERequestContext& ctx);
-        void InitializeApplicationInfoOld(Kernel::HLERequestContext& ctx);
+        void InitializeApplicationInfo(Kernel::HLERequestContext& ctx);
+        void InitializeApplicationInfoRestricted(Kernel::HLERequestContext& ctx);
         void GetBaasAccountManagerForApplication(Kernel::HLERequestContext& ctx);
         void IsUserRegistrationRequestPermitted(Kernel::HLERequestContext& ctx);
         void TrySelectUserWithoutInteraction(Kernel::HLERequestContext& ctx);
         void IsUserAccountSwitchLocked(Kernel::HLERequestContext& ctx);
+
+    private:
+        ResultCode InitializeApplicationInfoBase(u64 process_id);
+
+        enum class ApplicationType : u32_le {
+            GameCard = 0,
+            Digital = 1,
+            Unknown = 3,
+        };
+
+        struct ApplicationInfo {
+            Service::Glue::ApplicationLaunchProperty launch_property;
+            ApplicationType application_type;
+
+            constexpr explicit operator bool() const {
+                return launch_property.title_id != 0x0;
+            }
+        };
+
+        ApplicationInfo application_info{};
 
     protected:
         std::shared_ptr<Module> module;
