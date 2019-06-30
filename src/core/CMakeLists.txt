@@ -430,6 +430,8 @@ add_library(core STATIC
     hle/service/time/interface.h
     hle/service/time/time.cpp
     hle/service/time/time.h
+    hle/service/time/time_sharedmemory.cpp
+    hle/service/time/time_sharedmemory.h
     hle/service/usb/usb.cpp
     hle/service/usb/usb.h
     hle/service/vi/display/vi_display.cpp
