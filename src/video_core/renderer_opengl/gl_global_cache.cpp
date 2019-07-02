@@ -76,6 +76,7 @@ GlobalRegionCacheOpenGL::GlobalRegionCacheOpenGL(RasterizerOpenGL& rasterizer)
 GlobalRegion GlobalRegionCacheOpenGL::GetGlobalRegion(
     const GLShader::GlobalMemoryEntry& global_region,
     Tegra::Engines::Maxwell3D::Regs::ShaderStage stage) {
+    std::lock_guard lock{mutex};
 
     auto& gpu{Core::System::GetInstance().GPU()};
     auto& memory_manager{gpu.MemoryManager()};
