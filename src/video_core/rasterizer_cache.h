@@ -169,6 +169,8 @@ protected:
         object->MarkAsModified(false, *this);
     }
 
+    std::recursive_mutex mutex;
+
 private:
     /// Returns a list of cached objects from the specified memory region, ordered by access time
     std::vector<T> GetSortedObjectsFromRegion(CacheAddr addr, u64 size) {
@@ -208,5 +210,4 @@ private:
     IntervalCache interval_cache; ///< Cache of objects
     u64 modified_ticks{};         ///< Counter of cache state ticks, used for in-order flushing
     VideoCore::RasterizerInterface& rasterizer;
-    std::recursive_mutex mutex;
 };
