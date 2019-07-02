@@ -2,8 +2,13 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <queue>
 #include "common/logging/log.h"
+#include "common/uuid.h"
 #include "core/hle/ipc_helpers.h"
+#include "core/hle/kernel/readable_event.h"
+#include "core/hle/kernel/writable_event.h"
+#include "core/hle/service/friend/errors.h"
 #include "core/hle/service/friend/friend.h"
 #include "core/hle/service/friend/interface.h"
 
@@ -109,11 +114,121 @@ private:
     }
 };
 
+class INotificationService final : public ServiceFramework<INotificationService> {
+public:
+    INotificationService(Common::UUID uuid) : ServiceFramework("INotificationService"), uuid(uuid) {
+        // clang-format off
+        static const FunctionInfo functions[] = {
+            {0, &INotificationService::GetEvent, "GetEvent"},
+            {1, &INotificationService::Clear, "Clear"},
+            {2, &INotificationService::Pop, "Pop"}
+        };
+        // clang-format on
+
+        RegisterHandlers(functions);
+    }
+
+private:
+    void GetEvent(Kernel::HLERequestContext& ctx) {
+        LOG_DEBUG(Service_ACC, "called");
+
+        IPC::ResponseBuilder rb{ctx, 2, 1};
+        rb.Push(RESULT_SUCCESS);
+
+        if (!is_event_created) {
+            auto& kernel = Core::System::GetInstance().Kernel();
+            notification_event = Kernel::WritableEvent::CreateEventPair(
+                kernel, Kernel::ResetType::Manual, "INotificationService:NotifyEvent");
+            is_event_created = true;
+        }
+        rb.PushCopyObjects(notification_event.readable);
+    }
+
+    void Clear(Kernel::HLERequestContext& ctx) {
+        LOG_DEBUG(Service_ACC, "called");
+        while (!notifications.empty()) {
+            notifications.pop();
+        }
+        std::memset(&states, 0, sizeof(States));
+
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+    }
+
+    void Pop(Kernel::HLERequestContext& ctx) {
+        LOG_DEBUG(Service_ACC, "called");
+
+        if (notifications.empty()) {
+            LOG_ERROR(Service_ACC, "No notifications in queue!");
+            IPC::ResponseBuilder rb{ctx, 2};
+            rb.Push(ERR_NO_NOTIFICATIONS);
+            return;
+        }
+
+        const auto notification = notifications.front();
+        notifications.pop();
+
+        switch (notification.notification_type) {
+        case NotificationTypes::HasUpdatedFriendsList:
+            states.has_updated_friends = false;
+            break;
+        case NotificationTypes::HasReceivedFriendRequest:
+            states.has_received_friend_request = false;
+            break;
+        default:
+            // HOS seems not have an error case for an unknown notification
+            LOG_WARNING(Service_ACC, "Unknown notification {:08X}",
+                        static_cast<u32>(notification.notification_type));
+            break;
+        }
+
+        IPC::ResponseBuilder rb{ctx, 6};
+        rb.Push(RESULT_SUCCESS);
+        rb.PushRaw<SizedNotificationInfo>(notification);
+    }
+
+    enum class NotificationTypes : u32 {
+        HasUpdatedFriendsList = 0x65,
+        HasReceivedFriendRequest = 0x1
+    };
+
+    struct SizedNotificationInfo {
+        NotificationTypes notification_type;
+        INSERT_PADDING_WORDS(
+            1); // TODO(ogniK): This doesn't seem to be used within any IPC returns as of now
+        u64_le account_id;
+    };
+    static_assert(sizeof(SizedNotificationInfo) == 0x10,
+                  "SizedNotificationInfo is an incorrect size");
+
+    struct States {
+        bool has_updated_friends;
+        bool has_received_friend_request;
+    };
+
+    Common::UUID uuid;
+    bool is_event_created = false;
+    Kernel::EventPair notification_event;
+    std::queue<SizedNotificationInfo> notifications;
+    States states{};
+};
+
 void Module::Interface::CreateFriendService(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
     rb.Push(RESULT_SUCCESS);
     rb.PushIpcInterface<IFriendService>();
     LOG_DEBUG(Service_ACC, "called");
+}
+
+void Module::Interface::CreateNotificationService(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp{ctx};
+    auto uuid = rp.PopRaw<Common::UUID>();
+
+    LOG_DEBUG(Service_ACC, "called, uuid={}", uuid.Format());
+
+    IPC::ResponseBuilder rb{ctx, 2, 0, 1};
+    rb.Push(RESULT_SUCCESS);
+    rb.PushIpcInterface<INotificationService>(uuid);
 }
 
 Module::Interface::Interface(std::shared_ptr<Module> module, const char* name)
