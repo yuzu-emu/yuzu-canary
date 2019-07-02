@@ -66,6 +66,10 @@ namespace Core::Timing {
 class CoreTiming;
 }
 
+namespace Core::Hardware {
+class InterruptManager;
+}
+
 namespace Core {
 
 class ARM_Interface;
@@ -229,6 +233,12 @@ public:
 
     /// Provides a constant reference to the core timing instance.
     const Timing::CoreTiming& CoreTiming() const;
+
+    /// Provides a reference to the interrupt manager instance.
+    Core::Hardware::InterruptManager& InterruptManager();
+
+    /// Provides a constant reference to the interrupt manager instance.
+    const Core::Hardware::InterruptManager& InterruptManager() const;
 
     /// Provides a reference to the kernel instance.
     Kernel::KernelCore& Kernel();
