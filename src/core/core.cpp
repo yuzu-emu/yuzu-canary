@@ -143,7 +143,7 @@ struct System::Impl {
         telemetry_session = std::make_unique<Core::TelemetrySession>();
         service_manager = std::make_shared<Service::SM::ServiceManager>();
 
-        Service::Init(service_manager, system, *virtual_filesystem);
+        Service::Init(service_manager, system);
         GDBStub::Init();
 
         renderer = VideoCore::CreateRenderer(emu_window, system);
