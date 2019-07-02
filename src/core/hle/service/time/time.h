@@ -10,6 +10,8 @@
 
 namespace Service::Time {
 
+class SharedMemory;
+
 struct LocationName {
     std::array<u8, 0x24> name;
 };
@@ -77,7 +79,8 @@ class Module final {
 public:
     class Interface : public ServiceFramework<Interface> {
     public:
-        explicit Interface(std::shared_ptr<Module> time, const char* name);
+        explicit Interface(std::shared_ptr<Module> time,
+                           std::shared_ptr<SharedMemory> shared_memory, const char* name);
         ~Interface() override;
 
         void GetStandardUserSystemClock(Kernel::HLERequestContext& ctx);
@@ -87,13 +90,17 @@ public:
         void GetStandardLocalSystemClock(Kernel::HLERequestContext& ctx);
         void GetClockSnapshot(Kernel::HLERequestContext& ctx);
         void CalculateStandardUserSystemClockDifferenceByUser(Kernel::HLERequestContext& ctx);
+        void GetSharedMemoryNativeHandle(Kernel::HLERequestContext& ctx);
+        void IsStandardUserSystemClockAutomaticCorrectionEnabled(Kernel::HLERequestContext& ctx);
+        void SetStandardUserSystemClockAutomaticCorrectionEnabled(Kernel::HLERequestContext& ctx);
 
     protected:
         std::shared_ptr<Module> time;
+        std::shared_ptr<SharedMemory> shared_memory;
     };
 };
 
 /// Registers all Time services with the specified service manager.
-void InstallInterfaces(SM::ServiceManager& service_manager);
+void InstallInterfaces(Core::System& system);
 
 } // namespace Service::Time
