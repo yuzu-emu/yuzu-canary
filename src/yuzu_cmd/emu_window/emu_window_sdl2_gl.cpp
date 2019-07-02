@@ -52,6 +52,10 @@ private:
 bool EmuWindow_SDL2_GL::SupportsRequiredGLExtensions() {
     std::vector<std::string> unsupported_ext;
 
+    if (!GLAD_GL_ARB_buffer_storage)
+        unsupported_ext.push_back("ARB_buffer_storage");
+    if (!GLAD_GL_ARB_direct_state_access)
+        unsupported_ext.push_back("ARB_direct_state_access");
     if (!GLAD_GL_ARB_vertex_type_10f_11f_11f_rev)
         unsupported_ext.push_back("ARB_vertex_type_10f_11f_11f_rev");
     if (!GLAD_GL_ARB_texture_mirror_clamp_to_edge)

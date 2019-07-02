@@ -44,6 +44,7 @@ add_custom_command(OUTPUT scm_rev.cpp
       "${VIDEO_CORE}/shader/decode/half_set.cpp"
       "${VIDEO_CORE}/shader/decode/half_set_predicate.cpp"
       "${VIDEO_CORE}/shader/decode/hfma2.cpp"
+      "${VIDEO_CORE}/shader/decode/image.cpp"
       "${VIDEO_CORE}/shader/decode/integer_set.cpp"
       "${VIDEO_CORE}/shader/decode/integer_set_predicate.cpp"
       "${VIDEO_CORE}/shader/decode/memory.cpp"
