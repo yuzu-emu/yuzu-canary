@@ -12,10 +12,11 @@
 
 namespace Service::Nvidia::Devices {
 
-nvhost_ctrl_gpu::nvhost_ctrl_gpu() = default;
+nvhost_ctrl_gpu::nvhost_ctrl_gpu(Core::System& system) : nvdevice(system) {}
 nvhost_ctrl_gpu::~nvhost_ctrl_gpu() = default;
 
-u32 nvhost_ctrl_gpu::ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output) {
+u32 nvhost_ctrl_gpu::ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output,
+                           IoctlCtrl& ctrl) {
     LOG_DEBUG(Service_NVDRV, "called, command=0x{:08X}, input_size=0x{:X}, output_size=0x{:X}",
               command.raw, input.size(), output.size());
 
@@ -185,7 +186,7 @@ u32 nvhost_ctrl_gpu::GetGpuTime(const std::vector<u8>& input, std::vector<u8>& o
 
     IoctlGetGpuTime params{};
     std::memcpy(&params, input.data(), input.size());
-    const auto ns = Core::Timing::CyclesToNs(Core::System::GetInstance().CoreTiming().GetTicks());
+    const auto ns = Core::Timing::CyclesToNs(system.CoreTiming().GetTicks());
     params.gpu_time = static_cast<u64_le>(ns.count());
     std::memcpy(output.data(), &params, output.size());
     return 0;

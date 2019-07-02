@@ -19,6 +19,8 @@ public:
     NVDRV(std::shared_ptr<Module> nvdrv, const char* name);
     ~NVDRV() override;
 
+    void SignalGPUInterruptSyncpt(const u32 syncpoint_id, const u32 value);
+
 private:
     void Open(Kernel::HLERequestContext& ctx);
     void Ioctl(Kernel::HLERequestContext& ctx);
@@ -33,8 +35,6 @@ private:
     std::shared_ptr<Module> nvdrv;
 
     u64 pid{};
-
-    Kernel::EventPair query_event;
 };
 
 } // namespace Service::Nvidia
