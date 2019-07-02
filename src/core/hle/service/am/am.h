@@ -145,7 +145,8 @@ private:
 
 class ICommonStateGetter final : public ServiceFramework<ICommonStateGetter> {
 public:
-    explicit ICommonStateGetter(std::shared_ptr<AppletMessageQueue> msg_queue);
+    explicit ICommonStateGetter(Core::System& system,
+                                std::shared_ptr<AppletMessageQueue> msg_queue);
     ~ICommonStateGetter() override;
 
 private:
@@ -167,7 +168,9 @@ private:
     void GetPerformanceMode(Kernel::HLERequestContext& ctx);
     void GetBootMode(Kernel::HLERequestContext& ctx);
     void GetDefaultDisplayResolution(Kernel::HLERequestContext& ctx);
+    void SetCpuBoostMode(Kernel::HLERequestContext& ctx);
 
+    Core::System& system;
     std::shared_ptr<AppletMessageQueue> msg_queue;
 };
 
