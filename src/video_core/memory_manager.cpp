@@ -202,11 +202,12 @@ const u8* MemoryManager::GetPointer(GPUVAddr addr) const {
 }
 
 bool MemoryManager::IsBlockContinuous(const GPUVAddr start, const std::size_t size) const {
-    const GPUVAddr end = start + size;
+    const std::size_t inner_size = size - 1;
+    const GPUVAddr end = start + inner_size;
     const auto host_ptr_start = reinterpret_cast<std::uintptr_t>(GetPointer(start));
     const auto host_ptr_end = reinterpret_cast<std::uintptr_t>(GetPointer(end));
     const auto range = static_cast<std::size_t>(host_ptr_end - host_ptr_start);
-    return range == size;
+    return range == inner_size;
 }
 
 void MemoryManager::ReadBlock(GPUVAddr src_addr, void* dest_buffer, const std::size_t size) const {
