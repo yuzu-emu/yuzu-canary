@@ -13,7 +13,8 @@ namespace OpenGL {
 
 class OGLStreamBuffer : private NonCopyable {
 public:
-    explicit OGLStreamBuffer(GLsizeiptr size, bool vertex_data_usage, bool prefer_coherent = false);
+    explicit OGLStreamBuffer(GLsizeiptr size, bool vertex_data_usage, bool prefer_coherent = false,
+                             bool use_persistent = true);
     ~OGLStreamBuffer();
 
     GLuint GetHandle() const;
