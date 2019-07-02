@@ -119,6 +119,9 @@ private:
     void StopSixAxisSensor(Kernel::HLERequestContext& ctx);
     void SetIsPalmaAllConnectable(Kernel::HLERequestContext& ctx);
     void SetPalmaBoostMode(Kernel::HLERequestContext& ctx);
+    void StartLrAssignmentMode(Kernel::HLERequestContext& ctx);
+    void StopLrAssignmentMode(Kernel::HLERequestContext& ctx);
+    void SwapNpadAssignment(Kernel::HLERequestContext& ctx);
 
     std::shared_ptr<IAppletResource> applet_resource;
 };
