@@ -236,7 +236,7 @@ void Init(std::shared_ptr<SM::ServiceManager>& sm, Core::System& system) {
     NIM::InstallInterfaces(*sm);
     NPNS::InstallInterfaces(*sm);
     NS::InstallInterfaces(*sm);
-    Nvidia::InstallInterfaces(*sm, *nv_flinger);
+    Nvidia::InstallInterfaces(*sm, *nv_flinger, system);
     PCIe::InstallInterfaces(*sm);
     PCTL::InstallInterfaces(*sm);
     PCV::InstallInterfaces(*sm);
