@@ -23,6 +23,7 @@ OGLBufferCache::OGLBufferCache(RasterizerOpenGL& rasterizer, std::size_t size)
 
 GLintptr OGLBufferCache::UploadMemory(GPUVAddr gpu_addr, std::size_t size, std::size_t alignment,
                                       bool cache) {
+    std::lock_guard lock{mutex};
     auto& memory_manager = Core::System::GetInstance().GPU().MemoryManager();
 
     // Cache management is a big overhead, so only cache entries with a given size.
@@ -62,6 +63,7 @@ GLintptr OGLBufferCache::UploadMemory(GPUVAddr gpu_addr, std::size_t size, std::
 
 GLintptr OGLBufferCache::UploadHostMemory(const void* raw_pointer, std::size_t size,
                                           std::size_t alignment) {
+    std::lock_guard lock{mutex};
     AlignBuffer(alignment);
     std::memcpy(buffer_ptr, raw_pointer, size);
     const GLintptr uploaded_offset = buffer_offset;
