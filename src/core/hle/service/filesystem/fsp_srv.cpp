@@ -26,6 +26,7 @@
 #include "core/hle/kernel/process.h"
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/hle/service/filesystem/fsp_srv.h"
+#include "core/reporter.h"
 
 namespace Service::FileSystem {
 
@@ -613,7 +614,7 @@ private:
     u64 next_entry_index = 0;
 };
 
-FSP_SRV::FSP_SRV() : ServiceFramework("fsp-srv") {
+FSP_SRV::FSP_SRV(const Core::Reporter& reporter) : ServiceFramework("fsp-srv"), reporter(reporter) {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, nullptr, "OpenFileSystem"},
@@ -710,14 +711,14 @@ FSP_SRV::FSP_SRV() : ServiceFramework("fsp-srv") {
         {1001, nullptr, "SetSaveDataSize"},
         {1002, nullptr, "SetSaveDataRootPath"},
         {1003, nullptr, "DisableAutoSaveDataCreation"},
-        {1004, nullptr, "SetGlobalAccessLogMode"},
+        {1004, &FSP_SRV::SetGlobalAccessLogMode, "SetGlobalAccessLogMode"},
         {1005, &FSP_SRV::GetGlobalAccessLogMode, "GetGlobalAccessLogMode"},
-        {1006, nullptr, "OutputAccessLogToSdCard"},
+        {1006, &FSP_SRV::OutputAccessLogToSdCard, "OutputAccessLogToSdCard"},
         {1007, nullptr, "RegisterUpdatePartition"},
         {1008, nullptr, "OpenRegisteredUpdatePartition"},
         {1009, nullptr, "GetAndClearMemoryReportInfo"},
         {1010, nullptr, "SetDataStorageRedirectTarget"},
-        {1011, nullptr, "OutputAccessLogToSdCard2"},
+        {1011, &FSP_SRV::GetAccessLogVersionInfo, "GetAccessLogVersionInfo"},
         {1100, nullptr, "OverrideSaveDataTransferTokenSignVerificationKey"},
         {1110, nullptr, "CorruptSaveDataFileSystemBySaveDataSpaceId2"},
         {1200, nullptr, "OpenMultiCommitManager"},
@@ -814,21 +815,22 @@ void FSP_SRV::OpenSaveDataInfoReaderBySaveDataSpaceId(Kernel::HLERequestContext&
     rb.PushIpcInterface<ISaveDataInfoReader>(std::make_shared<ISaveDataInfoReader>(space));
 }
 
+void FSP_SRV::SetGlobalAccessLogMode(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp{ctx};
+    log_mode = rp.PopEnum<LogMode>();
+
+    LOG_DEBUG(Service_FS, "called, log_mode={:08X}", static_cast<u32>(log_mode));
+
+    IPC::ResponseBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+}
+
 void FSP_SRV::GetGlobalAccessLogMode(Kernel::HLERequestContext& ctx) {
-    LOG_WARNING(Service_FS, "(STUBBED) called");
+    LOG_DEBUG(Service_FS, "called");
 
-    enum class LogMode : u32 {
-        Off,
-        Log,
-        RedirectToSdCard,
-        LogToSdCard = Log | RedirectToSdCard,
-    };
-
-    // Given we always want to receive logging information,
-    // we always specify logging as enabled.
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(RESULT_SUCCESS);
-    rb.PushEnum(LogMode::Log);
+    rb.PushEnum(log_mode);
 }
 
 void FSP_SRV::OpenDataStorageByCurrentProcess(Kernel::HLERequestContext& ctx) {
@@ -900,6 +902,28 @@ void FSP_SRV::OpenPatchDataStorageByCurrentProcess(Kernel::HLERequestContext& ct
 
     IPC::ResponseBuilder rb{ctx, 2};
     rb.Push(FileSys::ERROR_ENTITY_NOT_FOUND);
+}
+
+void FSP_SRV::OutputAccessLogToSdCard(Kernel::HLERequestContext& ctx) {
+    const auto raw = ctx.ReadBuffer();
+    auto log = Common::StringFromFixedZeroTerminatedBuffer(
+        reinterpret_cast<const char*>(raw.data()), raw.size());
+
+    LOG_DEBUG(Service_FS, "called, log='{}'", log);
+
+    reporter.SaveFilesystemAccessReport(log_mode, std::move(log));
+
+    IPC::ResponseBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+}
+
+void FSP_SRV::GetAccessLogVersionInfo(Kernel::HLERequestContext& ctx) {
+    LOG_DEBUG(Service_FS, "called");
+
+    IPC::ResponseBuilder rb{ctx, 4};
+    rb.Push(RESULT_SUCCESS);
+    rb.PushEnum(AccessLogVersion::Latest);
+    rb.Push(access_log_program_index);
 }
 
 } // namespace Service::FileSystem
