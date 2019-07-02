@@ -15,13 +15,18 @@
 #include "core/file_sys/control_metadata.h"
 #include "core/file_sys/patch_manager.h"
 #include "core/hle/ipc_helpers.h"
+#include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/service/acc/acc.h"
 #include "core/hle/service/acc/acc_aa.h"
 #include "core/hle/service/acc/acc_su.h"
 #include "core/hle/service/acc/acc_u0.h"
 #include "core/hle/service/acc/acc_u1.h"
+#include "core/hle/service/acc/errors.h"
 #include "core/hle/service/acc/profile_manager.h"
+#include "core/hle/service/glue/arp.h"
+#include "core/hle/service/glue/manager.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/loader/loader.h"
 
 namespace Service::Account {
@@ -217,10 +222,72 @@ void Module::Interface::IsUserRegistrationRequestPermitted(Kernel::HLERequestCon
     rb.Push(profile_manager->CanSystemRegisterUser());
 }
 
-void Module::Interface::InitializeApplicationInfoOld(Kernel::HLERequestContext& ctx) {
-    LOG_WARNING(Service_ACC, "(STUBBED) called");
+void Module::Interface::InitializeApplicationInfo(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp{ctx};
+    auto pid = rp.Pop<u64>();
+
+    LOG_DEBUG(Service_ACC, "called, process_id={}", pid);
     IPC::ResponseBuilder rb{ctx, 2};
-    rb.Push(RESULT_SUCCESS);
+    rb.Push(InitializeApplicationInfoBase(pid));
+}
+
+void Module::Interface::InitializeApplicationInfoRestricted(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp{ctx};
+    auto pid = rp.Pop<u64>();
+
+    LOG_WARNING(Service_ACC, "(Partial implementation) called, process_id={}", pid);
+
+    // TODO(ogniK): We require checking if the user actually owns the title and what not. As of
+    // currently, we assume the user owns the title. InitializeApplicationInfoBase SHOULD be called
+    // first then we do extra checks if the game is a digital copy.
+
+    IPC::ResponseBuilder rb{ctx, 2};
+    rb.Push(InitializeApplicationInfoBase(pid));
+}
+
+ResultCode Module::Interface::InitializeApplicationInfoBase(u64 process_id) {
+    if (application_info) {
+        LOG_ERROR(Service_ACC, "Application already initialized");
+        return ERR_ACCOUNTINFO_ALREADY_INITIALIZED;
+    }
+
+    const auto& list = system.Kernel().GetProcessList();
+    const auto iter = std::find_if(list.begin(), list.end(), [&process_id](const auto& process) {
+        return process->GetProcessID() == process_id;
+    });
+
+    if (iter == list.end()) {
+        LOG_ERROR(Service_ACC, "Failed to find process ID");
+        application_info.application_type = ApplicationType::Unknown;
+
+        return ERR_ACCOUNTINFO_BAD_APPLICATION;
+    }
+
+    const auto launch_property = system.GetARPManager().GetLaunchProperty((*iter)->GetTitleID());
+
+    if (launch_property.Failed()) {
+        LOG_ERROR(Service_ACC, "Failed to get launch property");
+        return ERR_ACCOUNTINFO_BAD_APPLICATION;
+    }
+
+    switch (launch_property->base_game_storage_id) {
+    case FileSys::StorageId::GameCard:
+        application_info.application_type = ApplicationType::GameCard;
+        break;
+    case FileSys::StorageId::Host:
+    case FileSys::StorageId::NandUser:
+    case FileSys::StorageId::SdCard:
+        application_info.application_type = ApplicationType::Digital;
+        break;
+    default:
+        LOG_ERROR(Service_ACC, "Invalid game storage ID");
+        return ERR_ACCOUNTINFO_BAD_APPLICATION;
+    }
+
+    LOG_WARNING(Service_ACC, "ApplicationInfo init required");
+    // TODO(ogniK): Actual initalization here
+
+    return RESULT_SUCCESS;
 }
 
 void Module::Interface::GetBaasAccountManagerForApplication(Kernel::HLERequestContext& ctx) {
