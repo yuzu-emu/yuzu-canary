@@ -13,7 +13,8 @@
 
 namespace Kernel {
 class Scheduler;
-}
+class GlobalScheduler;
+} // namespace Kernel
 
 namespace Core {
 class System;
@@ -90,6 +91,7 @@ private:
 
     std::unique_ptr<ARM_Interface> arm_interface;
     CpuBarrier& cpu_barrier;
+    Kernel::GlobalScheduler& global_scheduler;
     std::unique_ptr<Kernel::Scheduler> scheduler;
     Timing::CoreTiming& core_timing;
 
