@@ -10,7 +10,7 @@ Friend::Friend(std::shared_ptr<Module> module, const char* name)
     : Interface(std::move(module), name) {
     static const FunctionInfo functions[] = {
         {0, &Friend::CreateFriendService, "CreateFriendService"},
-        {1, nullptr, "CreateNotificationService"},
+        {1, &Friend::CreateNotificationService, "CreateNotificationService"},
         {2, nullptr, "CreateDaemonSuspendSessionService"},
     };
     RegisterHandlers(functions);
