@@ -182,8 +182,7 @@ private:
 };
 
 /// Initialize ServiceManager
-void Init(std::shared_ptr<SM::ServiceManager>& sm, Core::System& system,
-          FileSys::VfsFilesystem& vfs);
+void Init(std::shared_ptr<SM::ServiceManager>& sm, Core::System& system);
 
 /// Shutdown ServiceManager
 void Shutdown();
