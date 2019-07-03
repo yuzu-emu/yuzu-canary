@@ -29,7 +29,8 @@
 #include "core/hle/service/am/omm.h"
 #include "core/hle/service/am/spsm.h"
 #include "core/hle/service/am/tcap.h"
-#include "core/hle/service/apm/apm.h"
+#include "core/hle/service/apm/controller.h"
+#include "core/hle/service/apm/interface.h"
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/hle/service/ns/ns.h"
 #include "core/hle/service/nvflinger/nvflinger.h"
@@ -508,8 +509,9 @@ void AppletMessageQueue::OperationModeChanged() {
     on_operation_mode_changed.writable->Signal();
 }
 
-ICommonStateGetter::ICommonStateGetter(std::shared_ptr<AppletMessageQueue> msg_queue)
-    : ServiceFramework("ICommonStateGetter"), msg_queue(std::move(msg_queue)) {
+ICommonStateGetter::ICommonStateGetter(Core::System& system,
+                                       std::shared_ptr<AppletMessageQueue> msg_queue)
+    : ServiceFramework("ICommonStateGetter"), system(system), msg_queue(std::move(msg_queue)) {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, &ICommonStateGetter::GetEventHandle, "GetEventHandle"},
@@ -542,7 +544,7 @@ ICommonStateGetter::ICommonStateGetter(std::shared_ptr<AppletMessageQueue> msg_q
         {63, nullptr, "GetHdcpAuthenticationStateChangeEvent"},
         {64, nullptr, "SetTvPowerStateMatchingMode"},
         {65, nullptr, "GetApplicationIdByContentActionName"},
-        {66, nullptr, "SetCpuBoostMode"},
+        {66, &ICommonStateGetter::SetCpuBoostMode, "SetCpuBoostMode"},
         {80, nullptr, "PerformSystemButtonPressingIfInFocus"},
         {90, nullptr, "SetPerformanceConfigurationChangedNotification"},
         {91, nullptr, "GetCurrentPerformanceConfiguration"},
@@ -623,6 +625,16 @@ void ICommonStateGetter::GetDefaultDisplayResolution(Kernel::HLERequestContext& 
     }
 }
 
+void ICommonStateGetter::SetCpuBoostMode(Kernel::HLERequestContext& ctx) {
+    LOG_DEBUG(Service_AM, "called, forwarding to APM:SYS");
+
+    const auto& sm = system.ServiceManager();
+    const auto apm_sys = sm.GetService<APM::APM_Sys>("apm:sys");
+    ASSERT(apm_sys != nullptr);
+
+    apm_sys->SetCpuBoostMode(ctx);
+}
+
 IStorage::IStorage(std::vector<u8> buffer)
     : ServiceFramework("IStorage"), buffer(std::move(buffer)) {
     // clang-format off
@@ -651,13 +663,11 @@ void ICommonStateGetter::GetOperationMode(Kernel::HLERequestContext& ctx) {
 }
 
 void ICommonStateGetter::GetPerformanceMode(Kernel::HLERequestContext& ctx) {
-    const bool use_docked_mode{Settings::values.use_docked_mode};
-    LOG_DEBUG(Service_AM, "called, use_docked_mode={}", use_docked_mode);
+    LOG_DEBUG(Service_AM, "called");
 
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(RESULT_SUCCESS);
-    rb.Push(static_cast<u32>(use_docked_mode ? APM::PerformanceMode::Docked
-                                             : APM::PerformanceMode::Handheld));
+    rb.PushEnum(system.GetAPMController().GetCurrentPerformanceMode());
 }
 
 class ILibraryAppletAccessor final : public ServiceFramework<ILibraryAppletAccessor> {
