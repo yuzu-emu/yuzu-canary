@@ -23,14 +23,15 @@
 #include "video_core/rasterizer_interface.h"
 #include "video_core/renderer_opengl/gl_buffer_cache.h"
 #include "video_core/renderer_opengl/gl_device.h"
+#include "video_core/renderer_opengl/gl_framebuffer_cache.h"
 #include "video_core/renderer_opengl/gl_global_cache.h"
-#include "video_core/renderer_opengl/gl_rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_sampler_cache.h"
 #include "video_core/renderer_opengl/gl_shader_cache.h"
 #include "video_core/renderer_opengl/gl_shader_decompiler.h"
 #include "video_core/renderer_opengl/gl_shader_manager.h"
 #include "video_core/renderer_opengl/gl_state.h"
+#include "video_core/renderer_opengl/gl_texture_cache.h"
 #include "video_core/renderer_opengl/utils.h"
 
 namespace Core {
@@ -41,11 +42,14 @@ namespace Core::Frontend {
 class EmuWindow;
 }
 
+namespace Tegra {
+class MemoryManager;
+}
+
 namespace OpenGL {
 
 struct ScreenInfo;
 struct DrawParameters;
-struct FramebufferCacheKey;
 
 class RasterizerOpenGL : public VideoCore::RasterizerInterface {
 public:
@@ -61,8 +65,7 @@ public:
     void FlushAndInvalidateRegion(CacheAddr addr, u64 size) override;
     bool AccelerateSurfaceCopy(const Tegra::Engines::Fermi2D::Regs::Surface& src,
                                const Tegra::Engines::Fermi2D::Regs::Surface& dst,
-                               const Common::Rectangle<u32>& src_rect,
-                               const Common::Rectangle<u32>& dst_rect) override;
+                               const Tegra::Engines::Fermi2D::Config& copy_config) override;
     bool AccelerateDisplay(const Tegra::FramebufferConfig& config, VAddr framebuffer_addr,
                            u32 pixel_stride) override;
     bool AccelerateDrawBatch(bool is_indexed) override;
@@ -95,6 +98,8 @@ private:
 
     /**
      * Configures the color and depth framebuffer states.
+     * @param must_reconfigure If true, tells the framebuffer to skip the cache and reconfigure
+     * again. Used by the texture cache to solve texception conflicts
      * @param use_color_fb If true, configure color framebuffers.
      * @param using_depth_fb If true, configure the depth/stencil framebuffer.
      * @param preserve_contents If true, tries to preserve data from a previously used framebuffer.
@@ -118,9 +123,10 @@ private:
     void SetupGlobalRegions(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage,
                             const Shader& shader);
 
-    /// Configures the current textures to use for the draw command.
-    void SetupTextures(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage, const Shader& shader,
-                       BaseBindings base_bindings);
+    /// Configures the current textures to use for the draw command. Returns shaders texture buffer
+    /// usage.
+    TextureBufferUsage SetupTextures(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage,
+                                     const Shader& shader, BaseBindings base_bindings);
 
     /// Syncs the viewport and depth range to match the guest state
     void SyncViewport(OpenGLState& current_state);
@@ -181,10 +187,11 @@ private:
     const Device device;
     OpenGLState state;
 
-    RasterizerCacheOpenGL res_cache;
+    TextureCacheOpenGL texture_cache;
     ShaderCacheOpenGL shader_cache;
     GlobalRegionCacheOpenGL global_cache;
     SamplerCacheOpenGL sampler_cache;
+    FramebufferCacheOpenGL framebuffer_cache;
 
     Core::System& system;
     ScreenInfo& screen_info;
@@ -195,7 +202,6 @@ private:
              OGLVertexArray>
         vertex_array_cache;
 
-    std::map<FramebufferCacheKey, OGLFramebuffer> framebuffer_cache;
     FramebufferConfigState current_framebuffer_config_state;
     std::pair<bool, bool> current_depth_stencil_usage{};
 
@@ -217,8 +223,6 @@ private:
     DrawParameters SetupDraw();
 
     void SetupShaders(GLenum primitive_mode);
-
-    void SetupCachedFramebuffer(const FramebufferCacheKey& fbkey, OpenGLState& current_state);
 
     enum class AccelDraw { Disabled, Arrays, Indexed };
     AccelDraw accelerate_draw = AccelDraw::Disabled;

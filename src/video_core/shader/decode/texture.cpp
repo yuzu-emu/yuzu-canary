@@ -245,6 +245,18 @@ u32 ShaderIR::DecodeTexture(NodeBlock& bb, u32 pc) {
         }
         break;
     }
+    case OpCode::Id::TLD: {
+        UNIMPLEMENTED_IF_MSG(instr.tld.aoffi, "AOFFI is not implemented");
+        UNIMPLEMENTED_IF_MSG(instr.tld.ms, "MS is not implemented");
+        UNIMPLEMENTED_IF_MSG(instr.tld.cl, "CL is not implemented");
+
+        if (instr.tld.nodep_flag) {
+            LOG_WARNING(HW_GPU, "TLD.NODEP implementation is incomplete");
+        }
+
+        WriteTexInstructionFloat(bb, instr, GetTldCode(instr));
+        break;
+    }
     case OpCode::Id::TLDS: {
         const Tegra::Shader::TextureType texture_type{instr.tlds.GetTextureType()};
         const bool is_array{instr.tlds.IsArrayTexture()};
@@ -570,6 +582,39 @@ Node4 ShaderIR::GetTld4Code(Instruction instr, TextureType texture_type, bool de
         auto coords_copy = coords;
         MetaTexture meta{sampler, GetRegister(array_register), dc, aoffi, {}, {}, {}, element};
         values[element] = Operation(OperationCode::TextureGather, meta, std::move(coords_copy));
+    }
+
+    return values;
+}
+
+Node4 ShaderIR::GetTldCode(Tegra::Shader::Instruction instr) {
+    const auto texture_type{instr.tld.texture_type};
+    const bool is_array{instr.tld.is_array};
+    const bool lod_enabled{instr.tld.GetTextureProcessMode() == TextureProcessMode::LL};
+    const std::size_t coord_count{GetCoordCount(texture_type)};
+
+    u64 gpr8_cursor{instr.gpr8.Value()};
+    const Node array_register{is_array ? GetRegister(gpr8_cursor++) : nullptr};
+
+    std::vector<Node> coords;
+    coords.reserve(coord_count);
+    for (std::size_t i = 0; i < coord_count; ++i) {
+        coords.push_back(GetRegister(gpr8_cursor++));
+    }
+
+    u64 gpr20_cursor{instr.gpr20.Value()};
+    // const Node bindless_register{is_bindless ? GetRegister(gpr20_cursor++) : nullptr};
+    const Node lod{lod_enabled ? GetRegister(gpr20_cursor++) : Immediate(0u)};
+    // const Node aoffi_register{is_aoffi ? GetRegister(gpr20_cursor++) : nullptr};
+    // const Node multisample{is_multisample ? GetRegister(gpr20_cursor++) : nullptr};
+
+    const auto& sampler = GetSampler(instr.sampler, texture_type, is_array, false);
+
+    Node4 values;
+    for (u32 element = 0; element < values.size(); ++element) {
+        auto coords_copy = coords;
+        MetaTexture meta{sampler, array_register, {}, {}, {}, lod, {}, element};
+        values[element] = Operation(OperationCode::TexelFetch, meta, std::move(coords_copy));
     }
 
     return values;

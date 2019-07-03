@@ -12,6 +12,8 @@ SurfaceTarget SurfaceTargetFromTextureType(Tegra::Texture::TextureType texture_t
     switch (texture_type) {
     case Tegra::Texture::TextureType::Texture1D:
         return SurfaceTarget::Texture1D;
+    case Tegra::Texture::TextureType::Texture1DBuffer:
+        return SurfaceTarget::TextureBuffer;
     case Tegra::Texture::TextureType::Texture2D:
     case Tegra::Texture::TextureType::Texture2DNoMipmap:
         return SurfaceTarget::Texture2D;
@@ -35,6 +37,7 @@ SurfaceTarget SurfaceTargetFromTextureType(Tegra::Texture::TextureType texture_t
 bool SurfaceTargetIsLayered(SurfaceTarget target) {
     switch (target) {
     case SurfaceTarget::Texture1D:
+    case SurfaceTarget::TextureBuffer:
     case SurfaceTarget::Texture2D:
     case SurfaceTarget::Texture3D:
         return false;
@@ -53,6 +56,7 @@ bool SurfaceTargetIsLayered(SurfaceTarget target) {
 bool SurfaceTargetIsArray(SurfaceTarget target) {
     switch (target) {
     case SurfaceTarget::Texture1D:
+    case SurfaceTarget::TextureBuffer:
     case SurfaceTarget::Texture2D:
     case SurfaceTarget::Texture3D:
     case SurfaceTarget::TextureCubemap:
@@ -304,8 +308,8 @@ PixelFormat PixelFormatFromTextureFormat(Tegra::Texture::TextureFormat format,
         return PixelFormat::Z32F;
     case Tegra::Texture::TextureFormat::Z16:
         return PixelFormat::Z16;
-    case Tegra::Texture::TextureFormat::Z24S8:
-        return PixelFormat::Z24S8;
+    case Tegra::Texture::TextureFormat::S8Z24:
+        return PixelFormat::S8Z24;
     case Tegra::Texture::TextureFormat::ZF32_X24S8:
         return PixelFormat::Z32FS8;
     case Tegra::Texture::TextureFormat::DXT1:
