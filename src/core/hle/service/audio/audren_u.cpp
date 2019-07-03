@@ -167,13 +167,12 @@ public:
             {3, &IAudioDevice::GetActiveAudioDeviceName, "GetActiveAudioDeviceName"},
             {4, &IAudioDevice::QueryAudioDeviceSystemEvent, "QueryAudioDeviceSystemEvent"},
             {5, &IAudioDevice::GetActiveChannelCount, "GetActiveChannelCount"},
-            {6, &IAudioDevice::ListAudioDeviceName,
-             "ListAudioDeviceNameAuto"}, // TODO(ogniK): Confirm if autos are identical to non auto
+            {6, &IAudioDevice::ListAudioDeviceName, "ListAudioDeviceNameAuto"},
             {7, &IAudioDevice::SetAudioDeviceOutputVolume, "SetAudioDeviceOutputVolumeAuto"},
             {8, nullptr, "GetAudioDeviceOutputVolumeAuto"},
             {10, &IAudioDevice::GetActiveAudioDeviceName, "GetActiveAudioDeviceNameAuto"},
             {11, nullptr, "QueryAudioDeviceInputEvent"},
-            {12, nullptr, "QueryAudioDeviceOutputEvent"},
+            {12, &IAudioDevice::QueryAudioDeviceOutputEvent, "QueryAudioDeviceOutputEvent"},
             {13, nullptr, "GetAudioSystemMasterVolumeSetting"},
         };
         RegisterHandlers(functions);
@@ -181,6 +180,11 @@ public:
         auto& kernel = Core::System::GetInstance().Kernel();
         buffer_event = Kernel::WritableEvent::CreateEventPair(kernel, Kernel::ResetType::Automatic,
                                                               "IAudioOutBufferReleasedEvent");
+
+        // Should only be signalled when an audio output device has been changed, example: speaker
+        // to headset
+        audio_output_device_switch_event = Kernel::WritableEvent::CreateEventPair(
+            kernel, Kernel::ResetType::Automatic, "IAudioDevice:AudioOutputDeviceSwitchedEvent");
     }
 
 private:
@@ -237,7 +241,16 @@ private:
         rb.Push<u32>(1);
     }
 
+    void QueryAudioDeviceOutputEvent(Kernel::HLERequestContext& ctx) {
+        LOG_DEBUG(Service_Audio, "called");
+
+        IPC::ResponseBuilder rb{ctx, 2, 1};
+        rb.Push(RESULT_SUCCESS);
+        rb.PushCopyObjects(audio_output_device_switch_event.readable);
+    }
+
     Kernel::EventPair buffer_event;
+    Kernel::EventPair audio_output_device_switch_event;
 
 }; // namespace Audio
 
