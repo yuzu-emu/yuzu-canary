@@ -22,7 +22,7 @@ ACC_U0::ACC_U0(std::shared_ptr<Module> module, std::shared_ptr<ProfileManager> p
         {51, &ACC_U0::TrySelectUserWithoutInteraction, "TrySelectUserWithoutInteraction"},
         {60, nullptr, "ListOpenContextStoredUsers"},
         {99, nullptr, "DebugActivateOpenContextRetention"},
-        {100, &ACC_U0::InitializeApplicationInfoOld, "InitializeApplicationInfoOld"},
+        {100, &ACC_U0::InitializeApplicationInfo, "InitializeApplicationInfo"},
         {101, &ACC_U0::GetBaasAccountManagerForApplication, "GetBaasAccountManagerForApplication"},
         {102, nullptr, "AuthenticateApplicationAsync"},
         {103, nullptr, "CheckNetworkServiceAvailabilityAsync"},
@@ -31,7 +31,7 @@ ACC_U0::ACC_U0(std::shared_ptr<Module> module, std::shared_ptr<ProfileManager> p
         {120, nullptr, "CreateGuestLoginRequest"},
         {130, nullptr, "LoadOpenContext"},
         {131, nullptr, "ListOpenContextStoredUsers"},
-        {140, nullptr, "InitializeApplicationInfo"},
+        {140, &ACC_U0::InitializeApplicationInfoRestricted, "InitializeApplicationInfoRestricted"},
         {141, nullptr, "ListQualifiedUsers"},
         {150, &ACC_U0::IsUserAccountSwitchLocked, "IsUserAccountSwitchLocked"},
     };
