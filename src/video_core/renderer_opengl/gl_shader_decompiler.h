@@ -27,6 +27,7 @@ struct ShaderEntries;
 using Maxwell = Tegra::Engines::Maxwell3D::Regs;
 using ProgramResult = std::pair<std::string, ShaderEntries>;
 using SamplerEntry = VideoCommon::Shader::Sampler;
+using ImageEntry = VideoCommon::Shader::Image;
 
 class ConstBufferEntry : public VideoCommon::Shader::ConstBuffer {
 public:
@@ -74,6 +75,7 @@ struct ShaderEntries {
     std::vector<ConstBufferEntry> const_buffers;
     std::vector<SamplerEntry> samplers;
     std::vector<SamplerEntry> bindless_samplers;
+    std::vector<ImageEntry> images;
     std::vector<GlobalMemoryEntry> global_memory_entries;
     std::array<bool, Maxwell::NumClipDistances> clip_distances{};
     std::size_t shader_length{};
