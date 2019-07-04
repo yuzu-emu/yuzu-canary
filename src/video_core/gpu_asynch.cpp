@@ -2,6 +2,8 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include "core/core.h"
+#include "core/hardware_interrupt_manager.h"
 #include "video_core/gpu_asynch.h"
 #include "video_core/gpu_thread.h"
 #include "video_core/renderer_base.h"
@@ -9,7 +11,7 @@
 namespace VideoCommon {
 
 GPUAsynch::GPUAsynch(Core::System& system, VideoCore::RendererBase& renderer)
-    : GPU(system, renderer), gpu_thread{system} {}
+    : GPU(system, renderer, true), gpu_thread{system} {}
 
 GPUAsynch::~GPUAsynch() = default;
 
@@ -36,6 +38,11 @@ void GPUAsynch::InvalidateRegion(CacheAddr addr, u64 size) {
 
 void GPUAsynch::FlushAndInvalidateRegion(CacheAddr addr, u64 size) {
     gpu_thread.FlushAndInvalidateRegion(addr, size);
+}
+
+void GPUAsynch::TriggerCpuInterrupt(const u32 syncpoint_id, const u32 value) const {
+    auto& interrupt_manager = system.InterruptManager();
+    interrupt_manager.GPUInterruptSyncpt(syncpoint_id, value);
 }
 
 } // namespace VideoCommon
