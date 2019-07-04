@@ -111,6 +111,8 @@ add_library(core STATIC
     frontend/scope_acquire_window_context.h
     gdbstub/gdbstub.cpp
     gdbstub/gdbstub.h
+    hardware_interrupt_manager.cpp
+    hardware_interrupt_manager.h
     hle/ipc.h
     hle/ipc_helpers.h
     hle/kernel/address_arbiter.cpp
@@ -372,6 +374,7 @@ add_library(core STATIC
     hle/service/nvdrv/devices/nvmap.h
     hle/service/nvdrv/interface.cpp
     hle/service/nvdrv/interface.h
+    hle/service/nvdrv/nvdata.h
     hle/service/nvdrv/nvdrv.cpp
     hle/service/nvdrv/nvdrv.h
     hle/service/nvdrv/nvmemp.cpp
