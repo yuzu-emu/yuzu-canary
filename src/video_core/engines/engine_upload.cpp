@@ -36,10 +36,10 @@ void State::ProcessData(const u32 data, const bool is_last_call) {
     } else {
         UNIMPLEMENTED_IF(regs.dest.z != 0);
         UNIMPLEMENTED_IF(regs.dest.depth != 1);
-        UNIMPLEMENTED_IF(regs.dest.BlockWidth() != 1);
-        UNIMPLEMENTED_IF(regs.dest.BlockDepth() != 1);
+        UNIMPLEMENTED_IF(regs.dest.BlockWidth() != 0);
+        UNIMPLEMENTED_IF(regs.dest.BlockDepth() != 0);
         const std::size_t dst_size = Tegra::Texture::CalculateSize(
-            true, 1, regs.dest.width, regs.dest.height, 1, regs.dest.BlockHeight(), 1);
+            true, 1, regs.dest.width, regs.dest.height, 1, regs.dest.BlockHeight(), 0);
         tmp_buffer.resize(dst_size);
         memory_manager.ReadBlock(address, tmp_buffer.data(), dst_size);
         Tegra::Texture::SwizzleKepler(regs.dest.width, regs.dest.height, regs.dest.x, regs.dest.y,
