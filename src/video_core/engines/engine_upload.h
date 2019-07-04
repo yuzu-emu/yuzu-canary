@@ -39,15 +39,15 @@ struct Registers {
         }
 
         u32 BlockWidth() const {
-            return 1U << block_width.Value();
+            return block_width.Value();
         }
 
         u32 BlockHeight() const {
-            return 1U << block_height.Value();
+            return block_height.Value();
         }
 
         u32 BlockDepth() const {
-            return 1U << block_depth.Value();
+            return block_depth.Value();
         }
     } dest;
 };

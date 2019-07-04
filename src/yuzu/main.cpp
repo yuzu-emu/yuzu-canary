@@ -750,6 +750,9 @@ void GMainWindow::OnDisplayTitleBars(bool show) {
 QStringList GMainWindow::GetUnsupportedGLExtensions() {
     QStringList unsupported_ext;
 
+    if (!GLAD_GL_ARB_buffer_storage) {
+        unsupported_ext.append(QStringLiteral("ARB_buffer_storage"));
+    }
     if (!GLAD_GL_ARB_direct_state_access) {
         unsupported_ext.append(QStringLiteral("ARB_direct_state_access"));
     }
