@@ -471,7 +471,6 @@ static void APIENTRY DebugHandler(GLenum source, GLenum type, GLuint id, GLenum 
     }
 }
 
-/// Initialize the renderer
 bool RendererOpenGL::Init() {
     Core::Frontend::ScopeAcquireWindowContext acquire_context{render_window};
 

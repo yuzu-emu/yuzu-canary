@@ -104,6 +104,10 @@ public:
         return used_samplers;
     }
 
+    const std::set<Image>& GetImages() const {
+        return used_images;
+    }
+
     const std::array<bool, Tegra::Engines::Maxwell3D::Regs::NumClipDistances>& GetClipDistances()
         const {
         return used_clip_distances;
@@ -154,6 +158,7 @@ private:
     u32 DecodeConversion(NodeBlock& bb, u32 pc);
     u32 DecodeMemory(NodeBlock& bb, u32 pc);
     u32 DecodeTexture(NodeBlock& bb, u32 pc);
+    u32 DecodeImage(NodeBlock& bb, u32 pc);
     u32 DecodeFloatSetPredicate(NodeBlock& bb, u32 pc);
     u32 DecodeIntegerSetPredicate(NodeBlock& bb, u32 pc);
     u32 DecodeHalfSetPredicate(NodeBlock& bb, u32 pc);
@@ -254,6 +259,12 @@ private:
                                       Tegra::Shader::TextureType type, bool is_array,
                                       bool is_shadow);
 
+    /// Accesses an image.
+    const Image& GetImage(Tegra::Shader::Image image, Tegra::Shader::ImageType type);
+
+    /// Access a bindless image sampler.
+    const Image& GetBindlessImage(Tegra::Shader::Register reg, Tegra::Shader::ImageType type);
+
     /// Extracts a sequence of bits from a node
     Node BitfieldExtract(Node value, u32 offset, u32 bits);
 
@@ -276,6 +287,8 @@ private:
 
     Node4 GetTld4Code(Tegra::Shader::Instruction instr, Tegra::Shader::TextureType texture_type,
                       bool depth_compare, bool is_array, bool is_aoffi);
+
+    Node4 GetTldCode(Tegra::Shader::Instruction instr);
 
     Node4 GetTldsCode(Tegra::Shader::Instruction instr, Tegra::Shader::TextureType texture_type,
                       bool is_array);
@@ -327,6 +340,7 @@ private:
     std::set<Tegra::Shader::Attribute::Index> used_output_attributes;
     std::map<u32, ConstBuffer> used_cbufs;
     std::set<Sampler> used_samplers;
+    std::set<Image> used_images;
     std::array<bool, Tegra::Engines::Maxwell3D::Regs::NumClipDistances> used_clip_distances{};
     std::map<GlobalMemoryBase, GlobalMemoryUsage> used_global_memory;
     bool uses_physical_attributes{}; // Shader uses AL2P or physical attribute read/writes
