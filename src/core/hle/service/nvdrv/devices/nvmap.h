@@ -16,13 +16,14 @@ namespace Service::Nvidia::Devices {
 
 class nvmap final : public nvdevice {
 public:
-    nvmap();
+    explicit nvmap(Core::System& system);
     ~nvmap() override;
 
     /// Returns the allocated address of an nvmap object given its handle.
     VAddr GetObjectAddress(u32 handle) const;
 
-    u32 ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output) override;
+    u32 ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output,
+              IoctlCtrl& ctrl) override;
 
     /// Represents an nvmap object.
     struct Object {
