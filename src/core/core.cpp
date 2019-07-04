@@ -19,6 +19,7 @@
 #include "core/file_sys/vfs_concat.h"
 #include "core/file_sys/vfs_real.h"
 #include "core/gdbstub/gdbstub.h"
+#include "core/hardware_interrupt_manager.h"
 #include "core/hle/kernel/client_port.h"
 #include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/process.h"
@@ -151,7 +152,7 @@ struct System::Impl {
         if (!renderer->Init()) {
             return ResultStatus::ErrorVideoCore;
         }
-
+        interrupt_manager = std::make_unique<Core::Hardware::InterruptManager>(system);
         gpu_core = VideoCore::CreateGPU(system);
 
         is_powered_on = true;
@@ -298,6 +299,7 @@ struct System::Impl {
     std::unique_ptr<VideoCore::RendererBase> renderer;
     std::unique_ptr<Tegra::GPU> gpu_core;
     std::shared_ptr<Tegra::DebugContext> debug_context;
+    std::unique_ptr<Core::Hardware::InterruptManager> interrupt_manager;
     CpuCoreManager cpu_core_manager;
     bool is_powered_on = false;
 
@@ -442,6 +444,14 @@ Tegra::GPU& System::GPU() {
 
 const Tegra::GPU& System::GPU() const {
     return *impl->gpu_core;
+}
+
+Core::Hardware::InterruptManager& System::InterruptManager() {
+    return *impl->interrupt_manager;
+}
+
+const Core::Hardware::InterruptManager& System::InterruptManager() const {
+    return *impl->interrupt_manager;
 }
 
 VideoCore::RendererBase& System::Renderer() {
