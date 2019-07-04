@@ -8,11 +8,6 @@
 
 namespace Service::APM {
 
-enum class PerformanceMode : u8 {
-    Handheld = 0,
-    Docked = 1,
-};
-
 class Module final {
 public:
     Module();
@@ -20,6 +15,6 @@ public:
 };
 
 /// Registers all AM services with the specified service manager.
-void InstallInterfaces(SM::ServiceManager& service_manager);
+void InstallInterfaces(Core::System& system);
 
 } // namespace Service::APM
