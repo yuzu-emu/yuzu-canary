@@ -29,8 +29,10 @@
 namespace OpenGL {
 
 using Maxwell = Tegra::Engines::Maxwell3D::Regs;
-using PixelFormat = VideoCore::Surface::PixelFormat;
-using SurfaceType = VideoCore::Surface::SurfaceType;
+
+using VideoCore::Surface::PixelFormat;
+using VideoCore::Surface::SurfaceTarget;
+using VideoCore::Surface::SurfaceType;
 
 MICROPROFILE_DEFINE(OpenGL_VAO, "OpenGL", "Vertex Format Setup", MP_RGB(128, 128, 192));
 MICROPROFILE_DEFINE(OpenGL_VB, "OpenGL", "Vertex Buffer Setup", MP_RGB(128, 128, 192));
@@ -78,29 +80,9 @@ struct DrawParameters {
     }
 };
 
-struct FramebufferCacheKey {
-    bool is_single_buffer = false;
-    bool stencil_enable = false;
-
-    std::array<GLenum, Maxwell::NumRenderTargets> color_attachments{};
-    std::array<GLuint, Tegra::Engines::Maxwell3D::Regs::NumRenderTargets> colors{};
-    u32 colors_count = 0;
-
-    GLuint zeta = 0;
-
-    auto Tie() const {
-        return std::tie(is_single_buffer, stencil_enable, color_attachments, colors, colors_count,
-                        zeta);
-    }
-
-    bool operator<(const FramebufferCacheKey& rhs) const {
-        return Tie() < rhs.Tie();
-    }
-};
-
 RasterizerOpenGL::RasterizerOpenGL(Core::System& system, Core::Frontend::EmuWindow& emu_window,
                                    ScreenInfo& info)
-    : res_cache{*this}, shader_cache{*this, system, emu_window, device},
+    : texture_cache{system, *this, device}, shader_cache{*this, system, emu_window, device},
       global_cache{*this}, system{system}, screen_info{info},
       buffer_cache(*this, STREAM_BUFFER_SIZE) {
     OpenGLState::ApplyDefaultState();
@@ -120,11 +102,6 @@ void RasterizerOpenGL::CheckExtensions() {
         LOG_WARNING(
             Render_OpenGL,
             "Anisotropic filter is not supported! This can cause graphical issues in some games.");
-    }
-    if (!GLAD_GL_ARB_buffer_storage) {
-        LOG_WARNING(
-            Render_OpenGL,
-            "Buffer storage control is not supported! This can cause performance degradation.");
     }
 }
 
@@ -302,8 +279,14 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
                                  static_cast<GLsizeiptr>(sizeof(ubo)));
 
         Shader shader{shader_cache.GetStageProgram(program)};
-        const auto [program_handle, next_bindings] =
-            shader->GetProgramHandle(primitive_mode, base_bindings);
+
+        const auto stage_enum{static_cast<Maxwell::ShaderStage>(stage)};
+        SetupDrawConstBuffers(stage_enum, shader);
+        SetupGlobalRegions(stage_enum, shader);
+        const auto texture_buffer_usage{SetupTextures(stage_enum, shader, base_bindings)};
+
+        const ProgramVariant variant{base_bindings, primitive_mode, texture_buffer_usage};
+        const auto [program_handle, next_bindings] = shader->GetProgramHandle(variant);
 
         switch (program) {
         case Maxwell::ShaderProgram::VertexA:
@@ -320,11 +303,6 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
             UNIMPLEMENTED_MSG("Unimplemented shader index={}, enable={}, offset=0x{:08X}", index,
                               shader_config.enable.Value(), shader_config.offset);
         }
-
-        const auto stage_enum = static_cast<Maxwell::ShaderStage>(stage);
-        SetupDrawConstBuffers(stage_enum, shader);
-        SetupGlobalRegions(stage_enum, shader);
-        SetupTextures(stage_enum, shader, base_bindings);
 
         // Workaround for Intel drivers.
         // When a clip distance is enabled but not set in the shader it crops parts of the screen
@@ -349,44 +327,6 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
     SyncClipEnabled(clip_distances);
 
     gpu.dirty_flags.shaders = false;
-}
-
-void RasterizerOpenGL::SetupCachedFramebuffer(const FramebufferCacheKey& fbkey,
-                                              OpenGLState& current_state) {
-    const auto [entry, is_cache_miss] = framebuffer_cache.try_emplace(fbkey);
-    auto& framebuffer = entry->second;
-
-    if (is_cache_miss)
-        framebuffer.Create();
-
-    current_state.draw.draw_framebuffer = framebuffer.handle;
-    current_state.ApplyFramebufferState();
-
-    if (!is_cache_miss)
-        return;
-
-    if (fbkey.is_single_buffer) {
-        if (fbkey.color_attachments[0] != GL_NONE) {
-            glFramebufferTexture(GL_DRAW_FRAMEBUFFER, fbkey.color_attachments[0], fbkey.colors[0],
-                                 0);
-        }
-        glDrawBuffer(fbkey.color_attachments[0]);
-    } else {
-        for (std::size_t index = 0; index < Maxwell::NumRenderTargets; ++index) {
-            if (fbkey.colors[index]) {
-                glFramebufferTexture(GL_DRAW_FRAMEBUFFER,
-                                     GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(index),
-                                     fbkey.colors[index], 0);
-            }
-        }
-        glDrawBuffers(fbkey.colors_count, fbkey.color_attachments.data());
-    }
-
-    if (fbkey.zeta) {
-        GLenum zeta_attachment =
-            fbkey.stencil_enable ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT;
-        glFramebufferTexture(GL_DRAW_FRAMEBUFFER, zeta_attachment, fbkey.zeta, 0);
-    }
 }
 
 std::size_t RasterizerOpenGL::CalculateVertexArraysSize() const {
@@ -478,9 +418,13 @@ std::pair<bool, bool> RasterizerOpenGL::ConfigureFramebuffers(
     }
     current_framebuffer_config_state = fb_config_state;
 
-    Surface depth_surface;
+    texture_cache.GuardRenderTargets(true);
+
+    View depth_surface{};
     if (using_depth_fb) {
-        depth_surface = res_cache.GetDepthBufferSurface(preserve_contents);
+        depth_surface = texture_cache.GetDepthBufferSurface(preserve_contents);
+    } else {
+        texture_cache.SetEmptyDepthBuffer();
     }
 
     UNIMPLEMENTED_IF(regs.rt_separate_frag_data == 0);
@@ -493,13 +437,13 @@ std::pair<bool, bool> RasterizerOpenGL::ConfigureFramebuffers(
     if (using_color_fb) {
         if (single_color_target) {
             // Used when just a single color attachment is enabled, e.g. for clearing a color buffer
-            Surface color_surface =
-                res_cache.GetColorBufferSurface(*single_color_target, preserve_contents);
+            View color_surface{
+                texture_cache.GetColorBufferSurface(*single_color_target, preserve_contents)};
 
             if (color_surface) {
                 // Assume that a surface will be written to if it is used as a framebuffer, even if
                 // the shader doesn't actually write to it.
-                color_surface->MarkAsModified(true, res_cache);
+                texture_cache.MarkColorBufferInUse(*single_color_target);
                 // Workaround for and issue in nvidia drivers
                 // https://devtalk.nvidia.com/default/topic/776591/opengl/gl_framebuffer_srgb-functions-incorrectly/
                 state.framebuffer_srgb.enabled |= color_surface->GetSurfaceParams().srgb_conversion;
@@ -508,16 +452,21 @@ std::pair<bool, bool> RasterizerOpenGL::ConfigureFramebuffers(
             fbkey.is_single_buffer = true;
             fbkey.color_attachments[0] =
                 GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(*single_color_target);
-            fbkey.colors[0] = color_surface != nullptr ? color_surface->Texture().handle : 0;
+            fbkey.colors[0] = color_surface;
+            for (std::size_t index = 0; index < Maxwell::NumRenderTargets; ++index) {
+                if (index != *single_color_target) {
+                    texture_cache.SetEmptyColorBuffer(index);
+                }
+            }
         } else {
             // Multiple color attachments are enabled
             for (std::size_t index = 0; index < Maxwell::NumRenderTargets; ++index) {
-                Surface color_surface = res_cache.GetColorBufferSurface(index, preserve_contents);
+                View color_surface{texture_cache.GetColorBufferSurface(index, preserve_contents)};
 
                 if (color_surface) {
                     // Assume that a surface will be written to if it is used as a framebuffer, even
                     // if the shader doesn't actually write to it.
-                    color_surface->MarkAsModified(true, res_cache);
+                    texture_cache.MarkColorBufferInUse(index);
                     // Enable sRGB only for supported formats
                     // Workaround for and issue in nvidia drivers
                     // https://devtalk.nvidia.com/default/topic/776591/opengl/gl_framebuffer_srgb-functions-incorrectly/
@@ -527,8 +476,7 @@ std::pair<bool, bool> RasterizerOpenGL::ConfigureFramebuffers(
 
                 fbkey.color_attachments[index] =
                     GL_COLOR_ATTACHMENT0 + regs.rt_control.GetMap(index);
-                fbkey.colors[index] =
-                    color_surface != nullptr ? color_surface->Texture().handle : 0;
+                fbkey.colors[index] = color_surface;
             }
             fbkey.is_single_buffer = false;
             fbkey.colors_count = regs.rt_control.count;
@@ -541,14 +489,16 @@ std::pair<bool, bool> RasterizerOpenGL::ConfigureFramebuffers(
     if (depth_surface) {
         // Assume that a surface will be written to if it is used as a framebuffer, even if
         // the shader doesn't actually write to it.
-        depth_surface->MarkAsModified(true, res_cache);
+        texture_cache.MarkDepthBufferInUse();
 
-        fbkey.zeta = depth_surface->Texture().handle;
+        fbkey.zeta = depth_surface;
         fbkey.stencil_enable = regs.stencil_enable &&
                                depth_surface->GetSurfaceParams().type == SurfaceType::DepthStencil;
     }
 
-    SetupCachedFramebuffer(fbkey, current_state);
+    texture_cache.GuardRenderTargets(false);
+
+    current_state.draw.draw_framebuffer = framebuffer_cache.GetFramebuffer(fbkey);
     SyncViewport(current_state);
 
     return current_depth_stencil_usage = {static_cast<bool>(depth_surface), fbkey.stencil_enable};
@@ -630,6 +580,7 @@ void RasterizerOpenGL::Clear() {
     clear_state.ApplyDepth();
     clear_state.ApplyStencilTest();
     clear_state.ApplyViewport();
+    clear_state.ApplyFramebufferState();
 
     if (use_color) {
         glClearBufferfv(GL_COLOR, regs.clear_buffers.RT, regs.clear_color);
@@ -652,7 +603,6 @@ void RasterizerOpenGL::DrawArrays() {
     auto& gpu = system.GPU().Maxwell3D();
     const auto& regs = gpu.regs;
 
-    ConfigureFramebuffers(state);
     SyncColorMask();
     SyncFragmentColorClampState();
     SyncMultiSampleState();
@@ -697,16 +647,22 @@ void RasterizerOpenGL::DrawArrays() {
     SetupVertexBuffer(vao);
 
     DrawParameters params = SetupDraw();
+    texture_cache.GuardSamplers(true);
     SetupShaders(params.primitive_mode);
+    texture_cache.GuardSamplers(false);
+
+    ConfigureFramebuffers(state);
 
     buffer_cache.Unmap();
 
     shader_program_manager->ApplyTo(state);
     state.Apply();
 
-    res_cache.SignalPreDrawCall();
+    if (texture_cache.TextureBarrier()) {
+        glTextureBarrier();
+    }
+
     params.DispatchDraw();
-    res_cache.SignalPostDrawCall();
 
     accelerate_draw = AccelDraw::Disabled;
 }
@@ -718,7 +674,7 @@ void RasterizerOpenGL::FlushRegion(CacheAddr addr, u64 size) {
     if (!addr || !size) {
         return;
     }
-    res_cache.FlushRegion(addr, size);
+    texture_cache.FlushRegion(addr, size);
     global_cache.FlushRegion(addr, size);
 }
 
@@ -727,23 +683,24 @@ void RasterizerOpenGL::InvalidateRegion(CacheAddr addr, u64 size) {
     if (!addr || !size) {
         return;
     }
-    res_cache.InvalidateRegion(addr, size);
+    texture_cache.InvalidateRegion(addr, size);
     shader_cache.InvalidateRegion(addr, size);
     global_cache.InvalidateRegion(addr, size);
     buffer_cache.InvalidateRegion(addr, size);
 }
 
 void RasterizerOpenGL::FlushAndInvalidateRegion(CacheAddr addr, u64 size) {
-    FlushRegion(addr, size);
+    if (Settings::values.use_accurate_gpu_emulation) {
+        FlushRegion(addr, size);
+    }
     InvalidateRegion(addr, size);
 }
 
 bool RasterizerOpenGL::AccelerateSurfaceCopy(const Tegra::Engines::Fermi2D::Regs::Surface& src,
                                              const Tegra::Engines::Fermi2D::Regs::Surface& dst,
-                                             const Common::Rectangle<u32>& src_rect,
-                                             const Common::Rectangle<u32>& dst_rect) {
+                                             const Tegra::Engines::Fermi2D::Config& copy_config) {
     MICROPROFILE_SCOPE(OpenGL_Blits);
-    res_cache.FermiCopySurface(src, dst, src_rect, dst_rect);
+    texture_cache.DoFermiCopy(src, dst, copy_config);
     return true;
 }
 
@@ -755,7 +712,8 @@ bool RasterizerOpenGL::AccelerateDisplay(const Tegra::FramebufferConfig& config,
 
     MICROPROFILE_SCOPE(OpenGL_CacheManagement);
 
-    const auto& surface{res_cache.TryFindFramebufferSurface(Memory::GetPointer(framebuffer_addr))};
+    const auto surface{
+        texture_cache.TryFindFramebufferSurface(Memory::GetPointer(framebuffer_addr))};
     if (!surface) {
         return {};
     }
@@ -771,7 +729,7 @@ bool RasterizerOpenGL::AccelerateDisplay(const Tegra::FramebufferConfig& config,
         LOG_WARNING(Render_OpenGL, "Framebuffer pixel_format is different");
     }
 
-    screen_info.display_texture = surface->Texture().handle;
+    screen_info.display_texture = surface->GetTexture();
 
     return true;
 }
@@ -837,8 +795,8 @@ void RasterizerOpenGL::SetupGlobalRegions(Tegra::Engines::Maxwell3D::Regs::Shade
     }
 }
 
-void RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, const Shader& shader,
-                                     BaseBindings base_bindings) {
+TextureBufferUsage RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, const Shader& shader,
+                                                   BaseBindings base_bindings) {
     MICROPROFILE_SCOPE(OpenGL_Texture);
     const auto& gpu = system.GPU();
     const auto& maxwell3d = gpu.Maxwell3D();
@@ -846,6 +804,8 @@ void RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, const Shader& s
 
     ASSERT_MSG(base_bindings.sampler + entries.size() <= std::size(state.texture_units),
                "Exceeded the number of active textures.");
+
+    TextureBufferUsage texture_buffer_usage{0};
 
     for (u32 bindpoint = 0; bindpoint < entries.size(); ++bindpoint) {
         const auto& entry = entries[bindpoint];
@@ -860,18 +820,26 @@ void RasterizerOpenGL::SetupTextures(Maxwell::ShaderStage stage, const Shader& s
         }
         const u32 current_bindpoint = base_bindings.sampler + bindpoint;
 
-        state.texture_units[current_bindpoint].sampler = sampler_cache.GetSampler(texture.tsc);
+        auto& unit{state.texture_units[current_bindpoint]};
+        unit.sampler = sampler_cache.GetSampler(texture.tsc);
 
-        if (Surface surface = res_cache.GetTextureSurface(texture, entry); surface) {
-            state.texture_units[current_bindpoint].texture =
-                surface->Texture(entry.IsArray()).handle;
-            surface->UpdateSwizzle(texture.tic.x_source, texture.tic.y_source, texture.tic.z_source,
+        if (const auto view{texture_cache.GetTextureSurface(texture, entry)}; view) {
+            if (view->GetSurfaceParams().IsBuffer()) {
+                // Record that this texture is a texture buffer.
+                texture_buffer_usage.set(bindpoint);
+            } else {
+                // Apply swizzle to textures that are not buffers.
+                view->ApplySwizzle(texture.tic.x_source, texture.tic.y_source, texture.tic.z_source,
                                    texture.tic.w_source);
+            }
+            state.texture_units[current_bindpoint].texture = view->GetTexture();
         } else {
             // Can occur when texture addr is null or its memory is unmapped/invalid
-            state.texture_units[current_bindpoint].texture = 0;
+            unit.texture = 0;
         }
     }
+
+    return texture_buffer_usage;
 }
 
 void RasterizerOpenGL::SyncViewport(OpenGLState& current_state) {
