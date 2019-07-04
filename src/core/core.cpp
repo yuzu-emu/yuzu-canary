@@ -25,6 +25,7 @@
 #include "core/hle/kernel/scheduler.h"
 #include "core/hle/kernel/thread.h"
 #include "core/hle/service/am/applets/applets.h"
+#include "core/hle/service/apm/controller.h"
 #include "core/hle/service/glue/manager.h"
 #include "core/hle/service/service.h"
 #include "core/hle/service/sm/sm.h"
@@ -306,6 +307,9 @@ struct System::Impl {
     /// Frontend applets
     Service::AM::Applets::AppletManager applet_manager;
 
+    /// APM (Performance) services
+    Service::APM::Controller apm_controller{core_timing};
+
     /// Glue services
     Service::Glue::ARPManager arp_manager;
 
@@ -566,6 +570,14 @@ Service::Glue::ARPManager& System::GetARPManager() {
 
 const Service::Glue::ARPManager& System::GetARPManager() const {
     return impl->arp_manager;
+}
+
+Service::APM::Controller& System::GetAPMController() {
+    return impl->apm_controller;
+}
+
+const Service::APM::Controller& System::GetAPMController() const {
+    return impl->apm_controller;
 }
 
 System::ResultStatus System::Init(Frontend::EmuWindow& emu_window) {
