@@ -180,6 +180,7 @@ public:
         DeclareGlobalMemory();
         DeclareSamplers();
         DeclarePhysicalAttributeReader();
+        DeclareImages();
 
         code.AddLine("void execute_{}() {{", suffix);
         ++code.scope;
@@ -233,6 +234,9 @@ public:
         }
         for (const auto& sampler : ir.GetSamplers()) {
             entries.samplers.emplace_back(sampler);
+        }
+        for (const auto& image : ir.GetImages()) {
+            entries.images.emplace_back(image);
         }
         for (const auto& gmem_pair : ir.GetGlobalMemory()) {
             const auto& [base, usage] = gmem_pair;
@@ -453,9 +457,13 @@ private:
     void DeclareSamplers() {
         const auto& samplers = ir.GetSamplers();
         for (const auto& sampler : samplers) {
-            std::string sampler_type = [&sampler] {
+            const std::string name{GetSampler(sampler)};
+            const std::string description{"layout (binding = SAMPLER_BINDING_" +
+                                          std::to_string(sampler.GetIndex()) + ") uniform"};
+            std::string sampler_type = [&]() {
                 switch (sampler.GetType()) {
                 case Tegra::Shader::TextureType::Texture1D:
+                    // Special cased, read below.
                     return "sampler1D";
                 case Tegra::Shader::TextureType::Texture2D:
                     return "sampler2D";
@@ -475,8 +483,19 @@ private:
                 sampler_type += "Shadow";
             }
 
-            code.AddLine("layout (binding = SAMPLER_BINDING_{}) uniform {} {};", sampler.GetIndex(),
-                         sampler_type, GetSampler(sampler));
+            if (sampler.GetType() == Tegra::Shader::TextureType::Texture1D) {
+                // 1D textures can be aliased to texture buffers, hide the declarations behind a
+                // preprocessor flag and use one or the other from the GPU state. This has to be
+                // done because shaders don't have enough information to determine the texture type.
+                EmitIfdefIsBuffer(sampler);
+                code.AddLine("{} samplerBuffer {};", description, name);
+                code.AddLine("#else");
+                code.AddLine("{} {} {};", description, sampler_type, name);
+                code.AddLine("#endif");
+            } else {
+                // The other texture types (2D, 3D and cubes) don't have this issue.
+                code.AddLine("{} {} {};", description, sampler_type, name);
+            }
         }
         if (!samplers.empty()) {
             code.AddNewLine();
@@ -514,6 +533,37 @@ private:
         --code.scope;
         code.AddLine("}}");
         code.AddNewLine();
+    }
+
+    void DeclareImages() {
+        const auto& images{ir.GetImages()};
+        for (const auto& image : images) {
+            const std::string image_type = [&]() {
+                switch (image.GetType()) {
+                case Tegra::Shader::ImageType::Texture1D:
+                    return "image1D";
+                case Tegra::Shader::ImageType::TextureBuffer:
+                    return "bufferImage";
+                case Tegra::Shader::ImageType::Texture1DArray:
+                    return "image1DArray";
+                case Tegra::Shader::ImageType::Texture2D:
+                    return "image2D";
+                case Tegra::Shader::ImageType::Texture2DArray:
+                    return "image2DArray";
+                case Tegra::Shader::ImageType::Texture3D:
+                    return "image3D";
+                default:
+                    UNREACHABLE();
+                    return "image1D";
+                }
+            }();
+            code.AddLine("layout (binding = IMAGE_BINDING_{}) coherent volatile writeonly uniform "
+                         "{} {};",
+                         image.GetIndex(), image_type, GetImage(image));
+        }
+        if (!images.empty()) {
+            code.AddNewLine();
+        }
     }
 
     void VisitBlock(const NodeBlock& bb) {
@@ -1439,13 +1489,61 @@ private:
             else if (next < count)
                 expr += ", ";
         }
+
+        // Store a copy of the expression without the lod to be used with texture buffers
+        std::string expr_buffer = expr;
+
         if (meta->lod) {
             expr += ", ";
             expr += CastOperand(Visit(meta->lod), Type::Int);
         }
         expr += ')';
+        expr += GetSwizzle(meta->element);
 
-        return expr + GetSwizzle(meta->element);
+        expr_buffer += ')';
+        expr_buffer += GetSwizzle(meta->element);
+
+        const std::string tmp{code.GenerateTemporary()};
+        EmitIfdefIsBuffer(meta->sampler);
+        code.AddLine("float {} = {};", tmp, expr_buffer);
+        code.AddLine("#else");
+        code.AddLine("float {} = {};", tmp, expr);
+        code.AddLine("#endif");
+
+        return tmp;
+    }
+
+    std::string ImageStore(Operation operation) {
+        constexpr std::array<const char*, 4> constructors{"int(", "ivec2(", "ivec3(", "ivec4("};
+        const auto meta{std::get<MetaImage>(operation.GetMeta())};
+
+        std::string expr = "imageStore(";
+        expr += GetImage(meta.image);
+        expr += ", ";
+
+        const std::size_t coords_count{operation.GetOperandsCount()};
+        expr += constructors.at(coords_count - 1);
+        for (std::size_t i = 0; i < coords_count; ++i) {
+            expr += VisitOperand(operation, i, Type::Int);
+            if (i + 1 < coords_count) {
+                expr += ", ";
+            }
+        }
+        expr += "), ";
+
+        const std::size_t values_count{meta.values.size()};
+        UNIMPLEMENTED_IF(values_count != 4);
+        expr += "vec4(";
+        for (std::size_t i = 0; i < values_count; ++i) {
+            expr += Visit(meta.values.at(i));
+            if (i + 1 < values_count) {
+                expr += ", ";
+            }
+        }
+        expr += "));";
+
+        code.AddLine(expr);
+        return {};
     }
 
     std::string Branch(Operation operation) {
@@ -1688,6 +1786,8 @@ private:
         &GLSLDecompiler::TextureQueryLod,
         &GLSLDecompiler::TexelFetch,
 
+        &GLSLDecompiler::ImageStore,
+
         &GLSLDecompiler::Branch,
         &GLSLDecompiler::PushFlowStack,
         &GLSLDecompiler::PopFlowStack,
@@ -1754,6 +1854,14 @@ private:
 
     std::string GetSampler(const Sampler& sampler) const {
         return GetDeclarationWithSuffix(static_cast<u32>(sampler.GetIndex()), "sampler");
+    }
+
+    std::string GetImage(const Image& image) const {
+        return GetDeclarationWithSuffix(static_cast<u32>(image.GetIndex()), "image");
+    }
+
+    void EmitIfdefIsBuffer(const Sampler& sampler) {
+        code.AddLine("#ifdef SAMPLER_{}_IS_BUFFER", sampler.GetIndex());
     }
 
     std::string GetDeclarationWithSuffix(u32 index, const std::string& name) const {
