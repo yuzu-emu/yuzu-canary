@@ -103,13 +103,20 @@ constexpr std::tuple<const char*, const char*, u32> GetPrimitiveDescription(GLen
 /// Calculates the size of a program stream
 std::size_t CalculateProgramSize(const GLShader::ProgramCode& program) {
     constexpr std::size_t start_offset = 10;
+    // This is the encoded version of BRA that jumps to itself. All Nvidia
+    // shaders end with one.
+    constexpr u64 self_jumping_branch = 0xE2400FFFFF07000FULL;
+    constexpr u64 mask = 0xFFFFFFFFFF7FFFFFULL;
     std::size_t offset = start_offset;
     std::size_t size = start_offset * sizeof(u64);
     while (offset < program.size()) {
         const u64 instruction = program[offset];
         if (!IsSchedInstruction(offset, start_offset)) {
-            if (instruction == 0 || (instruction >> 52) == 0x50b) {
+            if ((instruction & mask) == self_jumping_branch) {
                 // End on Maxwell's "nop" instruction
+                break;
+            }
+            if (instruction == 0) {
                 break;
             }
         }
@@ -168,8 +175,12 @@ GLShader::ProgramResult CreateProgram(const Device& device, Maxwell::ShaderProgr
 }
 
 CachedProgram SpecializeShader(const std::string& code, const GLShader::ShaderEntries& entries,
-                               Maxwell::ShaderProgram program_type, BaseBindings base_bindings,
-                               GLenum primitive_mode, bool hint_retrievable = false) {
+                               Maxwell::ShaderProgram program_type, const ProgramVariant& variant,
+                               bool hint_retrievable = false) {
+    auto base_bindings{variant.base_bindings};
+    const auto primitive_mode{variant.primitive_mode};
+    const auto texture_buffer_usage{variant.texture_buffer_usage};
+
     std::string source = "#version 430 core\n"
                          "#extension GL_ARB_separate_shader_objects : enable\n\n";
     source += fmt::format("#define EMULATION_UBO_BINDING {}\n", base_bindings.cbuf++);
@@ -185,6 +196,18 @@ CachedProgram SpecializeShader(const std::string& code, const GLShader::ShaderEn
     for (const auto& sampler : entries.samplers) {
         source += fmt::format("#define SAMPLER_BINDING_{} {}\n", sampler.GetIndex(),
                               base_bindings.sampler++);
+    }
+    for (const auto& image : entries.images) {
+        source +=
+            fmt::format("#define IMAGE_BINDING_{} {}\n", image.GetIndex(), base_bindings.image++);
+    }
+
+    // Transform 1D textures to texture samplers by declaring its preprocessor macros.
+    for (std::size_t i = 0; i < texture_buffer_usage.size(); ++i) {
+        if (!texture_buffer_usage.test(i)) {
+            continue;
+        }
+        source += fmt::format("#define SAMPLER_{}_IS_BUFFER", i);
     }
 
     if (program_type == Maxwell::ShaderProgram::Geometry) {
@@ -254,20 +277,18 @@ Shader CachedShader::CreateStageFromCache(const ShaderParameters& params,
     return std::shared_ptr<CachedShader>(new CachedShader(params, program_type, std::move(result)));
 }
 
-std::tuple<GLuint, BaseBindings> CachedShader::GetProgramHandle(GLenum primitive_mode,
-                                                                BaseBindings base_bindings) {
+std::tuple<GLuint, BaseBindings> CachedShader::GetProgramHandle(const ProgramVariant& variant) {
     GLuint handle{};
     if (program_type == Maxwell::ShaderProgram::Geometry) {
-        handle = GetGeometryShader(primitive_mode, base_bindings);
+        handle = GetGeometryShader(variant);
     } else {
-        const auto [entry, is_cache_miss] = programs.try_emplace(base_bindings);
+        const auto [entry, is_cache_miss] = programs.try_emplace(variant);
         auto& program = entry->second;
         if (is_cache_miss) {
-            program = TryLoadProgram(primitive_mode, base_bindings);
+            program = TryLoadProgram(variant);
             if (!program) {
-                program =
-                    SpecializeShader(code, entries, program_type, base_bindings, primitive_mode);
-                disk_cache.SaveUsage(GetUsage(primitive_mode, base_bindings));
+                program = SpecializeShader(code, entries, program_type, variant);
+                disk_cache.SaveUsage(GetUsage(variant));
             }
 
             LabelGLObject(GL_PROGRAM, program->handle, cpu_addr);
@@ -276,6 +297,7 @@ std::tuple<GLuint, BaseBindings> CachedShader::GetProgramHandle(GLenum primitive
         handle = program->handle;
     }
 
+    auto base_bindings{variant.base_bindings};
     base_bindings.cbuf += static_cast<u32>(entries.const_buffers.size()) + RESERVED_UBOS;
     base_bindings.gmem += static_cast<u32>(entries.global_memory_entries.size());
     base_bindings.sampler += static_cast<u32>(entries.samplers.size());
@@ -283,43 +305,42 @@ std::tuple<GLuint, BaseBindings> CachedShader::GetProgramHandle(GLenum primitive
     return {handle, base_bindings};
 }
 
-GLuint CachedShader::GetGeometryShader(GLenum primitive_mode, BaseBindings base_bindings) {
-    const auto [entry, is_cache_miss] = geometry_programs.try_emplace(base_bindings);
+GLuint CachedShader::GetGeometryShader(const ProgramVariant& variant) {
+    const auto [entry, is_cache_miss] = geometry_programs.try_emplace(variant);
     auto& programs = entry->second;
 
-    switch (primitive_mode) {
+    switch (variant.primitive_mode) {
     case GL_POINTS:
-        return LazyGeometryProgram(programs.points, base_bindings, primitive_mode);
+        return LazyGeometryProgram(programs.points, variant);
     case GL_LINES:
     case GL_LINE_STRIP:
-        return LazyGeometryProgram(programs.lines, base_bindings, primitive_mode);
+        return LazyGeometryProgram(programs.lines, variant);
     case GL_LINES_ADJACENCY:
     case GL_LINE_STRIP_ADJACENCY:
-        return LazyGeometryProgram(programs.lines_adjacency, base_bindings, primitive_mode);
+        return LazyGeometryProgram(programs.lines_adjacency, variant);
     case GL_TRIANGLES:
     case GL_TRIANGLE_STRIP:
     case GL_TRIANGLE_FAN:
-        return LazyGeometryProgram(programs.triangles, base_bindings, primitive_mode);
+        return LazyGeometryProgram(programs.triangles, variant);
     case GL_TRIANGLES_ADJACENCY:
     case GL_TRIANGLE_STRIP_ADJACENCY:
-        return LazyGeometryProgram(programs.triangles_adjacency, base_bindings, primitive_mode);
+        return LazyGeometryProgram(programs.triangles_adjacency, variant);
     default:
         UNREACHABLE_MSG("Unknown primitive mode.");
-        return LazyGeometryProgram(programs.points, base_bindings, primitive_mode);
+        return LazyGeometryProgram(programs.points, variant);
     }
 }
 
-GLuint CachedShader::LazyGeometryProgram(CachedProgram& target_program, BaseBindings base_bindings,
-                                         GLenum primitive_mode) {
+GLuint CachedShader::LazyGeometryProgram(CachedProgram& target_program,
+                                         const ProgramVariant& variant) {
     if (target_program) {
         return target_program->handle;
     }
-    const auto [glsl_name, debug_name, vertices] = GetPrimitiveDescription(primitive_mode);
-    target_program = TryLoadProgram(primitive_mode, base_bindings);
+    const auto [glsl_name, debug_name, vertices] = GetPrimitiveDescription(variant.primitive_mode);
+    target_program = TryLoadProgram(variant);
     if (!target_program) {
-        target_program =
-            SpecializeShader(code, entries, program_type, base_bindings, primitive_mode);
-        disk_cache.SaveUsage(GetUsage(primitive_mode, base_bindings));
+        target_program = SpecializeShader(code, entries, program_type, variant);
+        disk_cache.SaveUsage(GetUsage(variant));
     }
 
     LabelGLObject(GL_PROGRAM, target_program->handle, cpu_addr, debug_name);
@@ -327,18 +348,19 @@ GLuint CachedShader::LazyGeometryProgram(CachedProgram& target_program, BaseBind
     return target_program->handle;
 };
 
-CachedProgram CachedShader::TryLoadProgram(GLenum primitive_mode,
-                                           BaseBindings base_bindings) const {
-    const auto found = precompiled_programs.find(GetUsage(primitive_mode, base_bindings));
+CachedProgram CachedShader::TryLoadProgram(const ProgramVariant& variant) const {
+    const auto found = precompiled_programs.find(GetUsage(variant));
     if (found == precompiled_programs.end()) {
         return {};
     }
     return found->second;
 }
 
-ShaderDiskCacheUsage CachedShader::GetUsage(GLenum primitive_mode,
-                                            BaseBindings base_bindings) const {
-    return {unique_identifier, base_bindings, primitive_mode};
+ShaderDiskCacheUsage CachedShader::GetUsage(const ProgramVariant& variant) const {
+    ShaderDiskCacheUsage usage;
+    usage.unique_identifier = unique_identifier;
+    usage.variant = variant;
+    return usage;
 }
 
 ShaderCacheOpenGL::ShaderCacheOpenGL(RasterizerOpenGL& rasterizer, Core::System& system,
@@ -404,8 +426,7 @@ void ShaderCacheOpenGL::LoadDiskCache(const std::atomic_bool& stop_loading,
             }
             if (!shader) {
                 shader = SpecializeShader(unspecialized.code, unspecialized.entries,
-                                          unspecialized.program_type, usage.bindings,
-                                          usage.primitive, true);
+                                          unspecialized.program_type, usage.variant, true);
             }
 
             std::scoped_lock lock(mutex);

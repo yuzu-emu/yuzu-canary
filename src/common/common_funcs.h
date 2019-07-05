@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <string>
 
 #if !defined(ARCHITECTURE_x86_64)

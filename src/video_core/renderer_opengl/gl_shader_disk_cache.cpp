@@ -34,11 +34,11 @@ enum class PrecompiledEntryKind : u32 {
     Dump,
 };
 
-constexpr u32 NativeVersion = 1;
+constexpr u32 NativeVersion = 4;
 
 // Making sure sizes doesn't change by accident
-static_assert(sizeof(BaseBindings) == 12);
-static_assert(sizeof(ShaderDiskCacheUsage) == 24);
+static_assert(sizeof(BaseBindings) == 16);
+static_assert(sizeof(ShaderDiskCacheUsage) == 40);
 
 namespace {
 
@@ -332,11 +332,28 @@ std::optional<ShaderDiskCacheDecompiled> ShaderDiskCacheOpenGL::LoadDecompiledEn
             static_cast<Tegra::Shader::TextureType>(type), is_array, is_shadow, is_bindless);
     }
 
+    u32 images_count{};
+    if (!LoadObjectFromPrecompiled(images_count)) {
+        return {};
+    }
+    for (u32 i = 0; i < images_count; ++i) {
+        u64 offset{};
+        u64 index{};
+        u32 type{};
+        u8 is_bindless{};
+        if (!LoadObjectFromPrecompiled(offset) || !LoadObjectFromPrecompiled(index) ||
+            !LoadObjectFromPrecompiled(type) || !LoadObjectFromPrecompiled(is_bindless)) {
+            return {};
+        }
+        entry.entries.images.emplace_back(
+            static_cast<std::size_t>(offset), static_cast<std::size_t>(index),
+            static_cast<Tegra::Shader::ImageType>(type), is_bindless != 0);
+    }
+
     u32 global_memory_count{};
     if (!LoadObjectFromPrecompiled(global_memory_count)) {
         return {};
     }
-
     for (u32 i = 0; i < global_memory_count; ++i) {
         u32 cbuf_index{};
         u32 cbuf_offset{};
@@ -360,7 +377,6 @@ std::optional<ShaderDiskCacheDecompiled> ShaderDiskCacheOpenGL::LoadDecompiledEn
     if (!LoadObjectFromPrecompiled(shader_length)) {
         return {};
     }
-
     entry.entries.shader_length = static_cast<std::size_t>(shader_length);
 
     return entry;
@@ -396,6 +412,18 @@ bool ShaderDiskCacheOpenGL::SaveDecompiledFile(u64 unique_identifier, const std:
             !SaveObjectToPrecompiled(sampler.IsArray()) ||
             !SaveObjectToPrecompiled(sampler.IsShadow()) ||
             !SaveObjectToPrecompiled(sampler.IsBindless())) {
+            return false;
+        }
+    }
+
+    if (!SaveObjectToPrecompiled(static_cast<u32>(entries.images.size()))) {
+        return false;
+    }
+    for (const auto& image : entries.images) {
+        if (!SaveObjectToPrecompiled(static_cast<u64>(image.GetOffset())) ||
+            !SaveObjectToPrecompiled(static_cast<u64>(image.GetIndex())) ||
+            !SaveObjectToPrecompiled(static_cast<u32>(image.GetType())) ||
+            !SaveObjectToPrecompiled(static_cast<u8>(image.IsBindless() ? 1 : 0))) {
             return false;
         }
     }
