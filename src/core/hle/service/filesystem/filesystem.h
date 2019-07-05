@@ -65,7 +65,7 @@ FileSys::VirtualDir GetModificationDumpRoot(u64 title_id);
 // above is called.
 void CreateFactories(FileSys::VfsFilesystem& vfs, bool overwrite = true);
 
-void InstallInterfaces(SM::ServiceManager& service_manager, FileSys::VfsFilesystem& vfs);
+void InstallInterfaces(Core::System& system);
 
 // A class that wraps a VfsDirectory with methods that return ResultVal and ResultCode instead of
 // pointers and booleans. This makes using a VfsDirectory with switch services much easier and
