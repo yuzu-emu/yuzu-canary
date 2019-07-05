@@ -25,6 +25,10 @@ public:
     void FlushRegion(CacheAddr addr, u64 size) override;
     void InvalidateRegion(CacheAddr addr, u64 size) override;
     void FlushAndInvalidateRegion(CacheAddr addr, u64 size) override;
+
+protected:
+    void TriggerCpuInterrupt([[maybe_unused]] u32 syncpoint_id,
+                             [[maybe_unused]] u32 value) const override {}
 };
 
 } // namespace VideoCommon
