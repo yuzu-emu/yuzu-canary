@@ -16,6 +16,10 @@ namespace Kernel {
 class HLERequestContext;
 } // namespace Kernel
 
+namespace Service::FileSystem {
+enum class LogMode : u32;
+}
+
 namespace Core {
 
 class System;
@@ -48,6 +52,9 @@ public:
     void SaveErrorReport(u64 title_id, ResultCode result,
                          std::optional<std::string> custom_text_main = {},
                          std::optional<std::string> custom_text_detail = {}) const;
+
+    void SaveFilesystemAccessReport(Service::FileSystem::LogMode log_mode,
+                                    std::string log_message) const;
 
     void SaveUserReport() const;
 

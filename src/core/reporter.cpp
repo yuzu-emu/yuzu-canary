@@ -350,6 +350,24 @@ void Reporter::SaveErrorReport(u64 title_id, ResultCode result,
     SaveToFile(std::move(out), GetPath("error_report", title_id, timestamp));
 }
 
+void Reporter::SaveFilesystemAccessReport(Service::FileSystem::LogMode log_mode,
+                                          std::string log_message) const {
+    if (!IsReportingEnabled())
+        return;
+
+    const auto timestamp = GetTimestamp();
+    const auto title_id = system.CurrentProcess()->GetTitleID();
+    json out;
+
+    out["yuzu_version"] = GetYuzuVersionData();
+    out["report_common"] = GetReportCommonData(title_id, RESULT_SUCCESS, timestamp);
+
+    out["log_mode"] = fmt::format("{:08X}", static_cast<u32>(log_mode));
+    out["log_message"] = std::move(log_message);
+
+    SaveToFile(std::move(out), GetPath("filesystem_access_report", title_id, timestamp));
+}
+
 void Reporter::SaveUserReport() const {
     if (!IsReportingEnabled()) {
         return;
