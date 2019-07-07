@@ -42,7 +42,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ICommonStateGetter>(msg_queue);
+        rb.PushIpcInterface<ICommonStateGetter>(system, msg_queue);
     }
 
     void GetSelfController(Kernel::HLERequestContext& ctx) {
@@ -146,7 +146,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ICommonStateGetter>(msg_queue);
+        rb.PushIpcInterface<ICommonStateGetter>(system, msg_queue);
     }
 
     void GetSelfController(Kernel::HLERequestContext& ctx) {
