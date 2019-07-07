@@ -124,6 +124,10 @@ public:
     void ConnectAllDisconnectedControllers();
     void ClearAllControllers();
 
+    void StartLRAssignmentMode();
+    void StopLRAssignmentMode();
+    bool SwapNpadAssignment(u32 npad_id_1, u32 npad_id_2);
+
     // Logical OR for all buttons presses on all controllers
     // Specifically for cheat engine and other features.
     u32 GetAndResetPressState();
@@ -321,5 +325,6 @@ private:
     void RequestPadStateUpdate(u32 npad_id);
     std::array<ControllerPad, 10> npad_pad_states{};
     bool IsControllerSupported(NPadControllerType controller);
+    bool is_in_lr_assignment_mode{false};
 };
 } // namespace Service::HID
