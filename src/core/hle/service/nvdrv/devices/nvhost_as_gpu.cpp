@@ -22,10 +22,12 @@ enum {
 };
 }
 
-nvhost_as_gpu::nvhost_as_gpu(std::shared_ptr<nvmap> nvmap_dev) : nvmap_dev(std::move(nvmap_dev)) {}
+nvhost_as_gpu::nvhost_as_gpu(Core::System& system, std::shared_ptr<nvmap> nvmap_dev)
+    : nvdevice(system), nvmap_dev(std::move(nvmap_dev)) {}
 nvhost_as_gpu::~nvhost_as_gpu() = default;
 
-u32 nvhost_as_gpu::ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output) {
+u32 nvhost_as_gpu::ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output,
+                         IoctlCtrl& ctrl) {
     LOG_DEBUG(Service_NVDRV, "called, command=0x{:08X}, input_size=0x{:X}, output_size=0x{:X}",
               command.raw, input.size(), output.size());
 
@@ -65,7 +67,7 @@ u32 nvhost_as_gpu::AllocateSpace(const std::vector<u8>& input, std::vector<u8>& 
     LOG_DEBUG(Service_NVDRV, "called, pages={:X}, page_size={:X}, flags={:X}", params.pages,
               params.page_size, params.flags);
 
-    auto& gpu = Core::System::GetInstance().GPU();
+    auto& gpu = system.GPU();
     const u64 size{static_cast<u64>(params.pages) * static_cast<u64>(params.page_size)};
     if (params.flags & 1) {
         params.offset = gpu.MemoryManager().AllocateSpace(params.offset, size, 1);
@@ -85,7 +87,7 @@ u32 nvhost_as_gpu::Remap(const std::vector<u8>& input, std::vector<u8>& output) 
     std::vector<IoctlRemapEntry> entries(num_entries);
     std::memcpy(entries.data(), input.data(), input.size());
 
-    auto& gpu = Core::System::GetInstance().GPU();
+    auto& gpu = system.GPU();
     for (const auto& entry : entries) {
         LOG_WARNING(Service_NVDRV, "remap entry, offset=0x{:X} handle=0x{:X} pages=0x{:X}",
                     entry.offset, entry.nvmap_handle, entry.pages);
@@ -136,7 +138,7 @@ u32 nvhost_as_gpu::MapBufferEx(const std::vector<u8>& input, std::vector<u8>& ou
     // case to prevent unexpected behavior.
     ASSERT(object->id == params.nvmap_handle);
 
-    auto& gpu = Core::System::GetInstance().GPU();
+    auto& gpu = system.GPU();
 
     if (params.flags & 1) {
         params.offset = gpu.MemoryManager().MapBufferEx(object->addr, params.offset, object->size);
@@ -173,8 +175,7 @@ u32 nvhost_as_gpu::UnmapBuffer(const std::vector<u8>& input, std::vector<u8>& ou
         return 0;
     }
 
-    params.offset = Core::System::GetInstance().GPU().MemoryManager().UnmapBuffer(params.offset,
-                                                                                  itr->second.size);
+    params.offset = system.GPU().MemoryManager().UnmapBuffer(params.offset, itr->second.size);
     buffer_mappings.erase(itr->second.offset);
 
     std::memcpy(output.data(), &params, output.size());
