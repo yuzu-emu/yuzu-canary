@@ -16,6 +16,7 @@
 #include "core/hle/kernel/readable_event.h"
 #include "core/hle/kernel/shared_memory.h"
 #include "core/hle/kernel/writable_event.h"
+#include "core/hle/service/hid/errors.h"
 #include "core/hle/service/hid/hid.h"
 #include "core/hle/service/hid/irs.h"
 #include "core/hle/service/hid/xcd.h"
@@ -202,11 +203,11 @@ Hid::Hid() : ServiceFramework("hid") {
         {123, nullptr, "SetNpadJoyAssignmentModeSingleByDefault"},
         {124, &Hid::SetNpadJoyAssignmentModeDual, "SetNpadJoyAssignmentModeDual"},
         {125, &Hid::MergeSingleJoyAsDualJoy, "MergeSingleJoyAsDualJoy"},
-        {126, nullptr, "StartLrAssignmentMode"},
-        {127, nullptr, "StopLrAssignmentMode"},
+        {126, &Hid::StartLrAssignmentMode, "StartLrAssignmentMode"},
+        {127, &Hid::StopLrAssignmentMode, "StopLrAssignmentMode"},
         {128, &Hid::SetNpadHandheldActivationMode, "SetNpadHandheldActivationMode"},
         {129, nullptr, "GetNpadHandheldActivationMode"},
-        {130, nullptr, "SwapNpadAssignment"},
+        {130, &Hid::SwapNpadAssignment, "SwapNpadAssignment"},
         {131, nullptr, "IsUnintendedHomeButtonInputProtectionEnabled"},
         {132, nullptr, "EnableUnintendedHomeButtonInputProtection"},
         {133, nullptr, "SetNpadJoyAssignmentModeSingleWithDestination"},
@@ -731,6 +732,49 @@ void Hid::SetPalmaBoostMode(Kernel::HLERequestContext& ctx) {
 
     IPC::ResponseBuilder rb{ctx, 2};
     rb.Push(RESULT_SUCCESS);
+}
+
+void Hid::StartLrAssignmentMode(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp{ctx};
+    const auto applet_resource_user_id{rp.Pop<u64>()};
+
+    LOG_DEBUG(Service_HID, "called, applet_resource_user_id={}", applet_resource_user_id);
+    auto& controller = applet_resource->GetController<Controller_NPad>(HidController::NPad);
+    controller.StartLRAssignmentMode();
+
+    IPC::ResponseBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+}
+
+void Hid::StopLrAssignmentMode(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp{ctx};
+    const auto applet_resource_user_id{rp.Pop<u64>()};
+
+    LOG_DEBUG(Service_HID, "called, applet_resource_user_id={}", applet_resource_user_id);
+    auto& controller = applet_resource->GetController<Controller_NPad>(HidController::NPad);
+    controller.StopLRAssignmentMode();
+
+    IPC::ResponseBuilder rb{ctx, 2};
+    rb.Push(RESULT_SUCCESS);
+}
+
+void Hid::SwapNpadAssignment(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp{ctx};
+    const auto npad_1{rp.Pop<u32>()};
+    const auto npad_2{rp.Pop<u32>()};
+    const auto applet_resource_user_id{rp.Pop<u64>()};
+
+    LOG_DEBUG(Service_HID, "called, applet_resource_user_id={}, npad_1={}, npad_2={}",
+              applet_resource_user_id, npad_1, npad_2);
+
+    auto& controller = applet_resource->GetController<Controller_NPad>(HidController::NPad);
+    IPC::ResponseBuilder rb{ctx, 2};
+    if (controller.SwapNpadAssignment(npad_1, npad_2)) {
+        rb.Push(RESULT_SUCCESS);
+    } else {
+        LOG_ERROR(Service_HID, "Npads are not connected!");
+        rb.Push(ERR_NPAD_NOT_CONNECTED);
+    }
 }
 
 class HidDbg final : public ServiceFramework<HidDbg> {
