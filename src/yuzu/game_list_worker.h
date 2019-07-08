@@ -14,6 +14,7 @@
 #include <QObject>
 #include <QRunnable>
 #include <QString>
+#include <QVector>
 
 #include "common/common_types.h"
 #include "yuzu/compatibility_list.h"
@@ -33,9 +34,10 @@ class GameListWorker : public QObject, public QRunnable {
     Q_OBJECT
 
 public:
-    GameListWorker(std::shared_ptr<FileSys::VfsFilesystem> vfs,
-                   FileSys::ManualContentProvider* provider, QString dir_path, bool deep_scan,
-                   const CompatibilityList& compatibility_list);
+    explicit GameListWorker(std::shared_ptr<FileSys::VfsFilesystem> vfs,
+                            FileSys::ManualContentProvider* provider,
+                            QVector<UISettings::GameDir>& game_dirs,
+                            const CompatibilityList& compatibility_list);
     ~GameListWorker() override;
 
     /// Starts the processing of directory tree information.
@@ -48,31 +50,33 @@ signals:
     /**
      * The `EntryReady` signal is emitted once an entry has been prepared and is ready
      * to be added to the game list.
-     * @param entry_items a list with `QStandardItem`s that make up the columns of the new entry.
+     * @param entry_items a list with `QStandardItem`s that make up the columns of the new
+     * entry.
      */
-    void EntryReady(QList<QStandardItem*> entry_items);
+    void DirEntryReady(GameListDir* entry_items);
+    void EntryReady(QList<QStandardItem*> entry_items, GameListDir* parent_dir);
 
     /**
-     * After the worker has traversed the game directory looking for entries, this signal is emitted
-     * with a list of folders that should be watched for changes as well.
+     * After the worker has traversed the game directory looking for entries, this signal is
+     * emitted with a list of folders that should be watched for changes as well.
      */
     void Finished(QStringList watch_list);
 
 private:
-    void AddTitlesToGameList();
+    void AddTitlesToGameList(GameListDir* parent_dir);
 
     enum class ScanTarget {
         FillManualContentProvider,
         PopulateGameList,
     };
 
-    void ScanFileSystem(ScanTarget target, const std::string& dir_path, unsigned int recursion = 0);
+    void ScanFileSystem(ScanTarget target, const std::string& dir_path, unsigned int recursion,
+                        GameListDir* parent_dir);
 
     std::shared_ptr<FileSys::VfsFilesystem> vfs;
     FileSys::ManualContentProvider* provider;
     QStringList watch_list;
-    QString dir_path;
-    bool deep_scan;
     const CompatibilityList& compatibility_list;
+    QVector<UISettings::GameDir>& game_dirs;
     std::atomic_bool stop_processing;
 };
