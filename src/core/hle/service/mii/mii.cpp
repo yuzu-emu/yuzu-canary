@@ -48,7 +48,7 @@ public:
             {19, nullptr, "Export"},
             {20, nullptr, "IsBrokenDatabaseWithClearFlag"},
             {21, &IDatabaseService::GetIndex, "GetIndex"},
-            {22, nullptr, "SetInterfaceVersion"},
+            {22, &IDatabaseService::SetInterfaceVersion, "SetInterfaceVersion"},
             {23, nullptr, "Convert"},
         };
         // clang-format on
@@ -350,7 +350,21 @@ private:
         rb.Push(index);
     }
 
+    void SetInterfaceVersion(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        current_interface_version = rp.PopRaw<u32>();
+
+        LOG_DEBUG(Service_Mii, "called, interface_version={:08X}", current_interface_version);
+
+        UNIMPLEMENTED_IF(current_interface_version != 1);
+
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+    }
+
     MiiManager db;
+
+    u32 current_interface_version = 0;
 
     // Last read offsets of Get functions
     std::array<u32, 4> offsets{};
