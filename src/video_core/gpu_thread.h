@@ -88,40 +88,8 @@ struct CommandDataContainer {
 /// Struct used to synchronize the GPU thread
 struct SynchState final {
     std::atomic_bool is_running{true};
-    std::atomic_int queued_frame_count{};
-    std::mutex synchronization_mutex;
-    std::mutex commands_mutex;
-    std::condition_variable commands_condition;
-    std::condition_variable synchronization_condition;
-
-    /// Returns true if the gap in GPU commands is small enough that we can consider the CPU and GPU
-    /// synchronized. This is entirely empirical.
-    bool IsSynchronized() const {
-        constexpr std::size_t max_queue_gap{5};
-        return queue.Size() <= max_queue_gap;
-    }
-
-    void TrySynchronize() {
-        if (IsSynchronized()) {
-            std::lock_guard lock{synchronization_mutex};
-            synchronization_condition.notify_one();
-        }
-    }
 
     void WaitForSynchronization(u64 fence);
-
-    void SignalCommands() {
-        if (queue.Empty()) {
-            return;
-        }
-
-        commands_condition.notify_one();
-    }
-
-    void WaitForCommands() {
-        std::unique_lock lock{commands_mutex};
-        commands_condition.wait(lock, [this] { return !queue.Empty(); });
-    }
 
     using CommandQueue = Common::SPSCQueue<CommandDataContainer>;
     CommandQueue queue;
@@ -142,7 +110,7 @@ public:
     void SubmitList(Tegra::CommandList&& entries);
 
     /// Swap buffers (render frame)
-    void SwapBuffers(
+    u64 SwapBuffers(
         std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer);
 
     /// Notify rasterizer that any caches of the specified region should be flushed to Switch memory
@@ -153,6 +121,8 @@ public:
 
     /// Notify rasterizer that any caches of the specified region should be flushed and invalidated
     void FlushAndInvalidateRegion(CacheAddr addr, u64 size);
+
+    void WaitOnFence(u64 fence);
 
 private:
     /// Pushes a command to be executed by the GPU thread

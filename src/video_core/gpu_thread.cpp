@@ -21,7 +21,8 @@ static void RunThread(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_p
     MicroProfileOnThreadCreate("GpuThread");
 
     // Wait for first GPU command before acquiring the window context
-    state.WaitForCommands();
+    while (state.queue.Empty())
+        ;
 
     // If emulation was stopped during disk shader loading, abort before trying to acquire context
     if (!state.is_running) {
@@ -32,8 +33,10 @@ static void RunThread(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_p
 
     CommandDataContainer next;
     while (state.is_running) {
-        state.WaitForCommands();
         while (!state.queue.Empty()) {
+            if (!state.is_running) {
+                break;
+            }
             state.queue.Pop(next);
             if (const auto submit_list = std::get_if<SubmitListCommand>(&next.data)) {
                 dma_pusher.Push(std::move(submit_list->entries));
@@ -49,8 +52,7 @@ static void RunThread(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_p
             } else {
                 UNREACHABLE();
             }
-            state.signaled_fence = next.fence;
-            state.TrySynchronize();
+            state.signaled_fence.store(next.fence);
         }
     }
 }
@@ -69,19 +71,15 @@ ThreadManager::~ThreadManager() {
 
 void ThreadManager::StartThread(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_pusher) {
     thread = std::thread{RunThread, std::ref(renderer), std::ref(dma_pusher), std::ref(state)};
-    synchronization_event = system.CoreTiming().RegisterEvent(
-        "GPUThreadSynch", [this](u64 fence, s64) { state.WaitForSynchronization(fence); });
 }
 
 void ThreadManager::SubmitList(Tegra::CommandList&& entries) {
-    const u64 fence{PushCommand(SubmitListCommand(std::move(entries)))};
-    const s64 synchronization_ticks{Core::Timing::usToCycles(std::chrono::microseconds{9000})};
-    system.CoreTiming().ScheduleEvent(synchronization_ticks, synchronization_event, fence);
+    PushCommand(SubmitListCommand(std::move(entries)));
 }
 
-void ThreadManager::SwapBuffers(
+u64 ThreadManager::SwapBuffers(
     std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) {
-    PushCommand(SwapBuffersCommand(std::move(framebuffer)));
+    return PushCommand(SwapBuffersCommand(std::move(framebuffer)));
 }
 
 void ThreadManager::FlushRegion(CacheAddr addr, u64 size) {
@@ -89,12 +87,7 @@ void ThreadManager::FlushRegion(CacheAddr addr, u64 size) {
 }
 
 void ThreadManager::InvalidateRegion(CacheAddr addr, u64 size) {
-    if (state.queue.Empty()) {
-        // It's quicker to invalidate a single region on the CPU if the queue is already empty
-        system.Renderer().Rasterizer().InvalidateRegion(addr, size);
-    } else {
-        PushCommand(InvalidateRegionCommand(addr, size));
-    }
+    system.Renderer().Rasterizer().InvalidateRegion(addr, size);
 }
 
 void ThreadManager::FlushAndInvalidateRegion(CacheAddr addr, u64 size) {
@@ -105,22 +98,18 @@ void ThreadManager::FlushAndInvalidateRegion(CacheAddr addr, u64 size) {
 u64 ThreadManager::PushCommand(CommandData&& command_data) {
     const u64 fence{++state.last_fence};
     state.queue.Push(CommandDataContainer(std::move(command_data), fence));
-    state.SignalCommands();
     return fence;
+}
+
+void ThreadManager::WaitOnFence(u64 fence) {
+    state.WaitForSynchronization(fence);
 }
 
 MICROPROFILE_DEFINE(GPU_wait, "GPU", "Wait for the GPU", MP_RGB(128, 128, 192));
 void SynchState::WaitForSynchronization(u64 fence) {
-    if (signaled_fence >= fence) {
-        return;
-    }
-
-    // Wait for the GPU to be idle (all commands to be executed)
-    {
-        MICROPROFILE_SCOPE(GPU_wait);
-        std::unique_lock lock{synchronization_mutex};
-        synchronization_condition.wait(lock, [this, fence] { return signaled_fence >= fence; });
-    }
+    MICROPROFILE_SCOPE(GPU_wait);
+    while (signaled_fence.load() < fence)
+        ;
 }
 
 } // namespace VideoCommon::GPUThread
