@@ -217,13 +217,15 @@ std::vector<s16> AudioRenderer::VoiceState::DequeueSamples(std::size_t sample_co
     if (offset == samples.size()) {
         offset = 0;
 
-        if (!wave_buffer.is_looping) {
+        if (!wave_buffer.is_looping && wave_buffer.buffer_sz) {
             SetWaveIndex(wave_index + 1);
         }
 
-        out_status.wave_buffer_consumed++;
+        if (wave_buffer.buffer_sz) {
+            out_status.wave_buffer_consumed++;
+        }
 
-        if (wave_buffer.end_of_stream) {
+        if (wave_buffer.end_of_stream || wave_buffer.buffer_sz == 0) {
             info.play_state = PlayState::Paused;
         }
     }
