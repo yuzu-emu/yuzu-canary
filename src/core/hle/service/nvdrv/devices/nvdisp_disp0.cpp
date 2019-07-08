@@ -5,6 +5,7 @@
 #include "common/assert.h"
 #include "common/logging/log.h"
 #include "core/core.h"
+#include "core/core_timing.h"
 #include "core/hle/service/nvdrv/devices/nvdisp_disp0.h"
 #include "core/hle/service/nvdrv/devices/nvmap.h"
 #include "core/perf_stats.h"
@@ -13,10 +14,12 @@
 
 namespace Service::Nvidia::Devices {
 
-nvdisp_disp0::nvdisp_disp0(std::shared_ptr<nvmap> nvmap_dev) : nvmap_dev(std::move(nvmap_dev)) {}
+nvdisp_disp0::nvdisp_disp0(Core::System& system, std::shared_ptr<nvmap> nvmap_dev)
+    : nvdevice(system), nvmap_dev(std::move(nvmap_dev)) {}
 nvdisp_disp0 ::~nvdisp_disp0() = default;
 
-u32 nvdisp_disp0::ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output) {
+u32 nvdisp_disp0::ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output,
+                        IoctlCtrl& ctrl) {
     UNIMPLEMENTED_MSG("Unimplemented ioctl");
     return 0;
 }
@@ -34,9 +37,14 @@ void nvdisp_disp0::flip(u32 buffer_handle, u32 offset, u32 format, u32 width, u3
         addr,      offset,   width, height, stride, static_cast<PixelFormat>(format),
         transform, crop_rect};
 
-    auto& instance = Core::System::GetInstance();
-    instance.GetPerfStats().EndGameFrame();
-    instance.GPU().SwapBuffers(framebuffer);
+    auto& perf_stats = system.GetPerfStats();
+    system.GPU().WaitForLastFrame();
+    perf_stats.EndGameFrame();
+    perf_stats.EndSystemFrame();
+    system.GPU().SwapBuffers(framebuffer);
+    auto& frame_limiter = system.FrameLimiter();
+    frame_limiter.DoFrameLimiting(system.CoreTiming().GetGlobalTimeUs());
+    perf_stats.BeginSystemFrame();
 }
 
 } // namespace Service::Nvidia::Devices

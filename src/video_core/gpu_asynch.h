@@ -26,9 +26,14 @@ public:
     void FlushRegion(CacheAddr addr, u64 size) override;
     void InvalidateRegion(CacheAddr addr, u64 size) override;
     void FlushAndInvalidateRegion(CacheAddr addr, u64 size) override;
+    void WaitForLastFrame() override;
+
+protected:
+    void TriggerCpuInterrupt(u32 syncpoint_id, u32 value) const override;
 
 private:
     GPUThread::ThreadManager gpu_thread;
+    u64 last_frame_fence{};
 };
 
 } // namespace VideoCommon
