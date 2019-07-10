@@ -129,9 +129,11 @@ std::size_t CalculateProgramSize(const GLShader::ProgramCode& program) {
 
 /// Hashes one (or two) program streams
 u64 GetUniqueIdentifier(Maxwell::ShaderProgram program_type, const ProgramCode& code,
-                        const ProgramCode& code_b) {
-    u64 unique_identifier =
-        Common::CityHash64(reinterpret_cast<const char*>(code.data()), CalculateProgramSize(code));
+                        const ProgramCode& code_b, std::size_t size_a = 0, std::size_t size_b = 0) {
+    if (size_a == 0) {
+        size_a = CalculateProgramSize(code);
+    }
+    u64 unique_identifier = Common::CityHash64(reinterpret_cast<const char*>(code.data()), size_a);
     if (program_type != Maxwell::ShaderProgram::VertexA) {
         return unique_identifier;
     }
@@ -140,8 +142,11 @@ u64 GetUniqueIdentifier(Maxwell::ShaderProgram program_type, const ProgramCode& 
     std::size_t seed = 0;
     boost::hash_combine(seed, unique_identifier);
 
-    const u64 identifier_b = Common::CityHash64(reinterpret_cast<const char*>(code_b.data()),
-                                                CalculateProgramSize(code_b));
+    if (size_b == 0) {
+        size_b = CalculateProgramSize(code_b);
+    }
+    const u64 identifier_b =
+        Common::CityHash64(reinterpret_cast<const char*>(code_b.data()), size_b);
     boost::hash_combine(seed, identifier_b);
     return static_cast<u64>(seed);
 }
@@ -150,14 +155,17 @@ u64 GetUniqueIdentifier(Maxwell::ShaderProgram program_type, const ProgramCode& 
 GLShader::ProgramResult CreateProgram(const Device& device, Maxwell::ShaderProgram program_type,
                                       ProgramCode program_code, ProgramCode program_code_b) {
     GLShader::ShaderSetup setup(program_code);
+    setup.program.size_a = CalculateProgramSize(program_code);
+    setup.program.size_b = 0;
     if (program_type == Maxwell::ShaderProgram::VertexA) {
         // VertexB is always enabled, so when VertexA is enabled, we have two vertex shaders.
         // Conventional HW does not support this, so we combine VertexA and VertexB into one
         // stage here.
         setup.SetProgramB(program_code_b);
+        setup.program.size_b = CalculateProgramSize(program_code_b);
     }
-    setup.program.unique_identifier =
-        GetUniqueIdentifier(program_type, program_code, program_code_b);
+    setup.program.unique_identifier = GetUniqueIdentifier(
+        program_type, program_code, program_code_b, setup.program.size_a, setup.program.size_b);
 
     switch (program_type) {
     case Maxwell::ShaderProgram::VertexA:

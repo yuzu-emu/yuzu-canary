@@ -947,6 +947,14 @@ private:
         return {};
     }
 
+    Id BranchIndirect(Operation operation) {
+        const Id op_a = VisitOperand<Type::Uint>(operation, 0);
+
+        Emit(OpStore(jmp_to, op_a));
+        BranchingOp([&]() { Emit(OpBranch(continue_label)); });
+        return {};
+    }
+
     Id PushFlowStack(Operation operation) {
         const auto target = std::get_if<ImmediateNode>(&*operation[0]);
         ASSERT(target);
@@ -1332,6 +1340,7 @@ private:
         &SPIRVDecompiler::ImageStore,
 
         &SPIRVDecompiler::Branch,
+        &SPIRVDecompiler::BranchIndirect,
         &SPIRVDecompiler::PushFlowStack,
         &SPIRVDecompiler::PopFlowStack,
         &SPIRVDecompiler::Exit,
