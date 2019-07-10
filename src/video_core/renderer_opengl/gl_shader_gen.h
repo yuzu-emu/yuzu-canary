@@ -27,6 +27,8 @@ struct ShaderSetup {
         ProgramCode code;
         ProgramCode code_b; // Used for dual vertex shaders
         u64 unique_identifier;
+        std::size_t size_a;
+        std::size_t size_b;
     } program;
 
     /// Used in scenarios where we have a dual vertex shaders
