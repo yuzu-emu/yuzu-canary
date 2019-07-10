@@ -56,6 +56,8 @@ add_custom_command(OUTPUT scm_rev.cpp
       "${VIDEO_CORE}/shader/decode/shift.cpp"
       "${VIDEO_CORE}/shader/decode/video.cpp"
       "${VIDEO_CORE}/shader/decode/xmad.cpp"
+      "${VIDEO_CORE}/shader/control_flow.cpp"
+      "${VIDEO_CORE}/shader/control_flow.h"
       "${VIDEO_CORE}/shader/decode.cpp"
       "${VIDEO_CORE}/shader/node.h"
       "${VIDEO_CORE}/shader/node_helper.cpp"
