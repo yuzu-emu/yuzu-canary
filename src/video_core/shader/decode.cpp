@@ -11,6 +11,7 @@
 #include "common/common_types.h"
 #include "video_core/engines/shader_bytecode.h"
 #include "video_core/engines/shader_header.h"
+#include "video_core/shader/control_flow.h"
 #include "video_core/shader/node_helper.h"
 #include "video_core/shader/shader_ir.h"
 
@@ -20,20 +21,6 @@ using Tegra::Shader::Instruction;
 using Tegra::Shader::OpCode;
 
 namespace {
-
-/// Merges exit method of two parallel branches.
-constexpr ExitMethod ParallelExit(ExitMethod a, ExitMethod b) {
-    if (a == ExitMethod::Undetermined) {
-        return b;
-    }
-    if (b == ExitMethod::Undetermined) {
-        return a;
-    }
-    if (a == b) {
-        return a;
-    }
-    return ExitMethod::Conditional;
-}
 
 /**
  * Returns whether the instruction at the specified offset is a 'sched' instruction.
@@ -51,85 +38,104 @@ constexpr bool IsSchedInstruction(u32 offset, u32 main_offset) {
 void ShaderIR::Decode() {
     std::memcpy(&header, program_code.data(), sizeof(Tegra::Shader::Header));
 
-    std::set<u32> labels;
-    const ExitMethod exit_method = Scan(main_offset, MAX_PROGRAM_LENGTH, labels);
-    if (exit_method != ExitMethod::AlwaysEnd) {
-        UNREACHABLE_MSG("Program does not always end");
-    }
-
-    if (labels.empty()) {
-        basic_blocks.insert({main_offset, DecodeRange(main_offset, MAX_PROGRAM_LENGTH)});
+    disable_flow_stack = false;
+    const auto info = ScanFlow(program_code, program_size, main_offset);
+    if (info) {
+        const auto& shader_info = *info;
+        coverage_begin = shader_info.start;
+        coverage_end = shader_info.end;
+        if (shader_info.decompilable) {
+            disable_flow_stack = true;
+            const auto insert_block = ([this](NodeBlock& nodes, u32 label) {
+                if (label == exit_branch) {
+                    return;
+                }
+                basic_blocks.insert({label, nodes});
+            });
+            const auto& blocks = shader_info.blocks;
+            NodeBlock current_block;
+            u32 current_label = exit_branch;
+            for (auto& block : blocks) {
+                if (shader_info.labels.count(block.start) != 0) {
+                    insert_block(current_block, current_label);
+                    current_block.clear();
+                    current_label = block.start;
+                }
+                if (!block.ignore_branch) {
+                    DecodeRangeInner(current_block, block.start, block.end);
+                    InsertControlFlow(current_block, block);
+                } else {
+                    DecodeRangeInner(current_block, block.start, block.end + 1);
+                }
+            }
+            insert_block(current_block, current_label);
+            return;
+        }
+        LOG_WARNING(HW_GPU, "Flow Stack Removing Failed! Falling back to old method");
+        // we can't decompile it, fallback to standard method
+        for (const auto& block : shader_info.blocks) {
+            basic_blocks.insert({block.start, DecodeRange(block.start, block.end + 1)});
+        }
         return;
     }
+    LOG_WARNING(HW_GPU, "Flow Analysis Failed! Falling back to brute force compiling");
 
-    labels.insert(main_offset);
-
-    for (const u32 label : labels) {
-        const auto next_it = labels.lower_bound(label + 1);
-        const u32 next_label = next_it == labels.end() ? MAX_PROGRAM_LENGTH : *next_it;
-
-        basic_blocks.insert({label, DecodeRange(label, next_label)});
+    // Now we need to deal with an undecompilable shader. We need to brute force
+    // a shader that captures every position.
+    coverage_begin = main_offset;
+    const u32 shader_end = static_cast<u32>(program_size / sizeof(u64));
+    coverage_end = shader_end;
+    for (u32 label = main_offset; label < shader_end; label++) {
+        basic_blocks.insert({label, DecodeRange(label, label + 1)});
     }
-}
-
-ExitMethod ShaderIR::Scan(u32 begin, u32 end, std::set<u32>& labels) {
-    const auto [iter, inserted] =
-        exit_method_map.emplace(std::make_pair(begin, end), ExitMethod::Undetermined);
-    ExitMethod& exit_method = iter->second;
-    if (!inserted)
-        return exit_method;
-
-    for (u32 offset = begin; offset != end && offset != MAX_PROGRAM_LENGTH; ++offset) {
-        coverage_begin = std::min(coverage_begin, offset);
-        coverage_end = std::max(coverage_end, offset + 1);
-
-        const Instruction instr = {program_code[offset]};
-        const auto opcode = OpCode::Decode(instr);
-        if (!opcode)
-            continue;
-        switch (opcode->get().GetId()) {
-        case OpCode::Id::EXIT: {
-            // The EXIT instruction can be predicated, which means that the shader can conditionally
-            // end on this instruction. We have to consider the case where the condition is not met
-            // and check the exit method of that other basic block.
-            using Tegra::Shader::Pred;
-            if (instr.pred.pred_index == static_cast<u64>(Pred::UnusedIndex)) {
-                return exit_method = ExitMethod::AlwaysEnd;
-            } else {
-                const ExitMethod not_met = Scan(offset + 1, end, labels);
-                return exit_method = ParallelExit(ExitMethod::AlwaysEnd, not_met);
-            }
-        }
-        case OpCode::Id::BRA: {
-            const u32 target = offset + instr.bra.GetBranchTarget();
-            labels.insert(target);
-            const ExitMethod no_jmp = Scan(offset + 1, end, labels);
-            const ExitMethod jmp = Scan(target, end, labels);
-            return exit_method = ParallelExit(no_jmp, jmp);
-        }
-        case OpCode::Id::SSY:
-        case OpCode::Id::PBK: {
-            // The SSY and PBK use a similar encoding as the BRA instruction.
-            UNIMPLEMENTED_IF_MSG(instr.bra.constant_buffer != 0,
-                                 "Constant buffer branching is not supported");
-            const u32 target = offset + instr.bra.GetBranchTarget();
-            labels.insert(target);
-            // Continue scanning for an exit method.
-            break;
-        }
-        default:
-            break;
-        }
-    }
-    return exit_method = ExitMethod::AlwaysReturn;
 }
 
 NodeBlock ShaderIR::DecodeRange(u32 begin, u32 end) {
     NodeBlock basic_block;
-    for (u32 pc = begin; pc < (begin > end ? MAX_PROGRAM_LENGTH : end);) {
-        pc = DecodeInstr(basic_block, pc);
-    }
+    DecodeRangeInner(basic_block, begin, end);
     return basic_block;
+}
+
+void ShaderIR::DecodeRangeInner(NodeBlock& bb, u32 begin, u32 end) {
+    for (u32 pc = begin; pc < (begin > end ? MAX_PROGRAM_LENGTH : end);) {
+        pc = DecodeInstr(bb, pc);
+    }
+}
+
+void ShaderIR::InsertControlFlow(NodeBlock& bb, const ShaderBlock& block) {
+    const auto apply_conditions = ([&](const Condition& cond, Node n) -> Node {
+        Node result = n;
+        if (cond.cc != ConditionCode::T) {
+            result = Conditional(GetConditionCode(cond.cc), {result});
+        }
+        if (cond.predicate != Pred::UnusedIndex) {
+            u32 pred = static_cast<u32>(cond.predicate);
+            const bool is_neg = pred > 7;
+            if (is_neg) {
+                pred -= 8;
+            }
+            result = Conditional(GetPredicate(pred, is_neg), {result});
+        }
+        return result;
+    });
+    if (block.branch.address < 0) {
+        if (block.branch.kills) {
+            Node n = Operation(OperationCode::Discard);
+            n = apply_conditions(block.branch.cond, n);
+            bb.push_back(n);
+            global_code.push_back(n);
+            return;
+        }
+        Node n = Operation(OperationCode::Exit);
+        n = apply_conditions(block.branch.cond, n);
+        bb.push_back(n);
+        global_code.push_back(n);
+        return;
+    }
+    Node n = Operation(OperationCode::Branch, Immediate(block.branch.address));
+    n = apply_conditions(block.branch.cond, n);
+    bb.push_back(n);
+    global_code.push_back(n);
 }
 
 u32 ShaderIR::DecodeInstr(NodeBlock& bb, u32 pc) {
@@ -140,15 +146,18 @@ u32 ShaderIR::DecodeInstr(NodeBlock& bb, u32 pc) {
 
     const Instruction instr = {program_code[pc]};
     const auto opcode = OpCode::Decode(instr);
+    const u32 nv_address = ConvertAddressToNvidiaSpace(pc);
 
     // Decoding failure
     if (!opcode) {
         UNIMPLEMENTED_MSG("Unhandled instruction: {0:x}", instr.value);
+        bb.push_back(Comment(fmt::format("{:05x} Unimplemented Shader instruction (0x{:016x})",
+                                         nv_address, instr.value)));
         return pc + 1;
     }
 
-    bb.push_back(
-        Comment(fmt::format("{}: {} (0x{:016x})", pc, opcode->get().GetName(), instr.value)));
+    bb.push_back(Comment(
+        fmt::format("{:05x} {} (0x{:016x})", nv_address, opcode->get().GetName(), instr.value)));
 
     using Tegra::Shader::Pred;
     UNIMPLEMENTED_IF_MSG(instr.pred.full_pred == Pred::NeverExecute,

@@ -103,6 +103,8 @@ add_library(video_core STATIC
     shader/decode/video.cpp
     shader/decode/xmad.cpp
     shader/decode/other.cpp
+    shader/control_flow.cpp
+    shader/control_flow.h
     shader/decode.cpp
     shader/node_helper.cpp
     shader/node_helper.h
