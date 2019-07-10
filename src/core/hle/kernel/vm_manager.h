@@ -349,7 +349,8 @@ public:
      * @param state MemoryState tag to attach to the VMA.
      */
     ResultVal<VMAHandle> MapMemoryBlock(VAddr target, std::shared_ptr<std::vector<u8>> block,
-                                        std::size_t offset, u64 size, MemoryState state);
+                                        std::size_t offset, u64 size, MemoryState state,
+                                        VMAPermission perm = VMAPermission::ReadWrite);
 
     /**
      * Maps an unmanaged host memory pointer at a given address.
@@ -449,6 +450,34 @@ public:
     ///      being returned as the result.
     ///
     ResultVal<VAddr> SetHeapSize(u64 size);
+
+    /// Maps memory at a given address.
+    ///
+    /// @param addr The virtual address to map memory at.
+    /// @param size The amount of memory to map.
+    ///
+    /// @note The destination address must lie within the Map region.
+    ///
+    /// @note This function requires that SystemResourceSize be non-zero,
+    ///       however, this is just because if it were not then the
+    ///       resulting page tables could be exploited on hardware by
+    ///       a malicious program. SystemResource usage does not need
+    ///       to be explicitly checked or updated here.
+    ResultCode MapPhysicalMemory(VAddr target, u64 size);
+
+    /// Unmaps memory at a given address.
+    ///
+    /// @param addr The virtual address to unmap memory at.
+    /// @param size The amount of memory to unmap.
+    ///
+    /// @note The destination address must lie within the Map region.
+    ///
+    /// @note This function requires that SystemResourceSize be non-zero,
+    ///       however, this is just because if it were not then the
+    ///       resulting page tables could be exploited on hardware by
+    ///       a malicious program. SystemResource usage does not need
+    ///       to be explicitly checked or updated here.
+    ResultCode UnmapPhysicalMemory(VAddr target, u64 size);
 
     /// Maps a region of memory as code memory.
     ///
@@ -657,6 +686,11 @@ private:
      */
     VMAIter MergeAdjacent(VMAIter vma);
 
+    /**
+     * Merges two adjacent VMAs.
+     */
+    void MergeAdjacentVMA(VirtualMemoryArea& left, const VirtualMemoryArea& right);
+
     /// Updates the pages corresponding to this VMA so they match the VMA's attributes.
     void UpdatePageTableForVMA(const VirtualMemoryArea& vma);
 
@@ -701,6 +735,13 @@ private:
                                  MemoryAttribute attribute_mask, MemoryAttribute attribute,
                                  MemoryAttribute ignore_mask) const;
 
+    /// Gets the amount of memory currently mapped (state != Unmapped) in a range.
+    ResultVal<std::size_t> SizeOfAllocatedVMAsInRange(VAddr address, std::size_t size) const;
+
+    /// Gets the amount of memory unmappable by UnmapPhysicalMemory in a range.
+    ResultVal<std::size_t> SizeOfUnmappablePhysicalMemoryInRange(VAddr address,
+                                                                 std::size_t size) const;
+
     /**
      * A map covering the entirety of the managed address space, keyed by the `base` field of each
      * VMA. It must always be modified by splitting or merging VMAs, so that the invariant
@@ -741,6 +782,11 @@ private:
     // The end of the currently allocated heap. This is not an inclusive
     // end of the range. This is essentially 'base_address + current_size'.
     VAddr heap_end = 0;
+
+    // The current amount of memory mapped via MapPhysicalMemory.
+    // This is used here (and in Nintendo's kernel) only for debugging, and does not impact
+    // any behavior.
+    u64 physical_memory_mapped = 0;
 
     Core::System& system;
 };
