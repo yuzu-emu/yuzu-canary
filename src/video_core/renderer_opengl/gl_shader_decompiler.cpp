@@ -46,7 +46,7 @@ using TextureArgument = std::pair<Type, Node>;
 using TextureIR = std::variant<TextureAoffi, TextureArgument>;
 
 constexpr u32 MAX_CONSTBUFFER_ELEMENTS =
-    static_cast<u32>(RasterizerOpenGL::MaxConstbufferSize) / (4 * sizeof(float));
+    static_cast<u32>(Maxwell::MaxConstBufferSize) / (4 * sizeof(float));
 
 class ShaderWriter {
 public:

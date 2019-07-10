@@ -1,4 +1,5 @@
 add_library(video_core STATIC
+    buffer_cache.h
     dma_pusher.cpp
     dma_pusher.h
     debug_utils/debug_utils.cpp
@@ -43,8 +44,6 @@ add_library(video_core STATIC
     renderer_opengl/gl_device.h
     renderer_opengl/gl_framebuffer_cache.cpp
     renderer_opengl/gl_framebuffer_cache.h
-    renderer_opengl/gl_global_cache.cpp
-    renderer_opengl/gl_global_cache.h
     renderer_opengl/gl_rasterizer.cpp
     renderer_opengl/gl_rasterizer.h
     renderer_opengl/gl_resource_manager.cpp
