@@ -20,6 +20,7 @@
 #include "core/hle/kernel/process.h"
 #include "core/settings.h"
 #include "video_core/engines/maxwell_3d.h"
+#include "video_core/memory_manager.h"
 #include "video_core/renderer_opengl/gl_rasterizer.h"
 #include "video_core/renderer_opengl/gl_shader_cache.h"
 #include "video_core/renderer_opengl/gl_shader_gen.h"
@@ -80,11 +81,25 @@ struct DrawParameters {
     }
 };
 
+static std::size_t GetConstBufferSize(const Tegra::Engines::ConstBufferInfo& buffer,
+                                      const GLShader::ConstBufferEntry& entry) {
+    if (!entry.IsIndirect()) {
+        return entry.GetSize();
+    }
+
+    if (buffer.size > Maxwell::MaxConstBufferSize) {
+        LOG_WARNING(Render_OpenGL, "Indirect constbuffer size {} exceeds maximum {}", buffer.size,
+                    Maxwell::MaxConstBufferSize);
+        return Maxwell::MaxConstBufferSize;
+    }
+
+    return buffer.size;
+}
+
 RasterizerOpenGL::RasterizerOpenGL(Core::System& system, Core::Frontend::EmuWindow& emu_window,
                                    ScreenInfo& info)
     : texture_cache{system, *this, device}, shader_cache{*this, system, emu_window, device},
-      global_cache{*this}, system{system}, screen_info{info},
-      buffer_cache(*this, STREAM_BUFFER_SIZE) {
+      system{system}, screen_info{info}, buffer_cache{*this, system, STREAM_BUFFER_SIZE} {
     OpenGLState::ApplyDefaultState();
 
     shader_program_manager = std::make_unique<GLShader::ProgramManager>();
@@ -128,8 +143,6 @@ GLuint RasterizerOpenGL::SetupVertexFormat() {
         // with glCreateVertexArrays
         state.draw.vertex_array = vao;
         state.ApplyVertexArrayState();
-
-        glVertexArrayElementBuffer(vao, buffer_cache.GetHandle());
 
         // Use the vertex array as-is, assumes that the data is formatted correctly for OpenGL.
         // Enables the first 16 vertex attributes always, as we don't know which ones are actually
@@ -197,11 +210,11 @@ void RasterizerOpenGL::SetupVertexBuffer(GLuint vao) {
 
         ASSERT(end > start);
         const u64 size = end - start + 1;
-        const GLintptr vertex_buffer_offset = buffer_cache.UploadMemory(start, size);
+        const auto [vertex_buffer, vertex_buffer_offset] = buffer_cache.UploadMemory(start, size);
 
         // Bind the vertex array to the buffer at the current offset.
-        glVertexArrayVertexBuffer(vao, index, buffer_cache.GetHandle(), vertex_buffer_offset,
-                                  vertex_array.stride);
+        vertex_array_pushbuffer.SetVertexBuffer(index, vertex_buffer, vertex_buffer_offset,
+                                                vertex_array.stride);
 
         if (regs.instanced_arrays.IsInstancingEnabled(index) && vertex_array.divisor != 0) {
             // Enable vertex buffer instancing with the specified divisor.
@@ -215,7 +228,19 @@ void RasterizerOpenGL::SetupVertexBuffer(GLuint vao) {
     gpu.dirty_flags.vertex_array.reset();
 }
 
-DrawParameters RasterizerOpenGL::SetupDraw() {
+GLintptr RasterizerOpenGL::SetupIndexBuffer() {
+    if (accelerate_draw != AccelDraw::Indexed) {
+        return 0;
+    }
+    MICROPROFILE_SCOPE(OpenGL_Index);
+    const auto& regs = system.GPU().Maxwell3D().regs;
+    const std::size_t size = CalculateIndexBufferSize();
+    const auto [buffer, offset] = buffer_cache.UploadMemory(regs.index_array.IndexStart(), size);
+    vertex_array_pushbuffer.SetIndexBuffer(buffer);
+    return offset;
+}
+
+DrawParameters RasterizerOpenGL::SetupDraw(GLintptr index_buffer_offset) {
     const auto& gpu = system.GPU().Maxwell3D();
     const auto& regs = gpu.regs;
     const bool is_indexed = accelerate_draw == AccelDraw::Indexed;
@@ -227,11 +252,9 @@ DrawParameters RasterizerOpenGL::SetupDraw() {
     params.primitive_mode = MaxwellToGL::PrimitiveTopology(regs.draw.topology);
 
     if (is_indexed) {
-        MICROPROFILE_SCOPE(OpenGL_Index);
         params.index_format = MaxwellToGL::IndexFormat(regs.index_array.format);
         params.count = regs.index_array.count;
-        params.index_buffer_offset =
-            buffer_cache.UploadMemory(regs.index_array.IndexStart(), CalculateIndexBufferSize());
+        params.index_buffer_offset = index_buffer_offset;
         params.base_vertex = static_cast<GLint>(regs.vb_element_base);
     } else {
         params.count = regs.vertex_buffer.count;
@@ -246,10 +269,6 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
 
     BaseBindings base_bindings;
     std::array<bool, Maxwell::NumClipDistances> clip_distances{};
-
-    // Prepare packed bindings
-    bind_ubo_pushbuffer.Setup(base_bindings.cbuf);
-    bind_ssbo_pushbuffer.Setup(base_bindings.gmem);
 
     for (std::size_t index = 0; index < Maxwell::MaxShaderProgram; ++index) {
         const auto& shader_config = gpu.regs.shader_config[index];
@@ -271,12 +290,11 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
 
         GLShader::MaxwellUniformData ubo{};
         ubo.SetFromRegs(gpu, stage);
-        const GLintptr offset =
+        const auto [buffer, offset] =
             buffer_cache.UploadHostMemory(&ubo, sizeof(ubo), device.GetUniformBufferAlignment());
 
         // Bind the emulation info buffer
-        bind_ubo_pushbuffer.Push(buffer_cache.GetHandle(), offset,
-                                 static_cast<GLsizeiptr>(sizeof(ubo)));
+        bind_ubo_pushbuffer.Push(buffer, offset, static_cast<GLsizeiptr>(sizeof(ubo)));
 
         Shader shader{shader_cache.GetStageProgram(program)};
 
@@ -320,9 +338,6 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
 
         base_bindings = next_bindings;
     }
-
-    bind_ubo_pushbuffer.Bind();
-    bind_ssbo_pushbuffer.Bind();
 
     SyncClipEnabled(clip_distances);
 
@@ -634,26 +649,46 @@ void RasterizerOpenGL::DrawArrays() {
                       Maxwell::MaxShaderStage;
 
     // Add space for at least 18 constant buffers
-    buffer_size +=
-        Maxwell::MaxConstBuffers * (MaxConstbufferSize + device.GetUniformBufferAlignment());
+    buffer_size += Maxwell::MaxConstBuffers *
+                   (Maxwell::MaxConstBufferSize + device.GetUniformBufferAlignment());
 
-    const bool invalidate = buffer_cache.Map(buffer_size);
-    if (invalidate) {
-        // As all cached buffers are invalidated, we need to recheck their state.
-        gpu.dirty_flags.vertex_array.set();
-    }
+    // Prepare the vertex array.
+    buffer_cache.Map(buffer_size);
 
+    // Prepare vertex array format.
     const GLuint vao = SetupVertexFormat();
-    SetupVertexBuffer(vao);
+    vertex_array_pushbuffer.Setup(vao);
 
-    DrawParameters params = SetupDraw();
+    // Upload vertex and index data.
+    SetupVertexBuffer(vao);
+    const GLintptr index_buffer_offset = SetupIndexBuffer();
+
+    // Setup draw parameters. It will automatically choose what glDraw* method to use.
+    const DrawParameters params = SetupDraw(index_buffer_offset);
+
+    // Prepare packed bindings.
+    bind_ubo_pushbuffer.Setup(0);
+    bind_ssbo_pushbuffer.Setup(0);
+
+    // Setup shaders and their used resources.
     texture_cache.GuardSamplers(true);
     SetupShaders(params.primitive_mode);
     texture_cache.GuardSamplers(false);
 
     ConfigureFramebuffers(state);
 
-    buffer_cache.Unmap();
+    // Signal the buffer cache that we are not going to upload more things.
+    const bool invalidate = buffer_cache.Unmap();
+
+    // Now that we are no longer uploading data, we can safely bind the buffers to OpenGL.
+    vertex_array_pushbuffer.Bind();
+    bind_ubo_pushbuffer.Bind();
+    bind_ssbo_pushbuffer.Bind();
+
+    if (invalidate) {
+        // As all cached buffers are invalidated, we need to recheck their state.
+        gpu.dirty_flags.vertex_array.set();
+    }
 
     shader_program_manager->ApplyTo(state);
     state.Apply();
@@ -675,7 +710,7 @@ void RasterizerOpenGL::FlushRegion(CacheAddr addr, u64 size) {
         return;
     }
     texture_cache.FlushRegion(addr, size);
-    global_cache.FlushRegion(addr, size);
+    buffer_cache.FlushRegion(addr, size);
 }
 
 void RasterizerOpenGL::InvalidateRegion(CacheAddr addr, u64 size) {
@@ -685,7 +720,6 @@ void RasterizerOpenGL::InvalidateRegion(CacheAddr addr, u64 size) {
     }
     texture_cache.InvalidateRegion(addr, size);
     shader_cache.InvalidateRegion(addr, size);
-    global_cache.InvalidateRegion(addr, size);
     buffer_cache.InvalidateRegion(addr, size);
 }
 
@@ -694,6 +728,10 @@ void RasterizerOpenGL::FlushAndInvalidateRegion(CacheAddr addr, u64 size) {
         FlushRegion(addr, size);
     }
     InvalidateRegion(addr, size);
+}
+
+void RasterizerOpenGL::TickFrame() {
+    buffer_cache.TickFrame();
 }
 
 bool RasterizerOpenGL::AccelerateSurfaceCopy(const Tegra::Engines::Fermi2D::Regs::Surface& src,
@@ -739,11 +777,9 @@ void RasterizerOpenGL::SetupDrawConstBuffers(Tegra::Engines::Maxwell3D::Regs::Sh
     MICROPROFILE_SCOPE(OpenGL_UBO);
     const auto stage_index = static_cast<std::size_t>(stage);
     const auto& shader_stage = system.GPU().Maxwell3D().state.shader_stages[stage_index];
-    const auto& entries = shader->GetShaderEntries().const_buffers;
 
     // Upload only the enabled buffers from the 16 constbuffers of each shader stage
-    for (u32 bindpoint = 0; bindpoint < entries.size(); ++bindpoint) {
-        const auto& entry = entries[bindpoint];
+    for (const auto& entry : shader->GetShaderEntries().const_buffers) {
         SetupConstBuffer(shader_stage.const_buffers[entry.GetIndex()], entry);
     }
 }
@@ -752,46 +788,34 @@ void RasterizerOpenGL::SetupConstBuffer(const Tegra::Engines::ConstBufferInfo& b
                                         const GLShader::ConstBufferEntry& entry) {
     if (!buffer.enabled) {
         // Set values to zero to unbind buffers
-        bind_ubo_pushbuffer.Push(0, 0, 0);
+        bind_ubo_pushbuffer.Push(buffer_cache.GetEmptyBuffer(sizeof(float)), 0, sizeof(float));
         return;
-    }
-
-    std::size_t size;
-    if (entry.IsIndirect()) {
-        // Buffer is accessed indirectly, so upload the entire thing
-        size = buffer.size;
-
-        if (size > MaxConstbufferSize) {
-            LOG_WARNING(Render_OpenGL, "Indirect constbuffer size {} exceeds maximum {}", size,
-                        MaxConstbufferSize);
-            size = MaxConstbufferSize;
-        }
-    } else {
-        // Buffer is accessed directly, upload just what we use
-        size = entry.GetSize();
     }
 
     // Align the actual size so it ends up being a multiple of vec4 to meet the OpenGL std140
     // UBO alignment requirements.
-    size = Common::AlignUp(size, sizeof(GLvec4));
-    ASSERT_MSG(size <= MaxConstbufferSize, "Constant buffer is too big");
+    const std::size_t size = Common::AlignUp(GetConstBufferSize(buffer, entry), sizeof(GLvec4));
 
-    const std::size_t alignment = device.GetUniformBufferAlignment();
-    const GLintptr offset = buffer_cache.UploadMemory(buffer.address, size, alignment);
-    bind_ubo_pushbuffer.Push(buffer_cache.GetHandle(), offset, size);
+    const auto alignment = device.GetUniformBufferAlignment();
+    const auto [cbuf, offset] = buffer_cache.UploadMemory(buffer.address, size, alignment);
+    bind_ubo_pushbuffer.Push(cbuf, offset, size);
 }
 
 void RasterizerOpenGL::SetupGlobalRegions(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage,
                                           const Shader& shader) {
-    const auto& entries = shader->GetShaderEntries().global_memory_entries;
-    for (std::size_t bindpoint = 0; bindpoint < entries.size(); ++bindpoint) {
-        const auto& entry{entries[bindpoint]};
-        const auto& region{global_cache.GetGlobalRegion(entry, stage)};
-        if (entry.IsWritten()) {
-            region->MarkAsModified(true, global_cache);
-        }
-        bind_ssbo_pushbuffer.Push(region->GetBufferHandle(), 0,
-                                  static_cast<GLsizeiptr>(region->GetSizeInBytes()));
+    auto& gpu{system.GPU()};
+    auto& memory_manager{gpu.MemoryManager()};
+    const auto cbufs{gpu.Maxwell3D().state.shader_stages[static_cast<std::size_t>(stage)]};
+    const auto alignment{device.GetShaderStorageBufferAlignment()};
+
+    for (const auto& entry : shader->GetShaderEntries().global_memory_entries) {
+        const auto addr{cbufs.const_buffers[entry.GetCbufIndex()].address + entry.GetCbufOffset()};
+        const auto actual_addr{memory_manager.Read<u64>(addr)};
+        const auto size{memory_manager.Read<u32>(addr + 8)};
+
+        const auto [ssbo, buffer_offset] =
+            buffer_cache.UploadMemory(actual_addr, size, alignment, true, entry.IsWritten());
+        bind_ssbo_pushbuffer.Push(ssbo, buffer_offset, static_cast<GLsizeiptr>(size));
     }
 }
 
