@@ -22,8 +22,8 @@ using Tegra::Shader::PredCondition;
 using Tegra::Shader::PredOperation;
 using Tegra::Shader::Register;
 
-ShaderIR::ShaderIR(const ProgramCode& program_code, u32 main_offset)
-    : program_code{program_code}, main_offset{main_offset} {
+ShaderIR::ShaderIR(const ProgramCode& program_code, u32 main_offset, const std::size_t size)
+    : program_code{program_code}, main_offset{main_offset}, program_size{size} {
     Decode();
 }
 
