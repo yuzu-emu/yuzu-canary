@@ -74,6 +74,8 @@ public:
     /// finished.
     void Compose();
 
+    s64 GetNextTicks() const;
+
 private:
     /// Finds the display identified by the specified ID.
     VI::Display* FindDisplay(u64 display_id);
@@ -97,6 +99,8 @@ private:
     /// Id to use for the next buffer queue that is created, this counter is shared among all
     /// layers.
     u32 next_buffer_queue_id = 1;
+
+    u32 swap_interval = 1;
 
     /// Event that handles screen composition.
     Core::Timing::EventType* composition_event;
