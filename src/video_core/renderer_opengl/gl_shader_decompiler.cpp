@@ -191,10 +191,12 @@ public:
 
         // TODO(Subv): Figure out the actual depth of the flow stack, for now it seems
         // unlikely that shaders will use 20 nested SSYs and PBKs.
-        constexpr u32 FLOW_STACK_SIZE = 20;
-        for (const auto stack : std::array{MetaStackClass::Ssy, MetaStackClass::Pbk}) {
-            code.AddLine("uint {}[{}];", FlowStackName(stack), FLOW_STACK_SIZE);
-            code.AddLine("uint {} = 0u;", FlowStackTopName(stack));
+        if (!ir.IsFlowStackDisabled()) {
+            constexpr u32 FLOW_STACK_SIZE = 20;
+            for (const auto stack : std::array{MetaStackClass::Ssy, MetaStackClass::Pbk}) {
+                code.AddLine("uint {}[{}];", FlowStackName(stack), FLOW_STACK_SIZE);
+                code.AddLine("uint {} = 0u;", FlowStackTopName(stack));
+            }
         }
 
         code.AddLine("while (true) {{");
@@ -1555,6 +1557,14 @@ private:
         return {};
     }
 
+    std::string BranchIndirect(Operation operation) {
+        const std::string op_a = VisitOperand(operation, 0, Type::Uint);
+
+        code.AddLine("jmp_to = {};", op_a);
+        code.AddLine("break;");
+        return {};
+    }
+
     std::string PushFlowStack(Operation operation) {
         const auto stack = std::get<MetaStackClass>(operation.GetMeta());
         const auto target = std::get_if<ImmediateNode>(&*operation[0]);
@@ -1789,6 +1799,7 @@ private:
         &GLSLDecompiler::ImageStore,
 
         &GLSLDecompiler::Branch,
+        &GLSLDecompiler::BranchIndirect,
         &GLSLDecompiler::PushFlowStack,
         &GLSLDecompiler::PopFlowStack,
         &GLSLDecompiler::Exit,
