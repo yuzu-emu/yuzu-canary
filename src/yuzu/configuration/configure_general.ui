@@ -25,13 +25,6 @@
         <item>
          <layout class="QVBoxLayout" name="GeneralVerticalLayout">
           <item>
-           <widget class="QCheckBox" name="toggle_deepscan">
-            <property name="text">
-             <string>Search sub-directories for games</string>
-            </property>
-           </widget>
-          </item>
-          <item>
            <widget class="QCheckBox" name="toggle_check_exit">
             <property name="text">
              <string>Confirm exit while emulation is running</string>
