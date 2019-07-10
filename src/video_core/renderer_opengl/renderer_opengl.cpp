@@ -101,7 +101,6 @@ RendererOpenGL::RendererOpenGL(Core::Frontend::EmuWindow& emu_window, Core::Syst
 
 RendererOpenGL::~RendererOpenGL() = default;
 
-/// Swap buffers (render frame)
 void RendererOpenGL::SwapBuffers(
     std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) {
 
@@ -129,6 +128,8 @@ void RendererOpenGL::SwapBuffers(
             CaptureScreenshot();
 
         DrawScreen(render_window.GetFramebufferLayout());
+
+        rasterizer->TickFrame();
 
         render_window.SwapBuffers();
     }
@@ -262,7 +263,6 @@ void RendererOpenGL::CreateRasterizer() {
     if (rasterizer) {
         return;
     }
-    // Initialize sRGB Usage
     OpenGLState::ClearsRGBUsed();
     rasterizer = std::make_unique<RasterizerOpenGL>(system, emu_window, screen_info);
 }
