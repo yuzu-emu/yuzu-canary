@@ -430,20 +430,17 @@ private:
         instance_index = DeclareBuiltIn(spv::BuiltIn::InstanceIndex, spv::StorageClass::Input,
                                         t_in_uint, "instance_index");
 
-        bool is_point_size_declared = false;
         bool is_clip_distances_declared = false;
         for (const auto index : ir.GetOutputAttributes()) {
-            if (index == Attribute::Index::PointSize) {
-                is_point_size_declared = true;
-            } else if (index == Attribute::Index::ClipDistances0123 ||
-                       index == Attribute::Index::ClipDistances4567) {
+            if (index == Attribute::Index::ClipDistances0123 ||
+                index == Attribute::Index::ClipDistances4567) {
                 is_clip_distances_declared = true;
             }
         }
 
         std::vector<Id> members;
         members.push_back(t_float4);
-        if (is_point_size_declared) {
+        if (ir.UsesPointSize()) {
             members.push_back(t_float);
         }
         if (is_clip_distances_declared) {
@@ -466,7 +463,7 @@ private:
 
         position_index = MemberDecorateBuiltIn(spv::BuiltIn::Position, "position", true);
         point_size_index =
-            MemberDecorateBuiltIn(spv::BuiltIn::PointSize, "point_size", is_point_size_declared);
+            MemberDecorateBuiltIn(spv::BuiltIn::PointSize, "point_size", ir.UsesPointSize());
         clip_distances_index = MemberDecorateBuiltIn(spv::BuiltIn::ClipDistance, "clip_distances",
                                                      is_clip_distances_declared);
 
@@ -712,7 +709,8 @@ private:
                 case Attribute::Index::Position:
                     return AccessElement(t_out_float, per_vertex, position_index,
                                          abuf->GetElement());
-                case Attribute::Index::PointSize:
+                case Attribute::Index::LayerViewportPointSize:
+                    UNIMPLEMENTED_IF(abuf->GetElement() != 3);
                     return AccessElement(t_out_float, per_vertex, point_size_index);
                 case Attribute::Index::ClipDistances0123:
                     return AccessElement(t_out_float, per_vertex, clip_distances_index,
