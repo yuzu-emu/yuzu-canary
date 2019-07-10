@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <list>
 #include <optional>
 #include <vector>
 
@@ -12,6 +13,7 @@
 #include "common/swap.h"
 #include "core/hle/kernel/object.h"
 #include "core/hle/kernel/writable_event.h"
+#include "core/hle/service/nvdrv/nvdata.h"
 
 namespace Service::NVFlinger {
 
@@ -68,13 +70,17 @@ public:
         IGBPBuffer igbp_buffer;
         BufferTransformFlags transform;
         Common::Rectangle<int> crop_rect;
+        u32 swap_interval;
+        Service::Nvidia::MultiFence multi_fence;
     };
 
     void SetPreallocatedBuffer(u32 slot, const IGBPBuffer& igbp_buffer);
-    std::optional<u32> DequeueBuffer(u32 width, u32 height);
+    std::optional<std::pair<u32, Service::Nvidia::MultiFence*>> DequeueBuffer(u32 width,
+                                                                              u32 height);
     const IGBPBuffer& RequestBuffer(u32 slot) const;
     void QueueBuffer(u32 slot, BufferTransformFlags transform,
-                     const Common::Rectangle<int>& crop_rect);
+                     const Common::Rectangle<int>& crop_rect, u32 swap_interval,
+                     Service::Nvidia::MultiFence& multi_fence);
     std::optional<std::reference_wrapper<const Buffer>> AcquireBuffer();
     void ReleaseBuffer(u32 slot);
     u32 Query(QueryType type);
@@ -92,6 +98,7 @@ private:
     u64 layer_id;
 
     std::vector<Buffer> queue;
+    std::list<u32> queue_sequence;
     Kernel::EventPair buffer_wait_event;
 };
 
