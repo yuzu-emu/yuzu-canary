@@ -18,6 +18,10 @@ public:
         return uniform_buffer_alignment;
     }
 
+    std::size_t GetShaderStorageBufferAlignment() const {
+        return shader_storage_alignment;
+    }
+
     u32 GetMaxVertexAttributes() const {
         return max_vertex_attributes;
     }
@@ -39,6 +43,7 @@ private:
     static bool TestComponentIndexingBug();
 
     std::size_t uniform_buffer_alignment{};
+    std::size_t shader_storage_alignment{};
     u32 max_vertex_attributes{};
     u32 max_varyings{};
     bool has_variable_aoffi{};

@@ -67,6 +67,7 @@ public:
         static constexpr std::size_t MaxShaderStage = 5;
         // Maximum number of const buffers per shader stage.
         static constexpr std::size_t MaxConstBuffers = 18;
+        static constexpr std::size_t MaxConstBufferSize = 0x10000;
 
         enum class QueryMode : u32 {
             Write = 0,
