@@ -1278,6 +1278,7 @@ union Instruction {
     union {
         BitField<49, 1, u64> nodep_flag;
         BitField<53, 4, u64> texture_info;
+        BitField<59, 1, u64> fp32_flag;
 
         TextureType GetTextureType() const {
             // The TLDS instruction has a weird encoding for the texture type.
@@ -1776,7 +1777,7 @@ private:
             INST("1101111101010---", Id::TXQ_B, Type::Texture, "TXQ_B"),
             INST("1101-00---------", Id::TEXS, Type::Texture, "TEXS"),
             INST("11011100--11----", Id::TLD, Type::Texture, "TLD"),
-            INST("1101101---------", Id::TLDS, Type::Texture, "TLDS"),
+            INST("1101-01---------", Id::TLDS, Type::Texture, "TLDS"),
             INST("110010----111---", Id::TLD4, Type::Texture, "TLD4"),
             INST("1101111100------", Id::TLD4S, Type::Texture, "TLD4S"),
             INST("110111110110----", Id::TMML_B, Type::Texture, "TMML_B"),
