@@ -249,6 +249,10 @@ void Maxwell3D::CallMethod(const GPU::MethodCall& method_call) {
         ProcessQueryGet();
         break;
     }
+    case MAXWELL3D_REG_INDEX(condition.mode): {
+        ProcessQueryCondition();
+        break;
+    }
     case MAXWELL3D_REG_INDEX(sync_info): {
         ProcessSyncPoint();
         break;
@@ -302,6 +306,7 @@ void Maxwell3D::ProcessQueryGet() {
         result = regs.query.query_sequence;
         break;
     default:
+        result = 1;
         UNIMPLEMENTED_MSG("Unimplemented query select type {}",
                           static_cast<u32>(regs.query.query_get.select.Value()));
     }
@@ -339,6 +344,43 @@ void Maxwell3D::ProcessQueryGet() {
     default:
         UNIMPLEMENTED_MSG("Query mode {} not implemented",
                           static_cast<u32>(regs.query.query_get.mode.Value()));
+    }
+}
+
+void Maxwell3D::ProcessQueryCondition() {
+    const GPUVAddr condition_address{regs.condition.Address()};
+    switch (regs.condition.mode) {
+    case Regs::ConditionMode::Always: {
+        execute_on = true;
+        break;
+    }
+    case Regs::ConditionMode::Never: {
+        execute_on = false;
+        break;
+    }
+    case Regs::ConditionMode::ResNonZero: {
+        std::array<u32, 2> data;
+        memory_manager.ReadBlockUnsafe(condition_address, &data, sizeof(data));
+        execute_on = data[0] != 0U && data[1] != 0U;
+        break;
+    }
+    case Regs::ConditionMode::Equal: {
+        std::array<u32, 6> data;
+        memory_manager.ReadBlockUnsafe(condition_address, &data, sizeof(data));
+        execute_on = data[0] == data[4] && data[1] == data[5];
+        break;
+    }
+    case Regs::ConditionMode::NotEqual: {
+        std::array<u32, 6> data;
+        memory_manager.ReadBlockUnsafe(condition_address, &data, sizeof(data));
+        execute_on = data[0] != data[4] || data[1] != data[5];
+        break;
+    }
+    default: {
+        UNIMPLEMENTED_MSG("Uninplemented Condition Mode!");
+        execute_on = true;
+        break;
+    }
     }
 }
 
