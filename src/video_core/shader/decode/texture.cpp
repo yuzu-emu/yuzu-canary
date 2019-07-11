@@ -269,7 +269,13 @@ u32 ShaderIR::DecodeTexture(NodeBlock& bb, u32 pc) {
             LOG_WARNING(HW_GPU, "TLDS.NODEP implementation is incomplete");
         }
 
-        WriteTexsInstructionFloat(bb, instr, GetTldsCode(instr, texture_type, is_array));
+        const Node4 components = GetTldsCode(instr, texture_type, is_array);
+
+        if (instr.tlds.fp32_flag) {
+            WriteTexsInstructionFloat(bb, instr, components);
+        } else {
+            WriteTexsInstructionHalfFloat(bb, instr, components);
+        }
         break;
     }
     default:
