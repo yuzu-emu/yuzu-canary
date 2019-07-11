@@ -2,103 +2,57 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
-#include <cstring>
 #include <memory>
 
-#include "common/alignment.h"
-#include "core/core.h"
-#include "video_core/memory_manager.h"
+#include <glad/glad.h>
+
+#include "common/assert.h"
 #include "video_core/renderer_opengl/gl_buffer_cache.h"
 #include "video_core/renderer_opengl/gl_rasterizer.h"
+#include "video_core/renderer_opengl/gl_resource_manager.h"
 
 namespace OpenGL {
 
-CachedBufferEntry::CachedBufferEntry(VAddr cpu_addr, std::size_t size, GLintptr offset,
-                                     std::size_t alignment, u8* host_ptr)
-    : RasterizerCacheObject{host_ptr}, cpu_addr{cpu_addr}, size{size}, offset{offset},
-      alignment{alignment} {}
+OGLBufferCache::OGLBufferCache(RasterizerOpenGL& rasterizer, Core::System& system,
+                               std::size_t stream_size)
+    : VideoCommon::BufferCache<OGLBuffer, GLuint, OGLStreamBuffer>{
+          rasterizer, system, std::make_unique<OGLStreamBuffer>(stream_size, true)} {}
 
-OGLBufferCache::OGLBufferCache(RasterizerOpenGL& rasterizer, std::size_t size)
-    : RasterizerCache{rasterizer}, stream_buffer(size, true) {}
+OGLBufferCache::~OGLBufferCache() = default;
 
-GLintptr OGLBufferCache::UploadMemory(GPUVAddr gpu_addr, std::size_t size, std::size_t alignment,
-                                      bool cache) {
-    std::lock_guard lock{mutex};
-    auto& memory_manager = Core::System::GetInstance().GPU().MemoryManager();
-
-    // Cache management is a big overhead, so only cache entries with a given size.
-    // TODO: Figure out which size is the best for given games.
-    cache &= size >= 2048;
-
-    const auto& host_ptr{memory_manager.GetPointer(gpu_addr)};
-    if (cache) {
-        auto entry = TryGet(host_ptr);
-        if (entry) {
-            if (entry->GetSize() >= size && entry->GetAlignment() == alignment) {
-                return entry->GetOffset();
-            }
-            Unregister(entry);
-        }
-    }
-
-    AlignBuffer(alignment);
-    const GLintptr uploaded_offset = buffer_offset;
-
-    if (!host_ptr) {
-        return uploaded_offset;
-    }
-
-    std::memcpy(buffer_ptr, host_ptr, size);
-    buffer_ptr += size;
-    buffer_offset += size;
-
-    if (cache) {
-        auto entry = std::make_shared<CachedBufferEntry>(
-            *memory_manager.GpuToCpuAddress(gpu_addr), size, uploaded_offset, alignment, host_ptr);
-        Register(entry);
-    }
-
-    return uploaded_offset;
+OGLBuffer OGLBufferCache::CreateBuffer(std::size_t size) {
+    OGLBuffer buffer;
+    buffer.Create();
+    glNamedBufferData(buffer.handle, static_cast<GLsizeiptr>(size), nullptr, GL_DYNAMIC_DRAW);
+    return buffer;
 }
 
-GLintptr OGLBufferCache::UploadHostMemory(const void* raw_pointer, std::size_t size,
-                                          std::size_t alignment) {
-    std::lock_guard lock{mutex};
-    AlignBuffer(alignment);
-    std::memcpy(buffer_ptr, raw_pointer, size);
-    const GLintptr uploaded_offset = buffer_offset;
-
-    buffer_ptr += size;
-    buffer_offset += size;
-    return uploaded_offset;
+const GLuint* OGLBufferCache::ToHandle(const OGLBuffer& buffer) {
+    return &buffer.handle;
 }
 
-bool OGLBufferCache::Map(std::size_t max_size) {
-    bool invalidate;
-    std::tie(buffer_ptr, buffer_offset_base, invalidate) =
-        stream_buffer.Map(static_cast<GLsizeiptr>(max_size), 4);
-    buffer_offset = buffer_offset_base;
-
-    if (invalidate) {
-        InvalidateAll();
-    }
-    return invalidate;
+const GLuint* OGLBufferCache::GetEmptyBuffer(std::size_t) {
+    static const GLuint null_buffer = 0;
+    return &null_buffer;
 }
 
-void OGLBufferCache::Unmap() {
-    stream_buffer.Unmap(buffer_offset - buffer_offset_base);
+void OGLBufferCache::UploadBufferData(const OGLBuffer& buffer, std::size_t offset, std::size_t size,
+                                      const u8* data) {
+    glNamedBufferSubData(buffer.handle, static_cast<GLintptr>(offset),
+                         static_cast<GLsizeiptr>(size), data);
 }
 
-GLuint OGLBufferCache::GetHandle() const {
-    return stream_buffer.GetHandle();
+void OGLBufferCache::DownloadBufferData(const OGLBuffer& buffer, std::size_t offset,
+                                        std::size_t size, u8* data) {
+    glGetNamedBufferSubData(buffer.handle, static_cast<GLintptr>(offset),
+                            static_cast<GLsizeiptr>(size), data);
 }
 
-void OGLBufferCache::AlignBuffer(std::size_t alignment) {
-    // Align the offset, not the mapped pointer
-    const GLintptr offset_aligned =
-        static_cast<GLintptr>(Common::AlignUp(static_cast<std::size_t>(buffer_offset), alignment));
-    buffer_ptr += offset_aligned - buffer_offset;
-    buffer_offset = offset_aligned;
+void OGLBufferCache::CopyBufferData(const OGLBuffer& src, const OGLBuffer& dst,
+                                    std::size_t src_offset, std::size_t dst_offset,
+                                    std::size_t size) {
+    glCopyNamedBufferSubData(src.handle, dst.handle, static_cast<GLintptr>(src_offset),
+                             static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
 }
 
 } // namespace OpenGL
