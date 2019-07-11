@@ -1,3 +1,32 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: bb67091c774611ce2be1aa461438be3989601e59
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2707](https://github.com/yuzu-emu/yuzu/pull/2707)|[adab188](https://github.com/yuzu-emu/yuzu/pull/2707/files/)|system_archive: Add open-source reimplementation of MiiModel data|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[2704](https://github.com/yuzu-emu/yuzu/pull/2704)|[3820dff](https://github.com/yuzu-emu/yuzu/pull/2704/files/)|maxwell3d: Implement Conditional Rendering|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2695](https://github.com/yuzu-emu/yuzu/pull/2695)|[0eb0c24](https://github.com/yuzu-emu/yuzu/pull/2695/files/)|gl_shader_decompiler: Implement gl_ViewportIndex and gl_Layer in vertex shaders|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2692](https://github.com/yuzu-emu/yuzu/pull/2692)|[d0966b9](https://github.com/yuzu-emu/yuzu/pull/2692/files/)|shader/texture: Add F16 support for TLDS|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2687](https://github.com/yuzu-emu/yuzu/pull/2687)|[56c7912](https://github.com/yuzu-emu/yuzu/pull/2687/files/)|kernel/process: Allocate the process' TLS region during initialization|[lioncash](https://github.com/lioncash)|Yes|
+|[2675](https://github.com/yuzu-emu/yuzu/pull/2675)|[79a23ca](https://github.com/yuzu-emu/yuzu/pull/2675/files/)|buffer_cache: Implement a generic buffer cache and its OpenGL backend|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2592](https://github.com/yuzu-emu/yuzu/pull/2592)|[0fc9895](https://github.com/yuzu-emu/yuzu/pull/2592/files/)|Implement GPU Synchronization Mechanisms & Correct NVFlinger|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[2542](https://github.com/yuzu-emu/yuzu/pull/2542)|[7aeb676](https://github.com/yuzu-emu/yuzu/pull/2542/files/)|lbl: Implement brightness and backlight services|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[2444](https://github.com/yuzu-emu/yuzu/pull/2444)|[d645401](https://github.com/yuzu-emu/yuzu/pull/2444/files/)|Port citra-emu/citra#3617: "QT: Add support for multiple game directories"|[FearlessTobi](https://github.com/FearlessTobi)|Yes|
+|[2418](https://github.com/yuzu-emu/yuzu/pull/2418)|[50d5414](https://github.com/yuzu-emu/yuzu/pull/2418/files/)|es: Implement various ticket accessor commands from IEticketService|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[2365](https://github.com/yuzu-emu/yuzu/pull/2365)|[4fe8093](https://github.com/yuzu-emu/yuzu/pull/2365/files/)|Workaround to Mutex Corruption|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1340](https://github.com/yuzu-emu/yuzu/pull/1340)|[c359c00](https://github.com/yuzu-emu/yuzu/pull/1340/files/)|Implement a Better Ignore Assert|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
