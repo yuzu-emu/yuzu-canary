@@ -29,14 +29,14 @@ layout (std140, binding = EMULATION_UBO_BINDING) uniform vs_config {
 };
 
 )";
-    const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET);
+    const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET, setup.program.size_a);
     ProgramResult program =
         Decompile(device, program_ir, Maxwell3D::Regs::ShaderStage::Vertex, "vertex");
 
     out += program.first;
 
     if (setup.IsDualProgram()) {
-        const ShaderIR program_ir_b(setup.program.code_b, PROGRAM_OFFSET);
+        const ShaderIR program_ir_b(setup.program.code_b, PROGRAM_OFFSET, setup.program.size_b);
         ProgramResult program_b =
             Decompile(device, program_ir_b, Maxwell3D::Regs::ShaderStage::Vertex, "vertex_b");
 
@@ -80,7 +80,7 @@ layout (std140, binding = EMULATION_UBO_BINDING) uniform gs_config {
 };
 
 )";
-    const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET);
+    const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET, setup.program.size_a);
     ProgramResult program =
         Decompile(device, program_ir, Maxwell3D::Regs::ShaderStage::Geometry, "geometry");
     out += program.first;
@@ -115,7 +115,7 @@ layout (std140, binding = EMULATION_UBO_BINDING) uniform fs_config {
 };
 
 )";
-    const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET);
+    const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET, setup.program.size_a);
     ProgramResult program =
         Decompile(device, program_ir, Maxwell3D::Regs::ShaderStage::Fragment, "fragment");
 
