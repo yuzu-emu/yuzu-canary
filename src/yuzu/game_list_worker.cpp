@@ -223,21 +223,37 @@ QList<QStandardItem*> MakeGameListEntry(const std::string& path, const std::stri
 } // Anonymous namespace
 
 GameListWorker::GameListWorker(FileSys::VirtualFilesystem vfs,
-                               FileSys::ManualContentProvider* provider, QString dir_path,
-                               bool deep_scan, const CompatibilityList& compatibility_list)
-    : vfs(std::move(vfs)), provider(provider), dir_path(std::move(dir_path)), deep_scan(deep_scan),
+                               FileSys::ManualContentProvider* provider,
+                               QVector<UISettings::GameDir>& game_dirs,
+                               const CompatibilityList& compatibility_list)
+    : vfs(std::move(vfs)), provider(provider), game_dirs(game_dirs),
       compatibility_list(compatibility_list) {}
 
 GameListWorker::~GameListWorker() = default;
 
-void GameListWorker::AddTitlesToGameList() {
-    const auto& cache = dynamic_cast<FileSys::ContentProviderUnion&>(
-        Core::System::GetInstance().GetContentProvider());
-    const auto installed_games = cache.ListEntriesFilterOrigin(
-        std::nullopt, FileSys::TitleType::Application, FileSys::ContentRecordType::Program);
+void GameListWorker::AddTitlesToGameList(GameListDir* parent_dir) {
+    using namespace FileSys;
+
+    const auto& cache =
+        dynamic_cast<ContentProviderUnion&>(Core::System::GetInstance().GetContentProvider());
+
+    std::vector<std::pair<ContentProviderUnionSlot, ContentProviderEntry>> installed_games;
+    installed_games = cache.ListEntriesFilterOrigin(std::nullopt, TitleType::Application,
+                                                    ContentRecordType::Program);
+
+    if (parent_dir->type() == static_cast<int>(GameListItemType::SdmcDir)) {
+        installed_games = cache.ListEntriesFilterOrigin(
+            ContentProviderUnionSlot::SDMC, TitleType::Application, ContentRecordType::Program);
+    } else if (parent_dir->type() == static_cast<int>(GameListItemType::UserNandDir)) {
+        installed_games = cache.ListEntriesFilterOrigin(
+            ContentProviderUnionSlot::UserNAND, TitleType::Application, ContentRecordType::Program);
+    } else if (parent_dir->type() == static_cast<int>(GameListItemType::SysNandDir)) {
+        installed_games = cache.ListEntriesFilterOrigin(
+            ContentProviderUnionSlot::SysNAND, TitleType::Application, ContentRecordType::Program);
+    }
 
     for (const auto& [slot, game] : installed_games) {
-        if (slot == FileSys::ContentProviderUnionSlot::FrontendManual)
+        if (slot == ContentProviderUnionSlot::FrontendManual)
             continue;
 
         const auto file = cache.GetEntryUnparsed(game.title_id, game.type);
@@ -250,21 +266,22 @@ void GameListWorker::AddTitlesToGameList() {
         u64 program_id = 0;
         loader->ReadProgramId(program_id);
 
-        const FileSys::PatchManager patch{program_id};
-        const auto control = cache.GetEntry(game.title_id, FileSys::ContentRecordType::Control);
+        const PatchManager patch{program_id};
+        const auto control = cache.GetEntry(game.title_id, ContentRecordType::Control);
         if (control != nullptr)
             GetMetadataFromControlNCA(patch, *control, icon, name);
 
         emit EntryReady(MakeGameListEntry(file->GetFullPath(), name, icon, *loader, program_id,
-                                          compatibility_list, patch));
+                                          compatibility_list, patch),
+                        parent_dir);
     }
 }
 
 void GameListWorker::ScanFileSystem(ScanTarget target, const std::string& dir_path,
-                                    unsigned int recursion) {
-    const auto callback = [this, target, recursion](u64* num_entries_out,
-                                                    const std::string& directory,
-                                                    const std::string& virtual_name) -> bool {
+                                    unsigned int recursion, GameListDir* parent_dir) {
+    const auto callback = [this, target, recursion,
+                           parent_dir](u64* num_entries_out, const std::string& directory,
+                                       const std::string& virtual_name) -> bool {
         if (stop_processing) {
             // Breaks the callback loop.
             return false;
@@ -317,11 +334,12 @@ void GameListWorker::ScanFileSystem(ScanTarget target, const std::string& dir_pa
                 const FileSys::PatchManager patch{program_id};
 
                 emit EntryReady(MakeGameListEntry(physical_name, name, icon, *loader, program_id,
-                                                  compatibility_list, patch));
+                                                  compatibility_list, patch),
+                                parent_dir);
             }
         } else if (is_dir && recursion > 0) {
             watch_list.append(QString::fromStdString(physical_name));
-            ScanFileSystem(target, physical_name, recursion - 1);
+            ScanFileSystem(target, physical_name, recursion - 1, parent_dir);
         }
 
         return true;
@@ -332,12 +350,32 @@ void GameListWorker::ScanFileSystem(ScanTarget target, const std::string& dir_pa
 
 void GameListWorker::run() {
     stop_processing = false;
-    watch_list.append(dir_path);
-    provider->ClearAllEntries();
-    ScanFileSystem(ScanTarget::FillManualContentProvider, dir_path.toStdString(),
-                   deep_scan ? 256 : 0);
-    AddTitlesToGameList();
-    ScanFileSystem(ScanTarget::PopulateGameList, dir_path.toStdString(), deep_scan ? 256 : 0);
+
+    for (UISettings::GameDir& game_dir : game_dirs) {
+        if (game_dir.path == QStringLiteral("SDMC")) {
+            auto* const game_list_dir = new GameListDir(game_dir, GameListItemType::SdmcDir);
+            emit DirEntryReady({game_list_dir});
+            AddTitlesToGameList(game_list_dir);
+        } else if (game_dir.path == QStringLiteral("UserNAND")) {
+            auto* const game_list_dir = new GameListDir(game_dir, GameListItemType::UserNandDir);
+            emit DirEntryReady({game_list_dir});
+            AddTitlesToGameList(game_list_dir);
+        } else if (game_dir.path == QStringLiteral("SysNAND")) {
+            auto* const game_list_dir = new GameListDir(game_dir, GameListItemType::SysNandDir);
+            emit DirEntryReady({game_list_dir});
+            AddTitlesToGameList(game_list_dir);
+        } else {
+            watch_list.append(game_dir.path);
+            auto* const game_list_dir = new GameListDir(game_dir);
+            emit DirEntryReady({game_list_dir});
+            provider->ClearAllEntries();
+            ScanFileSystem(ScanTarget::FillManualContentProvider, game_dir.path.toStdString(), 2,
+                           game_list_dir);
+            ScanFileSystem(ScanTarget::PopulateGameList, game_dir.path.toStdString(),
+                           game_dir.deep_scan ? 256 : 0, game_list_dir);
+        }
+    };
+
     emit Finished(watch_list);
 }
 
