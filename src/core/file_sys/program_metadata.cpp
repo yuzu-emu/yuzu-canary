@@ -94,6 +94,10 @@ u64 ProgramMetadata::GetFilesystemPermissions() const {
     return aci_file_access.permissions;
 }
 
+u32 ProgramMetadata::GetSystemResourceSize() const {
+    return npdm_header.system_resource_size;
+}
+
 const ProgramMetadata::KernelCapabilityDescriptors& ProgramMetadata::GetKernelCapabilities() const {
     return aci_kernel_capabilities;
 }
