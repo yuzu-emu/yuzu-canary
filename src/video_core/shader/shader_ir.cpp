@@ -89,6 +89,22 @@ Node ShaderIR::GetPhysicalInputAttribute(Tegra::Shader::Register physical_addres
 }
 
 Node ShaderIR::GetOutputAttribute(Attribute::Index index, u64 element, Node buffer) {
+    if (index == Attribute::Index::LayerViewportPointSize) {
+        switch (element) {
+        case 0:
+            UNIMPLEMENTED();
+            break;
+        case 1:
+            uses_layer = true;
+            break;
+        case 2:
+            uses_viewport_index = true;
+            break;
+        case 3:
+            uses_point_size = true;
+            break;
+        }
+    }
     if (index == Attribute::Index::ClipDistances0123 ||
         index == Attribute::Index::ClipDistances4567) {
         const auto clip_index =

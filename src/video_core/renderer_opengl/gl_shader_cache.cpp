@@ -190,8 +190,11 @@ CachedProgram SpecializeShader(const std::string& code, const GLShader::ShaderEn
     const auto texture_buffer_usage{variant.texture_buffer_usage};
 
     std::string source = "#version 430 core\n"
-                         "#extension GL_ARB_separate_shader_objects : enable\n\n";
-    source += fmt::format("#define EMULATION_UBO_BINDING {}\n", base_bindings.cbuf++);
+                         "#extension GL_ARB_separate_shader_objects : enable\n";
+    if (entries.shader_viewport_layer_array) {
+        source += "#extension GL_ARB_shader_viewport_layer_array : enable\n";
+    }
+    source += fmt::format("\n#define EMULATION_UBO_BINDING {}\n", base_bindings.cbuf++);
 
     for (const auto& cbuf : entries.const_buffers) {
         source +=

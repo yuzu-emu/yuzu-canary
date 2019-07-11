@@ -14,6 +14,7 @@
 #include "common/alignment.h"
 #include "common/assert.h"
 #include "common/common_types.h"
+#include "common/logging/log.h"
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/renderer_opengl/gl_device.h"
 #include "video_core/renderer_opengl/gl_rasterizer.h"
@@ -246,6 +247,8 @@ public:
                                                        usage.is_read, usage.is_written);
         }
         entries.clip_distances = ir.GetClipDistances();
+        entries.shader_viewport_layer_array =
+            stage == ShaderStage::Vertex && (ir.UsesLayer() || ir.UsesViewportIndex());
         entries.shader_length = ir.GetLength();
         return entries;
     }
@@ -282,21 +285,34 @@ private:
     }
 
     void DeclareVertexRedeclarations() {
-        bool clip_distances_declared = false;
-
         code.AddLine("out gl_PerVertex {{");
         ++code.scope;
 
         code.AddLine("vec4 gl_Position;");
 
-        for (const auto o : ir.GetOutputAttributes()) {
-            if (o == Attribute::Index::PointSize)
-                code.AddLine("float gl_PointSize;");
-            if (!clip_distances_declared && (o == Attribute::Index::ClipDistances0123 ||
-                                             o == Attribute::Index::ClipDistances4567)) {
+        for (const auto attribute : ir.GetOutputAttributes()) {
+            if (attribute == Attribute::Index::ClipDistances0123 ||
+                attribute == Attribute::Index::ClipDistances4567) {
                 code.AddLine("float gl_ClipDistance[];");
-                clip_distances_declared = true;
+                break;
             }
+        }
+        if (stage != ShaderStage::Vertex || device.HasVertexViewportLayer()) {
+            if (ir.UsesLayer()) {
+                code.AddLine("int gl_Layer;");
+            }
+            if (ir.UsesViewportIndex()) {
+                code.AddLine("int gl_ViewportIndex;");
+            }
+        } else if ((ir.UsesLayer() || ir.UsesViewportIndex()) && stage == ShaderStage::Vertex &&
+                   !device.HasVertexViewportLayer()) {
+            LOG_ERROR(
+                Render_OpenGL,
+                "GL_ARB_shader_viewport_layer_array is not available and its required by a shader");
+        }
+
+        if (ir.UsesPointSize()) {
+            code.AddLine("float gl_PointSize;");
         }
 
         --code.scope;
@@ -805,6 +821,45 @@ private:
         return CastOperand(VisitOperand(operation, operand_index), type);
     }
 
+    std::optional<std::pair<std::string, bool>> GetOutputAttribute(const AbufNode* abuf) {
+        switch (const auto attribute = abuf->GetIndex()) {
+        case Attribute::Index::Position:
+            return std::make_pair("gl_Position"s + GetSwizzle(abuf->GetElement()), false);
+        case Attribute::Index::LayerViewportPointSize:
+            switch (abuf->GetElement()) {
+            case 0:
+                UNIMPLEMENTED();
+                return {};
+            case 1:
+                if (stage == ShaderStage::Vertex && !device.HasVertexViewportLayer()) {
+                    return {};
+                }
+                return std::make_pair("gl_Layer", true);
+            case 2:
+                if (stage == ShaderStage::Vertex && !device.HasVertexViewportLayer()) {
+                    return {};
+                }
+                return std::make_pair("gl_ViewportIndex", true);
+            case 3:
+                UNIMPLEMENTED_MSG("Requires some state changes for gl_PointSize to work in shader");
+                return std::make_pair("gl_PointSize", false);
+            }
+            return {};
+        case Attribute::Index::ClipDistances0123:
+            return std::make_pair(fmt::format("gl_ClipDistance[{}]", abuf->GetElement()), false);
+        case Attribute::Index::ClipDistances4567:
+            return std::make_pair(fmt::format("gl_ClipDistance[{}]", abuf->GetElement() + 4),
+                                  false);
+        default:
+            if (IsGenericAttribute(attribute)) {
+                return std::make_pair(
+                    GetOutputAttribute(attribute) + GetSwizzle(abuf->GetElement()), false);
+            }
+            UNIMPLEMENTED_MSG("Unhandled output attribute: {}", static_cast<u32>(attribute));
+            return {};
+        }
+    }
+
     std::string CastOperand(const std::string& value, Type type) const {
         switch (type) {
         case Type::Bool:
@@ -1001,6 +1056,8 @@ private:
         const Node& src = operation[1];
 
         std::string target;
+        bool is_integer = false;
+
         if (const auto gpr = std::get_if<GprNode>(&*dest)) {
             if (gpr->GetIndex() == Register::ZeroIndex) {
                 // Writing to Register::ZeroIndex is a no op
@@ -1009,26 +1066,12 @@ private:
             target = GetRegister(gpr->GetIndex());
         } else if (const auto abuf = std::get_if<AbufNode>(&*dest)) {
             UNIMPLEMENTED_IF(abuf->IsPhysicalBuffer());
-
-            target = [&]() -> std::string {
-                switch (const auto attribute = abuf->GetIndex(); abuf->GetIndex()) {
-                case Attribute::Index::Position:
-                    return "gl_Position"s + GetSwizzle(abuf->GetElement());
-                case Attribute::Index::PointSize:
-                    return "gl_PointSize";
-                case Attribute::Index::ClipDistances0123:
-                    return fmt::format("gl_ClipDistance[{}]", abuf->GetElement());
-                case Attribute::Index::ClipDistances4567:
-                    return fmt::format("gl_ClipDistance[{}]", abuf->GetElement() + 4);
-                default:
-                    if (IsGenericAttribute(attribute)) {
-                        return GetOutputAttribute(attribute) + GetSwizzle(abuf->GetElement());
-                    }
-                    UNIMPLEMENTED_MSG("Unhandled output attribute: {}",
-                                      static_cast<u32>(attribute));
-                    return "0";
-                }
-            }();
+            const auto result = GetOutputAttribute(abuf);
+            if (!result) {
+                return {};
+            }
+            target = result->first;
+            is_integer = result->second;
         } else if (const auto lmem = std::get_if<LmemNode>(&*dest)) {
             target = fmt::format("{}[ftou({}) / 4]", GetLocalMemory(), Visit(lmem->GetAddress()));
         } else if (const auto gmem = std::get_if<GmemNode>(&*dest)) {
@@ -1040,7 +1083,11 @@ private:
             UNREACHABLE_MSG("Assign called without a proper target");
         }
 
-        code.AddLine("{} = {};", target, Visit(src));
+        if (is_integer) {
+            code.AddLine("{} = ftoi({});", target, Visit(src));
+        } else {
+            code.AddLine("{} = {};", target, Visit(src));
+        }
         return {};
     }
 
