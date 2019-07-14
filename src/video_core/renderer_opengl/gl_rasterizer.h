@@ -24,7 +24,6 @@
 #include "video_core/renderer_opengl/gl_buffer_cache.h"
 #include "video_core/renderer_opengl/gl_device.h"
 #include "video_core/renderer_opengl/gl_framebuffer_cache.h"
-#include "video_core/renderer_opengl/gl_global_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_sampler_cache.h"
 #include "video_core/renderer_opengl/gl_shader_cache.h"
@@ -63,6 +62,7 @@ public:
     void FlushRegion(CacheAddr addr, u64 size) override;
     void InvalidateRegion(CacheAddr addr, u64 size) override;
     void FlushAndInvalidateRegion(CacheAddr addr, u64 size) override;
+    void TickFrame() override;
     bool AccelerateSurfaceCopy(const Tegra::Engines::Fermi2D::Regs::Surface& src,
                                const Tegra::Engines::Fermi2D::Regs::Surface& dst,
                                const Tegra::Engines::Fermi2D::Config& copy_config) override;
@@ -72,11 +72,6 @@ public:
     void UpdatePagesCachedCount(VAddr addr, u64 size, int delta) override;
     void LoadDiskResources(const std::atomic_bool& stop_loading,
                            const VideoCore::DiskResourceLoadCallback& callback) override;
-
-    /// Maximum supported size that a constbuffer can have in bytes.
-    static constexpr std::size_t MaxConstbufferSize = 0x10000;
-    static_assert(MaxConstbufferSize % sizeof(GLvec4) == 0,
-                  "The maximum size of a constbuffer must be a multiple of the size of GLvec4");
 
 private:
     struct FramebufferConfigState {
@@ -191,7 +186,6 @@ private:
 
     TextureCacheOpenGL texture_cache;
     ShaderCacheOpenGL shader_cache;
-    GlobalRegionCacheOpenGL global_cache;
     SamplerCacheOpenGL sampler_cache;
     FramebufferCacheOpenGL framebuffer_cache;
 
@@ -210,6 +204,7 @@ private:
     static constexpr std::size_t STREAM_BUFFER_SIZE = 128 * 1024 * 1024;
     OGLBufferCache buffer_cache;
 
+    VertexArrayPushBuffer vertex_array_pushbuffer;
     BindBuffersRangePushBuffer bind_ubo_pushbuffer{GL_UNIFORM_BUFFER};
     BindBuffersRangePushBuffer bind_ssbo_pushbuffer{GL_SHADER_STORAGE_BUFFER};
 
@@ -222,7 +217,9 @@ private:
 
     void SetupVertexBuffer(GLuint vao);
 
-    DrawParameters SetupDraw();
+    GLintptr SetupIndexBuffer();
+
+    DrawParameters SetupDraw(GLintptr index_buffer_offset);
 
     void SetupShaders(GLenum primitive_mode);
 
