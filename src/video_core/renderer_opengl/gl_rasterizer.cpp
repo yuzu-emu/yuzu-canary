@@ -520,7 +520,13 @@ std::pair<bool, bool> RasterizerOpenGL::ConfigureFramebuffers(
 }
 
 void RasterizerOpenGL::Clear() {
-    const auto& regs = system.GPU().Maxwell3D().regs;
+    const auto& maxwell3d = system.GPU().Maxwell3D();
+
+    if (!maxwell3d.ShouldExecute()) {
+        return;
+    }
+
+    const auto& regs = maxwell3d.regs;
     bool use_color{};
     bool use_depth{};
     bool use_stencil{};
@@ -616,6 +622,11 @@ void RasterizerOpenGL::DrawArrays() {
 
     MICROPROFILE_SCOPE(OpenGL_Drawing);
     auto& gpu = system.GPU().Maxwell3D();
+
+    if (!gpu.ShouldExecute()) {
+        return;
+    }
+
     const auto& regs = gpu.regs;
 
     SyncColorMask();
