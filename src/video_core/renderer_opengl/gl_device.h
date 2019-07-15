@@ -30,6 +30,10 @@ public:
         return max_varyings;
     }
 
+    bool HasVertexViewportLayer() const {
+        return has_vertex_viewport_layer;
+    }
+
     bool HasVariableAoffi() const {
         return has_variable_aoffi;
     }
@@ -46,6 +50,7 @@ private:
     std::size_t shader_storage_alignment{};
     u32 max_vertex_attributes{};
     u32 max_varyings{};
+    bool has_vertex_viewport_layer{};
     bool has_variable_aoffi{};
     bool has_component_indexing_bug{};
 };
