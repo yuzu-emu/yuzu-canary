@@ -10,6 +10,7 @@
 #include "common/common_types.h"
 #include "common/swap.h"
 #include "core/hle/service/nvdrv/devices/nvdevice.h"
+#include "core/hle/service/nvdrv/nvdata.h"
 
 namespace Service::Nvidia::Devices {
 
@@ -20,10 +21,11 @@ constexpr u32 NVGPU_IOCTL_CHANNEL_KICKOFF_PB(0x1b);
 
 class nvhost_gpu final : public nvdevice {
 public:
-    explicit nvhost_gpu(std::shared_ptr<nvmap> nvmap_dev);
+    explicit nvhost_gpu(Core::System& system, std::shared_ptr<nvmap> nvmap_dev);
     ~nvhost_gpu() override;
 
-    u32 ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output) override;
+    u32 ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output,
+              IoctlCtrl& ctrl) override;
 
 private:
     enum class IoctlCommand : u32_le {
@@ -113,11 +115,7 @@ private:
     static_assert(sizeof(IoctlGetErrorNotification) == 16,
                   "IoctlGetErrorNotification is incorrect size");
 
-    struct IoctlFence {
-        u32_le id;
-        u32_le value;
-    };
-    static_assert(sizeof(IoctlFence) == 8, "IoctlFence is incorrect size");
+    static_assert(sizeof(Fence) == 8, "Fence is incorrect size");
 
     struct IoctlAllocGpfifoEx {
         u32_le num_entries;
@@ -132,13 +130,13 @@ private:
     static_assert(sizeof(IoctlAllocGpfifoEx) == 32, "IoctlAllocGpfifoEx is incorrect size");
 
     struct IoctlAllocGpfifoEx2 {
-        u32_le num_entries;   // in
-        u32_le flags;         // in
-        u32_le unk0;          // in (1 works)
-        IoctlFence fence_out; // out
-        u32_le unk1;          // in
-        u32_le unk2;          // in
-        u32_le unk3;          // in
+        u32_le num_entries; // in
+        u32_le flags;       // in
+        u32_le unk0;        // in (1 works)
+        Fence fence_out;    // out
+        u32_le unk1;        // in
+        u32_le unk2;        // in
+        u32_le unk3;        // in
     };
     static_assert(sizeof(IoctlAllocGpfifoEx2) == 32, "IoctlAllocGpfifoEx2 is incorrect size");
 
@@ -153,10 +151,16 @@ private:
     struct IoctlSubmitGpfifo {
         u64_le address;     // pointer to gpfifo entry structs
         u32_le num_entries; // number of fence objects being submitted
-        u32_le flags;
-        IoctlFence fence_out; // returned new fence object for others to wait on
+        union {
+            u32_le raw;
+            BitField<0, 1, u32_le> add_wait;      // append a wait sync_point to the list
+            BitField<1, 1, u32_le> add_increment; // append an increment to the list
+            BitField<2, 1, u32_le> new_hw_format; // Mostly ignored
+            BitField<8, 1, u32_le> increment;     // increment the returned fence
+        } flags;
+        Fence fence_out; // returned new fence object for others to wait on
     };
-    static_assert(sizeof(IoctlSubmitGpfifo) == 16 + sizeof(IoctlFence),
+    static_assert(sizeof(IoctlSubmitGpfifo) == 16 + sizeof(Fence),
                   "IoctlSubmitGpfifo is incorrect size");
 
     struct IoctlGetWaitbase {
@@ -184,6 +188,7 @@ private:
     u32 ChannelSetTimeout(const std::vector<u8>& input, std::vector<u8>& output);
 
     std::shared_ptr<nvmap> nvmap_dev;
+    u32 assigned_syncpoints{};
 };
 
 } // namespace Service::Nvidia::Devices
