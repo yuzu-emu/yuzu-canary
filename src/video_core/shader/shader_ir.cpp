@@ -61,8 +61,9 @@ Node ShaderIR::GetConstBufferIndirect(u64 index_, u64 offset_, Node node) {
     const auto [entry, is_new] = used_cbufs.try_emplace(index);
     entry->second.MarkAsUsedIndirect();
 
-    const Node final_offset = Operation(OperationCode::UAdd, NO_PRECISE, node, Immediate(offset));
-    return MakeNode<CbufNode>(index, final_offset);
+    Node final_offset =
+        Operation(OperationCode::UAdd, NO_PRECISE, std::move(node), Immediate(offset));
+    return MakeNode<CbufNode>(index, std::move(final_offset));
 }
 
 Node ShaderIR::GetPredicate(u64 pred_, bool negated) {
@@ -80,7 +81,7 @@ Node ShaderIR::GetPredicate(bool immediate) {
 
 Node ShaderIR::GetInputAttribute(Attribute::Index index, u64 element, Node buffer) {
     used_input_attributes.emplace(index);
-    return MakeNode<AbufNode>(index, static_cast<u32>(element), buffer);
+    return MakeNode<AbufNode>(index, static_cast<u32>(element), std::move(buffer));
 }
 
 Node ShaderIR::GetPhysicalInputAttribute(Tegra::Shader::Register physical_address, Node buffer) {
@@ -113,7 +114,7 @@ Node ShaderIR::GetOutputAttribute(Attribute::Index index, u64 element, Node buff
     }
     used_output_attributes.insert(index);
 
-    return MakeNode<AbufNode>(index, static_cast<u32>(element), buffer);
+    return MakeNode<AbufNode>(index, static_cast<u32>(element), std::move(buffer));
 }
 
 Node ShaderIR::GetInternalFlag(InternalFlag flag, bool negated) {
@@ -125,19 +126,19 @@ Node ShaderIR::GetInternalFlag(InternalFlag flag, bool negated) {
 }
 
 Node ShaderIR::GetLocalMemory(Node address) {
-    return MakeNode<LmemNode>(address);
+    return MakeNode<LmemNode>(std::move(address));
 }
 
-Node ShaderIR::GetTemporal(u32 id) {
+Node ShaderIR::GetTemporary(u32 id) {
     return GetRegister(Register::ZeroIndex + 1 + id);
 }
 
 Node ShaderIR::GetOperandAbsNegFloat(Node value, bool absolute, bool negate) {
     if (absolute) {
-        value = Operation(OperationCode::FAbsolute, NO_PRECISE, value);
+        value = Operation(OperationCode::FAbsolute, NO_PRECISE, std::move(value));
     }
     if (negate) {
-        value = Operation(OperationCode::FNegate, NO_PRECISE, value);
+        value = Operation(OperationCode::FNegate, NO_PRECISE, std::move(value));
     }
     return value;
 }
@@ -146,24 +147,26 @@ Node ShaderIR::GetSaturatedFloat(Node value, bool saturate) {
     if (!saturate) {
         return value;
     }
-    const Node positive_zero = Immediate(std::copysignf(0, 1));
-    const Node positive_one = Immediate(1.0f);
-    return Operation(OperationCode::FClamp, NO_PRECISE, value, positive_zero, positive_one);
+
+    Node positive_zero = Immediate(std::copysignf(0, 1));
+    Node positive_one = Immediate(1.0f);
+    return Operation(OperationCode::FClamp, NO_PRECISE, std::move(value), std::move(positive_zero),
+                     std::move(positive_one));
 }
 
-Node ShaderIR::ConvertIntegerSize(Node value, Tegra::Shader::Register::Size size, bool is_signed) {
+Node ShaderIR::ConvertIntegerSize(Node value, Register::Size size, bool is_signed) {
     switch (size) {
     case Register::Size::Byte:
-        value = SignedOperation(OperationCode::ILogicalShiftLeft, is_signed, NO_PRECISE, value,
-                                Immediate(24));
-        value = SignedOperation(OperationCode::IArithmeticShiftRight, is_signed, NO_PRECISE, value,
-                                Immediate(24));
+        value = SignedOperation(OperationCode::ILogicalShiftLeft, is_signed, NO_PRECISE,
+                                std::move(value), Immediate(24));
+        value = SignedOperation(OperationCode::IArithmeticShiftRight, is_signed, NO_PRECISE,
+                                std::move(value), Immediate(24));
         return value;
     case Register::Size::Short:
-        value = SignedOperation(OperationCode::ILogicalShiftLeft, is_signed, NO_PRECISE, value,
-                                Immediate(16));
-        value = SignedOperation(OperationCode::IArithmeticShiftRight, is_signed, NO_PRECISE, value,
-                                Immediate(16));
+        value = SignedOperation(OperationCode::ILogicalShiftLeft, is_signed, NO_PRECISE,
+                                std::move(value), Immediate(16));
+        value = SignedOperation(OperationCode::IArithmeticShiftRight, is_signed, NO_PRECISE,
+                                std::move(value), Immediate(16));
     case Register::Size::Word:
         // Default - do nothing
         return value;
@@ -179,27 +182,29 @@ Node ShaderIR::GetOperandAbsNegInteger(Node value, bool absolute, bool negate, b
         return value;
     }
     if (absolute) {
-        value = Operation(OperationCode::IAbsolute, NO_PRECISE, value);
+        value = Operation(OperationCode::IAbsolute, NO_PRECISE, std::move(value));
     }
     if (negate) {
-        value = Operation(OperationCode::INegate, NO_PRECISE, value);
+        value = Operation(OperationCode::INegate, NO_PRECISE, std::move(value));
     }
     return value;
 }
 
 Node ShaderIR::UnpackHalfImmediate(Instruction instr, bool has_negation) {
-    const Node value = Immediate(instr.half_imm.PackImmediates());
+    Node value = Immediate(instr.half_imm.PackImmediates());
     if (!has_negation) {
         return value;
     }
-    const Node first_negate = GetPredicate(instr.half_imm.first_negate != 0);
-    const Node second_negate = GetPredicate(instr.half_imm.second_negate != 0);
 
-    return Operation(OperationCode::HNegate, NO_PRECISE, value, first_negate, second_negate);
+    Node first_negate = GetPredicate(instr.half_imm.first_negate != 0);
+    Node second_negate = GetPredicate(instr.half_imm.second_negate != 0);
+
+    return Operation(OperationCode::HNegate, NO_PRECISE, std::move(value), std::move(first_negate),
+                     std::move(second_negate));
 }
 
 Node ShaderIR::UnpackHalfFloat(Node value, Tegra::Shader::HalfType type) {
-    return Operation(OperationCode::HUnpack, type, value);
+    return Operation(OperationCode::HUnpack, type, std::move(value));
 }
 
 Node ShaderIR::HalfMerge(Node dest, Node src, Tegra::Shader::HalfMerge merge) {
@@ -207,11 +212,11 @@ Node ShaderIR::HalfMerge(Node dest, Node src, Tegra::Shader::HalfMerge merge) {
     case Tegra::Shader::HalfMerge::H0_H1:
         return src;
     case Tegra::Shader::HalfMerge::F32:
-        return Operation(OperationCode::HMergeF32, src);
+        return Operation(OperationCode::HMergeF32, std::move(src));
     case Tegra::Shader::HalfMerge::Mrg_H0:
-        return Operation(OperationCode::HMergeH0, dest, src);
+        return Operation(OperationCode::HMergeH0, std::move(dest), std::move(src));
     case Tegra::Shader::HalfMerge::Mrg_H1:
-        return Operation(OperationCode::HMergeH1, dest, src);
+        return Operation(OperationCode::HMergeH1, std::move(dest), std::move(src));
     }
     UNREACHABLE();
     return src;
@@ -219,10 +224,10 @@ Node ShaderIR::HalfMerge(Node dest, Node src, Tegra::Shader::HalfMerge merge) {
 
 Node ShaderIR::GetOperandAbsNegHalf(Node value, bool absolute, bool negate) {
     if (absolute) {
-        value = Operation(OperationCode::HAbsolute, NO_PRECISE, value);
+        value = Operation(OperationCode::HAbsolute, NO_PRECISE, std::move(value));
     }
     if (negate) {
-        value = Operation(OperationCode::HNegate, NO_PRECISE, value, GetPredicate(true),
+        value = Operation(OperationCode::HNegate, NO_PRECISE, std::move(value), GetPredicate(true),
                           GetPredicate(true));
     }
     return value;
@@ -232,9 +237,11 @@ Node ShaderIR::GetSaturatedHalfFloat(Node value, bool saturate) {
     if (!saturate) {
         return value;
     }
-    const Node positive_zero = Immediate(std::copysignf(0, 1));
-    const Node positive_one = Immediate(1.0f);
-    return Operation(OperationCode::HClamp, NO_PRECISE, value, positive_zero, positive_one);
+
+    Node positive_zero = Immediate(std::copysignf(0, 1));
+    Node positive_one = Immediate(1.0f);
+    return Operation(OperationCode::HClamp, NO_PRECISE, std::move(value), std::move(positive_zero),
+                     std::move(positive_one));
 }
 
 Node ShaderIR::GetPredicateComparisonFloat(PredCondition condition, Node op_a, Node op_b) {
@@ -262,7 +269,6 @@ Node ShaderIR::GetPredicateComparisonFloat(PredCondition condition, Node op_a, N
         condition == PredCondition::LessEqualWithNan ||
         condition == PredCondition::GreaterThanWithNan ||
         condition == PredCondition::GreaterEqualWithNan) {
-
         predicate = Operation(OperationCode::LogicalOr, predicate,
                               Operation(OperationCode::LogicalFIsNan, op_a));
         predicate = Operation(OperationCode::LogicalOr, predicate,
@@ -291,7 +297,8 @@ Node ShaderIR::GetPredicateComparisonInteger(PredCondition condition, bool is_si
     UNIMPLEMENTED_IF_MSG(comparison == PredicateComparisonTable.end(),
                          "Unknown predicate comparison operation");
 
-    Node predicate = SignedOperation(comparison->second, is_signed, NO_PRECISE, op_a, op_b);
+    Node predicate = SignedOperation(comparison->second, is_signed, NO_PRECISE, std::move(op_a),
+                                     std::move(op_b));
 
     UNIMPLEMENTED_IF_MSG(condition == PredCondition::LessThanWithNan ||
                              condition == PredCondition::NotEqualWithNan ||
@@ -321,9 +328,7 @@ Node ShaderIR::GetPredicateComparisonHalf(Tegra::Shader::PredCondition condition
     UNIMPLEMENTED_IF_MSG(comparison == PredicateComparisonTable.end(),
                          "Unknown predicate comparison operation");
 
-    const Node predicate = Operation(comparison->second, NO_PRECISE, op_a, op_b);
-
-    return predicate;
+    return Operation(comparison->second, NO_PRECISE, std::move(op_a), std::move(op_b));
 }
 
 OperationCode ShaderIR::GetPredicateCombiner(PredOperation operation) {
@@ -349,31 +354,32 @@ Node ShaderIR::GetConditionCode(Tegra::Shader::ConditionCode cc) {
 }
 
 void ShaderIR::SetRegister(NodeBlock& bb, Register dest, Node src) {
-    bb.push_back(Operation(OperationCode::Assign, GetRegister(dest), src));
+    bb.push_back(Operation(OperationCode::Assign, GetRegister(dest), std::move(src)));
 }
 
 void ShaderIR::SetPredicate(NodeBlock& bb, u64 dest, Node src) {
-    bb.push_back(Operation(OperationCode::LogicalAssign, GetPredicate(dest), src));
+    bb.push_back(Operation(OperationCode::LogicalAssign, GetPredicate(dest), std::move(src)));
 }
 
 void ShaderIR::SetInternalFlag(NodeBlock& bb, InternalFlag flag, Node value) {
-    bb.push_back(Operation(OperationCode::LogicalAssign, GetInternalFlag(flag), value));
+    bb.push_back(Operation(OperationCode::LogicalAssign, GetInternalFlag(flag), std::move(value)));
 }
 
 void ShaderIR::SetLocalMemory(NodeBlock& bb, Node address, Node value) {
-    bb.push_back(Operation(OperationCode::Assign, GetLocalMemory(address), value));
+    bb.push_back(
+        Operation(OperationCode::Assign, GetLocalMemory(std::move(address)), std::move(value)));
 }
 
-void ShaderIR::SetTemporal(NodeBlock& bb, u32 id, Node value) {
-    SetRegister(bb, Register::ZeroIndex + 1 + id, value);
+void ShaderIR::SetTemporary(NodeBlock& bb, u32 id, Node value) {
+    SetRegister(bb, Register::ZeroIndex + 1 + id, std::move(value));
 }
 
 void ShaderIR::SetInternalFlagsFromFloat(NodeBlock& bb, Node value, bool sets_cc) {
     if (!sets_cc) {
         return;
     }
-    const Node zerop = Operation(OperationCode::LogicalFEqual, value, Immediate(0.0f));
-    SetInternalFlag(bb, InternalFlag::Zero, zerop);
+    Node zerop = Operation(OperationCode::LogicalFEqual, std::move(value), Immediate(0.0f));
+    SetInternalFlag(bb, InternalFlag::Zero, std::move(zerop));
     LOG_WARNING(HW_GPU, "Condition codes implementation is incomplete");
 }
 
@@ -381,14 +387,14 @@ void ShaderIR::SetInternalFlagsFromInteger(NodeBlock& bb, Node value, bool sets_
     if (!sets_cc) {
         return;
     }
-    const Node zerop = Operation(OperationCode::LogicalIEqual, value, Immediate(0));
-    SetInternalFlag(bb, InternalFlag::Zero, zerop);
+    Node zerop = Operation(OperationCode::LogicalIEqual, std::move(value), Immediate(0));
+    SetInternalFlag(bb, InternalFlag::Zero, std::move(zerop));
     LOG_WARNING(HW_GPU, "Condition codes implementation is incomplete");
 }
 
 Node ShaderIR::BitfieldExtract(Node value, u32 offset, u32 bits) {
-    return Operation(OperationCode::UBitfieldExtract, NO_PRECISE, value, Immediate(offset),
-                     Immediate(bits));
+    return Operation(OperationCode::UBitfieldExtract, NO_PRECISE, std::move(value),
+                     Immediate(offset), Immediate(bits));
 }
 
 } // namespace VideoCommon::Shader

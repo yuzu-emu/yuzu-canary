@@ -15,18 +15,20 @@ namespace {
 std::pair<Node, s64> FindOperation(const NodeBlock& code, s64 cursor,
                                    OperationCode operation_code) {
     for (; cursor >= 0; --cursor) {
-        const Node node = code.at(cursor);
+        Node node = code.at(cursor);
+
         if (const auto operation = std::get_if<OperationNode>(&*node)) {
             if (operation->GetCode() == operation_code) {
-                return {node, cursor};
+                return {std::move(node), cursor};
             }
         }
+
         if (const auto conditional = std::get_if<ConditionalNode>(&*node)) {
             const auto& conditional_code = conditional->GetCode();
-            const auto [found, internal_cursor] = FindOperation(
+            auto [found, internal_cursor] = FindOperation(
                 conditional_code, static_cast<s64>(conditional_code.size() - 1), operation_code);
             if (found) {
-                return {found, cursor};
+                return {std::move(found), cursor};
             }
         }
     }
