@@ -10,21 +10,25 @@
 
 namespace OpenGL::GLShader {
 
-GLuint LoadShader(const char* source, GLenum type) {
-    const char* debug_type;
+namespace {
+const char* GetStageDebugName(GLenum type) {
     switch (type) {
     case GL_VERTEX_SHADER:
-        debug_type = "vertex";
-        break;
+        return "vertex";
     case GL_GEOMETRY_SHADER:
-        debug_type = "geometry";
-        break;
+        return "geometry";
     case GL_FRAGMENT_SHADER:
-        debug_type = "fragment";
-        break;
-    default:
-        UNREACHABLE();
+        return "fragment";
+    case GL_COMPUTE_SHADER:
+        return "compute";
     }
+    UNIMPLEMENTED();
+    return "unknown";
+}
+} // Anonymous namespace
+
+GLuint LoadShader(const char* source, GLenum type) {
+    const char* debug_type = GetStageDebugName(type);
     const GLuint shader_id = glCreateShader(type);
     glShaderSource(shader_id, 1, &source, nullptr);
     LOG_DEBUG(Render_OpenGL, "Compiling {} shader...", debug_type);
