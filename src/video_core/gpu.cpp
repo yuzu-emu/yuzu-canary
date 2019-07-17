@@ -50,6 +50,14 @@ const Engines::Maxwell3D& GPU::Maxwell3D() const {
     return *maxwell_3d;
 }
 
+Engines::KeplerCompute& GPU::KeplerCompute() {
+    return *kepler_compute;
+}
+
+const Engines::KeplerCompute& GPU::KeplerCompute() const {
+    return *kepler_compute;
+}
+
 MemoryManager& GPU::MemoryManager() {
     return *memory_manager;
 }
