@@ -73,8 +73,8 @@ u32 ShaderIR::DecodeXmad(NodeBlock& bb, u32 pc) {
     if (is_psl) {
         product = Operation(OperationCode::ILogicalShiftLeft, NO_PRECISE, product, Immediate(16));
     }
-    SetTemporal(bb, 0, product);
-    product = GetTemporal(0);
+    SetTemporary(bb, 0, product);
+    product = GetTemporary(0);
 
     const Node original_c = op_c;
     const Tegra::Shader::XmadMode set_mode = mode; // Workaround to clang compile error
@@ -98,13 +98,13 @@ u32 ShaderIR::DecodeXmad(NodeBlock& bb, u32 pc) {
         }
     }();
 
-    SetTemporal(bb, 1, op_c);
-    op_c = GetTemporal(1);
+    SetTemporary(bb, 1, op_c);
+    op_c = GetTemporary(1);
 
     // TODO(Rodrigo): Use an appropiate sign for this operation
     Node sum = Operation(OperationCode::IAdd, product, op_c);
-    SetTemporal(bb, 2, sum);
-    sum = GetTemporal(2);
+    SetTemporary(bb, 2, sum);
+    sum = GetTemporary(2);
     if (is_merge) {
         const Node a = BitfieldExtract(sum, 0, 16);
         const Node b =

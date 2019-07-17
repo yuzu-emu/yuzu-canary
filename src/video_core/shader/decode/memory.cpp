@@ -95,10 +95,10 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
             const Node op_b =
                 GetConstBufferIndirect(instr.cbuf36.index, instr.cbuf36.GetOffset() + 4, index);
 
-            SetTemporal(bb, 0, op_a);
-            SetTemporal(bb, 1, op_b);
-            SetRegister(bb, instr.gpr0, GetTemporal(0));
-            SetRegister(bb, instr.gpr0.Value() + 1, GetTemporal(1));
+            SetTemporary(bb, 0, op_a);
+            SetTemporary(bb, 1, op_b);
+            SetRegister(bb, instr.gpr0, GetTemporary(0));
+            SetRegister(bb, instr.gpr0.Value() + 1, GetTemporary(1));
             break;
         }
         default:
@@ -136,9 +136,9 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
                 }
             }();
             for (u32 i = 0; i < count; ++i)
-                SetTemporal(bb, i, GetLmem(i * 4));
+                SetTemporary(bb, i, GetLmem(i * 4));
             for (u32 i = 0; i < count; ++i)
-                SetRegister(bb, instr.gpr0.Value() + i, GetTemporal(i));
+                SetRegister(bb, instr.gpr0.Value() + i, GetTemporary(i));
             break;
         }
         default:
@@ -172,10 +172,10 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
                 Operation(OperationCode::UAdd, NO_PRECISE, real_address_base, it_offset);
             const Node gmem = MakeNode<GmemNode>(real_address, base_address, descriptor);
 
-            SetTemporal(bb, i, gmem);
+            SetTemporary(bb, i, gmem);
         }
         for (u32 i = 0; i < count; ++i) {
-            SetRegister(bb, instr.gpr0.Value() + i, GetTemporal(i));
+            SetRegister(bb, instr.gpr0.Value() + i, GetTemporary(i));
         }
         break;
     }
@@ -253,11 +253,11 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
             TrackAndGetGlobalMemory(bb, instr, true);
 
         // Encode in temporary registers like this: real_base_address, {registers_to_be_written...}
-        SetTemporal(bb, 0, real_address_base);
+        SetTemporary(bb, 0, real_address_base);
 
         const u32 count = GetUniformTypeElementsCount(type);
         for (u32 i = 0; i < count; ++i) {
-            SetTemporal(bb, i + 1, GetRegister(instr.gpr0.Value() + i));
+            SetTemporary(bb, i + 1, GetRegister(instr.gpr0.Value() + i));
         }
         for (u32 i = 0; i < count; ++i) {
             const Node it_offset = Immediate(i * 4);
@@ -265,7 +265,7 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
                 Operation(OperationCode::UAdd, NO_PRECISE, real_address_base, it_offset);
             const Node gmem = MakeNode<GmemNode>(real_address, base_address, descriptor);
 
-            bb.push_back(Operation(OperationCode::Assign, gmem, GetTemporal(i + 1)));
+            bb.push_back(Operation(OperationCode::Assign, gmem, GetTemporary(i + 1)));
         }
         break;
     }
