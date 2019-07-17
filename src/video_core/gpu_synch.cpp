@@ -8,7 +8,7 @@
 namespace VideoCommon {
 
 GPUSynch::GPUSynch(Core::System& system, VideoCore::RendererBase& renderer)
-    : GPU(system, renderer) {}
+    : GPU(system, renderer, false) {}
 
 GPUSynch::~GPUSynch() = default;
 
