@@ -249,6 +249,10 @@ void Maxwell3D::CallMethod(const GPU::MethodCall& method_call) {
         ProcessQueryGet();
         break;
     }
+    case MAXWELL3D_REG_INDEX(condition.mode): {
+        ProcessQueryCondition();
+        break;
+    }
     case MAXWELL3D_REG_INDEX(sync_info): {
         ProcessSyncPoint();
         break;
@@ -302,6 +306,7 @@ void Maxwell3D::ProcessQueryGet() {
         result = regs.query.query_sequence;
         break;
     default:
+        result = 1;
         UNIMPLEMENTED_MSG("Unimplemented query select type {}",
                           static_cast<u32>(regs.query.query_get.select.Value()));
     }
@@ -339,6 +344,45 @@ void Maxwell3D::ProcessQueryGet() {
     default:
         UNIMPLEMENTED_MSG("Query mode {} not implemented",
                           static_cast<u32>(regs.query.query_get.mode.Value()));
+    }
+}
+
+void Maxwell3D::ProcessQueryCondition() {
+    const GPUVAddr condition_address{regs.condition.Address()};
+    switch (regs.condition.mode) {
+    case Regs::ConditionMode::Always: {
+        execute_on = true;
+        break;
+    }
+    case Regs::ConditionMode::Never: {
+        execute_on = false;
+        break;
+    }
+    case Regs::ConditionMode::ResNonZero: {
+        Regs::QueryCompare cmp;
+        memory_manager.ReadBlockUnsafe(condition_address, &cmp, sizeof(cmp));
+        execute_on = cmp.initial_sequence != 0U && cmp.initial_mode != 0U;
+        break;
+    }
+    case Regs::ConditionMode::Equal: {
+        Regs::QueryCompare cmp;
+        memory_manager.ReadBlockUnsafe(condition_address, &cmp, sizeof(cmp));
+        execute_on =
+            cmp.initial_sequence == cmp.current_sequence && cmp.initial_mode == cmp.current_mode;
+        break;
+    }
+    case Regs::ConditionMode::NotEqual: {
+        Regs::QueryCompare cmp;
+        memory_manager.ReadBlockUnsafe(condition_address, &cmp, sizeof(cmp));
+        execute_on =
+            cmp.initial_sequence != cmp.current_sequence || cmp.initial_mode != cmp.current_mode;
+        break;
+    }
+    default: {
+        UNIMPLEMENTED_MSG("Uninplemented Condition Mode!");
+        execute_on = true;
+        break;
+    }
     }
 }
 
