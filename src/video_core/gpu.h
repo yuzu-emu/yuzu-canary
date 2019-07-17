@@ -155,6 +155,12 @@ public:
     /// Returns a const reference to the Maxwell3D GPU engine.
     const Engines::Maxwell3D& Maxwell3D() const;
 
+    /// Returns a reference to the KeplerCompute GPU engine.
+    Engines::KeplerCompute& KeplerCompute();
+
+    /// Returns a reference to the KeplerCompute GPU engine.
+    const Engines::KeplerCompute& KeplerCompute() const;
+
     /// Returns a reference to the GPU memory manager.
     Tegra::MemoryManager& MemoryManager();
 
