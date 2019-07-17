@@ -12,7 +12,7 @@
 namespace VideoCommon::Shader {
 
 Node Conditional(Node condition, std::vector<Node> code) {
-    return MakeNode<ConditionalNode>(condition, std::move(code));
+    return MakeNode<ConditionalNode>(std::move(condition), std::move(code));
 }
 
 Node Comment(std::string text) {
