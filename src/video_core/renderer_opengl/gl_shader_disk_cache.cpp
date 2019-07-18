@@ -51,7 +51,7 @@ ShaderCacheVersionHash GetShaderCacheVersionHash() {
 
 } // namespace
 
-ShaderDiskCacheRaw::ShaderDiskCacheRaw(u64 unique_identifier, Maxwell::ShaderProgram program_type,
+ShaderDiskCacheRaw::ShaderDiskCacheRaw(u64 unique_identifier, ProgramType program_type,
                                        u32 program_code_size, u32 program_code_size_b,
                                        ProgramCode program_code, ProgramCode program_code_b)
     : unique_identifier{unique_identifier}, program_type{program_type},

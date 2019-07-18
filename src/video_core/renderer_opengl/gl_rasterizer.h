@@ -58,6 +58,7 @@ public:
 
     void DrawArrays() override;
     void Clear() override;
+    void DispatchCompute(GPUVAddr code_addr) override;
     void FlushAll() override;
     void FlushRegion(CacheAddr addr, u64 size) override;
     void InvalidateRegion(CacheAddr addr, u64 size) override;
@@ -115,13 +116,23 @@ private:
     void SetupDrawConstBuffers(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage,
                                const Shader& shader);
 
+    /// Configures the current constbuffers to use for the kernel invocation.
+    void SetupComputeConstBuffers(const Shader& kernel);
+
     /// Configures a constant buffer.
     void SetupConstBuffer(const Tegra::Engines::ConstBufferInfo& buffer,
                           const GLShader::ConstBufferEntry& entry);
 
     /// Configures the current global memory entries to use for the draw command.
-    void SetupGlobalRegions(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage,
-                            const Shader& shader);
+    void SetupDrawGlobalMemory(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage,
+                               const Shader& shader);
+
+    /// Configures the current global memory entries to use for the kernel invocation.
+    void SetupComputeGlobalMemory(const Shader& kernel);
+
+    /// Configures a constant buffer.
+    void SetupGlobalMemory(const GLShader::GlobalMemoryEntry& entry, GPUVAddr gpu_addr,
+                           std::size_t size);
 
     /// Configures the current textures to use for the draw command. Returns shaders texture buffer
     /// usage.
