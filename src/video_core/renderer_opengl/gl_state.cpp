@@ -165,6 +165,25 @@ OpenGLState::OpenGLState() {
     alpha_test.ref = 0.0f;
 }
 
+void OpenGLState::SetDefaultViewports() {
+    for (auto& item : viewports) {
+        item.x = 0;
+        item.y = 0;
+        item.width = 0;
+        item.height = 0;
+        item.depth_range_near = 0.0f;
+        item.depth_range_far = 1.0f;
+        item.scissor.enabled = false;
+        item.scissor.x = 0;
+        item.scissor.y = 0;
+        item.scissor.width = 0;
+        item.scissor.height = 0;
+    }
+
+    depth_clamp.far_plane = false;
+    depth_clamp.near_plane = false;
+}
+
 void OpenGLState::ApplyDefaultState() {
     glEnable(GL_BLEND);
     glDisable(GL_FRAMEBUFFER_SRGB);
@@ -526,7 +545,7 @@ void OpenGLState::ApplySamplers() const {
     }
 }
 
-void OpenGLState::Apply() const {
+void OpenGLState::Apply() {
     MICROPROFILE_SCOPE(OpenGL_State);
     ApplyFramebufferState();
     ApplyVertexArrayState();
@@ -536,19 +555,31 @@ void OpenGLState::Apply() const {
     ApplyPointSize();
     ApplyFragmentColorClamp();
     ApplyMultisample();
+    if (dirty.color_mask) {
+        ApplyColorMask();
+        dirty.color_mask = false;
+    }
     ApplyDepthClamp();
-    ApplyColorMask();
     ApplyViewport();
-    ApplyStencilTest();
+    if (dirty.stencil_state) {
+        ApplyStencilTest();
+        dirty.stencil_state = false;
+    }
     ApplySRgb();
     ApplyCulling();
     ApplyDepth();
     ApplyPrimitiveRestart();
-    ApplyBlending();
+    if (dirty.blend_state) {
+        ApplyBlending();
+        dirty.blend_state = false;
+    }
     ApplyLogicOp();
     ApplyTextures();
     ApplySamplers();
-    ApplyPolygonOffset();
+    if (dirty.polygon_offset) {
+        ApplyPolygonOffset();
+        dirty.polygon_offset = false;
+    }
     ApplyAlphaTest();
 }
 
