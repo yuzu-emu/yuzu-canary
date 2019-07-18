@@ -5,13 +5,10 @@
 #pragma once
 
 #include <array>
-#include <cstring>
 #include <map>
 #include <optional>
 #include <set>
-#include <string>
 #include <tuple>
-#include <variant>
 #include <vector>
 
 #include "common/common_types.h"
@@ -210,8 +207,8 @@ private:
     Node GetInternalFlag(InternalFlag flag, bool negated = false);
     /// Generates a node representing a local memory address
     Node GetLocalMemory(Node address);
-    /// Generates a temporal, internally it uses a post-RZ register
-    Node GetTemporal(u32 id);
+    /// Generates a temporary, internally it uses a post-RZ register
+    Node GetTemporary(u32 id);
 
     /// Sets a register. src value must be a number-evaluated node.
     void SetRegister(NodeBlock& bb, Tegra::Shader::Register dest, Node src);
@@ -221,8 +218,8 @@ private:
     void SetInternalFlag(NodeBlock& bb, InternalFlag flag, Node value);
     /// Sets a local memory address. address and value must be a number-evaluated node
     void SetLocalMemory(NodeBlock& bb, Node address, Node value);
-    /// Sets a temporal. Internally it uses a post-RZ register
-    void SetTemporal(NodeBlock& bb, u32 id, Node value);
+    /// Sets a temporary. Internally it uses a post-RZ register
+    void SetTemporary(NodeBlock& bb, u32 id, Node value);
 
     /// Sets internal flags from a float
     void SetInternalFlagsFromFloat(NodeBlock& bb, Node value, bool sets_cc = true);
