@@ -46,12 +46,12 @@ void ShaderIR::Decode() {
         coverage_end = shader_info.end;
         if (shader_info.decompilable) {
             disable_flow_stack = true;
-            const auto insert_block = ([this](NodeBlock& nodes, u32 label) {
+            const auto insert_block = [this](NodeBlock& nodes, u32 label) {
                 if (label == exit_branch) {
                     return;
                 }
                 basic_blocks.insert({label, nodes});
-            });
+            };
             const auto& blocks = shader_info.blocks;
             NodeBlock current_block;
             u32 current_label = exit_branch;
@@ -103,7 +103,7 @@ void ShaderIR::DecodeRangeInner(NodeBlock& bb, u32 begin, u32 end) {
 }
 
 void ShaderIR::InsertControlFlow(NodeBlock& bb, const ShaderBlock& block) {
-    const auto apply_conditions = ([&](const Condition& cond, Node n) -> Node {
+    const auto apply_conditions = [&](const Condition& cond, Node n) -> Node {
         Node result = n;
         if (cond.cc != ConditionCode::T) {
             result = Conditional(GetConditionCode(cond.cc), {result});
@@ -117,7 +117,7 @@ void ShaderIR::InsertControlFlow(NodeBlock& bb, const ShaderBlock& block) {
             result = Conditional(GetPredicate(pred, is_neg), {result});
         }
         return result;
-    });
+    };
     if (block.branch.address < 0) {
         if (block.branch.kills) {
             Node n = Operation(OperationCode::Discard);

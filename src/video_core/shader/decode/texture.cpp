@@ -181,10 +181,10 @@ u32 ShaderIR::DecodeTexture(NodeBlock& bb, u32 pc) {
                 const Node value =
                     Operation(OperationCode::TextureQueryDimensions, meta,
                               GetRegister(instr.gpr8.Value() + (is_bindless ? 1 : 0)));
-                SetTemporal(bb, indexer++, value);
+                SetTemporary(bb, indexer++, value);
             }
             for (u32 i = 0; i < indexer; ++i) {
-                SetRegister(bb, instr.gpr0.Value() + i, GetTemporal(i));
+                SetRegister(bb, instr.gpr0.Value() + i, GetTemporary(i));
             }
             break;
         }
@@ -238,10 +238,10 @@ u32 ShaderIR::DecodeTexture(NodeBlock& bb, u32 pc) {
             auto params = coords;
             MetaTexture meta{sampler, {}, {}, {}, {}, {}, {}, element};
             const Node value = Operation(OperationCode::TextureQueryLod, meta, std::move(params));
-            SetTemporal(bb, indexer++, value);
+            SetTemporary(bb, indexer++, value);
         }
         for (u32 i = 0; i < indexer; ++i) {
-            SetRegister(bb, instr.gpr0.Value() + i, GetTemporal(i));
+            SetRegister(bb, instr.gpr0.Value() + i, GetTemporary(i));
         }
         break;
     }
@@ -336,11 +336,11 @@ void ShaderIR::WriteTexInstructionFloat(NodeBlock& bb, Instruction instr, const 
             // Skip disabled components
             continue;
         }
-        SetTemporal(bb, dest_elem++, components[elem]);
+        SetTemporary(bb, dest_elem++, components[elem]);
     }
     // After writing values in temporals, move them to the real registers
     for (u32 i = 0; i < dest_elem; ++i) {
-        SetRegister(bb, instr.gpr0.Value() + i, GetTemporal(i));
+        SetRegister(bb, instr.gpr0.Value() + i, GetTemporary(i));
     }
 }
 
@@ -353,17 +353,17 @@ void ShaderIR::WriteTexsInstructionFloat(NodeBlock& bb, Instruction instr,
     for (u32 component = 0; component < 4; ++component) {
         if (!instr.texs.IsComponentEnabled(component))
             continue;
-        SetTemporal(bb, dest_elem++, components[component]);
+        SetTemporary(bb, dest_elem++, components[component]);
     }
 
     for (u32 i = 0; i < dest_elem; ++i) {
         if (i < 2) {
             // Write the first two swizzle components to gpr0 and gpr0+1
-            SetRegister(bb, instr.gpr0.Value() + i % 2, GetTemporal(i));
+            SetRegister(bb, instr.gpr0.Value() + i % 2, GetTemporary(i));
         } else {
             ASSERT(instr.texs.HasTwoDestinations());
             // Write the rest of the swizzle components to gpr28 and gpr28+1
-            SetRegister(bb, instr.gpr28.Value() + i % 2, GetTemporal(i));
+            SetRegister(bb, instr.gpr28.Value() + i % 2, GetTemporary(i));
         }
     }
 }
@@ -391,11 +391,11 @@ void ShaderIR::WriteTexsInstructionHalfFloat(NodeBlock& bb, Instruction instr,
         return;
     }
 
-    SetTemporal(bb, 0, first_value);
-    SetTemporal(bb, 1, Operation(OperationCode::HPack2, values[2], values[3]));
+    SetTemporary(bb, 0, first_value);
+    SetTemporary(bb, 1, Operation(OperationCode::HPack2, values[2], values[3]));
 
-    SetRegister(bb, instr.gpr0, GetTemporal(0));
-    SetRegister(bb, instr.gpr28, GetTemporal(1));
+    SetRegister(bb, instr.gpr0, GetTemporary(0));
+    SetRegister(bb, instr.gpr28, GetTemporary(1));
 }
 
 Node4 ShaderIR::GetTextureCode(Instruction instr, TextureType texture_type,
