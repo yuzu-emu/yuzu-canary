@@ -22,7 +22,7 @@ void DmaPusher::DispatchCalls() {
     MICROPROFILE_SCOPE(DispatchCalls);
 
     // On entering GPU code, assume all memory may be touched by the ARM core.
-    gpu.Maxwell3D().dirty_flags.OnMemoryWrite();
+    gpu.Maxwell3D().dirty.OnMemoryWrite();
 
     dma_pushbuffer_subindex = 0;
 
