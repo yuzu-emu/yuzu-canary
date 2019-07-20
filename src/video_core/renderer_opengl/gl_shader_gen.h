@@ -54,4 +54,7 @@ ProgramResult GenerateGeometryShader(const Device& device, const ShaderSetup& se
 /// Generates the GLSL fragment shader program source code for the given FS program
 ProgramResult GenerateFragmentShader(const Device& device, const ShaderSetup& setup);
 
+/// Generates the GLSL compute shader program source code for the given CS program
+ProgramResult GenerateComputeShader(const Device& device, const ShaderSetup& setup);
+
 } // namespace OpenGL::GLShader
