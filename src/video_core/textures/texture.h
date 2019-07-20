@@ -213,7 +213,7 @@ struct TICEntry {
         if (header_version != TICHeaderVersion::OneDBuffer) {
             return width_minus_1 + 1;
         }
-        return (buffer_high_width_minus_one << 16) | buffer_low_width_minus_one;
+        return ((buffer_high_width_minus_one << 16) | buffer_low_width_minus_one) + 1;
     }
 
     u32 Height() const {
