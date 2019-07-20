@@ -23,6 +23,8 @@ SharedPtr<TransferMemory> TransferMemory::Create(KernelCore& kernel, VAddr base_
     transfer_memory->owner_permissions = permissions;
     transfer_memory->owner_process = kernel.CurrentProcess();
 
+    transfer_memory->MapMemory(base_address, size, permissions);
+
     return transfer_memory;
 }
 
