@@ -257,10 +257,6 @@ public:
     }
 
 private:
-    using OperationDecompilerFn = std::string (GLSLDecompiler::*)(Operation);
-    using OperationDecompilersArray =
-        std::array<OperationDecompilerFn, static_cast<std::size_t>(OperationCode::Amount)>;
-
     void DeclareVertex() {
         if (!IsVertexShader(stage))
             return;
@@ -1414,12 +1410,8 @@ private:
         return fmt::format("{}[{}]", pair, VisitOperand(operation, 1, Type::Uint));
     }
 
-    std::string LogicalAll2(Operation operation) {
+    std::string LogicalAnd2(Operation operation) {
         return GenerateUnary(operation, "all", Type::Bool, Type::Bool2);
-    }
-
-    std::string LogicalAny2(Operation operation) {
-        return GenerateUnary(operation, "any", Type::Bool, Type::Bool2);
     }
 
     template <bool with_nan>
@@ -1728,7 +1720,7 @@ private:
         return "utof(gl_WorkGroupID"s + GetSwizzle(element) + ')';
     }
 
-    static constexpr OperationDecompilersArray operation_decompilers = {
+    static constexpr std::array operation_decompilers = {
         &GLSLDecompiler::Assign,
 
         &GLSLDecompiler::Select,
@@ -1812,8 +1804,7 @@ private:
         &GLSLDecompiler::LogicalXor,
         &GLSLDecompiler::LogicalNegate,
         &GLSLDecompiler::LogicalPick2,
-        &GLSLDecompiler::LogicalAll2,
-        &GLSLDecompiler::LogicalAny2,
+        &GLSLDecompiler::LogicalAnd2,
 
         &GLSLDecompiler::LogicalLessThan<Type::Float>,
         &GLSLDecompiler::LogicalEqual<Type::Float>,
@@ -1877,6 +1868,7 @@ private:
         &GLSLDecompiler::WorkGroupId<1>,
         &GLSLDecompiler::WorkGroupId<2>,
     };
+    static_assert(operation_decompilers.size() == static_cast<std::size_t>(OperationCode::Amount));
 
     std::string GetRegister(u32 index) const {
         return GetDeclarationWithSuffix(index, "gpr");
