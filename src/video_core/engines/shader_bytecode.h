@@ -931,8 +931,6 @@ union Instruction {
     } csetp;
 
     union {
-        BitField<35, 4, PredCondition> cond;
-        BitField<49, 1, u64> h_and;
         BitField<6, 1, u64> ftz;
         BitField<45, 2, PredOperation> op;
         BitField<3, 3, u64> pred3;
@@ -940,9 +938,21 @@ union Instruction {
         BitField<43, 1, u64> negate_a;
         BitField<44, 1, u64> abs_a;
         BitField<47, 2, HalfType> type_a;
-        BitField<31, 1, u64> negate_b;
-        BitField<30, 1, u64> abs_b;
-        BitField<28, 2, HalfType> type_b;
+        union {
+            BitField<35, 4, PredCondition> cond;
+            BitField<49, 1, u64> h_and;
+            BitField<31, 1, u64> negate_b;
+            BitField<30, 1, u64> abs_b;
+            BitField<28, 2, HalfType> type_b;
+        } reg;
+        union {
+            BitField<56, 1, u64> negate_b;
+            BitField<54, 1, u64> abs_b;
+        } cbuf;
+        union {
+            BitField<49, 4, PredCondition> cond;
+            BitField<53, 1, u64> h_and;
+        } cbuf_and_imm;
         BitField<42, 1, u64> neg_pred;
         BitField<39, 3, u64> pred39;
     } hsetp2;
@@ -1548,7 +1558,9 @@ public:
         HFMA2_RC,
         HFMA2_RR,
         HFMA2_IMM_R,
+        HSETP2_C,
         HSETP2_R,
+        HSETP2_IMM,
         HSET2_R,
         POPC_C,
         POPC_R,
@@ -1831,7 +1843,9 @@ private:
             INST("01100---1-------", Id::HFMA2_RC, Type::Hfma2, "HFMA2_RC"),
             INST("0101110100000---", Id::HFMA2_RR, Type::Hfma2, "HFMA2_RR"),
             INST("01110---0-------", Id::HFMA2_IMM_R, Type::Hfma2, "HFMA2_R_IMM"),
-            INST("0101110100100---", Id::HSETP2_R, Type::HalfSetPredicate, "HSETP_R"),
+            INST("0111111-1-------", Id::HSETP2_C, Type::HalfSetPredicate, "HSETP2_C"),
+            INST("0101110100100---", Id::HSETP2_R, Type::HalfSetPredicate, "HSETP2_R"),
+            INST("0111111-0-------", Id::HSETP2_IMM, Type::HalfSetPredicate, "HSETP2_IMM"),
             INST("0101110100011---", Id::HSET2_R, Type::HalfSet, "HSET2_R"),
             INST("0101000010000---", Id::MUFU, Type::Arithmetic, "MUFU"),
             INST("0100110010010---", Id::RRO_C, Type::Arithmetic, "RRO_C"),
