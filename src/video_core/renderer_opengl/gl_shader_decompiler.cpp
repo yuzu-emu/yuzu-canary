@@ -561,7 +561,7 @@ private:
                 case Tegra::Shader::ImageType::Texture1D:
                     return "image1D";
                 case Tegra::Shader::ImageType::TextureBuffer:
-                    return "bufferImage";
+                    return "imageBuffer";
                 case Tegra::Shader::ImageType::Texture1DArray:
                     return "image1DArray";
                 case Tegra::Shader::ImageType::Texture2D:
