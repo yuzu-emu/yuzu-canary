@@ -205,10 +205,6 @@ public:
     }
 
 private:
-    using OperationDecompilerFn = Id (SPIRVDecompiler::*)(Operation);
-    using OperationDecompilersArray =
-        std::array<OperationDecompilerFn, static_cast<std::size_t>(OperationCode::Amount)>;
-
     static constexpr auto INTERNAL_FLAGS_COUNT = static_cast<std::size_t>(InternalFlag::Amount);
 
     void AllocateBindings() {
@@ -804,12 +800,7 @@ private:
         return {};
     }
 
-    Id LogicalAll2(Operation operation) {
-        UNIMPLEMENTED();
-        return {};
-    }
-
-    Id LogicalAny2(Operation operation) {
+    Id LogicalAnd2(Operation operation) {
         UNIMPLEMENTED();
         return {};
     }
@@ -1206,7 +1197,7 @@ private:
         return {};
     }
 
-    static constexpr OperationDecompilersArray operation_decompilers = {
+    static constexpr std::array operation_decompilers = {
         &SPIRVDecompiler::Assign,
 
         &SPIRVDecompiler::Ternary<&Module::OpSelect, Type::Float, Type::Bool, Type::Float,
@@ -1291,8 +1282,7 @@ private:
         &SPIRVDecompiler::Binary<&Module::OpLogicalNotEqual, Type::Bool>,
         &SPIRVDecompiler::Unary<&Module::OpLogicalNot, Type::Bool>,
         &SPIRVDecompiler::LogicalPick2,
-        &SPIRVDecompiler::LogicalAll2,
-        &SPIRVDecompiler::LogicalAny2,
+        &SPIRVDecompiler::LogicalAnd2,
 
         &SPIRVDecompiler::Binary<&Module::OpFOrdLessThan, Type::Bool, Type::Float>,
         &SPIRVDecompiler::Binary<&Module::OpFOrdEqual, Type::Bool, Type::Float>,
@@ -1357,6 +1347,7 @@ private:
         &SPIRVDecompiler::WorkGroupId<1>,
         &SPIRVDecompiler::WorkGroupId<2>,
     };
+    static_assert(operation_decompilers.size() == static_cast<std::size_t>(OperationCode::Amount));
 
     const VKDevice& device;
     const ShaderIR& ir;
