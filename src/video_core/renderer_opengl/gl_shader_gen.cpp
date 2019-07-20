@@ -14,7 +14,8 @@ using Tegra::Engines::Maxwell3D;
 using VideoCommon::Shader::ProgramCode;
 using VideoCommon::Shader::ShaderIR;
 
-static constexpr u32 PROGRAM_OFFSET{10};
+static constexpr u32 PROGRAM_OFFSET = 10;
+static constexpr u32 COMPUTE_OFFSET = 0;
 
 ProgramResult GenerateVertexShader(const Device& device, const ShaderSetup& setup) {
     const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
@@ -29,17 +30,15 @@ layout (std140, binding = EMULATION_UBO_BINDING) uniform vs_config {
 };
 
 )";
-    const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET, setup.program.size_a);
-    ProgramResult program =
-        Decompile(device, program_ir, Maxwell3D::Regs::ShaderStage::Vertex, "vertex");
 
+    const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET, setup.program.size_a);
+    const auto stage = setup.IsDualProgram() ? ProgramType::VertexA : ProgramType::VertexB;
+    ProgramResult program = Decompile(device, program_ir, stage, "vertex");
     out += program.first;
 
     if (setup.IsDualProgram()) {
         const ShaderIR program_ir_b(setup.program.code_b, PROGRAM_OFFSET, setup.program.size_b);
-        ProgramResult program_b =
-            Decompile(device, program_ir_b, Maxwell3D::Regs::ShaderStage::Vertex, "vertex_b");
-
+        ProgramResult program_b = Decompile(device, program_ir_b, ProgramType::VertexB, "vertex_b");
         out += program_b.first;
     }
 
@@ -80,9 +79,9 @@ layout (std140, binding = EMULATION_UBO_BINDING) uniform gs_config {
 };
 
 )";
+
     const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET, setup.program.size_a);
-    ProgramResult program =
-        Decompile(device, program_ir, Maxwell3D::Regs::ShaderStage::Geometry, "geometry");
+    ProgramResult program = Decompile(device, program_ir, ProgramType::Geometry, "geometry");
     out += program.first;
 
     out += R"(
@@ -116,9 +115,7 @@ layout (std140, binding = EMULATION_UBO_BINDING) uniform fs_config {
 
 )";
     const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET, setup.program.size_a);
-    ProgramResult program =
-        Decompile(device, program_ir, Maxwell3D::Regs::ShaderStage::Fragment, "fragment");
-
+    ProgramResult program = Decompile(device, program_ir, ProgramType::Fragment, "fragment");
     out += program.first;
 
     out += R"(
@@ -126,6 +123,24 @@ void main() {
     execute_fragment();
 }
 
+)";
+    return {std::move(out), std::move(program.second)};
+}
+
+ProgramResult GenerateComputeShader(const Device& device, const ShaderSetup& setup) {
+    const std::string id = fmt::format("{:016x}", setup.program.unique_identifier);
+
+    std::string out = "// Shader Unique Id: CS" + id + "\n\n";
+    out += GetCommonDeclarations();
+
+    const ShaderIR program_ir(setup.program.code, COMPUTE_OFFSET, setup.program.size_a);
+    ProgramResult program = Decompile(device, program_ir, ProgramType::Compute, "compute");
+    out += program.first;
+
+    out += R"(
+void main() {
+    execute_compute();
+}
 )";
     return {std::move(out), std::move(program.second)};
 }
