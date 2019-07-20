@@ -116,10 +116,10 @@ public:
         std::lock_guard lock{mutex};
         auto& maxwell3d = system.GPU().Maxwell3D();
 
-        if (!maxwell3d.dirty_flags.zeta_buffer) {
+        if (!maxwell3d.dirty.depth_buffer) {
             return depth_buffer.view;
         }
-        maxwell3d.dirty_flags.zeta_buffer = false;
+        maxwell3d.dirty.depth_buffer = false;
 
         const auto& regs{maxwell3d.regs};
         const auto gpu_addr{regs.zeta.Address()};
@@ -145,10 +145,10 @@ public:
         std::lock_guard lock{mutex};
         ASSERT(index < Tegra::Engines::Maxwell3D::Regs::NumRenderTargets);
         auto& maxwell3d = system.GPU().Maxwell3D();
-        if (!maxwell3d.dirty_flags.color_buffer[index]) {
+        if (!maxwell3d.dirty.render_target[index]) {
             return render_targets[index].view;
         }
-        maxwell3d.dirty_flags.color_buffer.reset(index);
+        maxwell3d.dirty.render_target[index] = false;
 
         const auto& regs{maxwell3d.regs};
         if (index >= regs.rt_control.count || regs.rt[index].Address() == 0 ||
@@ -274,10 +274,11 @@ protected:
         auto& maxwell3d = system.GPU().Maxwell3D();
         const u32 index = surface->GetRenderTarget();
         if (index == DEPTH_RT) {
-            maxwell3d.dirty_flags.zeta_buffer = true;
+            maxwell3d.dirty.depth_buffer = true;
         } else {
-            maxwell3d.dirty_flags.color_buffer.set(index, true);
+            maxwell3d.dirty.render_target[index] = true;
         }
+        maxwell3d.dirty.render_settings = true;
     }
 
     void Register(TSurface surface) {
