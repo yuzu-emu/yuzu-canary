@@ -29,7 +29,8 @@ u32 FramebufferConfig::BytesPerPixel(PixelFormat format) {
     UNREACHABLE();
 }
 
-GPU::GPU(Core::System& system, VideoCore::RendererBase& renderer) : renderer{renderer} {
+GPU::GPU(Core::System& system, VideoCore::RendererBase& renderer, bool is_async)
+    : system{system}, renderer{renderer}, is_async{is_async} {
     auto& rasterizer{renderer.Rasterizer()};
     memory_manager = std::make_unique<Tegra::MemoryManager>(system, rasterizer);
     dma_pusher = std::make_unique<Tegra::DmaPusher>(*this);
@@ -72,6 +73,51 @@ DmaPusher& GPU::DmaPusher() {
 
 const DmaPusher& GPU::DmaPusher() const {
     return *dma_pusher;
+}
+
+void GPU::IncrementSyncPoint(const u32 syncpoint_id) {
+    syncpoints[syncpoint_id]++;
+    std::lock_guard lock{sync_mutex};
+    if (!syncpt_interrupts[syncpoint_id].empty()) {
+        u32 value = syncpoints[syncpoint_id].load();
+        auto it = syncpt_interrupts[syncpoint_id].begin();
+        while (it != syncpt_interrupts[syncpoint_id].end()) {
+            if (value >= *it) {
+                TriggerCpuInterrupt(syncpoint_id, *it);
+                it = syncpt_interrupts[syncpoint_id].erase(it);
+                continue;
+            }
+            it++;
+        }
+    }
+}
+
+u32 GPU::GetSyncpointValue(const u32 syncpoint_id) const {
+    return syncpoints[syncpoint_id].load();
+}
+
+void GPU::RegisterSyncptInterrupt(const u32 syncpoint_id, const u32 value) {
+    auto& interrupt = syncpt_interrupts[syncpoint_id];
+    bool contains = std::any_of(interrupt.begin(), interrupt.end(),
+                                [value](u32 in_value) { return in_value == value; });
+    if (contains) {
+        return;
+    }
+    syncpt_interrupts[syncpoint_id].emplace_back(value);
+}
+
+bool GPU::CancelSyncptInterrupt(const u32 syncpoint_id, const u32 value) {
+    std::lock_guard lock{sync_mutex};
+    auto& interrupt = syncpt_interrupts[syncpoint_id];
+    const auto iter =
+        std::find_if(interrupt.begin(), interrupt.end(),
+                     [value](u32 interrupt_value) { return value == interrupt_value; });
+
+    if (iter == interrupt.end()) {
+        return false;
+    }
+    interrupt.erase(iter);
+    return true;
 }
 
 u32 RenderTargetBytesPerPixel(RenderTargetFormat format) {

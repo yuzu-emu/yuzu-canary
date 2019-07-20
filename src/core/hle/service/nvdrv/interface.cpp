@@ -8,11 +8,17 @@
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/readable_event.h"
+#include "core/hle/kernel/thread.h"
 #include "core/hle/kernel/writable_event.h"
 #include "core/hle/service/nvdrv/interface.h"
+#include "core/hle/service/nvdrv/nvdata.h"
 #include "core/hle/service/nvdrv/nvdrv.h"
 
 namespace Service::Nvidia {
+
+void NVDRV::SignalGPUInterruptSyncpt(const u32 syncpoint_id, const u32 value) {
+    nvdrv->SignalSyncpt(syncpoint_id, value);
+}
 
 void NVDRV::Open(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service_NVDRV, "called");
@@ -36,11 +42,31 @@ void NVDRV::Ioctl(Kernel::HLERequestContext& ctx) {
 
     std::vector<u8> output(ctx.GetWriteBufferSize());
 
+    IoctlCtrl ctrl{};
+
+    u32 result = nvdrv->Ioctl(fd, command, ctx.ReadBuffer(), output, ctrl);
+
+    if (ctrl.must_delay) {
+        ctrl.fresh_call = false;
+        ctx.SleepClientThread(
+            "NVServices::DelayedResponse", ctrl.timeout,
+            [=](Kernel::SharedPtr<Kernel::Thread> thread, Kernel::HLERequestContext& ctx,
+                Kernel::ThreadWakeupReason reason) {
+                IoctlCtrl ctrl2{ctrl};
+                std::vector<u8> output2 = output;
+                u32 result = nvdrv->Ioctl(fd, command, ctx.ReadBuffer(), output2, ctrl2);
+                ctx.WriteBuffer(output2);
+                IPC::ResponseBuilder rb{ctx, 3};
+                rb.Push(RESULT_SUCCESS);
+                rb.Push(result);
+            },
+            nvdrv->GetEventWriteable(ctrl.event_id));
+    } else {
+        ctx.WriteBuffer(output);
+    }
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(RESULT_SUCCESS);
-    rb.Push(nvdrv->Ioctl(fd, command, ctx.ReadBuffer(), output));
-
-    ctx.WriteBuffer(output);
+    rb.Push(result);
 }
 
 void NVDRV::Close(Kernel::HLERequestContext& ctx) {
@@ -66,13 +92,19 @@ void NVDRV::Initialize(Kernel::HLERequestContext& ctx) {
 void NVDRV::QueryEvent(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp{ctx};
     u32 fd = rp.Pop<u32>();
-    u32 event_id = rp.Pop<u32>();
+    // TODO(Blinkhawk): Figure the meaning of the flag at bit 16
+    u32 event_id = rp.Pop<u32>() & 0x000000FF;
     LOG_WARNING(Service_NVDRV, "(STUBBED) called, fd={:X}, event_id={:X}", fd, event_id);
 
     IPC::ResponseBuilder rb{ctx, 3, 1};
     rb.Push(RESULT_SUCCESS);
-    rb.PushCopyObjects(query_event.readable);
-    rb.Push<u32>(0);
+    if (event_id < MaxNvEvents) {
+        rb.PushCopyObjects(nvdrv->GetEvent(event_id));
+        rb.Push<u32>(NvResult::Success);
+    } else {
+        rb.Push<u32>(0);
+        rb.Push<u32>(NvResult::BadParameter);
+    }
 }
 
 void NVDRV::SetClientPID(Kernel::HLERequestContext& ctx) {
@@ -127,10 +159,6 @@ NVDRV::NVDRV(std::shared_ptr<Module> nvdrv, const char* name)
         {13, &NVDRV::FinishInitialize, "FinishInitialize"},
     };
     RegisterHandlers(functions);
-
-    auto& kernel = Core::System::GetInstance().Kernel();
-    query_event = Kernel::WritableEvent::CreateEventPair(kernel, Kernel::ResetType::Automatic,
-                                                         "NVDRV::query_event");
 }
 
 NVDRV::~NVDRV() = default;
