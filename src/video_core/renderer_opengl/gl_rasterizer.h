@@ -108,6 +108,9 @@ private:
         OpenGLState& current_state, bool using_color_fb = true, bool using_depth_fb = true,
         bool preserve_contents = true, std::optional<std::size_t> single_color_target = {});
 
+    void ConfigureClearFramebuffer(OpenGLState& current_state, bool using_color_fb,
+                                   bool using_depth_fb, bool using_stencil_fb);
+
     /// Configures the current constbuffers to use for the draw command.
     void SetupDrawConstBuffers(Tegra::Engines::Maxwell3D::Regs::ShaderStage stage,
                                const Shader& shader);
@@ -216,6 +219,7 @@ private:
     GLuint SetupVertexFormat();
 
     void SetupVertexBuffer(GLuint vao);
+    void SetupVertexInstances(GLuint vao);
 
     GLintptr SetupIndexBuffer();
 
@@ -225,6 +229,8 @@ private:
 
     enum class AccelDraw { Disabled, Arrays, Indexed };
     AccelDraw accelerate_draw = AccelDraw::Disabled;
+
+    OGLFramebuffer clear_framebuffer;
 
     using CachedPageMap = boost::icl::interval_map<u64, int>;
     CachedPageMap cached_pages;

@@ -34,7 +34,7 @@ void KeplerMemory::CallMethod(const GPU::MethodCall& method_call) {
         const bool is_last_call = method_call.IsLastCall();
         upload_state.ProcessData(method_call.argument, is_last_call);
         if (is_last_call) {
-            system.GPU().Maxwell3D().dirty_flags.OnMemoryWrite();
+            system.GPU().Maxwell3D().dirty.OnMemoryWrite();
         }
         break;
     }
