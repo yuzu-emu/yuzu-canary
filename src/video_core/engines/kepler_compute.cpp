@@ -50,13 +50,14 @@ void KeplerCompute::CallMethod(const GPU::MethodCall& method_call) {
 }
 
 void KeplerCompute::ProcessLaunch() {
-
     const GPUVAddr launch_desc_loc = regs.launch_desc_loc.Address();
     memory_manager.ReadBlockUnsafe(launch_desc_loc, &launch_description,
                                    LaunchParams::NUM_LAUNCH_PARAMETERS * sizeof(u32));
 
-    const GPUVAddr code_loc = regs.code_loc.Address() + launch_description.program_start;
-    LOG_WARNING(HW_GPU, "Compute Kernel Execute at Address 0x{:016x}, STUBBED", code_loc);
+    const GPUVAddr code_addr = regs.code_loc.Address() + launch_description.program_start;
+    LOG_TRACE(HW_GPU, "Compute invocation launched at address 0x{:016x}", code_addr);
+
+    rasterizer.DispatchCompute(code_addr);
 }
 
 } // namespace Tegra::Engines
