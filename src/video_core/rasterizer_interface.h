@@ -34,6 +34,9 @@ public:
     /// Clear the current framebuffer
     virtual void Clear() = 0;
 
+    /// Dispatches a compute shader invocation
+    virtual void DispatchCompute(GPUVAddr code_addr) = 0;
+
     /// Notify rasterizer that all caches should be flushed to Switch memory
     virtual void FlushAll() = 0;
 
