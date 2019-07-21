@@ -18,7 +18,6 @@
 #include "common/assert.h"
 #include "common/common_types.h"
 #include "core/file_sys/vfs_vector.h"
-#include "video_core/engines/maxwell_3d.h"
 #include "video_core/renderer_opengl/gl_shader_gen.h"
 
 namespace Core {
@@ -34,14 +33,11 @@ namespace OpenGL {
 struct ShaderDiskCacheUsage;
 struct ShaderDiskCacheDump;
 
-using ShaderDumpsMap = std::unordered_map<ShaderDiskCacheUsage, ShaderDiskCacheDump>;
-
 using ProgramCode = std::vector<u64>;
-using Maxwell = Tegra::Engines::Maxwell3D::Regs;
-
+using ShaderDumpsMap = std::unordered_map<ShaderDiskCacheUsage, ShaderDiskCacheDump>;
 using TextureBufferUsage = std::bitset<64>;
 
-/// Allocated bindings used by an OpenGL shader program.
+/// Allocated bindings used by an OpenGL shader program
 struct BaseBindings {
     u32 cbuf{};
     u32 gmem{};
@@ -126,7 +122,7 @@ namespace OpenGL {
 /// Describes a shader how it's used by the guest GPU
 class ShaderDiskCacheRaw {
 public:
-    explicit ShaderDiskCacheRaw(u64 unique_identifier, Maxwell::ShaderProgram program_type,
+    explicit ShaderDiskCacheRaw(u64 unique_identifier, ProgramType program_type,
                                 u32 program_code_size, u32 program_code_size_b,
                                 ProgramCode program_code, ProgramCode program_code_b);
     ShaderDiskCacheRaw();
@@ -141,28 +137,11 @@ public:
     }
 
     bool HasProgramA() const {
-        return program_type == Maxwell::ShaderProgram::VertexA;
+        return program_type == ProgramType::VertexA;
     }
 
-    Maxwell::ShaderProgram GetProgramType() const {
+    ProgramType GetProgramType() const {
         return program_type;
-    }
-
-    Maxwell::ShaderStage GetProgramStage() const {
-        switch (program_type) {
-        case Maxwell::ShaderProgram::VertexA:
-        case Maxwell::ShaderProgram::VertexB:
-            return Maxwell::ShaderStage::Vertex;
-        case Maxwell::ShaderProgram::TesselationControl:
-            return Maxwell::ShaderStage::TesselationControl;
-        case Maxwell::ShaderProgram::TesselationEval:
-            return Maxwell::ShaderStage::TesselationEval;
-        case Maxwell::ShaderProgram::Geometry:
-            return Maxwell::ShaderStage::Geometry;
-        case Maxwell::ShaderProgram::Fragment:
-            return Maxwell::ShaderStage::Fragment;
-        }
-        UNREACHABLE();
     }
 
     const ProgramCode& GetProgramCode() const {
@@ -175,7 +154,7 @@ public:
 
 private:
     u64 unique_identifier{};
-    Maxwell::ShaderProgram program_type{};
+    ProgramType program_type{};
     u32 program_code_size{};
     u32 program_code_size_b{};
 
