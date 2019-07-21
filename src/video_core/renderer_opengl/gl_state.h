@@ -195,8 +195,9 @@ public:
         s_rgb_used = false;
     }
 
+    void SetDefaultViewports();
     /// Apply this state as the current OpenGL state
-    void Apply() const;
+    void Apply();
 
     void ApplyFramebufferState() const;
     void ApplyVertexArrayState() const;
@@ -237,11 +238,41 @@ public:
     /// Viewport does not affects glClearBuffer so emulate viewport using scissor test
     void EmulateViewportWithScissor();
 
+    void MarkDirtyBlendState() {
+        dirty.blend_state = true;
+    }
+
+    void MarkDirtyStencilState() {
+        dirty.stencil_state = true;
+    }
+
+    void MarkDirtyPolygonOffset() {
+        dirty.polygon_offset = true;
+    }
+
+    void MarkDirtyColorMask() {
+        dirty.color_mask = true;
+    }
+
+    void AllDirty() {
+        dirty.blend_state = true;
+        dirty.stencil_state = true;
+        dirty.polygon_offset = true;
+        dirty.color_mask = true;
+    }
+
 private:
     static OpenGLState cur_state;
 
     // Workaround for sRGB problems caused by QT not supporting srgb output
     static bool s_rgb_used;
+    struct {
+        bool blend_state;
+        bool stencil_state;
+        bool viewport_state;
+        bool polygon_offset;
+        bool color_mask;
+    } dirty{};
 };
 
 } // namespace OpenGL
