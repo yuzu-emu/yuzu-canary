@@ -88,40 +88,8 @@ struct CommandDataContainer {
 /// Struct used to synchronize the GPU thread
 struct SynchState final {
     std::atomic_bool is_running{true};
-    std::atomic_int queued_frame_count{};
-    std::mutex synchronization_mutex;
-    std::mutex commands_mutex;
-    std::condition_variable commands_condition;
-    std::condition_variable synchronization_condition;
-
-    /// Returns true if the gap in GPU commands is small enough that we can consider the CPU and GPU
-    /// synchronized. This is entirely empirical.
-    bool IsSynchronized() const {
-        constexpr std::size_t max_queue_gap{5};
-        return queue.Size() <= max_queue_gap;
-    }
-
-    void TrySynchronize() {
-        if (IsSynchronized()) {
-            std::lock_guard lock{synchronization_mutex};
-            synchronization_condition.notify_one();
-        }
-    }
 
     void WaitForSynchronization(u64 fence);
-
-    void SignalCommands() {
-        if (queue.Empty()) {
-            return;
-        }
-
-        commands_condition.notify_one();
-    }
-
-    void WaitForCommands() {
-        std::unique_lock lock{commands_mutex};
-        commands_condition.wait(lock, [this] { return !queue.Empty(); });
-    }
 
     using CommandQueue = Common::SPSCQueue<CommandDataContainer>;
     CommandQueue queue;
