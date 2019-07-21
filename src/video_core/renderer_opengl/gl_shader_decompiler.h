@@ -12,13 +12,25 @@
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/shader/shader_ir.h"
 
-namespace OpenGL {
-class Device;
-}
-
 namespace VideoCommon::Shader {
 class ShaderIR;
 }
+
+namespace OpenGL {
+
+class Device;
+
+enum class ProgramType : u32 {
+    VertexA = 0,
+    VertexB = 1,
+    TessellationControl = 2,
+    TessellationEval = 3,
+    Geometry = 4,
+    Fragment = 5,
+    Compute = 6
+};
+
+} // namespace OpenGL
 
 namespace OpenGL::GLShader {
 
@@ -85,6 +97,6 @@ struct ShaderEntries {
 std::string GetCommonDeclarations();
 
 ProgramResult Decompile(const Device& device, const VideoCommon::Shader::ShaderIR& ir,
-                        Maxwell::ShaderStage stage, const std::string& suffix);
+                        ProgramType stage, const std::string& suffix);
 
 } // namespace OpenGL::GLShader

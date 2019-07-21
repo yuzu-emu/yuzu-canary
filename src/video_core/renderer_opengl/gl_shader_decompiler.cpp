@@ -37,7 +37,6 @@ using namespace std::string_literals;
 using namespace VideoCommon::Shader;
 
 using Maxwell = Tegra::Engines::Maxwell3D::Regs;
-using ShaderStage = Tegra::Engines::Maxwell3D::Regs::ShaderStage;
 using Operation = const OperationNode&;
 
 enum class Type { Bool, Bool2, Float, Int, Uint, HalfFloat };
@@ -162,9 +161,13 @@ std::string FlowStackTopName(MetaStackClass stack) {
     return fmt::format("{}_flow_stack_top", GetFlowStackPrefix(stack));
 }
 
+constexpr bool IsVertexShader(ProgramType stage) {
+    return stage == ProgramType::VertexA || stage == ProgramType::VertexB;
+}
+
 class GLSLDecompiler final {
 public:
-    explicit GLSLDecompiler(const Device& device, const ShaderIR& ir, ShaderStage stage,
+    explicit GLSLDecompiler(const Device& device, const ShaderIR& ir, ProgramType stage,
                             std::string suffix)
         : device{device}, ir{ir}, stage{stage}, suffix{suffix}, header{ir.GetHeader()} {}
 
@@ -248,21 +251,21 @@ public:
         }
         entries.clip_distances = ir.GetClipDistances();
         entries.shader_viewport_layer_array =
-            stage == ShaderStage::Vertex && (ir.UsesLayer() || ir.UsesViewportIndex());
+            IsVertexShader(stage) && (ir.UsesLayer() || ir.UsesViewportIndex());
         entries.shader_length = ir.GetLength();
         return entries;
     }
 
 private:
     void DeclareVertex() {
-        if (stage != ShaderStage::Vertex)
+        if (!IsVertexShader(stage))
             return;
 
         DeclareVertexRedeclarations();
     }
 
     void DeclareGeometry() {
-        if (stage != ShaderStage::Geometry) {
+        if (stage != ProgramType::Geometry) {
             return;
         }
 
@@ -293,14 +296,14 @@ private:
                 break;
             }
         }
-        if (stage != ShaderStage::Vertex || device.HasVertexViewportLayer()) {
+        if (!IsVertexShader(stage) || device.HasVertexViewportLayer()) {
             if (ir.UsesLayer()) {
                 code.AddLine("int gl_Layer;");
             }
             if (ir.UsesViewportIndex()) {
                 code.AddLine("int gl_ViewportIndex;");
             }
-        } else if ((ir.UsesLayer() || ir.UsesViewportIndex()) && stage == ShaderStage::Vertex &&
+        } else if ((ir.UsesLayer() || ir.UsesViewportIndex()) && IsVertexShader(stage) &&
                    !device.HasVertexViewportLayer()) {
             LOG_ERROR(
                 Render_OpenGL,
@@ -337,11 +340,16 @@ private:
     }
 
     void DeclareLocalMemory() {
-        if (const u64 local_memory_size = header.GetLocalMemorySize(); local_memory_size > 0) {
-            const auto element_count = Common::AlignUp(local_memory_size, 4) / 4;
-            code.AddLine("float {}[{}];", GetLocalMemory(), element_count);
-            code.AddNewLine();
+        // TODO(Rodrigo): Unstub kernel local memory size and pass it from a register at
+        // specialization time.
+        const u64 local_memory_size =
+            stage == ProgramType::Compute ? 0x400 : header.GetLocalMemorySize();
+        if (local_memory_size == 0) {
+            return;
         }
+        const auto element_count = Common::AlignUp(local_memory_size, 4) / 4;
+        code.AddLine("float {}[{}];", GetLocalMemory(), element_count);
+        code.AddNewLine();
     }
 
     void DeclareInternalFlags() {
@@ -395,12 +403,12 @@ private:
         const u32 location{GetGenericAttributeIndex(index)};
 
         std::string name{GetInputAttribute(index)};
-        if (stage == ShaderStage::Geometry) {
+        if (stage == ProgramType::Geometry) {
             name = "gs_" + name + "[]";
         }
 
         std::string suffix;
-        if (stage == ShaderStage::Fragment) {
+        if (stage == ProgramType::Fragment) {
             const auto input_mode{header.ps.GetAttributeUse(location)};
             if (skip_unused && input_mode == AttributeUse::Unused) {
                 return;
@@ -412,7 +420,7 @@ private:
     }
 
     void DeclareOutputAttributes() {
-        if (ir.HasPhysicalAttributes() && stage != ShaderStage::Fragment) {
+        if (ir.HasPhysicalAttributes() && stage != ProgramType::Fragment) {
             for (u32 i = 0; i < GetNumPhysicalVaryings(); ++i) {
                 DeclareOutputAttribute(ToGenericAttribute(i));
             }
@@ -534,7 +542,7 @@ private:
                 constexpr u32 element_stride{4};
                 const u32 address{generic_base + index * generic_stride + element * element_stride};
 
-                const bool declared{stage != ShaderStage::Fragment ||
+                const bool declared{stage != ProgramType::Fragment ||
                                     header.ps.GetAttributeUse(index) != AttributeUse::Unused};
                 const std::string value{declared ? ReadAttribute(attribute, element) : "0"};
                 code.AddLine("case 0x{:x}: return {};", address, value);
@@ -638,7 +646,7 @@ private:
         }
 
         if (const auto abuf = std::get_if<AbufNode>(&*node)) {
-            UNIMPLEMENTED_IF_MSG(abuf->IsPhysicalBuffer() && stage == ShaderStage::Geometry,
+            UNIMPLEMENTED_IF_MSG(abuf->IsPhysicalBuffer() && stage == ProgramType::Geometry,
                                  "Physical attributes in geometry shaders are not implemented");
             if (abuf->IsPhysicalBuffer()) {
                 return fmt::format("readPhysicalAttribute(ftou({}))",
@@ -693,6 +701,9 @@ private:
         }
 
         if (const auto lmem = std::get_if<LmemNode>(&*node)) {
+            if (stage == ProgramType::Compute) {
+                LOG_WARNING(Render_OpenGL, "Local memory is stubbed on compute shaders");
+            }
             return fmt::format("{}[ftou({}) / 4]", GetLocalMemory(), Visit(lmem->GetAddress()));
         }
 
@@ -722,7 +733,7 @@ private:
 
     std::string ReadAttribute(Attribute::Index attribute, u32 element, const Node& buffer = {}) {
         const auto GeometryPass = [&](std::string_view name) {
-            if (stage == ShaderStage::Geometry && buffer) {
+            if (stage == ProgramType::Geometry && buffer) {
                 // TODO(Rodrigo): Guard geometry inputs against out of bound reads. Some games
                 // set an 0x80000000 index for those and the shader fails to build. Find out why
                 // this happens and what's its intent.
@@ -734,10 +745,10 @@ private:
         switch (attribute) {
         case Attribute::Index::Position:
             switch (stage) {
-            case ShaderStage::Geometry:
+            case ProgramType::Geometry:
                 return fmt::format("gl_in[ftou({})].gl_Position{}", Visit(buffer),
                                    GetSwizzle(element));
-            case ShaderStage::Fragment:
+            case ProgramType::Fragment:
                 return element == 3 ? "1.0f" : ("gl_FragCoord"s + GetSwizzle(element));
             default:
                 UNREACHABLE();
@@ -758,7 +769,7 @@ private:
             // TODO(Subv): Find out what the values are for the first two elements when inside a
             // vertex shader, and what's the value of the fourth element when inside a Tess Eval
             // shader.
-            ASSERT(stage == ShaderStage::Vertex);
+            ASSERT(IsVertexShader(stage));
             switch (element) {
             case 2:
                 // Config pack's first value is instance_id.
@@ -770,7 +781,7 @@ private:
             return "0";
         case Attribute::Index::FrontFacing:
             // TODO(Subv): Find out what the values are for the other elements.
-            ASSERT(stage == ShaderStage::Fragment);
+            ASSERT(stage == ProgramType::Fragment);
             switch (element) {
             case 3:
                 return "itof(gl_FrontFacing ? -1 : 0)";
@@ -792,7 +803,7 @@ private:
             return value;
         }
         // There's a bug in NVidia's proprietary drivers that makes precise fail on fragment shaders
-        const std::string precise = stage != ShaderStage::Fragment ? "precise " : "";
+        const std::string precise = stage != ProgramType::Fragment ? "precise " : "";
 
         const std::string temporary = code.GenerateTemporary();
         code.AddLine("{}float {} = {};", precise, temporary, value);
@@ -827,12 +838,12 @@ private:
                 UNIMPLEMENTED();
                 return {};
             case 1:
-                if (stage == ShaderStage::Vertex && !device.HasVertexViewportLayer()) {
+                if (IsVertexShader(stage) && !device.HasVertexViewportLayer()) {
                     return {};
                 }
                 return std::make_pair("gl_Layer", true);
             case 2:
-                if (stage == ShaderStage::Vertex && !device.HasVertexViewportLayer()) {
+                if (IsVertexShader(stage) && !device.HasVertexViewportLayer()) {
                     return {};
                 }
                 return std::make_pair("gl_ViewportIndex", true);
@@ -1069,6 +1080,9 @@ private:
             target = result->first;
             is_integer = result->second;
         } else if (const auto lmem = std::get_if<LmemNode>(&*dest)) {
+            if (stage == ProgramType::Compute) {
+                LOG_WARNING(Render_OpenGL, "Local memory is stubbed on compute shaders");
+            }
             target = fmt::format("{}[ftou({}) / 4]", GetLocalMemory(), Visit(lmem->GetAddress()));
         } else if (const auto gmem = std::get_if<GmemNode>(&*dest)) {
             const std::string real = Visit(gmem->GetRealAddress());
@@ -1622,7 +1636,7 @@ private:
     }
 
     std::string Exit(Operation operation) {
-        if (stage != ShaderStage::Fragment) {
+        if (stage != ProgramType::Fragment) {
             code.AddLine("return;");
             return {};
         }
@@ -1673,7 +1687,7 @@ private:
     }
 
     std::string EmitVertex(Operation operation) {
-        ASSERT_MSG(stage == ShaderStage::Geometry,
+        ASSERT_MSG(stage == ProgramType::Geometry,
                    "EmitVertex is expected to be used in a geometry shader.");
 
         // If a geometry shader is attached, it will always flip (it's the last stage before
@@ -1684,7 +1698,7 @@ private:
     }
 
     std::string EndPrimitive(Operation operation) {
-        ASSERT_MSG(stage == ShaderStage::Geometry,
+        ASSERT_MSG(stage == ProgramType::Geometry,
                    "EndPrimitive is expected to be used in a geometry shader.");
 
         code.AddLine("EndPrimitive();");
@@ -1919,7 +1933,7 @@ private:
     }
 
     u32 GetNumPhysicalInputAttributes() const {
-        return stage == ShaderStage::Vertex ? GetNumPhysicalAttributes() : GetNumPhysicalVaryings();
+        return IsVertexShader(stage) ? GetNumPhysicalAttributes() : GetNumPhysicalVaryings();
     }
 
     u32 GetNumPhysicalAttributes() const {
@@ -1932,7 +1946,7 @@ private:
 
     const Device& device;
     const ShaderIR& ir;
-    const ShaderStage stage;
+    const ProgramType stage;
     const std::string suffix;
     const Header header;
 
@@ -1963,7 +1977,7 @@ std::string GetCommonDeclarations() {
         MAX_CONSTBUFFER_ELEMENTS);
 }
 
-ProgramResult Decompile(const Device& device, const ShaderIR& ir, Maxwell::ShaderStage stage,
+ProgramResult Decompile(const Device& device, const ShaderIR& ir, ProgramType stage,
                         const std::string& suffix) {
     GLSLDecompiler decompiler(device, ir, stage, suffix);
     decompiler.Decompile();
