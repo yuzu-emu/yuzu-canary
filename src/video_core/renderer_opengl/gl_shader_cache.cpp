@@ -572,7 +572,7 @@ std::unordered_map<u64, UnspecializedShader> ShaderCacheOpenGL::GenerateUnspecia
 }
 
 Shader ShaderCacheOpenGL::GetStageProgram(Maxwell::ShaderProgram program) {
-    if (!system.GPU().Maxwell3D().dirty_flags.shaders) {
+    if (!system.GPU().Maxwell3D().dirty.shaders) {
         return last_shaders[static_cast<std::size_t>(program)];
     }
 
