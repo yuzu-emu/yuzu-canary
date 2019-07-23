@@ -59,8 +59,8 @@ std::tuple<Node, u32, u32> ShaderIR::TrackCbuf(Node tracked, const NodeBlock& co
         return TrackCbuf(source, code, new_cursor);
     }
     if (const auto operation = std::get_if<OperationNode>(&*tracked)) {
-        for (std::size_t i = 0; i < operation->GetOperandsCount(); ++i) {
-            if (auto found = TrackCbuf((*operation)[i], code, cursor); std::get<0>(found)) {
+        for (std::size_t i = operation->GetOperandsCount(); i > 0; --i) {
+            if (auto found = TrackCbuf((*operation)[i - 1], code, cursor); std::get<0>(found)) {
                 // Cbuf found in operand.
                 return found;
             }
