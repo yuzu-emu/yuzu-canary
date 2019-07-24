@@ -90,11 +90,33 @@ public:
 
         enum class QuerySelect : u32 {
             Zero = 0,
+            TimeElapsed = 2,
+            TransformFeedbackPrimitivesGenerated = 11,
+            PrimitivesGenerated = 18,
+            SamplesPassed = 21,
+            TransformFeedbackUnknown = 26,
+        };
+
+        struct QueryCompare {
+            u32 initial_sequence;
+            u32 initial_mode;
+            u32 unknown1;
+            u32 unknown2;
+            u32 current_sequence;
+            u32 current_mode;
         };
 
         enum class QuerySyncCondition : u32 {
             NotEqual = 0,
             GreaterThan = 1,
+        };
+
+        enum class ConditionMode : u32 {
+            Never = 0,
+            Always = 1,
+            ResNonZero = 2,
+            Equal = 3,
+            NotEqual = 4,
         };
 
         enum class ShaderProgram : u32 {
@@ -815,7 +837,18 @@ public:
                     BitField<4, 1, u32> alpha_to_one;
                 } multisample_control;
 
-                INSERT_PADDING_WORDS(0x7);
+                INSERT_PADDING_WORDS(0x4);
+
+                struct {
+                    u32 address_high;
+                    u32 address_low;
+                    ConditionMode mode;
+
+                    GPUVAddr Address() const {
+                        return static_cast<GPUVAddr>((static_cast<GPUVAddr>(address_high) << 32) |
+                                                     address_low);
+                    }
+                } condition;
 
                 struct {
                     u32 tsc_address_high;
@@ -1223,6 +1256,10 @@ public:
         return macro_memory;
     }
 
+    bool ShouldExecute() const {
+        return execute_on;
+    }
+
 private:
     void InitializeRegisterDefaults();
 
@@ -1257,6 +1294,8 @@ private:
 
     Upload::State upload_state;
 
+    bool execute_on{true};
+
     /// Retrieves information about a specific TIC entry from the TIC buffer.
     Texture::TICEntry GetTICEntry(u32 tic_index) const;
 
@@ -1283,6 +1322,9 @@ private:
 
     /// Handles a write to the QUERY_GET register.
     void ProcessQueryGet();
+
+    // Handles Conditional Rendering
+    void ProcessQueryCondition();
 
     /// Handles writes to syncing register.
     void ProcessSyncPoint();
@@ -1357,6 +1399,7 @@ ASSERT_REG_POSITION(clip_distance_enabled, 0x544);
 ASSERT_REG_POSITION(point_size, 0x546);
 ASSERT_REG_POSITION(zeta_enable, 0x54E);
 ASSERT_REG_POSITION(multisample_control, 0x54F);
+ASSERT_REG_POSITION(condition, 0x554);
 ASSERT_REG_POSITION(tsc, 0x557);
 ASSERT_REG_POSITION(polygon_offset_factor, 0x55b);
 ASSERT_REG_POSITION(tic, 0x55D);
