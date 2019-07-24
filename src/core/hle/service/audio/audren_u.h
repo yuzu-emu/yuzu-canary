@@ -6,6 +6,10 @@
 
 #include "core/hle/service/service.h"
 
+namespace Core {
+class System;
+}
+
 namespace Kernel {
 class HLERequestContext;
 }
@@ -14,7 +18,7 @@ namespace Service::Audio {
 
 class AudRenU final : public ServiceFramework<AudRenU> {
 public:
-    explicit AudRenU();
+    explicit AudRenU(Core::System& system_);
     ~AudRenU() override;
 
 private:
@@ -26,14 +30,19 @@ private:
 
     void OpenAudioRendererImpl(Kernel::HLERequestContext& ctx);
 
-    enum class AudioFeatures : u32 {
-        Splitter,
-        PerformanceMetricsVersion2,
-        VariadicCommandBuffer,
-    };
-
-    bool IsFeatureSupported(AudioFeatures feature, u32_le revision) const;
     std::size_t audren_instance_count = 0;
+    Core::System& system;
 };
+
+// Describes a particular audio feature that may be supported in a particular revision.
+enum class AudioFeatures : u32 {
+    AudioUSBDeviceOutput,
+    Splitter,
+    PerformanceMetricsVersion2,
+    VariadicCommandBuffer,
+};
+
+// Tests if a particular audio feature is supported with a given audio revision.
+bool IsFeatureSupported(AudioFeatures feature, u32_le revision);
 
 } // namespace Service::Audio
