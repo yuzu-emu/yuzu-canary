@@ -5,8 +5,12 @@
 #pragma once
 
 #include <array>
+#include <atomic>
+#include <list>
 #include <memory>
+#include <mutex>
 #include "common/common_types.h"
+#include "core/hle/service/nvdrv/nvdata.h"
 #include "core/hle/service/nvflinger/buffer_queue.h"
 #include "video_core/dma_pusher.h"
 
@@ -127,7 +131,7 @@ class MemoryManager;
 
 class GPU {
 public:
-    explicit GPU(Core::System& system, VideoCore::RendererBase& renderer);
+    explicit GPU(Core::System& system, VideoCore::RendererBase& renderer, bool is_async);
 
     virtual ~GPU();
 
@@ -169,6 +173,22 @@ public:
 
     /// Returns a reference to the GPU DMA pusher.
     Tegra::DmaPusher& DmaPusher();
+
+    void IncrementSyncPoint(u32 syncpoint_id);
+
+    u32 GetSyncpointValue(u32 syncpoint_id) const;
+
+    void RegisterSyncptInterrupt(u32 syncpoint_id, u32 value);
+
+    bool CancelSyncptInterrupt(u32 syncpoint_id, u32 value);
+
+    std::unique_lock<std::mutex> LockSync() {
+        return std::unique_lock{sync_mutex};
+    }
+
+    bool IsAsync() const {
+        return is_async;
+    }
 
     /// Returns a const reference to the GPU DMA pusher.
     const Tegra::DmaPusher& DmaPusher() const;
@@ -239,6 +259,9 @@ public:
     /// Notify rasterizer that any caches of the specified region should be flushed and invalidated
     virtual void FlushAndInvalidateRegion(CacheAddr addr, u64 size) = 0;
 
+protected:
+    virtual void TriggerCpuInterrupt(u32 syncpoint_id, u32 value) const = 0;
+
 private:
     void ProcessBindMethod(const MethodCall& method_call);
     void ProcessSemaphoreTriggerMethod();
@@ -257,6 +280,7 @@ private:
 protected:
     std::unique_ptr<Tegra::DmaPusher> dma_pusher;
     VideoCore::RendererBase& renderer;
+    Core::System& system;
 
 private:
     std::unique_ptr<Tegra::MemoryManager> memory_manager;
@@ -273,6 +297,14 @@ private:
     std::unique_ptr<Engines::MaxwellDMA> maxwell_dma;
     /// Inline memory engine
     std::unique_ptr<Engines::KeplerMemory> kepler_memory;
+
+    std::array<std::atomic<u32>, Service::Nvidia::MaxSyncPoints> syncpoints{};
+
+    std::array<std::list<u32>, Service::Nvidia::MaxSyncPoints> syncpt_interrupts;
+
+    std::mutex sync_mutex;
+
+    const bool is_async;
 };
 
 #define ASSERT_REG_POSITION(field_name, position)                                                  \
