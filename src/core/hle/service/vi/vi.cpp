@@ -21,6 +21,7 @@
 #include "core/hle/kernel/readable_event.h"
 #include "core/hle/kernel/thread.h"
 #include "core/hle/kernel/writable_event.h"
+#include "core/hle/service/nvdrv/nvdata.h"
 #include "core/hle/service/nvdrv/nvdrv.h"
 #include "core/hle/service/nvflinger/buffer_queue.h"
 #include "core/hle/service/nvflinger/nvflinger.h"
@@ -328,32 +329,22 @@ public:
     Data data;
 };
 
-struct BufferProducerFence {
-    u32 is_valid;
-    std::array<Nvidia::IoctlFence, 4> fences;
-};
-static_assert(sizeof(BufferProducerFence) == 36, "BufferProducerFence has wrong size");
-
 class IGBPDequeueBufferResponseParcel : public Parcel {
 public:
-    explicit IGBPDequeueBufferResponseParcel(u32 slot) : slot(slot) {}
+    explicit IGBPDequeueBufferResponseParcel(u32 slot, Service::Nvidia::MultiFence& multi_fence)
+        : slot(slot), multi_fence(multi_fence) {}
     ~IGBPDequeueBufferResponseParcel() override = default;
 
 protected:
     void SerializeData() override {
-        // TODO(Subv): Find out how this Fence is used.
-        BufferProducerFence fence = {};
-        fence.is_valid = 1;
-        for (auto& fence_ : fence.fences)
-            fence_.id = -1;
-
         Write(slot);
         Write<u32_le>(1);
-        WriteObject(fence);
+        WriteObject(multi_fence);
         Write<u32_le>(0);
     }
 
     u32_le slot;
+    Service::Nvidia::MultiFence multi_fence;
 };
 
 class IGBPRequestBufferRequestParcel : public Parcel {
@@ -400,12 +391,6 @@ public:
         data = Read<Data>();
     }
 
-    struct Fence {
-        u32_le id;
-        u32_le value;
-    };
-    static_assert(sizeof(Fence) == 8, "Fence has wrong size");
-
     struct Data {
         u32_le slot;
         INSERT_PADDING_WORDS(3);
@@ -418,15 +403,15 @@ public:
         s32_le scaling_mode;
         NVFlinger::BufferQueue::BufferTransformFlags transform;
         u32_le sticky_transform;
-        INSERT_PADDING_WORDS(2);
-        u32_le fence_is_valid;
-        std::array<Fence, 2> fences;
+        INSERT_PADDING_WORDS(1);
+        u32_le swap_interval;
+        Service::Nvidia::MultiFence multi_fence;
 
         Common::Rectangle<int> GetCropRect() const {
             return {crop_left, crop_top, crop_right, crop_bottom};
         }
     };
-    static_assert(sizeof(Data) == 80, "ParcelData has wrong size");
+    static_assert(sizeof(Data) == 96, "ParcelData has wrong size");
 
     Data data;
 };
@@ -547,11 +532,11 @@ private:
             IGBPDequeueBufferRequestParcel request{ctx.ReadBuffer()};
             const u32 width{request.data.width};
             const u32 height{request.data.height};
-            std::optional<u32> slot = buffer_queue.DequeueBuffer(width, height);
+            auto result = buffer_queue.DequeueBuffer(width, height);
 
-            if (slot) {
+            if (result) {
                 // Buffer is available
-                IGBPDequeueBufferResponseParcel response{*slot};
+                IGBPDequeueBufferResponseParcel response{result->first, *result->second};
                 ctx.WriteBuffer(response.Serialize());
             } else {
                 // Wait the current thread until a buffer becomes available
@@ -561,10 +546,10 @@ private:
                         Kernel::ThreadWakeupReason reason) {
                         // Repeat TransactParcel DequeueBuffer when a buffer is available
                         auto& buffer_queue = nv_flinger->FindBufferQueue(id);
-                        std::optional<u32> slot = buffer_queue.DequeueBuffer(width, height);
-                        ASSERT_MSG(slot != std::nullopt, "Could not dequeue buffer.");
+                        auto result = buffer_queue.DequeueBuffer(width, height);
+                        ASSERT_MSG(result != std::nullopt, "Could not dequeue buffer.");
 
-                        IGBPDequeueBufferResponseParcel response{*slot};
+                        IGBPDequeueBufferResponseParcel response{result->first, *result->second};
                         ctx.WriteBuffer(response.Serialize());
                         IPC::ResponseBuilder rb{ctx, 2};
                         rb.Push(RESULT_SUCCESS);
@@ -582,7 +567,8 @@ private:
             IGBPQueueBufferRequestParcel request{ctx.ReadBuffer()};
 
             buffer_queue.QueueBuffer(request.data.slot, request.data.transform,
-                                     request.data.GetCropRect());
+                                     request.data.GetCropRect(), request.data.swap_interval,
+                                     request.data.multi_fence);
 
             IGBPQueueBufferResponseParcel response{1280, 720};
             ctx.WriteBuffer(response.Serialize());
