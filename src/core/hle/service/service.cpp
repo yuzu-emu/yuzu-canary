@@ -206,7 +206,7 @@ void Init(std::shared_ptr<SM::ServiceManager>& sm, Core::System& system) {
     AM::InstallInterfaces(*sm, nv_flinger, system);
     AOC::InstallInterfaces(*sm);
     APM::InstallInterfaces(system);
-    Audio::InstallInterfaces(*sm);
+    Audio::InstallInterfaces(*sm, system);
     BCAT::InstallInterfaces(*sm);
     BPC::InstallInterfaces(*sm);
     BtDrv::InstallInterfaces(*sm);
