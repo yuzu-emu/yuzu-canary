@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <memory>
+#include <string_view>
 
 #include "audio_core/audio_renderer.h"
 #include "common/alignment.h"
@@ -25,7 +26,7 @@ namespace Service::Audio {
 
 class IAudioRenderer final : public ServiceFramework<IAudioRenderer> {
 public:
-    explicit IAudioRenderer(AudioCore::AudioRendererParameter audren_params,
+    explicit IAudioRenderer(Core::System& system, AudioCore::AudioRendererParameter audren_params,
                             const std::size_t instance_number)
         : ServiceFramework("IAudioRenderer") {
         // clang-format off
@@ -46,7 +47,6 @@ public:
         // clang-format on
         RegisterHandlers(functions);
 
-        auto& system = Core::System::GetInstance();
         system_event = Kernel::WritableEvent::CreateEventPair(
             system.Kernel(), Kernel::ResetType::Manual, "IAudioRenderer:SystemEvent");
         renderer = std::make_unique<AudioCore::AudioRenderer>(
@@ -160,7 +160,8 @@ private:
 
 class IAudioDevice final : public ServiceFramework<IAudioDevice> {
 public:
-    IAudioDevice() : ServiceFramework("IAudioDevice") {
+    explicit IAudioDevice(Core::System& system, u32_le revision_num)
+        : ServiceFramework("IAudioDevice"), revision{revision_num} {
         static const FunctionInfo functions[] = {
             {0, &IAudioDevice::ListAudioDeviceName, "ListAudioDeviceName"},
             {1, &IAudioDevice::SetAudioDeviceOutputVolume, "SetAudioDeviceOutputVolume"},
@@ -178,7 +179,7 @@ public:
         };
         RegisterHandlers(functions);
 
-        auto& kernel = Core::System::GetInstance().Kernel();
+        auto& kernel = system.Kernel();
         buffer_event = Kernel::WritableEvent::CreateEventPair(kernel, Kernel::ResetType::Automatic,
                                                               "IAudioOutBufferReleasedEvent");
 
@@ -189,15 +190,47 @@ public:
     }
 
 private:
-    void ListAudioDeviceName(Kernel::HLERequestContext& ctx) {
-        LOG_WARNING(Service_Audio, "(STUBBED) called");
+    using AudioDeviceName = std::array<char, 256>;
+    static constexpr std::array<std::string_view, 4> audio_device_names{{
+        "AudioStereoJackOutput",
+        "AudioBuiltInSpeakerOutput",
+        "AudioTvOutput",
+        "AudioUsbDeviceOutput",
+    }};
+    enum class DeviceType {
+        AHUBHeadphones,
+        AHUBSpeakers,
+        HDA,
+        USBOutput,
+    };
 
-        constexpr std::array<char, 15> audio_interface{{"AudioInterface"}};
-        ctx.WriteBuffer(audio_interface);
+    void ListAudioDeviceName(Kernel::HLERequestContext& ctx) {
+        LOG_DEBUG(Service_Audio, "called");
+
+        const bool usb_output_supported =
+            IsFeatureSupported(AudioFeatures::AudioUSBDeviceOutput, revision);
+        const std::size_t count = ctx.GetWriteBufferSize() / sizeof(AudioDeviceName);
+
+        std::vector<AudioDeviceName> name_buffer;
+        name_buffer.reserve(audio_device_names.size());
+
+        for (std::size_t i = 0; i < count && i < audio_device_names.size(); i++) {
+            const auto type = static_cast<DeviceType>(i);
+
+            if (!usb_output_supported && type == DeviceType::USBOutput) {
+                continue;
+            }
+
+            const auto& device_name = audio_device_names[i];
+            auto& entry = name_buffer.emplace_back();
+            device_name.copy(entry.data(), device_name.size());
+        }
+
+        ctx.WriteBuffer(name_buffer);
 
         IPC::ResponseBuilder rb{ctx, 3};
         rb.Push(RESULT_SUCCESS);
-        rb.Push<u32>(1);
+        rb.Push(static_cast<u32>(name_buffer.size()));
     }
 
     void SetAudioDeviceOutputVolume(Kernel::HLERequestContext& ctx) {
@@ -216,12 +249,16 @@ private:
     void GetActiveAudioDeviceName(Kernel::HLERequestContext& ctx) {
         LOG_WARNING(Service_Audio, "(STUBBED) called");
 
-        constexpr std::array<char, 12> audio_interface{{"AudioDevice"}};
-        ctx.WriteBuffer(audio_interface);
+        // Currently set to always be TV audio output.
+        const auto& device_name = audio_device_names[2];
 
-        IPC::ResponseBuilder rb{ctx, 3};
+        AudioDeviceName out_device_name{};
+        device_name.copy(out_device_name.data(), device_name.size());
+
+        ctx.WriteBuffer(out_device_name);
+
+        IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
-        rb.Push<u32>(1);
     }
 
     void QueryAudioDeviceSystemEvent(Kernel::HLERequestContext& ctx) {
@@ -250,12 +287,13 @@ private:
         rb.PushCopyObjects(audio_output_device_switch_event.readable);
     }
 
+    u32_le revision = 0;
     Kernel::EventPair buffer_event;
     Kernel::EventPair audio_output_device_switch_event;
 
 }; // namespace Audio
 
-AudRenU::AudRenU() : ServiceFramework("audren:u") {
+AudRenU::AudRenU(Core::System& system_) : ServiceFramework("audren:u"), system{system_} {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, &AudRenU::OpenAudioRenderer, "OpenAudioRenderer"},
@@ -328,7 +366,7 @@ void AudRenU::GetAudioRendererWorkBufferSize(Kernel::HLERequestContext& ctx) {
     };
 
     // Calculates the portion of the size related to the mix data (and the sorting thereof).
-    const auto calculate_mix_info_size = [this](const AudioCore::AudioRendererParameter& params) {
+    const auto calculate_mix_info_size = [](const AudioCore::AudioRendererParameter& params) {
         // The size of the mixing info data structure.
         constexpr u64 mix_info_size = 0x940;
 
@@ -400,7 +438,7 @@ void AudRenU::GetAudioRendererWorkBufferSize(Kernel::HLERequestContext& ctx) {
 
     // Calculates the part of the size related to the splitter context.
     const auto calculate_splitter_context_size =
-        [this](const AudioCore::AudioRendererParameter& params) -> u64 {
+        [](const AudioCore::AudioRendererParameter& params) -> u64 {
         if (!IsFeatureSupported(AudioFeatures::Splitter, params.revision)) {
             return 0;
         }
@@ -447,7 +485,7 @@ void AudRenU::GetAudioRendererWorkBufferSize(Kernel::HLERequestContext& ctx) {
     };
 
     // Calculates the part of the size related to performance statistics.
-    const auto calculate_perf_size = [this](const AudioCore::AudioRendererParameter& params) {
+    const auto calculate_perf_size = [](const AudioCore::AudioRendererParameter& params) {
         // Extra size value appended to the end of the calculation.
         constexpr u64 appended = 128;
 
@@ -474,78 +512,76 @@ void AudRenU::GetAudioRendererWorkBufferSize(Kernel::HLERequestContext& ctx) {
     };
 
     // Calculates the part of the size that relates to the audio command buffer.
-    const auto calculate_command_buffer_size =
-        [this](const AudioCore::AudioRendererParameter& params) {
-            constexpr u64 alignment = (buffer_alignment_size - 1) * 2;
+    const auto calculate_command_buffer_size = [](const AudioCore::AudioRendererParameter& params) {
+        constexpr u64 alignment = (buffer_alignment_size - 1) * 2;
 
-            if (!IsFeatureSupported(AudioFeatures::VariadicCommandBuffer, params.revision)) {
-                constexpr u64 command_buffer_size = 0x18000;
+        if (!IsFeatureSupported(AudioFeatures::VariadicCommandBuffer, params.revision)) {
+            constexpr u64 command_buffer_size = 0x18000;
 
-                return command_buffer_size + alignment;
-            }
+            return command_buffer_size + alignment;
+        }
 
-            // When the variadic command buffer is supported, this means
-            // the command generator for the audio renderer can issue commands
-            // that are (as one would expect), variable in size. So what we need to do
-            // is determine the maximum possible size for a few command data structures
-            // then multiply them by the amount of present commands indicated by the given
-            // respective audio parameters.
+        // When the variadic command buffer is supported, this means
+        // the command generator for the audio renderer can issue commands
+        // that are (as one would expect), variable in size. So what we need to do
+        // is determine the maximum possible size for a few command data structures
+        // then multiply them by the amount of present commands indicated by the given
+        // respective audio parameters.
 
-            constexpr u64 max_biquad_filters = 2;
-            constexpr u64 max_mix_buffers = 24;
+        constexpr u64 max_biquad_filters = 2;
+        constexpr u64 max_mix_buffers = 24;
 
-            constexpr u64 biquad_filter_command_size = 0x2C;
+        constexpr u64 biquad_filter_command_size = 0x2C;
 
-            constexpr u64 depop_mix_command_size = 0x24;
-            constexpr u64 depop_setup_command_size = 0x50;
+        constexpr u64 depop_mix_command_size = 0x24;
+        constexpr u64 depop_setup_command_size = 0x50;
 
-            constexpr u64 effect_command_max_size = 0x540;
+        constexpr u64 effect_command_max_size = 0x540;
 
-            constexpr u64 mix_command_size = 0x1C;
-            constexpr u64 mix_ramp_command_size = 0x24;
-            constexpr u64 mix_ramp_grouped_command_size = 0x13C;
+        constexpr u64 mix_command_size = 0x1C;
+        constexpr u64 mix_ramp_command_size = 0x24;
+        constexpr u64 mix_ramp_grouped_command_size = 0x13C;
 
-            constexpr u64 perf_command_size = 0x28;
+        constexpr u64 perf_command_size = 0x28;
 
-            constexpr u64 sink_command_size = 0x130;
+        constexpr u64 sink_command_size = 0x130;
 
-            constexpr u64 submix_command_max_size =
-                depop_mix_command_size + (mix_command_size * max_mix_buffers) * max_mix_buffers;
+        constexpr u64 submix_command_max_size =
+            depop_mix_command_size + (mix_command_size * max_mix_buffers) * max_mix_buffers;
 
-            constexpr u64 volume_command_size = 0x1C;
-            constexpr u64 volume_ramp_command_size = 0x20;
+        constexpr u64 volume_command_size = 0x1C;
+        constexpr u64 volume_ramp_command_size = 0x20;
 
-            constexpr u64 voice_biquad_filter_command_size =
-                biquad_filter_command_size * max_biquad_filters;
-            constexpr u64 voice_data_command_size = 0x9C;
-            const u64 voice_command_max_size =
-                (params.splitter_count * depop_setup_command_size) +
-                (voice_data_command_size + voice_biquad_filter_command_size +
-                 volume_ramp_command_size + mix_ramp_grouped_command_size);
+        constexpr u64 voice_biquad_filter_command_size =
+            biquad_filter_command_size * max_biquad_filters;
+        constexpr u64 voice_data_command_size = 0x9C;
+        const u64 voice_command_max_size =
+            (params.splitter_count * depop_setup_command_size) +
+            (voice_data_command_size + voice_biquad_filter_command_size + volume_ramp_command_size +
+             mix_ramp_grouped_command_size);
 
-            // Now calculate the individual elements that comprise the size and add them together.
-            const u64 effect_commands_size = params.effect_count * effect_command_max_size;
+        // Now calculate the individual elements that comprise the size and add them together.
+        const u64 effect_commands_size = params.effect_count * effect_command_max_size;
 
-            const u64 final_mix_commands_size =
-                depop_mix_command_size + volume_command_size * max_mix_buffers;
+        const u64 final_mix_commands_size =
+            depop_mix_command_size + volume_command_size * max_mix_buffers;
 
-            const u64 perf_commands_size =
-                perf_command_size *
-                (CalculateNumPerformanceEntries(params) + max_perf_detail_entries);
+        const u64 perf_commands_size =
+            perf_command_size * (CalculateNumPerformanceEntries(params) + max_perf_detail_entries);
 
-            const u64 sink_commands_size = params.sink_count * sink_command_size;
+        const u64 sink_commands_size = params.sink_count * sink_command_size;
 
-            const u64 splitter_commands_size =
-                params.num_splitter_send_channels * max_mix_buffers * mix_ramp_command_size;
+        const u64 splitter_commands_size =
+            params.num_splitter_send_channels * max_mix_buffers * mix_ramp_command_size;
 
-            const u64 submix_commands_size = params.submix_count * submix_command_max_size;
+        const u64 submix_commands_size = params.submix_count * submix_command_max_size;
 
-            const u64 voice_commands_size = params.voice_count * voice_command_max_size;
+        const u64 voice_commands_size = params.voice_count * voice_command_max_size;
 
-            return effect_commands_size + final_mix_commands_size + perf_commands_size +
-                   sink_commands_size + splitter_commands_size + submix_commands_size +
-                   voice_commands_size + alignment;
-        };
+        return effect_commands_size + final_mix_commands_size + perf_commands_size +
+               sink_commands_size + splitter_commands_size + submix_commands_size +
+               voice_commands_size + alignment;
+    };
 
     IPC::RequestParser rp{ctx};
     const auto params = rp.PopRaw<AudioCore::AudioRendererParameter>();
@@ -578,12 +614,16 @@ void AudRenU::GetAudioRendererWorkBufferSize(Kernel::HLERequestContext& ctx) {
 }
 
 void AudRenU::GetAudioDeviceService(Kernel::HLERequestContext& ctx) {
-    LOG_DEBUG(Service_Audio, "called");
+    IPC::RequestParser rp{ctx};
+    const u64 aruid = rp.Pop<u64>();
 
+    LOG_DEBUG(Service_Audio, "called. aruid={:016X}", aruid);
+
+    // Revisionless variant of GetAudioDeviceServiceWithRevisionInfo that
+    // always assumes the initial release revision (REV1).
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
-
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<Audio::IAudioDevice>();
+    rb.PushIpcInterface<IAudioDevice>(system, Common::MakeMagic('R', 'E', 'V', '1'));
 }
 
 void AudRenU::OpenAudioRendererAuto(Kernel::HLERequestContext& ctx) {
@@ -593,13 +633,19 @@ void AudRenU::OpenAudioRendererAuto(Kernel::HLERequestContext& ctx) {
 }
 
 void AudRenU::GetAudioDeviceServiceWithRevisionInfo(Kernel::HLERequestContext& ctx) {
-    LOG_WARNING(Service_Audio, "(STUBBED) called");
+    struct Parameters {
+        u32 revision;
+        u64 aruid;
+    };
+
+    IPC::RequestParser rp{ctx};
+    const auto [revision, aruid] = rp.PopRaw<Parameters>();
+
+    LOG_DEBUG(Service_Audio, "called. revision={:08X}, aruid={:016X}", revision, aruid);
 
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
-
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<Audio::IAudioDevice>(); // TODO(ogniK): Figure out what is different
-                                                // based on the current revision
+    rb.PushIpcInterface<IAudioDevice>(system, revision);
 }
 
 void AudRenU::OpenAudioRendererImpl(Kernel::HLERequestContext& ctx) {
@@ -608,14 +654,16 @@ void AudRenU::OpenAudioRendererImpl(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 2, 0, 1};
 
     rb.Push(RESULT_SUCCESS);
-    rb.PushIpcInterface<IAudioRenderer>(params, audren_instance_count++);
+    rb.PushIpcInterface<IAudioRenderer>(system, params, audren_instance_count++);
 }
 
-bool AudRenU::IsFeatureSupported(AudioFeatures feature, u32_le revision) const {
+bool IsFeatureSupported(AudioFeatures feature, u32_le revision) {
     // Byte swap
     const u32_be version_num = revision - Common::MakeMagic('R', 'E', 'V', '0');
 
     switch (feature) {
+    case AudioFeatures::AudioUSBDeviceOutput:
+        return version_num >= 4U;
     case AudioFeatures::Splitter:
         return version_num >= 2U;
     case AudioFeatures::PerformanceMetricsVersion2:
