@@ -19,16 +19,16 @@
 
 namespace Service::Audio {
 
-void InstallInterfaces(SM::ServiceManager& service_manager) {
+void InstallInterfaces(SM::ServiceManager& service_manager, Core::System& system) {
     std::make_shared<AudCtl>()->InstallAsService(service_manager);
     std::make_shared<AudOutA>()->InstallAsService(service_manager);
-    std::make_shared<AudOutU>()->InstallAsService(service_manager);
+    std::make_shared<AudOutU>(system)->InstallAsService(service_manager);
     std::make_shared<AudInA>()->InstallAsService(service_manager);
     std::make_shared<AudInU>()->InstallAsService(service_manager);
     std::make_shared<AudRecA>()->InstallAsService(service_manager);
     std::make_shared<AudRecU>()->InstallAsService(service_manager);
     std::make_shared<AudRenA>()->InstallAsService(service_manager);
-    std::make_shared<AudRenU>()->InstallAsService(service_manager);
+    std::make_shared<AudRenU>(system)->InstallAsService(service_manager);
     std::make_shared<CodecCtl>()->InstallAsService(service_manager);
     std::make_shared<HwOpus>()->InstallAsService(service_manager);
 
