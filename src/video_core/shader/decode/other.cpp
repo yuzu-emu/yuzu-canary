@@ -22,6 +22,12 @@ u32 ShaderIR::DecodeOther(NodeBlock& bb, u32 pc) {
     const auto opcode = OpCode::Decode(instr);
 
     switch (opcode->get().GetId()) {
+    case OpCode::Id::NOP: {
+        UNIMPLEMENTED_IF(instr.nop.cc != Tegra::Shader::ConditionCode::T);
+        UNIMPLEMENTED_IF(instr.nop.trigger != 0);
+        // With the previous preconditions, this instruction is a no-operation.
+        break;
+    }
     case OpCode::Id::EXIT: {
         const Tegra::Shader::ConditionCode cc = instr.flow_condition_code;
         UNIMPLEMENTED_IF_MSG(cc != Tegra::Shader::ConditionCode::T, "EXIT condition code used: {}",
