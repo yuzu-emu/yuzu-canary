@@ -52,15 +52,15 @@ u32 ShaderIR::DecodeHalfSetPredicate(NodeBlock& bb, u32 pc) {
     }
 
     const OperationCode combiner = GetPredicateCombiner(instr.hsetp2.op);
-    const Node pred39 = GetPredicate(instr.hsetp2.pred39, instr.hsetp2.neg_pred);
+    const Node combined_pred = GetPredicate(instr.hsetp2.pred3, instr.hsetp2.neg_pred);
 
     const auto Write = [&](u64 dest, Node src) {
-        SetPredicate(bb, dest, Operation(combiner, std::move(src), pred39));
+        SetPredicate(bb, dest, Operation(combiner, std::move(src), combined_pred));
     };
 
     const Node comparison = GetPredicateComparisonHalf(cond, op_a, op_b);
     const u64 first = instr.hsetp2.pred0;
-    const u64 second = instr.hsetp2.pred3;
+    const u64 second = instr.hsetp2.pred39;
     if (h_and) {
         const Node joined = Operation(OperationCode::LogicalAnd2, comparison);
         Write(first, joined);
