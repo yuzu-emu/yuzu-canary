@@ -143,7 +143,7 @@ static bool LoadNroImpl(Kernel::Process& process, const std::vector<u8>& data,
     }
 
     // Build program image
-    std::vector<u8> program_image(PageAlignSize(nro_header.file_size));
+    Kernel::PhysicalMemory program_image(PageAlignSize(nro_header.file_size));
     std::memcpy(program_image.data(), data.data(), program_image.size());
     if (program_image.size() != PageAlignSize(nro_header.file_size)) {
         return {};

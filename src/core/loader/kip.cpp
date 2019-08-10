@@ -69,7 +69,7 @@ AppLoader::LoadResult AppLoader_KIP::Load(Kernel::Process& process) {
 
     const VAddr base_address = process.VMManager().GetCodeRegionBaseAddress();
     Kernel::CodeSet codeset;
-    std::vector<u8> program_image;
+    Kernel::PhysicalMemory program_image;
 
     const auto load_segment = [&program_image](Kernel::CodeSet::Segment& segment,
                                                const std::vector<u8>& data, u32 offset) {
