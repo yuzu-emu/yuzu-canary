@@ -40,8 +40,8 @@ enum class AudioState : u32 {
 
 class IAudioOut final : public ServiceFramework<IAudioOut> {
 public:
-    IAudioOut(AudoutParams audio_params, AudioCore::AudioOut& audio_core, std::string&& device_name,
-              std::string&& unique_name)
+    IAudioOut(Core::System& system, AudoutParams audio_params, AudioCore::AudioOut& audio_core,
+              std::string&& device_name, std::string&& unique_name)
         : ServiceFramework("IAudioOut"), audio_core(audio_core),
           device_name(std::move(device_name)), audio_params(audio_params) {
         // clang-format off
@@ -65,7 +65,6 @@ public:
         RegisterHandlers(functions);
 
         // This is the event handle used to check if the audio buffer was released
-        auto& system = Core::System::GetInstance();
         buffer_event = Kernel::WritableEvent::CreateEventPair(
             system.Kernel(), Kernel::ResetType::Manual, "IAudioOutBufferReleased");
 
@@ -212,6 +211,22 @@ private:
     Kernel::EventPair buffer_event;
 };
 
+AudOutU::AudOutU(Core::System& system_) : ServiceFramework("audout:u"), system{system_} {
+    // clang-format off
+    static const FunctionInfo functions[] = {
+        {0, &AudOutU::ListAudioOutsImpl, "ListAudioOuts"},
+        {1, &AudOutU::OpenAudioOutImpl, "OpenAudioOut"},
+        {2, &AudOutU::ListAudioOutsImpl, "ListAudioOutsAuto"},
+        {3, &AudOutU::OpenAudioOutImpl, "OpenAudioOutAuto"},
+    };
+    // clang-format on
+
+    RegisterHandlers(functions);
+    audio_core = std::make_unique<AudioCore::AudioOut>();
+}
+
+AudOutU::~AudOutU() = default;
+
 void AudOutU::ListAudioOutsImpl(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service_Audio, "called");
 
@@ -248,7 +263,7 @@ void AudOutU::OpenAudioOutImpl(Kernel::HLERequestContext& ctx) {
 
     std::string unique_name{fmt::format("{}-{}", device_name, audio_out_interfaces.size())};
     auto audio_out_interface = std::make_shared<IAudioOut>(
-        params, *audio_core, std::move(device_name), std::move(unique_name));
+        system, params, *audio_core, std::move(device_name), std::move(unique_name));
 
     IPC::ResponseBuilder rb{ctx, 6, 0, 1};
     rb.Push(RESULT_SUCCESS);
@@ -256,20 +271,9 @@ void AudOutU::OpenAudioOutImpl(Kernel::HLERequestContext& ctx) {
     rb.Push<u32>(params.channel_count);
     rb.Push<u32>(static_cast<u32>(AudioCore::Codec::PcmFormat::Int16));
     rb.Push<u32>(static_cast<u32>(AudioState::Stopped));
-    rb.PushIpcInterface<Audio::IAudioOut>(audio_out_interface);
+    rb.PushIpcInterface<IAudioOut>(audio_out_interface);
 
     audio_out_interfaces.push_back(std::move(audio_out_interface));
 }
-
-AudOutU::AudOutU() : ServiceFramework("audout:u") {
-    static const FunctionInfo functions[] = {{0, &AudOutU::ListAudioOutsImpl, "ListAudioOuts"},
-                                             {1, &AudOutU::OpenAudioOutImpl, "OpenAudioOut"},
-                                             {2, &AudOutU::ListAudioOutsImpl, "ListAudioOutsAuto"},
-                                             {3, &AudOutU::OpenAudioOutImpl, "OpenAudioOutAuto"}};
-    RegisterHandlers(functions);
-    audio_core = std::make_unique<AudioCore::AudioOut>();
-}
-
-AudOutU::~AudOutU() = default;
 
 } // namespace Service::Audio
