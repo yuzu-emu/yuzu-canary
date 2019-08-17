@@ -89,7 +89,7 @@ std::optional<VAddr> AppLoader_NSO::LoadModule(Kernel::Process& process,
 
     // Build program image
     Kernel::CodeSet codeset;
-    std::vector<u8> program_image;
+    Kernel::PhysicalMemory program_image;
     for (std::size_t i = 0; i < nso_header.segments.size(); ++i) {
         std::vector<u8> data =
             file.ReadBytes(nso_header.segments_compressed_size[i], nso_header.segments[i].offset);

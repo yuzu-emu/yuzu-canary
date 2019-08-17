@@ -247,7 +247,7 @@ VAddr Process::CreateTLSRegion() {
         ASSERT(region_address.Succeeded());
 
         const auto map_result = vm_manager.MapMemoryBlock(
-            *region_address, std::make_shared<std::vector<u8>>(Memory::PAGE_SIZE), 0,
+            *region_address, std::make_shared<PhysicalMemory>(Memory::PAGE_SIZE), 0,
             Memory::PAGE_SIZE, MemoryState::ThreadLocal);
         ASSERT(map_result.Succeeded());
 
@@ -277,7 +277,7 @@ void Process::FreeTLSRegion(VAddr tls_address) {
 }
 
 void Process::LoadModule(CodeSet module_, VAddr base_addr) {
-    const auto memory = std::make_shared<std::vector<u8>>(std::move(module_.memory));
+    const auto memory = std::make_shared<PhysicalMemory>(std::move(module_.memory));
 
     const auto MapSegment = [&](const CodeSet::Segment& segment, VMAPermission permissions,
                                 MemoryState memory_state) {
@@ -327,7 +327,7 @@ void Process::AllocateMainThreadStack(u64 stack_size) {
     // Allocate and map the main thread stack
     const VAddr mapping_address = vm_manager.GetTLSIORegionEndAddress() - main_thread_stack_size;
     vm_manager
-        .MapMemoryBlock(mapping_address, std::make_shared<std::vector<u8>>(main_thread_stack_size),
+        .MapMemoryBlock(mapping_address, std::make_shared<PhysicalMemory>(main_thread_stack_size),
                         0, main_thread_stack_size, MemoryState::Stack)
         .Unwrap();
 }

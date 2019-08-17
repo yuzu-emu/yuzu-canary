@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "common/common_types.h"
+#include "core/hle/kernel/physical_memory.h"
 
 namespace Kernel {
 
@@ -77,7 +78,7 @@ struct CodeSet final {
     }
 
     /// The overall data that backs this code set.
-    std::vector<u8> memory;
+    Kernel::PhysicalMemory memory;
 
     /// The segments that comprise this code set.
     std::array<Segment, 3> segments;
