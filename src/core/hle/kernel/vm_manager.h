@@ -11,6 +11,7 @@
 #include "common/common_types.h"
 #include "common/memory_hook.h"
 #include "common/page_table.h"
+#include "core/hle/kernel/physical_memory.h"
 #include "core/hle/result.h"
 #include "core/memory.h"
 
@@ -290,7 +291,7 @@ struct VirtualMemoryArea {
 
     // Settings for type = AllocatedMemoryBlock
     /// Memory block backing this VMA.
-    std::shared_ptr<std::vector<u8>> backing_block = nullptr;
+    std::shared_ptr<PhysicalMemory> backing_block = nullptr;
     /// Offset into the backing_memory the mapping starts from.
     std::size_t offset = 0;
 
@@ -348,7 +349,7 @@ public:
      * @param size Size of the mapping.
      * @param state MemoryState tag to attach to the VMA.
      */
-    ResultVal<VMAHandle> MapMemoryBlock(VAddr target, std::shared_ptr<std::vector<u8>> block,
+    ResultVal<VMAHandle> MapMemoryBlock(VAddr target, std::shared_ptr<PhysicalMemory> block,
                                         std::size_t offset, u64 size, MemoryState state,
                                         VMAPermission perm = VMAPermission::ReadWrite);
 
@@ -547,7 +548,7 @@ public:
      * Scans all VMAs and updates the page table range of any that use the given vector as backing
      * memory. This should be called after any operation that causes reallocation of the vector.
      */
-    void RefreshMemoryBlockMappings(const std::vector<u8>* block);
+    void RefreshMemoryBlockMappings(const PhysicalMemory* block);
 
     /// Dumps the address space layout to the log, for debugging
     void LogLayout() const;
@@ -777,7 +778,7 @@ private:
     // the entire virtual address space extents that bound the allocations, including any holes.
     // This makes deallocation and reallocation of holes fast and keeps process memory contiguous
     // in the emulator address space, allowing Memory::GetPointer to be reasonably safe.
-    std::shared_ptr<std::vector<u8>> heap_memory;
+    std::shared_ptr<PhysicalMemory> heap_memory;
 
     // The end of the currently allocated heap. This is not an inclusive
     // end of the range. This is essentially 'base_address + current_size'.
