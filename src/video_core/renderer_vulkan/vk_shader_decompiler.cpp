@@ -735,12 +735,27 @@ private:
         return {};
     }
 
+    Id FCastHalf0(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    Id FCastHalf1(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
     Id HNegate(Operation operation) {
         UNIMPLEMENTED();
         return {};
     }
 
     Id HClamp(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    Id HCastFloat(Operation operation) {
         UNIMPLEMENTED();
         return {};
     }
@@ -1210,6 +1225,8 @@ private:
         &SPIRVDecompiler::Unary<&Module::OpFNegate, Type::Float>,
         &SPIRVDecompiler::Unary<&Module::OpFAbs, Type::Float>,
         &SPIRVDecompiler::Ternary<&Module::OpFClamp, Type::Float>,
+        &SPIRVDecompiler::FCastHalf0,
+        &SPIRVDecompiler::FCastHalf1,
         &SPIRVDecompiler::Binary<&Module::OpFMin, Type::Float>,
         &SPIRVDecompiler::Binary<&Module::OpFMax, Type::Float>,
         &SPIRVDecompiler::Unary<&Module::OpCos, Type::Float>,
@@ -1270,6 +1287,7 @@ private:
         &SPIRVDecompiler::Unary<&Module::OpFAbs, Type::HalfFloat>,
         &SPIRVDecompiler::HNegate,
         &SPIRVDecompiler::HClamp,
+        &SPIRVDecompiler::HCastFloat,
         &SPIRVDecompiler::HUnpack,
         &SPIRVDecompiler::HMergeF32,
         &SPIRVDecompiler::HMergeH0,
