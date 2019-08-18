@@ -57,7 +57,7 @@ u32 ShaderIR::DecodeConversion(NodeBlock& bb, u32 pc) {
     case OpCode::Id::I2F_R:
     case OpCode::Id::I2F_C:
     case OpCode::Id::I2F_IMM: {
-        UNIMPLEMENTED_IF(instr.conversion.dst_size != Register::Size::Word);
+        UNIMPLEMENTED_IF(instr.conversion.dst_size == Register::Size::Long);
         UNIMPLEMENTED_IF(instr.conversion.selector);
         UNIMPLEMENTED_IF_MSG(instr.generates_cc,
                              "Condition codes generation in I2F is not implemented");
@@ -82,14 +82,19 @@ u32 ShaderIR::DecodeConversion(NodeBlock& bb, u32 pc) {
         value = GetOperandAbsNegFloat(value, false, instr.conversion.negate_a);
 
         SetInternalFlagsFromFloat(bb, value, instr.generates_cc);
+
+        if (instr.conversion.dst_size == Register::Size::Short) {
+            value = Operation(OperationCode::HCastFloat, PRECISE, value);
+        }
+
         SetRegister(bb, instr.gpr0, value);
         break;
     }
     case OpCode::Id::F2F_R:
     case OpCode::Id::F2F_C:
     case OpCode::Id::F2F_IMM: {
-        UNIMPLEMENTED_IF(instr.conversion.f2f.dst_size != Register::Size::Word);
-        UNIMPLEMENTED_IF(instr.conversion.f2f.src_size != Register::Size::Word);
+        UNIMPLEMENTED_IF(instr.conversion.dst_size == Register::Size::Long);
+        UNIMPLEMENTED_IF(instr.conversion.src_size == Register::Size::Long);
         UNIMPLEMENTED_IF_MSG(instr.generates_cc,
                              "Condition codes generation in F2F is not implemented");
 
@@ -106,6 +111,11 @@ u32 ShaderIR::DecodeConversion(NodeBlock& bb, u32 pc) {
                 return Immediate(0);
             }
         }();
+
+        if (instr.conversion.src_size == Register::Size::Short) {
+            // TODO: figure where extract is sey in the encoding
+            value = Operation(OperationCode::FCastHalf0, PRECISE, value);
+        }
 
         value = GetOperandAbsNegFloat(value, instr.conversion.abs_a, instr.conversion.negate_a);
 
@@ -124,19 +134,24 @@ u32 ShaderIR::DecodeConversion(NodeBlock& bb, u32 pc) {
             default:
                 UNIMPLEMENTED_MSG("Unimplemented F2F rounding mode {}",
                                   static_cast<u32>(instr.conversion.f2f.rounding.Value()));
-                return Immediate(0);
+                return value;
             }
         }();
         value = GetSaturatedFloat(value, instr.alu.saturate_d);
 
         SetInternalFlagsFromFloat(bb, value, instr.generates_cc);
+
+        if (instr.conversion.dst_size == Register::Size::Short) {
+            value = Operation(OperationCode::HCastFloat, PRECISE, value);
+        }
+
         SetRegister(bb, instr.gpr0, value);
         break;
     }
     case OpCode::Id::F2I_R:
     case OpCode::Id::F2I_C:
     case OpCode::Id::F2I_IMM: {
-        UNIMPLEMENTED_IF(instr.conversion.src_size != Register::Size::Word);
+        UNIMPLEMENTED_IF(instr.conversion.src_size == Register::Size::Long);
         UNIMPLEMENTED_IF_MSG(instr.generates_cc,
                              "Condition codes generation in F2I is not implemented");
         Node value = [&]() {
@@ -152,6 +167,11 @@ u32 ShaderIR::DecodeConversion(NodeBlock& bb, u32 pc) {
                 return Immediate(0);
             }
         }();
+
+        if (instr.conversion.src_size == Register::Size::Short) {
+            // TODO: figure where extract is sey in the encoding
+            value = Operation(OperationCode::FCastHalf0, PRECISE, value);
+        }
 
         value = GetOperandAbsNegFloat(value, instr.conversion.abs_a, instr.conversion.negate_a);
 

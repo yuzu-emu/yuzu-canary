@@ -30,6 +30,8 @@ enum class OperationCode {
     FNegate,       /// (MetaArithmetic, float a) -> float
     FAbsolute,     /// (MetaArithmetic, float a) -> float
     FClamp,        /// (MetaArithmetic, float value, float min, float max) -> float
+    FCastHalf0,    /// (MetaArithmetic, f16vec2 a) -> float
+    FCastHalf1,    /// (MetaArithmetic, f16vec2 a) -> float
     FMin,          /// (MetaArithmetic, float a, float b) -> float
     FMax,          /// (MetaArithmetic, float a, float b) -> float
     FCos,          /// (MetaArithmetic, float a) -> float
@@ -83,17 +85,18 @@ enum class OperationCode {
     UBitfieldExtract, /// (MetaArithmetic, uint value, int offset, int offset) -> uint
     UBitCount,        /// (MetaArithmetic, uint) -> uint
 
-    HAdd,      /// (MetaArithmetic, f16vec2 a, f16vec2 b) -> f16vec2
-    HMul,      /// (MetaArithmetic, f16vec2 a, f16vec2 b) -> f16vec2
-    HFma,      /// (MetaArithmetic, f16vec2 a, f16vec2 b, f16vec2 c) -> f16vec2
-    HAbsolute, /// (f16vec2 a) -> f16vec2
-    HNegate,   /// (f16vec2 a, bool first, bool second) -> f16vec2
-    HClamp,    /// (f16vec2 src, float min, float max) -> f16vec2
-    HUnpack,   /// (Tegra::Shader::HalfType, T value) -> f16vec2
-    HMergeF32, /// (f16vec2 src) -> float
-    HMergeH0,  /// (f16vec2 dest, f16vec2 src) -> f16vec2
-    HMergeH1,  /// (f16vec2 dest, f16vec2 src) -> f16vec2
-    HPack2,    /// (float a, float b) -> f16vec2
+    HAdd,       /// (MetaArithmetic, f16vec2 a, f16vec2 b) -> f16vec2
+    HMul,       /// (MetaArithmetic, f16vec2 a, f16vec2 b) -> f16vec2
+    HFma,       /// (MetaArithmetic, f16vec2 a, f16vec2 b, f16vec2 c) -> f16vec2
+    HAbsolute,  /// (f16vec2 a) -> f16vec2
+    HNegate,    /// (f16vec2 a, bool first, bool second) -> f16vec2
+    HClamp,     /// (f16vec2 src, float min, float max) -> f16vec2
+    HCastFloat, /// (MetaArithmetic, float a) -> f16vec2
+    HUnpack,    /// (Tegra::Shader::HalfType, T value) -> f16vec2
+    HMergeF32,  /// (f16vec2 src) -> float
+    HMergeH0,   /// (f16vec2 dest, f16vec2 src) -> f16vec2
+    HMergeH1,   /// (f16vec2 dest, f16vec2 src) -> f16vec2
+    HPack2,     /// (float a, float b) -> f16vec2
 
     LogicalAssign, /// (bool& dst, bool src) -> void
     LogicalAnd,    /// (bool a, bool b) -> bool
