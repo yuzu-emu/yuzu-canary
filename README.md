@@ -2,21 +2,17 @@
 
 Scroll down for the original README.md!
 
-Base revision: 93abe1ccf3b4e54715b8a541fd135fc395dd5b13
+Base revision: ef584f1a3a1dc8c10b6fb624265ae81fc1078c3a
 
 |Pull Request|Commit|Title|Author|Merged?|
 |----|----|----|----|----|
 |[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
 |[2783](https://github.com/yuzu-emu/yuzu/pull/2783)|[99c0230](https://github.com/yuzu-emu/yuzu/pull/2783/files/)|Implement a New LLE Buffer Cache|[FernandoS27](https://github.com/FernandoS27)|Yes|
-|[2778](https://github.com/yuzu-emu/yuzu/pull/2778)|[2ff8044](https://github.com/yuzu-emu/yuzu/pull/2778/files/)|shader_ir: Implement NOP|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
 |[2777](https://github.com/yuzu-emu/yuzu/pull/2777)|[ec0da3e](https://github.com/yuzu-emu/yuzu/pull/2777/files/)|half_set_predicate: Fix HSETP2_C constant buffer offset|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
-|[2768](https://github.com/yuzu-emu/yuzu/pull/2768)|[77f1a67](https://github.com/yuzu-emu/yuzu/pull/2768/files/)|decode/half_set_predicate: Fix predicates|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
 |[2753](https://github.com/yuzu-emu/yuzu/pull/2753)|[11f4e73](https://github.com/yuzu-emu/yuzu/pull/2753/files/)|Shader_Ir: Implement F16 Variants of F2F, F2I, I2F.|[FernandoS27](https://github.com/FernandoS27)|Yes|
-|[2747](https://github.com/yuzu-emu/yuzu/pull/2747)|[16730c4](https://github.com/yuzu-emu/yuzu/pull/2747/files/)|service/audren_u: Unstub ListAudioDeviceName|[lioncash](https://github.com/lioncash)|Yes|
 |[2710](https://github.com/yuzu-emu/yuzu/pull/2710)|[abb2c5f](https://github.com/yuzu-emu/yuzu/pull/2710/files/)|am/kernel: Fix various bugs related to applet signalling and software keyboard|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
 |[2707](https://github.com/yuzu-emu/yuzu/pull/2707)|[adab188](https://github.com/yuzu-emu/yuzu/pull/2707/files/)|system_archive: Add open-source reimplementation of MiiModel data|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
-|[2542](https://github.com/yuzu-emu/yuzu/pull/2542)|[7aeb676](https://github.com/yuzu-emu/yuzu/pull/2542/files/)|lbl: Implement brightness and backlight services|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
-|[2418](https://github.com/yuzu-emu/yuzu/pull/2418)|[50d5414](https://github.com/yuzu-emu/yuzu/pull/2418/files/)|es: Implement various ticket accessor commands from IEticketService|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[2542](https://github.com/yuzu-emu/yuzu/pull/2542)|[7aeb676](https://github.com/yuzu-emu/yuzu/pull/2542/files/)|lbl: Implement brightness and backlight services|[DarkLordZach](https://github.com/DarkLordZach)|Yes||[2418](https://github.com/yuzu-emu/yuzu/pull/2418)|[50d5414](https://github.com/yuzu-emu/yuzu/pull/2418/files/)|es: Implement various ticket accessor commands from IEticketService|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
 |[2365](https://github.com/yuzu-emu/yuzu/pull/2365)|[4fe8093](https://github.com/yuzu-emu/yuzu/pull/2365/files/)|Workaround to Mutex Corruption|[FernandoS27](https://github.com/FernandoS27)|Yes|
 |[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
 |[1340](https://github.com/yuzu-emu/yuzu/pull/1340)|[c359c00](https://github.com/yuzu-emu/yuzu/pull/1340/files/)|Implement a Better Ignore Assert|[FernandoS27](https://github.com/FernandoS27)|Yes|
