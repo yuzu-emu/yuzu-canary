@@ -30,7 +30,7 @@ u32 ShaderIR::DecodeHalfSetPredicate(NodeBlock& bb, u32 pc) {
     case OpCode::Id::HSETP2_C:
         cond = instr.hsetp2.cbuf_and_imm.cond;
         h_and = instr.hsetp2.cbuf_and_imm.h_and;
-        op_b = GetOperandAbsNegHalf(GetConstBuffer(instr.cbuf34.index, instr.cbuf34.offset),
+        op_b = GetOperandAbsNegHalf(GetConstBuffer(instr.cbuf34.index, instr.cbuf34.GetOffset()),
                                     instr.hsetp2.cbuf.abs_b, instr.hsetp2.cbuf.negate_b);
         break;
     case OpCode::Id::HSETP2_IMM:
