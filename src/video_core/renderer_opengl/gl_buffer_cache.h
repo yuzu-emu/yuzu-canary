@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "common/common_types.h"
-#include "video_core/buffer_cache.h"
+#include "video_core/buffer_cache/buffer_cache.h"
 #include "video_core/rasterizer_cache.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_stream_buffer.h"
@@ -21,7 +21,24 @@ namespace OpenGL {
 class OGLStreamBuffer;
 class RasterizerOpenGL;
 
-class OGLBufferCache final : public VideoCommon::BufferCache<OGLBuffer, GLuint, OGLStreamBuffer> {
+class CachedBufferBlock;
+
+using Buffer = std::shared_ptr<CachedBufferBlock>;
+
+class CachedBufferBlock : public VideoCommon::BufferBlock {
+public:
+    explicit CachedBufferBlock(CacheAddr cache_addr, const std::size_t size);
+    ~CachedBufferBlock();
+
+    const GLuint* GetHandle() const {
+        return &gl_buffer.handle;
+    }
+
+private:
+    OGLBuffer gl_buffer{};
+};
+
+class OGLBufferCache final : public VideoCommon::BufferCache<Buffer, GLuint, OGLStreamBuffer> {
 public:
     explicit OGLBufferCache(RasterizerOpenGL& rasterizer, Core::System& system,
                             std::size_t stream_size);
@@ -30,18 +47,20 @@ public:
     const GLuint* GetEmptyBuffer(std::size_t) override;
 
 protected:
-    OGLBuffer CreateBuffer(std::size_t size) override;
+    Buffer CreateBlock(CacheAddr cache_addr, std::size_t size) override;
 
-    const GLuint* ToHandle(const OGLBuffer& buffer) override;
+    void WriteBarrier() override;
 
-    void UploadBufferData(const OGLBuffer& buffer, std::size_t offset, std::size_t size,
-                          const u8* data) override;
+    const GLuint* ToHandle(const Buffer& buffer) override;
 
-    void DownloadBufferData(const OGLBuffer& buffer, std::size_t offset, std::size_t size,
-                            u8* data) override;
+    void UploadBlockData(const Buffer& buffer, std::size_t offset, std::size_t size,
+                         const u8* data) override;
 
-    void CopyBufferData(const OGLBuffer& src, const OGLBuffer& dst, std::size_t src_offset,
-                        std::size_t dst_offset, std::size_t size) override;
+    void DownloadBlockData(const Buffer& buffer, std::size_t offset, std::size_t size,
+                           u8* data) override;
+
+    void CopyBlock(const Buffer& src, const Buffer& dst, std::size_t src_offset,
+                   std::size_t dst_offset, std::size_t size) override;
 };
 
 } // namespace OpenGL
