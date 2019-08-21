@@ -74,6 +74,13 @@ u32 ShaderIR::DecodeOther(NodeBlock& bb, u32 pc) {
             case SystemVariable::InvocationInfo:
                 LOG_WARNING(HW_GPU, "MOV_SYS instruction with InvocationInfo is incomplete");
                 return Immediate(0u);
+            case SystemVariable::Tid: {
+                Node value = Immediate(0);
+                value = BitfieldInsert(value, Operation(OperationCode::LocalInvocationIdX), 0, 9);
+                value = BitfieldInsert(value, Operation(OperationCode::LocalInvocationIdY), 16, 9);
+                value = BitfieldInsert(value, Operation(OperationCode::LocalInvocationIdZ), 26, 5);
+                return value;
+            }
             case SystemVariable::TidX:
                 return Operation(OperationCode::LocalInvocationIdX);
             case SystemVariable::TidY:
