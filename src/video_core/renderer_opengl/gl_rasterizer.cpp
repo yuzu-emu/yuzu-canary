@@ -980,7 +980,7 @@ void RasterizerOpenGL::SetupGlobalMemory(const GLShader::GlobalMemoryEntry& entr
                                          GPUVAddr gpu_addr, std::size_t size) {
     const auto alignment{device.GetShaderStorageBufferAlignment()};
     const auto [ssbo, buffer_offset] =
-        buffer_cache.UploadMemory(gpu_addr, size, alignment, true, entry.IsWritten());
+        buffer_cache.UploadMemory(gpu_addr, size, alignment, entry.IsWritten());
     bind_ssbo_pushbuffer.Push(ssbo, buffer_offset, static_cast<GLsizeiptr>(size));
 }
 
