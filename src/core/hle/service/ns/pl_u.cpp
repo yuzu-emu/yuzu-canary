@@ -77,7 +77,7 @@ enum class LoadState : u32 {
     Done = 1,
 };
 
-static void DecryptSharedFont(const std::vector<u32>& input, std::vector<u8>& output,
+static void DecryptSharedFont(const std::vector<u32>& input, Kernel::PhysicalMemory& output,
                               std::size_t& offset) {
     ASSERT_MSG(offset + (input.size() * sizeof(u32)) < SHARED_FONT_MEM_SIZE,
                "Shared fonts exceeds 17mb!");
@@ -94,7 +94,7 @@ static void DecryptSharedFont(const std::vector<u32>& input, std::vector<u8>& ou
     offset += transformed_font.size() * sizeof(u32);
 }
 
-static void EncryptSharedFont(const std::vector<u8>& input, std::vector<u8>& output,
+static void EncryptSharedFont(const std::vector<u8>& input, Kernel::PhysicalMemory& output,
                               std::size_t& offset) {
     ASSERT_MSG(offset + input.size() + 8 < SHARED_FONT_MEM_SIZE, "Shared fonts exceeds 17mb!");
     const u32 KEY = EXPECTED_MAGIC ^ EXPECTED_RESULT;
@@ -121,7 +121,7 @@ struct PL_U::Impl {
         return shared_font_regions.at(index);
     }
 
-    void BuildSharedFontsRawRegions(const std::vector<u8>& input) {
+    void BuildSharedFontsRawRegions(const Kernel::PhysicalMemory& input) {
         // As we can derive the xor key we can just populate the offsets
         // based on the shared memory dump
         unsigned cur_offset = 0;
@@ -144,7 +144,7 @@ struct PL_U::Impl {
     Kernel::SharedPtr<Kernel::SharedMemory> shared_font_mem;
 
     /// Backing memory for the shared font data
-    std::shared_ptr<std::vector<u8>> shared_font;
+    std::shared_ptr<Kernel::PhysicalMemory> shared_font;
 
     // Automatically populated based on shared_fonts dump or system archives.
     std::vector<FontRegion> shared_font_regions;
@@ -166,7 +166,7 @@ PL_U::PL_U() : ServiceFramework("pl:u"), impl{std::make_unique<Impl>()} {
     // Rebuild shared fonts from data ncas
     if (nand->HasEntry(static_cast<u64>(FontArchives::Standard),
                        FileSys::ContentRecordType::Data)) {
-        impl->shared_font = std::make_shared<std::vector<u8>>(SHARED_FONT_MEM_SIZE);
+        impl->shared_font = std::make_shared<Kernel::PhysicalMemory>(SHARED_FONT_MEM_SIZE);
         for (auto font : SHARED_FONTS) {
             const auto nca =
                 nand->GetEntry(static_cast<u64>(font.first), FileSys::ContentRecordType::Data);
@@ -207,7 +207,7 @@ PL_U::PL_U() : ServiceFramework("pl:u"), impl{std::make_unique<Impl>()} {
         }
 
     } else {
-        impl->shared_font = std::make_shared<std::vector<u8>>(
+        impl->shared_font = std::make_shared<Kernel::PhysicalMemory>(
             SHARED_FONT_MEM_SIZE); // Shared memory needs to always be allocated and a fixed size
 
         const std::string user_path = FileUtil::GetUserPath(FileUtil::UserPath::SysDataDir);

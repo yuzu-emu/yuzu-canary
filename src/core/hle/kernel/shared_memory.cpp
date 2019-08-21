@@ -28,7 +28,7 @@ SharedPtr<SharedMemory> SharedMemory::Create(KernelCore& kernel, Process* owner_
     shared_memory->other_permissions = other_permissions;
 
     if (address == 0) {
-        shared_memory->backing_block = std::make_shared<std::vector<u8>>(size);
+        shared_memory->backing_block = std::make_shared<Kernel::PhysicalMemory>(size);
         shared_memory->backing_block_offset = 0;
 
         // Refresh the address mappings for the current process.
@@ -59,8 +59,8 @@ SharedPtr<SharedMemory> SharedMemory::Create(KernelCore& kernel, Process* owner_
 }
 
 SharedPtr<SharedMemory> SharedMemory::CreateForApplet(
-    KernelCore& kernel, std::shared_ptr<std::vector<u8>> heap_block, std::size_t offset, u64 size,
-    MemoryPermission permissions, MemoryPermission other_permissions, std::string name) {
+    KernelCore& kernel, std::shared_ptr<Kernel::PhysicalMemory> heap_block, std::size_t offset,
+    u64 size, MemoryPermission permissions, MemoryPermission other_permissions, std::string name) {
     SharedPtr<SharedMemory> shared_memory(new SharedMemory(kernel));
 
     shared_memory->owner_process = nullptr;
