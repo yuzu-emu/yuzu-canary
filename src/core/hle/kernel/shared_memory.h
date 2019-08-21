@@ -10,6 +10,7 @@
 
 #include "common/common_types.h"
 #include "core/hle/kernel/object.h"
+#include "core/hle/kernel/physical_memory.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/result.h"
 
@@ -62,12 +63,10 @@ public:
      * block.
      * @param name Optional object name, used for debugging purposes.
      */
-    static SharedPtr<SharedMemory> CreateForApplet(KernelCore& kernel,
-                                                   std::shared_ptr<std::vector<u8>> heap_block,
-                                                   std::size_t offset, u64 size,
-                                                   MemoryPermission permissions,
-                                                   MemoryPermission other_permissions,
-                                                   std::string name = "Unknown Applet");
+    static SharedPtr<SharedMemory> CreateForApplet(
+        KernelCore& kernel, std::shared_ptr<Kernel::PhysicalMemory> heap_block, std::size_t offset,
+        u64 size, MemoryPermission permissions, MemoryPermission other_permissions,
+        std::string name = "Unknown Applet");
 
     std::string GetTypeName() const override {
         return "SharedMemory";
@@ -135,7 +134,7 @@ private:
     ~SharedMemory() override;
 
     /// Backing memory for this shared memory block.
-    std::shared_ptr<std::vector<u8>> backing_block;
+    std::shared_ptr<PhysicalMemory> backing_block;
     /// Offset into the backing block for this shared memory.
     std::size_t backing_block_offset = 0;
     /// Size of the memory block. Page-aligned.
