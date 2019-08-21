@@ -405,4 +405,9 @@ Node ShaderIR::BitfieldExtract(Node value, u32 offset, u32 bits) {
                      Immediate(offset), Immediate(bits));
 }
 
+Node ShaderIR::BitfieldInsert(Node base, Node insert, u32 offset, u32 bits) {
+    return Operation(OperationCode::UBitfieldInsert, NO_PRECISE, base, insert, Immediate(offset),
+                     Immediate(bits));
+}
+
 } // namespace VideoCommon::Shader
