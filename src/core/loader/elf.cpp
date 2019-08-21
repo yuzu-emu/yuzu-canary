@@ -295,7 +295,7 @@ Kernel::CodeSet ElfReader::LoadInto(VAddr vaddr) {
         }
     }
 
-    std::vector<u8> program_image(total_image_size);
+    Kernel::PhysicalMemory program_image(total_image_size);
     std::size_t current_image_position = 0;
 
     Kernel::CodeSet codeset;

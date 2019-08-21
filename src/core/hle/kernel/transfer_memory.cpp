@@ -47,7 +47,7 @@ ResultCode TransferMemory::MapMemory(VAddr address, u64 size, MemoryPermission p
         return ERR_INVALID_STATE;
     }
 
-    backing_block = std::make_shared<std::vector<u8>>(size);
+    backing_block = std::make_shared<PhysicalMemory>(size);
 
     const auto map_state = owner_permissions == MemoryPermission::None
                                ? MemoryState::TransferMemoryIsolated
