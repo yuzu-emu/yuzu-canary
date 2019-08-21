@@ -13,15 +13,14 @@ class RendererBase;
 namespace VideoCommon {
 
 /// Implementation of GPU interface that runs the GPU synchronously
-class GPUSynch : public Tegra::GPU {
+class GPUSynch final : public Tegra::GPU {
 public:
     explicit GPUSynch(Core::System& system, VideoCore::RendererBase& renderer);
     ~GPUSynch() override;
 
     void Start() override;
     void PushGPUEntries(Tegra::CommandList&& entries) override;
-    void SwapBuffers(
-        std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) override;
+    void SwapBuffers(const Tegra::FramebufferConfig* framebuffer) override;
     void FlushRegion(CacheAddr addr, u64 size) override;
     void InvalidateRegion(CacheAddr addr, u64 size) override;
     void FlushAndInvalidateRegion(CacheAddr addr, u64 size) override;
