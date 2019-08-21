@@ -1023,8 +1023,6 @@ union Instruction {
         } f2i;
 
         union {
-            BitField<8, 2, Register::Size> src_size;
-            BitField<10, 2, Register::Size> dst_size;
             BitField<39, 4, u64> rounding;
             // H0, H1 extract for F16 missing
             BitField<41, 1, u64> selector; // Guessed as some games set it, TODO: reverse this value
