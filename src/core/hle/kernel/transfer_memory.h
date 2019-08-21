@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "core/hle/kernel/object.h"
+#include "core/hle/kernel/physical_memory.h"
 
 union ResultCode;
 
@@ -82,7 +83,7 @@ private:
     ~TransferMemory() override;
 
     /// Memory block backing this instance.
-    std::shared_ptr<std::vector<u8>> backing_block;
+    std::shared_ptr<PhysicalMemory> backing_block;
 
     /// The base address for the memory managed by this instance.
     VAddr base_address = 0;
