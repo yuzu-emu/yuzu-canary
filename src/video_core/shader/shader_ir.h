@@ -279,6 +279,9 @@ private:
     /// Extracts a sequence of bits from a node
     Node BitfieldExtract(Node value, u32 offset, u32 bits);
 
+    /// Inserts a sequence of bits from a node
+    Node BitfieldInsert(Node base, Node insert, u32 offset, u32 bits);
+
     void WriteTexInstructionFloat(NodeBlock& bb, Tegra::Shader::Instruction instr,
                                   const Node4& components);
 
