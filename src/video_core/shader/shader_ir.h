@@ -167,6 +167,7 @@ private:
     u32 DecodeFfma(NodeBlock& bb, u32 pc);
     u32 DecodeHfma2(NodeBlock& bb, u32 pc);
     u32 DecodeConversion(NodeBlock& bb, u32 pc);
+    u32 DecodeWarp(NodeBlock& bb, u32 pc);
     u32 DecodeMemory(NodeBlock& bb, u32 pc);
     u32 DecodeTexture(NodeBlock& bb, u32 pc);
     u32 DecodeImage(NodeBlock& bb, u32 pc);

@@ -176,6 +176,7 @@ u32 ShaderIR::DecodeInstr(NodeBlock& bb, u32 pc) {
         {OpCode::Type::Ffma, &ShaderIR::DecodeFfma},
         {OpCode::Type::Hfma2, &ShaderIR::DecodeHfma2},
         {OpCode::Type::Conversion, &ShaderIR::DecodeConversion},
+        {OpCode::Type::Warp, &ShaderIR::DecodeWarp},
         {OpCode::Type::Memory, &ShaderIR::DecodeMemory},
         {OpCode::Type::Texture, &ShaderIR::DecodeTexture},
         {OpCode::Type::Image, &ShaderIR::DecodeImage},
