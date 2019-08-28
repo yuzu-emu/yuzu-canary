@@ -1735,6 +1735,48 @@ private:
         return "utof(gl_WorkGroupID"s + GetSwizzle(element) + ')';
     }
 
+    std::string BallotThread(Operation operation) {
+        const std::string value = VisitOperand(operation, 0, Type::Bool);
+        if (!device.HasWarpIntrinsics()) {
+            LOG_ERROR(Render_OpenGL,
+                      "Nvidia warp intrinsics are not available and its required by a shader");
+            // Stub on non-Nvidia devices by simulating all threads voting the same as the active
+            // one.
+            return fmt::format("utof({} ? 0xFFFFFFFFU : 0U)", value);
+        }
+        return fmt::format("utof(ballotThreadNV({}))", value);
+    }
+
+    std::string Vote(Operation operation, const char* func) {
+        const std::string value = VisitOperand(operation, 0, Type::Bool);
+        if (!device.HasWarpIntrinsics()) {
+            LOG_ERROR(Render_OpenGL,
+                      "Nvidia vote intrinsics are not available and its required by a shader");
+            // Stub with a warp size of one.
+            return value;
+        }
+        return fmt::format("{}({})", func, value);
+    }
+
+    std::string VoteAll(Operation operation) {
+        return Vote(operation, "allThreadsNV");
+    }
+
+    std::string VoteAny(Operation operation) {
+        return Vote(operation, "anyThreadNV");
+    }
+
+    std::string VoteEqual(Operation operation) {
+        if (!device.HasWarpIntrinsics()) {
+            LOG_ERROR(Render_OpenGL,
+                      "Nvidia vote intrinsics are not available and its required by a shader");
+            // We must return true here since a stub for a theoretical warp size of 1 will always
+            // return an equal result for all its votes.
+            return "true";
+        }
+        return Vote(operation, "allThreadsEqualNV");
+    }
+
     static constexpr std::array operation_decompilers = {
         &GLSLDecompiler::Assign,
 
@@ -1885,6 +1927,11 @@ private:
         &GLSLDecompiler::WorkGroupId<0>,
         &GLSLDecompiler::WorkGroupId<1>,
         &GLSLDecompiler::WorkGroupId<2>,
+
+        &GLSLDecompiler::BallotThread,
+        &GLSLDecompiler::VoteAll,
+        &GLSLDecompiler::VoteAny,
+        &GLSLDecompiler::VoteEqual,
     };
     static_assert(operation_decompilers.size() == static_cast<std::size_t>(OperationCode::Amount));
 

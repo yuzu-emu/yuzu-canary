@@ -27,6 +27,8 @@ Device::Device() {
     shader_storage_alignment = GetInteger<std::size_t>(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT);
     max_vertex_attributes = GetInteger<u32>(GL_MAX_VERTEX_ATTRIBS);
     max_varyings = GetInteger<u32>(GL_MAX_VARYING_VECTORS);
+    has_warp_intrinsics = GLAD_GL_NV_gpu_shader5 && GLAD_GL_NV_shader_thread_group &&
+                          GLAD_GL_NV_shader_thread_shuffle;
     has_vertex_viewport_layer = GLAD_GL_ARB_shader_viewport_layer_array;
     has_variable_aoffi = TestVariableAoffi();
     has_component_indexing_bug = TestComponentIndexingBug();
@@ -36,6 +38,7 @@ Device::Device(std::nullptr_t) {
     uniform_buffer_alignment = 0;
     max_vertex_attributes = 16;
     max_varyings = 15;
+    has_warp_intrinsics = true;
     has_vertex_viewport_layer = true;
     has_variable_aoffi = true;
     has_component_indexing_bug = false;
