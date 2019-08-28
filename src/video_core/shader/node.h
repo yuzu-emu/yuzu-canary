@@ -168,6 +168,11 @@ enum class OperationCode {
     WorkGroupIdY,       /// () -> uint
     WorkGroupIdZ,       /// () -> uint
 
+    BallotThread, /// (bool) -> uint
+    VoteAll,      /// (bool) -> bool
+    VoteAny,      /// (bool) -> bool
+    VoteEqual,    /// (bool) -> bool
+
     Amount,
 };
 

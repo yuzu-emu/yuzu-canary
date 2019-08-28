@@ -212,7 +212,9 @@ CachedProgram SpecializeShader(const std::string& code, const GLShader::ShaderEn
     const auto texture_buffer_usage{variant.texture_buffer_usage};
 
     std::string source = "#version 430 core\n"
-                         "#extension GL_ARB_separate_shader_objects : enable\n";
+                         "#extension GL_ARB_separate_shader_objects : enable\n"
+                         "#extension GL_NV_gpu_shader5 : enable\n"
+                         "#extension GL_NV_shader_thread_group : enable\n";
     if (entries.shader_viewport_layer_array) {
         source += "#extension GL_ARB_shader_viewport_layer_array : enable\n";
     }
