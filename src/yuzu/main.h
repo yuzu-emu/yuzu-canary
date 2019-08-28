@@ -30,6 +30,7 @@ class ProfilerWidget;
 class QLabel;
 class WaitTreeWidget;
 enum class GameListOpenTarget;
+class GameListPlaceholder;
 
 namespace Core::Frontend {
 struct SoftwareKeyboardParameters;
@@ -183,12 +184,13 @@ private slots:
     void OnGameListCopyTID(u64 program_id);
     void OnGameListNavigateToGamedbEntry(u64 program_id,
                                          const CompatibilityList& compatibility_list);
+    void OnGameListOpenDirectory(const QString& directory);
+    void OnGameListAddDirectory();
+    void OnGameListShowList(bool show);
     void OnGameListOpenPerGameProperties(const std::string& file);
     void OnMenuLoadFile();
     void OnMenuLoadFolder();
     void OnMenuInstallToNAND();
-    /// Called whenever a user selects the "File->Select Game List Root" menu item
-    void OnMenuSelectGameListRoot();
     /// Called whenever a user select the "File->Select -- Directory" where -- is NAND or SD Card
     void OnMenuSelectEmulatedDirectory(EmulatedDirectoryTarget target);
     void OnMenuRecentFile();
@@ -219,6 +221,8 @@ private:
     GRenderWindow* render_window;
     GameList* game_list;
     LoadingScreen* loading_screen;
+
+    GameListPlaceholder* game_list_placeholder;
 
     // Status bar elements
     QLabel* message_label = nullptr;
