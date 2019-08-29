@@ -10,6 +10,7 @@
 #include <utility>
 
 #include <QCoreApplication>
+#include <QFileInfo>
 #include <QImage>
 #include <QObject>
 #include <QStandardItem>
@@ -21,6 +22,17 @@
 #include "common/string_util.h"
 #include "yuzu/uisettings.h"
 #include "yuzu/util/util.h"
+
+enum class GameListItemType {
+    Game = QStandardItem::UserType + 1,
+    CustomDir = QStandardItem::UserType + 2,
+    SdmcDir = QStandardItem::UserType + 3,
+    UserNandDir = QStandardItem::UserType + 4,
+    SysNandDir = QStandardItem::UserType + 5,
+    AddDir = QStandardItem::UserType + 6
+};
+
+Q_DECLARE_METATYPE(GameListItemType);
 
 /**
  * Gets the default icon (for games without valid title metadata)
@@ -36,8 +48,13 @@ static QPixmap GetDefaultIcon(u32 size) {
 class GameListItem : public QStandardItem {
 
 public:
+    // used to access type from item index
+    static const int TypeRole = Qt::UserRole + 1;
+    static const int SortRole = Qt::UserRole + 2;
     GameListItem() = default;
-    explicit GameListItem(const QString& string) : QStandardItem(string) {}
+    GameListItem(const QString& string) : QStandardItem(string) {
+        setData(string, SortRole);
+    }
 };
 
 /**
@@ -48,14 +65,15 @@ public:
  */
 class GameListItemPath : public GameListItem {
 public:
-    static const int FullPathRole = Qt::UserRole + 1;
-    static const int TitleRole = Qt::UserRole + 2;
-    static const int ProgramIdRole = Qt::UserRole + 3;
-    static const int FileTypeRole = Qt::UserRole + 4;
+    static const int TitleRole = SortRole;
+    static const int FullPathRole = SortRole + 1;
+    static const int ProgramIdRole = SortRole + 2;
+    static const int FileTypeRole = SortRole + 3;
 
     GameListItemPath() = default;
     GameListItemPath(const QString& game_path, const std::vector<u8>& picture_data,
                      const QString& game_name, const QString& game_type, u64 program_id) {
+        setData(type(), TypeRole);
         setData(game_path, FullPathRole);
         setData(game_name, TitleRole);
         setData(qulonglong(program_id), ProgramIdRole);
@@ -70,6 +88,10 @@ public:
         picture = picture.scaled(size, size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 
         setData(picture, Qt::DecorationRole);
+    }
+
+    int type() const override {
+        return static_cast<int>(GameListItemType::Game);
     }
 
     QVariant data(int role) const override {
@@ -103,9 +125,11 @@ public:
 class GameListItemCompat : public GameListItem {
     Q_DECLARE_TR_FUNCTIONS(GameListItemCompat)
 public:
-    static const int CompatNumberRole = Qt::UserRole + 1;
+    static const int CompatNumberRole = SortRole;
     GameListItemCompat() = default;
     explicit GameListItemCompat(const QString& compatibility) {
+        setData(type(), TypeRole);
+
         struct CompatStatus {
             QString color;
             const char* text;
@@ -135,6 +159,10 @@ public:
         setData(CreateCirclePixmapFromColor(status.color), Qt::DecorationRole);
     }
 
+    int type() const override {
+        return static_cast<int>(GameListItemType::Game);
+    }
+
     bool operator<(const QStandardItem& other) const override {
         return data(CompatNumberRole) < other.data(CompatNumberRole);
     }
@@ -146,12 +174,12 @@ public:
  * human-readable string representation will be displayed to the user.
  */
 class GameListItemSize : public GameListItem {
-
 public:
-    static const int SizeRole = Qt::UserRole + 1;
+    static const int SizeRole = SortRole;
 
     GameListItemSize() = default;
     explicit GameListItemSize(const qulonglong size_bytes) {
+        setData(type(), TypeRole);
         setData(size_bytes, SizeRole);
     }
 
@@ -167,6 +195,10 @@ public:
         }
     }
 
+    int type() const override {
+        return static_cast<int>(GameListItemType::Game);
+    }
+
     /**
      * This operator is, in practice, only used by the TreeView sorting systems.
      * Override it so that it will correctly sort by numerical value instead of by string
@@ -174,6 +206,82 @@ public:
      */
     bool operator<(const QStandardItem& other) const override {
         return data(SizeRole).toULongLong() < other.data(SizeRole).toULongLong();
+    }
+};
+
+class GameListDir : public GameListItem {
+public:
+    static const int GameDirRole = Qt::UserRole + 2;
+
+    explicit GameListDir(UISettings::GameDir& directory,
+                         GameListItemType dir_type = GameListItemType::CustomDir)
+        : dir_type{dir_type} {
+        setData(type(), TypeRole);
+
+        UISettings::GameDir* game_dir = &directory;
+        setData(QVariant::fromValue(game_dir), GameDirRole);
+
+        const int icon_size = std::min(static_cast<int>(UISettings::values.icon_size), 64);
+        switch (dir_type) {
+        case GameListItemType::SdmcDir:
+            setData(
+                QIcon::fromTheme(QStringLiteral("sd_card"))
+                    .pixmap(icon_size)
+                    .scaled(icon_size, icon_size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation),
+                Qt::DecorationRole);
+            setData(QObject::tr("Installed SD Titles"), Qt::DisplayRole);
+            break;
+        case GameListItemType::UserNandDir:
+            setData(
+                QIcon::fromTheme(QStringLiteral("chip"))
+                    .pixmap(icon_size)
+                    .scaled(icon_size, icon_size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation),
+                Qt::DecorationRole);
+            setData(QObject::tr("Installed NAND Titles"), Qt::DisplayRole);
+            break;
+        case GameListItemType::SysNandDir:
+            setData(
+                QIcon::fromTheme(QStringLiteral("chip"))
+                    .pixmap(icon_size)
+                    .scaled(icon_size, icon_size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation),
+                Qt::DecorationRole);
+            setData(QObject::tr("System Titles"), Qt::DisplayRole);
+            break;
+        case GameListItemType::CustomDir:
+            const QString icon_name = QFileInfo::exists(game_dir->path)
+                                          ? QStringLiteral("folder")
+                                          : QStringLiteral("bad_folder");
+            setData(QIcon::fromTheme(icon_name).pixmap(icon_size).scaled(
+                        icon_size, icon_size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation),
+                    Qt::DecorationRole);
+            setData(game_dir->path, Qt::DisplayRole);
+            break;
+        };
+    };
+
+    int type() const override {
+        return static_cast<int>(dir_type);
+    }
+
+private:
+    GameListItemType dir_type;
+};
+
+class GameListAddDir : public GameListItem {
+public:
+    explicit GameListAddDir() {
+        setData(type(), TypeRole);
+
+        const int icon_size = std::min(static_cast<int>(UISettings::values.icon_size), 64);
+        setData(QIcon::fromTheme(QStringLiteral("plus"))
+                    .pixmap(icon_size)
+                    .scaled(icon_size, icon_size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation),
+                Qt::DecorationRole);
+        setData(QObject::tr("Add New Game Directory"), Qt::DisplayRole);
+    }
+
+    int type() const override {
+        return static_cast<int>(GameListItemType::AddDir);
     }
 };
 
@@ -208,6 +316,9 @@ private:
         // EventFilter in order to process systemkeys while editing the searchfield
         bool eventFilter(QObject* obj, QEvent* event) override;
     };
+    int visible;
+    int total;
+
     QHBoxLayout* layout_filter = nullptr;
     QTreeView* tree_view = nullptr;
     QLabel* label_filter = nullptr;
