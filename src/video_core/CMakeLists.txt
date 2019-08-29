@@ -1,5 +1,7 @@
 add_library(video_core STATIC
-    buffer_cache.h
+    buffer_cache/buffer_block.h
+    buffer_cache/buffer_cache.h
+    buffer_cache/map_interval.h
     dma_pusher.cpp
     dma_pusher.h
     debug_utils/debug_utils.cpp
