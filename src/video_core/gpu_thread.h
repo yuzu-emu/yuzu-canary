@@ -110,8 +110,7 @@ public:
     void SubmitList(Tegra::CommandList&& entries);
 
     /// Swap buffers (render frame)
-    void SwapBuffers(
-        std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer);
+    void SwapBuffers(const Tegra::FramebufferConfig* framebuffer);
 
     /// Notify rasterizer that any caches of the specified region should be flushed to Switch memory
     void FlushRegion(CacheAddr addr, u64 size);
