@@ -95,13 +95,9 @@ class DebugContext;
 struct FramebufferConfig {
     enum class PixelFormat : u32 {
         ABGR8 = 1,
+        RGB565 = 4,
         BGRA8 = 5,
     };
-
-    /**
-     * Returns the number of bytes per pixel.
-     */
-    static u32 BytesPerPixel(PixelFormat format);
 
     VAddr address;
     u32 offset;
@@ -253,8 +249,7 @@ public:
     virtual void PushGPUEntries(Tegra::CommandList&& entries) = 0;
 
     /// Swap buffers (render frame)
-    virtual void SwapBuffers(
-        std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) = 0;
+    virtual void SwapBuffers(const Tegra::FramebufferConfig* framebuffer) = 0;
 
     /// Notify rasterizer that any caches of the specified region should be flushed to Switch memory
     virtual void FlushRegion(CacheAddr addr, u64 size) = 0;

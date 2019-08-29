@@ -39,7 +39,7 @@ static void RunThread(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_p
                 dma_pusher.Push(std::move(submit_list->entries));
                 dma_pusher.DispatchCalls();
             } else if (const auto data = std::get_if<SwapBuffersCommand>(&next.data)) {
-                renderer.SwapBuffers(std::move(data->framebuffer));
+                renderer.SwapBuffers(data->framebuffer ? &*data->framebuffer : nullptr);
             } else if (const auto data = std::get_if<FlushRegionCommand>(&next.data)) {
                 renderer.Rasterizer().FlushRegion(data->addr, data->size);
             } else if (const auto data = std::get_if<InvalidateRegionCommand>(&next.data)) {
@@ -78,9 +78,9 @@ void ThreadManager::SubmitList(Tegra::CommandList&& entries) {
     system.CoreTiming().ScheduleEvent(synchronization_ticks, synchronization_event, fence);
 }
 
-void ThreadManager::SwapBuffers(
-    std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) {
-    PushCommand(SwapBuffersCommand(std::move(framebuffer)));
+void ThreadManager::SwapBuffers(const Tegra::FramebufferConfig* framebuffer) {
+    PushCommand(SwapBuffersCommand(framebuffer ? *framebuffer
+                                               : std::optional<const Tegra::FramebufferConfig>{}));
 }
 
 void ThreadManager::FlushRegion(CacheAddr addr, u64 size) {
