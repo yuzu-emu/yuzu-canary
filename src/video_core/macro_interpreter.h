@@ -25,7 +25,7 @@ public:
      * @param offset Offset to start execution at.
      * @param parameters The parameters of the macro.
      */
-    void Execute(u32 offset, std::vector<u32> parameters);
+    void Execute(u32 offset, std::size_t num_parameters, const u32* parameters);
 
 private:
     enum class Operation : u32 {
@@ -162,10 +162,12 @@ private:
     MethodAddress method_address = {};
 
     /// Input parameters of the current macro.
-    std::vector<u32> parameters;
+    std::unique_ptr<u32[]> parameters;
+    std::size_t num_parameters = 0;
+    std::size_t parameters_capacity = 0;
     /// Index of the next parameter that will be fetched by the 'parm' instruction.
     u32 next_parameter_index = 0;
 
-    bool carry_flag{};
+    bool carry_flag = false;
 };
 } // namespace Tegra
