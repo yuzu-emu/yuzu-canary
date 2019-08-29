@@ -1072,6 +1072,26 @@ private:
         return {};
     }
 
+    Id BallotThread(Operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    Id VoteAll(Operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    Id VoteAny(Operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    Id VoteEqual(Operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
     Id DeclareBuiltIn(spv::BuiltIn builtin, spv::StorageClass storage, Id type,
                       const std::string& name) {
         const Id id = OpVariable(type, storage);
@@ -1364,6 +1384,11 @@ private:
         &SPIRVDecompiler::WorkGroupId<0>,
         &SPIRVDecompiler::WorkGroupId<1>,
         &SPIRVDecompiler::WorkGroupId<2>,
+
+        &SPIRVDecompiler::BallotThread,
+        &SPIRVDecompiler::VoteAll,
+        &SPIRVDecompiler::VoteAny,
+        &SPIRVDecompiler::VoteEqual,
     };
     static_assert(operation_decompilers.size() == static_cast<std::size_t>(OperationCode::Amount));
 

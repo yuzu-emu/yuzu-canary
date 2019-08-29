@@ -81,6 +81,7 @@ set(HASH_FILES
     "${VIDEO_CORE}/shader/decode/register_set_predicate.cpp"
     "${VIDEO_CORE}/shader/decode/shift.cpp"
     "${VIDEO_CORE}/shader/decode/video.cpp"
+    "${VIDEO_CORE}/shader/decode/warp.cpp"
     "${VIDEO_CORE}/shader/decode/xmad.cpp"
     "${VIDEO_CORE}/shader/control_flow.cpp"
     "${VIDEO_CORE}/shader/control_flow.h"
