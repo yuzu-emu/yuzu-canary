@@ -19,9 +19,8 @@ void GPUSynch::PushGPUEntries(Tegra::CommandList&& entries) {
     dma_pusher->DispatchCalls();
 }
 
-void GPUSynch::SwapBuffers(
-    std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) {
-    renderer.SwapBuffers(std::move(framebuffer));
+void GPUSynch::SwapBuffers(const Tegra::FramebufferConfig* framebuffer) {
+    renderer.SwapBuffers(framebuffer);
 }
 
 void GPUSynch::FlushRegion(CacheAddr addr, u64 size) {
