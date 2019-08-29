@@ -43,14 +43,13 @@ struct ScreenInfo {
     TextureInfo texture;
 };
 
-class RendererOpenGL : public VideoCore::RendererBase {
+class RendererOpenGL final : public VideoCore::RendererBase {
 public:
     explicit RendererOpenGL(Core::Frontend::EmuWindow& emu_window, Core::System& system);
     ~RendererOpenGL() override;
 
     /// Swap buffers (render frame)
-    void SwapBuffers(
-        std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) override;
+    void SwapBuffers(const Tegra::FramebufferConfig* framebuffer) override;
 
     /// Initialize the renderer
     bool Init() override;
