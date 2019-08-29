@@ -14,11 +14,18 @@ namespace Tegra {
 
 MacroInterpreter::MacroInterpreter(Engines::Maxwell3D& maxwell3d) : maxwell3d(maxwell3d) {}
 
-void MacroInterpreter::Execute(u32 offset, std::vector<u32> parameters) {
+void MacroInterpreter::Execute(u32 offset, std::size_t num_parameters, const u32* parameters) {
     MICROPROFILE_SCOPE(MacroInterp);
     Reset();
+
     registers[1] = parameters[0];
-    this->parameters = std::move(parameters);
+
+    if (num_parameters > parameters_capacity) {
+        parameters_capacity = num_parameters;
+        this->parameters = std::make_unique<u32[]>(num_parameters);
+    }
+    std::memcpy(this->parameters.get(), parameters, num_parameters * sizeof(u32));
+    this->num_parameters = num_parameters;
 
     // Execute the code until we hit an exit condition.
     bool keep_executing = true;
@@ -27,7 +34,7 @@ void MacroInterpreter::Execute(u32 offset, std::vector<u32> parameters) {
     }
 
     // Assert the the macro used all the input parameters
-    ASSERT(next_parameter_index == this->parameters.size());
+    ASSERT(next_parameter_index == num_parameters);
 }
 
 void MacroInterpreter::Reset() {
@@ -35,7 +42,7 @@ void MacroInterpreter::Reset() {
     pc = 0;
     delayed_pc = {};
     method_address.raw = 0;
-    parameters.clear();
+    num_parameters = 0;
     // The next parameter index starts at 1, because $r1 already has the value of the first
     // parameter.
     next_parameter_index = 1;
@@ -229,7 +236,8 @@ void MacroInterpreter::ProcessResult(ResultOperation operation, u32 reg, u32 res
 }
 
 u32 MacroInterpreter::FetchParameter() {
-    return parameters.at(next_parameter_index++);
+    ASSERT(next_parameter_index < num_parameters);
+    return parameters[next_parameter_index++];
 }
 
 u32 MacroInterpreter::GetRegister(u32 register_id) const {
