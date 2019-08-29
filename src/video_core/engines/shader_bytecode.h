@@ -1006,7 +1006,6 @@ union Instruction {
     } iset;
 
     union {
-        BitField<41, 2, u64> selector; // i2i and i2f only
         BitField<45, 1, u64> negate_a;
         BitField<49, 1, u64> abs_a;
         BitField<10, 2, Register::Size> src_size;
@@ -1032,6 +1031,13 @@ union Instruction {
             }
         } f2f;
 
+        union {
+            BitField<41, 2, u64> selector;
+        } int_src;
+
+        union {
+            BitField<41, 1, u64> selector;
+        } float_src;
     } conversion;
 
     union {
