@@ -20,10 +20,6 @@ namespace Tegra {
 class MemoryManager;
 }
 
-namespace VideoCore {
-class RasterizerInterface;
-}
-
 namespace Tegra::Engines {
 
 /**
@@ -33,8 +29,7 @@ namespace Tegra::Engines {
 
 class MaxwellDMA final {
 public:
-    explicit MaxwellDMA(Core::System& system, VideoCore::RasterizerInterface& rasterizer,
-                        MemoryManager& memory_manager);
+    explicit MaxwellDMA(Core::System& system, MemoryManager& memory_manager);
     ~MaxwellDMA() = default;
 
     /// Write the value to the register identified by method.
@@ -179,8 +174,6 @@ public:
 
 private:
     Core::System& system;
-
-    VideoCore::RasterizerInterface& rasterizer;
 
     MemoryManager& memory_manager;
 

@@ -50,7 +50,7 @@ public:
     /// and invalidated
     virtual void FlushAndInvalidateRegion(CacheAddr addr, u64 size) = 0;
 
-    // Notify the rasterizer to send all written commands to the host GPU.
+    /// Notify the rasterizer to send all written commands to the host GPU.
     virtual void FlushCommands() = 0;
 
     /// Notify rasterizer that a frame is about to finish

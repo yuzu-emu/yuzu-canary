@@ -33,7 +33,7 @@ namespace Tegra::Engines {
 
 class Fermi2D final {
 public:
-    explicit Fermi2D(VideoCore::RasterizerInterface& rasterizer, MemoryManager& memory_manager);
+    explicit Fermi2D(VideoCore::RasterizerInterface& rasterizer);
     ~Fermi2D() = default;
 
     /// Write the value to the register identified by method.
@@ -145,7 +145,6 @@ public:
 
 private:
     VideoCore::RasterizerInterface& rasterizer;
-    MemoryManager& memory_manager;
 
     /// Performs the copy from the source surface to the destination surface as configured in the
     /// registers.

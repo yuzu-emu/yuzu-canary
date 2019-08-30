@@ -708,8 +708,6 @@ void RasterizerOpenGL::DrawArrays() {
         return;
     }
 
-    const auto& regs = gpu.regs;
-
     SyncColorMask();
     SyncFragmentColorClampState();
     SyncMultiSampleState();

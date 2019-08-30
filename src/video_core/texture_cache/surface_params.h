@@ -58,7 +58,6 @@ public:
     std::size_t GetHostSizeInBytes() const {
         std::size_t host_size_in_bytes;
         if (GetCompressionType() == SurfaceCompression::Converted) {
-            constexpr std::size_t rgb8_bpp = 4ULL;
             // ASTC is uncompressed in software, in emulated as RGBA8
             host_size_in_bytes = 0;
             for (u32 level = 0; level < num_levels; ++level) {

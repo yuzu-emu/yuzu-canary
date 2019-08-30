@@ -10,8 +10,7 @@
 
 namespace Tegra::Engines {
 
-Fermi2D::Fermi2D(VideoCore::RasterizerInterface& rasterizer, MemoryManager& memory_manager)
-    : rasterizer{rasterizer}, memory_manager{memory_manager} {}
+Fermi2D::Fermi2D(VideoCore::RasterizerInterface& rasterizer) : rasterizer{rasterizer} {}
 
 void Fermi2D::CallMethod(const GPU::MethodCall& method_call) {
     ASSERT_MSG(method_call.method < Regs::NUM_REGS,

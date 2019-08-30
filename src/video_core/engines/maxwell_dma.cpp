@@ -8,15 +8,13 @@
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/engines/maxwell_dma.h"
 #include "video_core/memory_manager.h"
-#include "video_core/rasterizer_interface.h"
 #include "video_core/renderer_base.h"
 #include "video_core/textures/decoders.h"
 
 namespace Tegra::Engines {
 
-MaxwellDMA::MaxwellDMA(Core::System& system, VideoCore::RasterizerInterface& rasterizer,
-                       MemoryManager& memory_manager)
-    : system{system}, rasterizer{rasterizer}, memory_manager{memory_manager} {}
+MaxwellDMA::MaxwellDMA(Core::System& system, MemoryManager& memory_manager)
+    : system{system}, memory_manager{memory_manager} {}
 
 void MaxwellDMA::CallMethod(const GPU::MethodCall& method_call) {
     ASSERT_MSG(method_call.method < Regs::NUM_REGS,
