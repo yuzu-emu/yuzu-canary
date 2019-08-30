@@ -42,9 +42,8 @@ u32 ShaderIR::DecodeHalfSetPredicate(NodeBlock& bb, u32 pc) {
         cond = instr.hsetp2.reg.cond;
         h_and = instr.hsetp2.reg.h_and;
         op_b =
-            UnpackHalfFloat(GetOperandAbsNegHalf(GetRegister(instr.gpr20), instr.hsetp2.reg.abs_b,
-                                                 instr.hsetp2.reg.negate_b),
-                            instr.hsetp2.reg.type_b);
+            GetOperandAbsNegHalf(UnpackHalfFloat(GetRegister(instr.gpr20), instr.hsetp2.reg.type_b),
+                                 instr.hsetp2.reg.abs_b, instr.hsetp2.reg.negate_b);
         break;
     default:
         UNREACHABLE();
@@ -52,22 +51,22 @@ u32 ShaderIR::DecodeHalfSetPredicate(NodeBlock& bb, u32 pc) {
     }
 
     const OperationCode combiner = GetPredicateCombiner(instr.hsetp2.op);
-    const Node combined_pred = GetPredicate(instr.hsetp2.pred3, instr.hsetp2.neg_pred);
+    const Node combined_pred = GetPredicate(instr.hsetp2.pred39, instr.hsetp2.neg_pred);
 
     const auto Write = [&](u64 dest, Node src) {
         SetPredicate(bb, dest, Operation(combiner, std::move(src), combined_pred));
     };
 
     const Node comparison = GetPredicateComparisonHalf(cond, op_a, op_b);
-    const u64 first = instr.hsetp2.pred0;
-    const u64 second = instr.hsetp2.pred39;
+    const u64 first = instr.hsetp2.pred3;
+    const u64 second = instr.hsetp2.pred0;
     if (h_and) {
-        const Node joined = Operation(OperationCode::LogicalAnd2, comparison);
+        Node joined = Operation(OperationCode::LogicalAnd2, comparison);
         Write(first, joined);
-        Write(second, Operation(OperationCode::LogicalNegate, joined));
+        Write(second, Operation(OperationCode::LogicalNegate, std::move(joined)));
     } else {
-        Write(first, Operation(OperationCode::LogicalPick2, comparison, Immediate(0u)));
-        Write(second, Operation(OperationCode::LogicalPick2, comparison, Immediate(1u)));
+        Write(first, Operation(OperationCode::LogicalPick2, comparison, Immediate(0U)));
+        Write(second, Operation(OperationCode::LogicalPick2, comparison, Immediate(1U)));
     }
 
     return pc;
