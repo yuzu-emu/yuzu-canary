@@ -5,6 +5,7 @@
 #include "common/assert.h"
 #include "common/logging/log.h"
 #include "core/core.h"
+#include "core/settings.h"
 #include "video_core/engines/maxwell_3d.h"
 #include "video_core/engines/maxwell_dma.h"
 #include "video_core/memory_manager.h"
@@ -82,12 +83,16 @@ void MaxwellDMA::HandleCopy() {
     ASSERT(regs.exec.enable_2d == 1);
 
     if (regs.exec.is_dst_linear && !regs.exec.is_src_linear) {
-        ASSERT(regs.src_params.size_z == 1);
+        ASSERT(regs.src_params.BlockDepth() == 0);
         // If the input is tiled and the output is linear, deswizzle the input and copy it over.
-        const u32 src_bytes_per_pixel = regs.src_pitch / regs.src_params.size_x;
+        const u32 bytes_per_pixel = regs.dst_pitch / regs.x_count;
         const std::size_t src_size = Texture::CalculateSize(
-            true, src_bytes_per_pixel, regs.src_params.size_x, regs.src_params.size_y,
+            true, bytes_per_pixel, regs.src_params.size_x, regs.src_params.size_y,
             regs.src_params.size_z, regs.src_params.BlockHeight(), regs.src_params.BlockDepth());
+
+        const std::size_t src_layer_size = Texture::CalculateSize(
+            true, bytes_per_pixel, regs.src_params.size_x, regs.src_params.size_y, 1,
+            regs.src_params.BlockHeight(), regs.src_params.BlockDepth());
 
         const std::size_t dst_size = regs.dst_pitch * regs.y_count;
 
@@ -102,23 +107,23 @@ void MaxwellDMA::HandleCopy() {
         memory_manager.ReadBlock(source, read_buffer.data(), src_size);
         memory_manager.ReadBlock(dest, write_buffer.data(), dst_size);
 
-        Texture::UnswizzleSubrect(regs.x_count, regs.y_count, regs.dst_pitch,
-                                  regs.src_params.size_x, src_bytes_per_pixel, read_buffer.data(),
-                                  write_buffer.data(), regs.src_params.BlockHeight(),
-                                  regs.src_params.pos_x, regs.src_params.pos_y);
+        Texture::UnswizzleSubrect(
+            regs.x_count, regs.y_count, regs.dst_pitch, regs.src_params.size_x, bytes_per_pixel,
+            read_buffer.data() + src_layer_size * regs.src_params.pos_z, write_buffer.data(),
+            regs.src_params.BlockHeight(), regs.src_params.pos_x, regs.src_params.pos_y);
 
         memory_manager.WriteBlock(dest, write_buffer.data(), dst_size);
     } else {
         ASSERT(regs.dst_params.BlockDepth() == 0);
 
-        const u32 src_bytes_per_pixel = regs.src_pitch / regs.x_count;
+        const u32 bytes_per_pixel = regs.src_pitch / regs.x_count;
 
         const std::size_t dst_size = Texture::CalculateSize(
-            true, src_bytes_per_pixel, regs.dst_params.size_x, regs.dst_params.size_y,
+            true, bytes_per_pixel, regs.dst_params.size_x, regs.dst_params.size_y,
             regs.dst_params.size_z, regs.dst_params.BlockHeight(), regs.dst_params.BlockDepth());
 
         const std::size_t dst_layer_size = Texture::CalculateSize(
-            true, src_bytes_per_pixel, regs.dst_params.size_x, regs.dst_params.size_y, 1,
+            true, bytes_per_pixel, regs.dst_params.size_x, regs.dst_params.size_y, 1,
             regs.dst_params.BlockHeight(), regs.dst_params.BlockDepth());
 
         const std::size_t src_size = regs.src_pitch * regs.y_count;
@@ -131,14 +136,19 @@ void MaxwellDMA::HandleCopy() {
             write_buffer.resize(dst_size);
         }
 
-        memory_manager.ReadBlock(source, read_buffer.data(), src_size);
-        memory_manager.ReadBlock(dest, write_buffer.data(), dst_size);
+        if (Settings::values.use_accurate_gpu_emulation) {
+            memory_manager.ReadBlock(source, read_buffer.data(), src_size);
+            memory_manager.ReadBlock(dest, write_buffer.data(), dst_size);
+        } else {
+            memory_manager.ReadBlockUnsafe(source, read_buffer.data(), src_size);
+            memory_manager.ReadBlockUnsafe(dest, write_buffer.data(), dst_size);
+        }
 
         // If the input is linear and the output is tiled, swizzle the input and copy it over.
-        Texture::SwizzleSubrect(regs.x_count, regs.y_count, regs.src_pitch, regs.dst_params.size_x,
-                                src_bytes_per_pixel,
-                                write_buffer.data() + dst_layer_size * regs.dst_params.pos_z,
-                                read_buffer.data(), regs.dst_params.BlockHeight());
+        Texture::SwizzleSubrect(
+            regs.x_count, regs.y_count, regs.src_pitch, regs.dst_params.size_x, bytes_per_pixel,
+            write_buffer.data() + dst_layer_size * regs.dst_params.pos_z, read_buffer.data(),
+            regs.dst_params.BlockHeight(), regs.dst_params.pos_x, regs.dst_params.pos_y);
 
         memory_manager.WriteBlock(dest, write_buffer.data(), dst_size);
     }
