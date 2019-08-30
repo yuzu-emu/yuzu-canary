@@ -14,6 +14,12 @@ using Tegra::Shader::Instruction;
 using Tegra::Shader::OpCode;
 using Tegra::Shader::Register;
 
+namespace {
+constexpr OperationCode GetFloatSelector(u64 selector) {
+    return selector == 0 ? OperationCode::FCastHalf0 : OperationCode::FCastHalf1;
+}
+} // Anonymous namespace
+
 u32 ShaderIR::DecodeConversion(NodeBlock& bb, u32 pc) {
     const Instruction instr = {program_code[pc]};
     const auto opcode = OpCode::Decode(instr);
@@ -22,7 +28,7 @@ u32 ShaderIR::DecodeConversion(NodeBlock& bb, u32 pc) {
     case OpCode::Id::I2I_R:
     case OpCode::Id::I2I_C:
     case OpCode::Id::I2I_IMM: {
-        UNIMPLEMENTED_IF(instr.conversion.selector);
+        UNIMPLEMENTED_IF(instr.conversion.int_src.selector != 0);
         UNIMPLEMENTED_IF(instr.conversion.dst_size != Register::Size::Word);
         UNIMPLEMENTED_IF(instr.alu.saturate_d);
 
@@ -57,8 +63,8 @@ u32 ShaderIR::DecodeConversion(NodeBlock& bb, u32 pc) {
     case OpCode::Id::I2F_R:
     case OpCode::Id::I2F_C:
     case OpCode::Id::I2F_IMM: {
+        UNIMPLEMENTED_IF(instr.conversion.int_src.selector != 0);
         UNIMPLEMENTED_IF(instr.conversion.dst_size == Register::Size::Long);
-        UNIMPLEMENTED_IF(instr.conversion.selector);
         UNIMPLEMENTED_IF_MSG(instr.generates_cc,
                              "Condition codes generation in I2F is not implemented");
 
@@ -113,8 +119,10 @@ u32 ShaderIR::DecodeConversion(NodeBlock& bb, u32 pc) {
         }();
 
         if (instr.conversion.src_size == Register::Size::Short) {
-            // TODO: figure where extract is sey in the encoding
-            value = Operation(OperationCode::FCastHalf0, PRECISE, value);
+            value = Operation(GetFloatSelector(instr.conversion.float_src.selector), NO_PRECISE,
+                              std::move(value));
+        } else {
+            ASSERT(instr.conversion.float_src.selector == 0);
         }
 
         value = GetOperandAbsNegFloat(value, instr.conversion.abs_a, instr.conversion.negate_a);
@@ -169,8 +177,10 @@ u32 ShaderIR::DecodeConversion(NodeBlock& bb, u32 pc) {
         }();
 
         if (instr.conversion.src_size == Register::Size::Short) {
-            // TODO: figure where extract is sey in the encoding
-            value = Operation(OperationCode::FCastHalf0, PRECISE, value);
+            value = Operation(GetFloatSelector(instr.conversion.float_src.selector), NO_PRECISE,
+                              std::move(value));
+        } else {
+            ASSERT(instr.conversion.float_src.selector == 0);
         }
 
         value = GetOperandAbsNegFloat(value, instr.conversion.abs_a, instr.conversion.negate_a);
