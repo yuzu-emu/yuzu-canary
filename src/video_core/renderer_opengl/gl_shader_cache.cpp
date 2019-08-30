@@ -295,7 +295,7 @@ std::set<GLenum> GetSupportedFormats() {
 
 CachedShader::CachedShader(const ShaderParameters& params, ProgramType program_type,
                            GLShader::ProgramResult result)
-    : RasterizerCacheObject{params.host_ptr}, host_ptr{params.host_ptr}, cpu_addr{params.cpu_addr},
+    : RasterizerCacheObject{params.host_ptr}, cpu_addr{params.cpu_addr},
       unique_identifier{params.unique_identifier}, program_type{program_type},
       disk_cache{params.disk_cache}, precompiled_programs{params.precompiled_programs},
       entries{result.second}, code{std::move(result.first)}, shader_length{entries.shader_length} {}

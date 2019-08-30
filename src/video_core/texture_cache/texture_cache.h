@@ -308,8 +308,6 @@ protected:
         if (!guard_render_targets && surface->IsRenderTarget()) {
             ManageRenderTargetUnregister(surface);
         }
-        const GPUVAddr gpu_addr = surface->GetGpuAddr();
-        const CacheAddr cache_ptr = surface->GetCacheAddr();
         const std::size_t size = surface->GetSizeInBytes();
         const VAddr cpu_addr = surface->GetCpuAddr();
         rasterizer.UpdatePagesCachedCount(cpu_addr, size, -1);

@@ -14,7 +14,6 @@ using Tegra::Shader::OpCode;
 
 u32 ShaderIR::DecodeIntegerSet(NodeBlock& bb, u32 pc) {
     const Instruction instr = {program_code[pc]};
-    const auto opcode = OpCode::Decode(instr);
 
     const Node op_a = GetRegister(instr.gpr8);
     const Node op_b = [&]() {

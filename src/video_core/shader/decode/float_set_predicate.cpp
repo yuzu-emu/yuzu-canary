@@ -16,7 +16,6 @@ using Tegra::Shader::Pred;
 
 u32 ShaderIR::DecodeFloatSetPredicate(NodeBlock& bb, u32 pc) {
     const Instruction instr = {program_code[pc]};
-    const auto opcode = OpCode::Decode(instr);
 
     const Node op_a = GetOperandAbsNegFloat(GetRegister(instr.gpr8), instr.fsetp.abs_a != 0,
                                             instr.fsetp.neg_a != 0);

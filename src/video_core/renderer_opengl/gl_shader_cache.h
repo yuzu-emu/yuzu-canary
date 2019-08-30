@@ -106,7 +106,6 @@ private:
 
     ShaderDiskCacheUsage GetUsage(const ProgramVariant& variant) const;
 
-    u8* host_ptr{};
     VAddr cpu_addr{};
     u64 unique_identifier{};
     ProgramType program_type{};

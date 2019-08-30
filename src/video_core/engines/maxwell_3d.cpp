@@ -524,7 +524,7 @@ void Maxwell3D::ProcessQueryCondition() {
 void Maxwell3D::ProcessSyncPoint() {
     const u32 sync_point = regs.sync_info.sync_point.Value();
     const u32 increment = regs.sync_info.increment.Value();
-    const u32 cache_flush = regs.sync_info.unknown.Value();
+    [[maybe_unused]] const u32 cache_flush = regs.sync_info.unknown.Value();
     if (increment) {
         system.GPU().IncrementSyncPoint(sync_point);
     }
@@ -626,10 +626,10 @@ Texture::TICEntry Maxwell3D::GetTICEntry(u32 tic_index) const {
     Texture::TICEntry tic_entry;
     memory_manager.ReadBlockUnsafe(tic_address_gpu, &tic_entry, sizeof(Texture::TICEntry));
 
-    const auto r_type{tic_entry.r_type.Value()};
-    const auto g_type{tic_entry.g_type.Value()};
-    const auto b_type{tic_entry.b_type.Value()};
-    const auto a_type{tic_entry.a_type.Value()};
+    [[maybe_unused]] const auto r_type{tic_entry.r_type.Value()};
+    [[maybe_unused]] const auto g_type{tic_entry.g_type.Value()};
+    [[maybe_unused]] const auto b_type{tic_entry.b_type.Value()};
+    [[maybe_unused]] const auto a_type{tic_entry.a_type.Value()};
 
     // TODO(Subv): Different data types for separate components are not supported
     DEBUG_ASSERT(r_type == g_type && r_type == b_type && r_type == a_type);

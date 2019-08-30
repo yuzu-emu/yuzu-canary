@@ -285,8 +285,8 @@ private:
 
 protected:
     std::unique_ptr<Tegra::DmaPusher> dma_pusher;
-    VideoCore::RendererBase& renderer;
     Core::System& system;
+    VideoCore::RendererBase& renderer;
 
 private:
     std::unique_ptr<Tegra::MemoryManager> memory_manager;

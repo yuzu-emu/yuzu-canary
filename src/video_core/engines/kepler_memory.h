@@ -65,7 +65,6 @@ public:
 
 private:
     Core::System& system;
-    MemoryManager& memory_manager;
     Upload::State upload_state;
 };
 

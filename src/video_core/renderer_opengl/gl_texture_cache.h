@@ -51,7 +51,7 @@ public:
     }
 
 protected:
-    void DecorateSurfaceName();
+    void DecorateSurfaceName() override;
 
     View CreateView(const ViewParams& view_key) override;
     View CreateViewInner(const ViewParams& view_key, bool is_proxy);

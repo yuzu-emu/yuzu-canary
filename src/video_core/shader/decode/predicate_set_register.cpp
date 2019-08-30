@@ -15,7 +15,6 @@ using Tegra::Shader::OpCode;
 
 u32 ShaderIR::DecodePredicateSetRegister(NodeBlock& bb, u32 pc) {
     const Instruction instr = {program_code[pc]};
-    const auto opcode = OpCode::Decode(instr);
 
     UNIMPLEMENTED_IF_MSG(instr.generates_cc,
                          "Condition codes generation in PSET is not implemented");

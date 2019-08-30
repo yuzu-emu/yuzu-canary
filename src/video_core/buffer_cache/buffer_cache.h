@@ -18,10 +18,7 @@
 #include "video_core/buffer_cache/buffer_block.h"
 #include "video_core/buffer_cache/map_interval.h"
 #include "video_core/memory_manager.h"
-
-namespace VideoCore {
-class RasterizerInterface;
-}
+#include "video_core/rasterizer_interface.h"
 
 namespace VideoCommon {
 
@@ -348,7 +345,6 @@ private:
         const CacheAddr cache_addr_end = cache_addr + size - 1;
         u64 page_start = cache_addr >> block_page_bits;
         const u64 page_end = cache_addr_end >> block_page_bits;
-        const u64 num_pages = page_end - page_start + 1;
         while (page_start <= page_end) {
             auto it = blocks.find(page_start);
             if (it == blocks.end()) {
@@ -417,7 +413,10 @@ private:
         return false;
     }
 
+    VideoCore::RasterizerInterface& rasterizer;
+    Core::System& system;
     std::unique_ptr<StreamBuffer> stream_buffer;
+
     TBufferType stream_buffer_handle{};
 
     bool invalidated = false;
@@ -441,8 +440,7 @@ private:
     std::list<TBuffer> pending_destruction{};
     u64 epoch{};
     u64 modified_ticks{};
-    VideoCore::RasterizerInterface& rasterizer;
-    Core::System& system;
+
     std::recursive_mutex mutex;
 };
 

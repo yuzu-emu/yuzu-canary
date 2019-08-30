@@ -69,7 +69,6 @@ protected:
 private:
     CacheAddr cache_addr{};
     CacheAddr cache_addr_end{};
-    u64 pages{};
     std::size_t size{};
     u64 epoch{};
 };
