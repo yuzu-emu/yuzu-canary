@@ -89,14 +89,29 @@ public:
         }
     }
 
-    TView GetTextureSurface(const Tegra::Texture::FullTextureInfo& config,
+    TView GetTextureSurface(const Tegra::Texture::TICEntry& tic,
                             const VideoCommon::Shader::Sampler& entry) {
         std::lock_guard lock{mutex};
-        const auto gpu_addr{config.tic.Address()};
+        const auto gpu_addr{tic.Address()};
         if (!gpu_addr) {
             return {};
         }
-        const auto params{SurfaceParams::CreateForTexture(system, config, entry)};
+        const auto params{SurfaceParams::CreateForTexture(tic, entry)};
+        const auto [surface, view] = GetSurface(gpu_addr, params, true, false);
+        if (guard_samplers) {
+            sampled_textures.push_back(surface);
+        }
+        return view;
+    }
+
+    TView GetImageSurface(const Tegra::Texture::TICEntry& tic,
+                          const VideoCommon::Shader::Image& entry) {
+        std::lock_guard lock{mutex};
+        const auto gpu_addr{tic.Address()};
+        if (!gpu_addr) {
+            return {};
+        }
+        const auto params{SurfaceParams::CreateForImage(tic, entry)};
         const auto [surface, view] = GetSurface(gpu_addr, params, true, false);
         if (guard_samplers) {
             sampled_textures.push_back(surface);
