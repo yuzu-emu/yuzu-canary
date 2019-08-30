@@ -23,9 +23,8 @@ void GPUAsynch::PushGPUEntries(Tegra::CommandList&& entries) {
     gpu_thread.SubmitList(std::move(entries));
 }
 
-void GPUAsynch::SwapBuffers(
-    std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) {
-    gpu_thread.SwapBuffers(std::move(framebuffer));
+void GPUAsynch::SwapBuffers(const Tegra::FramebufferConfig* framebuffer) {
+    gpu_thread.SwapBuffers(framebuffer);
 }
 
 void GPUAsynch::FlushRegion(CacheAddr addr, u64 size) {
