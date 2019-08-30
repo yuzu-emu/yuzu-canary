@@ -12,6 +12,7 @@
 #include "common/common_types.h"
 #include "video_core/engines/engine_upload.h"
 #include "video_core/gpu.h"
+#include "video_core/textures/texture.h"
 
 namespace Core {
 class System;
@@ -111,7 +112,7 @@ public:
 
                 INSERT_PADDING_WORDS(0x3FE);
 
-                u32 texture_const_buffer_index;
+                u32 tex_cb_index;
 
                 INSERT_PADDING_WORDS(0x374);
             };
@@ -149,7 +150,7 @@ public:
         union {
             BitField<0, 8, u32> const_buffer_enable_mask;
             BitField<29, 2, u32> cache_layout;
-        } memory_config;
+        };
 
         INSERT_PADDING_WORDS(0x8);
 
@@ -194,6 +195,14 @@ public:
     /// Write the value to the register identified by method.
     void CallMethod(const GPU::MethodCall& method_call);
 
+    Tegra::Texture::FullTextureInfo GetTexture(std::size_t offset) const;
+
+    /// Given a Texture Handle, returns the TSC and TIC entries.
+    Texture::FullTextureInfo GetTextureInfo(const Texture::TextureHandle tex_handle,
+                                            std::size_t offset) const;
+
+    u32 AccessConstBuffer32(u64 const_buffer, u64 offset) const;
+
 private:
     Core::System& system;
     VideoCore::RasterizerInterface& rasterizer;
@@ -201,6 +210,12 @@ private:
     Upload::State upload_state;
 
     void ProcessLaunch();
+
+    /// Retrieves information about a specific TIC entry from the TIC buffer.
+    Texture::TICEntry GetTICEntry(u32 tic_index) const;
+
+    /// Retrieves information about a specific TSC entry from the TSC buffer.
+    Texture::TSCEntry GetTSCEntry(u32 tsc_index) const;
 };
 
 #define ASSERT_REG_POSITION(field_name, position)                                                  \
@@ -218,12 +233,12 @@ ASSERT_REG_POSITION(launch, 0xAF);
 ASSERT_REG_POSITION(tsc, 0x557);
 ASSERT_REG_POSITION(tic, 0x55D);
 ASSERT_REG_POSITION(code_loc, 0x582);
-ASSERT_REG_POSITION(texture_const_buffer_index, 0x982);
+ASSERT_REG_POSITION(tex_cb_index, 0x982);
 ASSERT_LAUNCH_PARAM_POSITION(program_start, 0x8);
 ASSERT_LAUNCH_PARAM_POSITION(grid_dim_x, 0xC);
 ASSERT_LAUNCH_PARAM_POSITION(shared_alloc, 0x11);
 ASSERT_LAUNCH_PARAM_POSITION(block_dim_x, 0x12);
-ASSERT_LAUNCH_PARAM_POSITION(memory_config, 0x14);
+ASSERT_LAUNCH_PARAM_POSITION(const_buffer_enable_mask, 0x14);
 ASSERT_LAUNCH_PARAM_POSITION(const_buffer_config, 0x1D);
 
 #undef ASSERT_REG_POSITION
