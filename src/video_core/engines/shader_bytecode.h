@@ -886,6 +886,7 @@ union Instruction {
     union {
         BitField<0, 3, u64> pred0;
         BitField<3, 3, u64> pred3;
+        BitField<6, 1, u64> neg_b;
         BitField<7, 1, u64> abs_a;
         BitField<39, 3, u64> pred39;
         BitField<42, 1, u64> neg_pred;

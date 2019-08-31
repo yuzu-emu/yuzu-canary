@@ -17,8 +17,8 @@ using Tegra::Shader::Pred;
 u32 ShaderIR::DecodeFloatSetPredicate(NodeBlock& bb, u32 pc) {
     const Instruction instr = {program_code[pc]};
 
-    const Node op_a = GetOperandAbsNegFloat(GetRegister(instr.gpr8), instr.fsetp.abs_a != 0,
-                                            instr.fsetp.neg_a != 0);
+    Node op_a = GetOperandAbsNegFloat(GetRegister(instr.gpr8), instr.fsetp.abs_a != 0,
+                                      instr.fsetp.neg_a != 0);
     Node op_b = [&]() {
         if (instr.is_b_imm) {
             return GetImmediate19(instr);
@@ -28,12 +28,13 @@ u32 ShaderIR::DecodeFloatSetPredicate(NodeBlock& bb, u32 pc) {
             return GetConstBuffer(instr.cbuf34.index, instr.cbuf34.GetOffset());
         }
     }();
-    op_b = GetOperandAbsNegFloat(op_b, instr.fsetp.abs_b, false);
+    op_b = GetOperandAbsNegFloat(std::move(op_b), instr.fsetp.abs_b, instr.fsetp.neg_b);
 
     // We can't use the constant predicate as destination.
     ASSERT(instr.fsetp.pred3 != static_cast<u64>(Pred::UnusedIndex));
 
-    const Node predicate = GetPredicateComparisonFloat(instr.fsetp.cond, op_a, op_b);
+    const Node predicate =
+        GetPredicateComparisonFloat(instr.fsetp.cond, std::move(op_a), std::move(op_b));
     const Node second_pred = GetPredicate(instr.fsetp.pred39, instr.fsetp.neg_pred != 0);
 
     const OperationCode combiner = GetPredicateCombiner(instr.fsetp.op);
