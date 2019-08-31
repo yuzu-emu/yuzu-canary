@@ -101,9 +101,7 @@ RendererOpenGL::RendererOpenGL(Core::Frontend::EmuWindow& emu_window, Core::Syst
 
 RendererOpenGL::~RendererOpenGL() = default;
 
-void RendererOpenGL::SwapBuffers(
-    std::optional<std::reference_wrapper<const Tegra::FramebufferConfig>> framebuffer) {
-
+void RendererOpenGL::SwapBuffers(const Tegra::FramebufferConfig* framebuffer) {
     system.GetPerfStats().EndSystemFrame();
 
     // Maintain the rasterizer's state as a priority
@@ -113,9 +111,9 @@ void RendererOpenGL::SwapBuffers(
 
     if (framebuffer) {
         // If framebuffer is provided, reload it from memory to a texture
-        if (screen_info.texture.width != (GLsizei)framebuffer->get().width ||
-            screen_info.texture.height != (GLsizei)framebuffer->get().height ||
-            screen_info.texture.pixel_format != framebuffer->get().pixel_format) {
+        if (screen_info.texture.width != static_cast<GLsizei>(framebuffer->width) ||
+            screen_info.texture.height != static_cast<GLsizei>(framebuffer->height) ||
+            screen_info.texture.pixel_format != framebuffer->pixel_format) {
             // Reallocate texture if the framebuffer size has changed.
             // This is expected to not happen very often and hence should not be a
             // performance problem.
@@ -149,43 +147,43 @@ void RendererOpenGL::SwapBuffers(
  * Loads framebuffer from emulated memory into the active OpenGL texture.
  */
 void RendererOpenGL::LoadFBToScreenInfo(const Tegra::FramebufferConfig& framebuffer) {
-    const u32 bytes_per_pixel{Tegra::FramebufferConfig::BytesPerPixel(framebuffer.pixel_format)};
-    const u64 size_in_bytes{framebuffer.stride * framebuffer.height * bytes_per_pixel};
-    const VAddr framebuffer_addr{framebuffer.address + framebuffer.offset};
-
     // Framebuffer orientation handling
     framebuffer_transform_flags = framebuffer.transform_flags;
     framebuffer_crop_rect = framebuffer.crop_rect;
 
-    // Ensure no bad interactions with GL_UNPACK_ALIGNMENT, which by default
-    // only allows rows to have a memory alignement of 4.
-    ASSERT(framebuffer.stride % 4 == 0);
-
-    if (!rasterizer->AccelerateDisplay(framebuffer, framebuffer_addr, framebuffer.stride)) {
-        // Reset the screen info's display texture to its own permanent texture
-        screen_info.display_texture = screen_info.texture.resource.handle;
-
-        rasterizer->FlushRegion(ToCacheAddr(Memory::GetPointer(framebuffer_addr)), size_in_bytes);
-
-        constexpr u32 linear_bpp = 4;
-        VideoCore::MortonCopyPixels128(VideoCore::MortonSwizzleMode::MortonToLinear,
-                                       framebuffer.width, framebuffer.height, bytes_per_pixel,
-                                       linear_bpp, Memory::GetPointer(framebuffer_addr),
-                                       gl_framebuffer_data.data());
-
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, static_cast<GLint>(framebuffer.stride));
-
-        // Update existing texture
-        // TODO: Test what happens on hardware when you change the framebuffer dimensions so that
-        //       they differ from the LCD resolution.
-        // TODO: Applications could theoretically crash yuzu here by specifying too large
-        //       framebuffer sizes. We should make sure that this cannot happen.
-        glTextureSubImage2D(screen_info.texture.resource.handle, 0, 0, 0, framebuffer.width,
-                            framebuffer.height, screen_info.texture.gl_format,
-                            screen_info.texture.gl_type, gl_framebuffer_data.data());
-
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    const VAddr framebuffer_addr{framebuffer.address + framebuffer.offset};
+    if (rasterizer->AccelerateDisplay(framebuffer, framebuffer_addr, framebuffer.stride)) {
+        return;
     }
+
+    // Reset the screen info's display texture to its own permanent texture
+    screen_info.display_texture = screen_info.texture.resource.handle;
+
+    const auto pixel_format{
+        VideoCore::Surface::PixelFormatFromGPUPixelFormat(framebuffer.pixel_format)};
+    const u32 bytes_per_pixel{VideoCore::Surface::GetBytesPerPixel(pixel_format)};
+    const u64 size_in_bytes{framebuffer.stride * framebuffer.height * bytes_per_pixel};
+    const auto host_ptr{Memory::GetPointer(framebuffer_addr)};
+    rasterizer->FlushRegion(ToCacheAddr(host_ptr), size_in_bytes);
+
+    // TODO(Rodrigo): Read this from HLE
+    constexpr u32 block_height_log2 = 4;
+    VideoCore::MortonSwizzle(VideoCore::MortonSwizzleMode::MortonToLinear, pixel_format,
+                             framebuffer.stride, block_height_log2, framebuffer.height, 0, 1, 1,
+                             gl_framebuffer_data.data(), host_ptr);
+
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, static_cast<GLint>(framebuffer.stride));
+
+    // Update existing texture
+    // TODO: Test what happens on hardware when you change the framebuffer dimensions so that
+    //       they differ from the LCD resolution.
+    // TODO: Applications could theoretically crash yuzu here by specifying too large
+    //       framebuffer sizes. We should make sure that this cannot happen.
+    glTextureSubImage2D(screen_info.texture.resource.handle, 0, 0, 0, framebuffer.width,
+                        framebuffer.height, screen_info.texture.gl_format,
+                        screen_info.texture.gl_type, gl_framebuffer_data.data());
+
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
 
 /**
@@ -276,22 +274,29 @@ void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
     texture.height = framebuffer.height;
     texture.pixel_format = framebuffer.pixel_format;
 
+    const auto pixel_format{
+        VideoCore::Surface::PixelFormatFromGPUPixelFormat(framebuffer.pixel_format)};
+    const u32 bytes_per_pixel{VideoCore::Surface::GetBytesPerPixel(pixel_format)};
+    gl_framebuffer_data.resize(texture.width * texture.height * bytes_per_pixel);
+
     GLint internal_format;
     switch (framebuffer.pixel_format) {
     case Tegra::FramebufferConfig::PixelFormat::ABGR8:
         internal_format = GL_RGBA8;
         texture.gl_format = GL_RGBA;
         texture.gl_type = GL_UNSIGNED_INT_8_8_8_8_REV;
-        gl_framebuffer_data.resize(texture.width * texture.height * 4);
+        break;
+    case Tegra::FramebufferConfig::PixelFormat::RGB565:
+        internal_format = GL_RGB565;
+        texture.gl_format = GL_RGB;
+        texture.gl_type = GL_UNSIGNED_SHORT_5_6_5;
         break;
     default:
         internal_format = GL_RGBA8;
         texture.gl_format = GL_RGBA;
         texture.gl_type = GL_UNSIGNED_INT_8_8_8_8_REV;
-        gl_framebuffer_data.resize(texture.width * texture.height * 4);
-        LOG_CRITICAL(Render_OpenGL, "Unknown framebuffer pixel format: {}",
-                     static_cast<u32>(framebuffer.pixel_format));
-        UNREACHABLE();
+        UNIMPLEMENTED_MSG("Unknown framebuffer pixel format: {}",
+                          static_cast<u32>(framebuffer.pixel_format));
     }
 
     texture.resource.Release();
