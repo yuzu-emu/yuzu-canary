@@ -17,18 +17,6 @@
 
 namespace Tegra {
 
-u32 FramebufferConfig::BytesPerPixel(PixelFormat format) {
-    switch (format) {
-    case PixelFormat::ABGR8:
-    case PixelFormat::BGRA8:
-        return 4;
-    default:
-        return 4;
-    }
-
-    UNREACHABLE();
-}
-
 GPU::GPU(Core::System& system, VideoCore::RendererBase& renderer, bool is_async)
     : system{system}, renderer{renderer}, is_async{is_async} {
     auto& rasterizer{renderer.Rasterizer()};
