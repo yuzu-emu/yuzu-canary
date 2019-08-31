@@ -14,12 +14,22 @@
 namespace OpenGL {
 
 namespace {
+
 template <typename T>
 T GetInteger(GLenum pname) {
     GLint temporary;
     glGetIntegerv(pname, &temporary);
     return static_cast<T>(temporary);
 }
+
+bool TestProgram(const GLchar* glsl) {
+    const GLuint shader{glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &glsl)};
+    GLint link_status;
+    glGetProgramiv(shader, GL_LINK_STATUS, &link_status);
+    glDeleteProgram(shader);
+    return link_status == GL_TRUE;
+}
+
 } // Anonymous namespace
 
 Device::Device() {
@@ -32,6 +42,11 @@ Device::Device() {
     has_vertex_viewport_layer = GLAD_GL_ARB_shader_viewport_layer_array;
     has_variable_aoffi = TestVariableAoffi();
     has_component_indexing_bug = TestComponentIndexingBug();
+    has_precise_bug = TestPreciseBug();
+
+    LOG_INFO(Render_OpenGL, "Renderer_VariableAOFFI: {}", has_variable_aoffi);
+    LOG_INFO(Render_OpenGL, "Renderer_ComponentIndexingBug: {}", has_component_indexing_bug);
+    LOG_INFO(Render_OpenGL, "Renderer_PreciseBug: {}", has_precise_bug);
 }
 
 Device::Device(std::nullptr_t) {
@@ -42,30 +57,21 @@ Device::Device(std::nullptr_t) {
     has_vertex_viewport_layer = true;
     has_variable_aoffi = true;
     has_component_indexing_bug = false;
+    has_precise_bug = false;
 }
 
 bool Device::TestVariableAoffi() {
-    const GLchar* AOFFI_TEST = R"(#version 430 core
+    return TestProgram(R"(#version 430 core
 // This is a unit test, please ignore me on apitrace bug reports.
 uniform sampler2D tex;
 uniform ivec2 variable_offset;
 out vec4 output_attribute;
 void main() {
     output_attribute = textureOffset(tex, vec2(0), variable_offset);
-}
-)";
-    const GLuint shader{glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &AOFFI_TEST)};
-    GLint link_status{};
-    glGetProgramiv(shader, GL_LINK_STATUS, &link_status);
-    glDeleteProgram(shader);
-
-    const bool supported{link_status == GL_TRUE};
-    LOG_INFO(Render_OpenGL, "Renderer_VariableAOFFI: {}", supported);
-    return supported;
+})");
 }
 
 bool Device::TestComponentIndexingBug() {
-    constexpr char log_message[] = "Renderer_ComponentIndexingBug: {}";
     const GLchar* COMPONENT_TEST = R"(#version 430 core
 layout (std430, binding = 0) buffer OutputBuffer {
     uint output_value;
@@ -105,12 +111,21 @@ void main() {
         GLuint result;
         glGetNamedBufferSubData(ssbo.handle, 0, sizeof(result), &result);
         if (result != values.at(index)) {
-            LOG_INFO(Render_OpenGL, log_message, true);
             return true;
         }
     }
-    LOG_INFO(Render_OpenGL, log_message, false);
     return false;
+}
+
+bool Device::TestPreciseBug() {
+    return !TestProgram(R"(#version 430 core
+in vec3 coords;
+out float out_value;
+uniform sampler2DShadow tex;
+void main() {
+    precise float tmp_value = vec4(texture(tex, coords)).x;
+    out_value = tmp_value;
+})");
 }
 
 } // namespace OpenGL
