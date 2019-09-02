@@ -62,6 +62,7 @@ public:
         static constexpr std::size_t NumVertexAttributes = 32;
         static constexpr std::size_t NumVaryings = 31;
         static constexpr std::size_t NumTextureSamplers = 32;
+        static constexpr std::size_t NumImages = 8; // TODO(Rodrigo): Investigate this number
         static constexpr std::size_t NumClipDistances = 8;
         static constexpr std::size_t MaxShaderProgram = 6;
         static constexpr std::size_t MaxShaderStage = 5;

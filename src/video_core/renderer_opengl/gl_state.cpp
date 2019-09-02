@@ -34,6 +34,25 @@ bool UpdateTie(T1 current_value, const T2 new_value) {
     return changed;
 }
 
+template <typename T>
+std::optional<std::pair<GLuint, GLsizei>> UpdateArray(T& current_values, const T& new_values) {
+    std::optional<std::size_t> first;
+    std::size_t last;
+    for (std::size_t i = 0; i < std::size(current_values); ++i) {
+        if (!UpdateValue(current_values[i], new_values[i])) {
+            continue;
+        }
+        if (!first) {
+            first = i;
+        }
+        last = i;
+    }
+    if (!first) {
+        return std::nullopt;
+    }
+    return std::make_pair(static_cast<GLuint>(*first), static_cast<GLsizei>(last - *first + 1));
+}
+
 void Enable(GLenum cap, bool enable) {
     if (enable) {
         glEnable(cap);
@@ -133,10 +152,6 @@ OpenGLState::OpenGLState() {
 
     logic_op.enabled = false;
     logic_op.operation = GL_COPY;
-
-    for (auto& texture_unit : texture_units) {
-        texture_unit.Reset();
-    }
 
     draw.read_framebuffer = 0;
     draw.draw_framebuffer = 0;
@@ -496,52 +511,20 @@ void OpenGLState::ApplyAlphaTest() const {
 }
 
 void OpenGLState::ApplyTextures() const {
-    bool has_delta{};
-    std::size_t first{};
-    std::size_t last{};
-    std::array<GLuint, Maxwell::NumTextureSamplers> textures;
-
-    for (std::size_t i = 0; i < std::size(texture_units); ++i) {
-        const auto& texture_unit = texture_units[i];
-        auto& cur_state_texture_unit = cur_state.texture_units[i];
-        textures[i] = texture_unit.texture;
-        if (cur_state_texture_unit.texture == textures[i]) {
-            continue;
-        }
-        cur_state_texture_unit.texture = textures[i];
-        if (!has_delta) {
-            first = i;
-            has_delta = true;
-        }
-        last = i;
-    }
-    if (has_delta) {
-        glBindTextures(static_cast<GLuint>(first), static_cast<GLsizei>(last - first + 1),
-                       textures.data() + first);
+    if (const auto update = UpdateArray(cur_state.textures, textures)) {
+        glBindTextures(update->first, update->second, textures.data() + update->first);
     }
 }
 
 void OpenGLState::ApplySamplers() const {
-    bool has_delta{};
-    std::size_t first{};
-    std::size_t last{};
-    std::array<GLuint, Maxwell::NumTextureSamplers> samplers;
-
-    for (std::size_t i = 0; i < std::size(samplers); ++i) {
-        samplers[i] = texture_units[i].sampler;
-        if (cur_state.texture_units[i].sampler == texture_units[i].sampler) {
-            continue;
-        }
-        cur_state.texture_units[i].sampler = texture_units[i].sampler;
-        if (!has_delta) {
-            first = i;
-            has_delta = true;
-        }
-        last = i;
+    if (const auto update = UpdateArray(cur_state.samplers, samplers)) {
+        glBindSamplers(update->first, update->second, samplers.data() + update->first);
     }
-    if (has_delta) {
-        glBindSamplers(static_cast<GLuint>(first), static_cast<GLsizei>(last - first + 1),
-                       samplers.data() + first);
+}
+
+void OpenGLState::ApplyImages() const {
+    if (const auto update = UpdateArray(cur_state.images, images)) {
+        glBindImageTextures(update->first, update->second, images.data() + update->first);
     }
 }
 
@@ -576,6 +559,7 @@ void OpenGLState::Apply() {
     ApplyLogicOp();
     ApplyTextures();
     ApplySamplers();
+    ApplyImages();
     if (dirty.polygon_offset) {
         ApplyPolygonOffset();
         dirty.polygon_offset = false;
@@ -606,18 +590,18 @@ void OpenGLState::EmulateViewportWithScissor() {
 }
 
 OpenGLState& OpenGLState::UnbindTexture(GLuint handle) {
-    for (auto& unit : texture_units) {
-        if (unit.texture == handle) {
-            unit.Unbind();
+    for (auto& texture : textures) {
+        if (texture == handle) {
+            texture = 0;
         }
     }
     return *this;
 }
 
 OpenGLState& OpenGLState::ResetSampler(GLuint handle) {
-    for (auto& unit : texture_units) {
-        if (unit.sampler == handle) {
-            unit.sampler = 0;
+    for (auto& sampler : samplers) {
+        if (sampler == handle) {
+            sampler = 0;
         }
     }
     return *this;
