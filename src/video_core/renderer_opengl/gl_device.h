@@ -46,9 +46,14 @@ public:
         return has_component_indexing_bug;
     }
 
+    bool HasPreciseBug() const {
+        return has_precise_bug;
+    }
+
 private:
     static bool TestVariableAoffi();
     static bool TestComponentIndexingBug();
+    static bool TestPreciseBug();
 
     std::size_t uniform_buffer_alignment{};
     std::size_t shader_storage_alignment{};
@@ -58,6 +63,7 @@ private:
     bool has_vertex_viewport_layer{};
     bool has_variable_aoffi{};
     bool has_component_indexing_bug{};
+    bool has_precise_bug{};
 };
 
 } // namespace OpenGL
