@@ -39,7 +39,7 @@ using namespace VideoCommon::Shader;
 using Maxwell = Tegra::Engines::Maxwell3D::Regs;
 using Operation = const OperationNode&;
 
-enum class Type { Bool, Bool2, Float, Int, Uint, HalfFloat };
+enum class Type { Void, Bool, Bool2, Float, Int, Uint, HalfFloat };
 
 struct TextureAoffi {};
 using TextureArgument = std::pair<Type, Node>;
@@ -48,7 +48,7 @@ using TextureIR = std::variant<TextureAoffi, TextureArgument>;
 constexpr u32 MAX_CONSTBUFFER_ELEMENTS =
     static_cast<u32>(Maxwell::MaxConstBufferSize) / (4 * sizeof(float));
 
-class ShaderWriter {
+class ShaderWriter final {
 public:
     void AddExpression(std::string_view text) {
         DEBUG_ASSERT(scope >= 0);
@@ -93,9 +93,157 @@ private:
     u32 temporary_index = 1;
 };
 
+class Expression final {
+public:
+    Expression(std::string code, Type type) : code{std::move(code)}, type{type} {
+        ASSERT(type != Type::Void);
+    }
+    Expression() : type{Type::Void} {}
+
+    Type GetType() const {
+        return type;
+    }
+
+    std::string GetCode() const {
+        return code;
+    }
+
+    void CheckVoid() const {
+        ASSERT(type == Type::Void);
+    }
+
+    std::string As(Type type) const {
+        switch (type) {
+        case Type::Bool:
+            return AsBool();
+        case Type::Bool2:
+            return AsBool2();
+        case Type::Float:
+            return AsFloat();
+        case Type::Int:
+            return AsInt();
+        case Type::Uint:
+            return AsUint();
+        case Type::HalfFloat:
+            return AsHalfFloat();
+        default:
+            UNREACHABLE_MSG("Invalid type");
+            return code;
+        }
+    }
+
+    std::string AsBool() const {
+        switch (type) {
+        case Type::Bool:
+            return code;
+        default:
+            UNREACHABLE_MSG("Incompatible types");
+            return code;
+        }
+    }
+
+    std::string AsBool2() const {
+        switch (type) {
+        case Type::Bool2:
+            return code;
+        default:
+            UNREACHABLE_MSG("Incompatible types");
+            return code;
+        }
+    }
+
+    std::string AsFloat() const {
+        switch (type) {
+        case Type::Float:
+            return code;
+        case Type::Uint:
+            return fmt::format("utof({})", code);
+        case Type::Int:
+            return fmt::format("itof({})", code);
+        case Type::HalfFloat:
+            return fmt::format("utof(packHalf2x16({}))", code);
+        default:
+            UNREACHABLE_MSG("Incompatible types");
+            return code;
+        }
+    }
+
+    std::string AsInt() const {
+        switch (type) {
+        case Type::Float:
+            return fmt::format("ftoi({})", code);
+        case Type::Uint:
+            return fmt::format("int({})", code);
+        case Type::Int:
+            return code;
+        case Type::HalfFloat:
+            return fmt::format("int(packHalf2x16({}))", code);
+        default:
+            UNREACHABLE_MSG("Incompatible types");
+            return code;
+        }
+    }
+
+    std::string AsUint() const {
+        switch (type) {
+        case Type::Float:
+            return fmt::format("ftou({})", code);
+        case Type::Uint:
+            return code;
+        case Type::Int:
+            return fmt::format("uint({})", code);
+        case Type::HalfFloat:
+            return fmt::format("packHalf2x16({})", code);
+        default:
+            UNREACHABLE_MSG("Incompatible types");
+            return code;
+        }
+    }
+
+    std::string AsHalfFloat() const {
+        switch (type) {
+        case Type::Float:
+            return fmt::format("unpackHalf2x16(ftou({}))", code);
+        case Type::Uint:
+            return fmt::format("unpackHalf2x16({})", code);
+        case Type::Int:
+            return fmt::format("unpackHalf2x16(int({}))", code);
+        case Type::HalfFloat:
+            return code;
+        default:
+            UNREACHABLE_MSG("Incompatible types");
+            return code;
+        }
+    }
+
+private:
+    std::string code;
+    Type type{};
+};
+
+constexpr const char* GetTypeString(Type type) {
+    switch (type) {
+    case Type::Bool:
+        return "bool";
+    case Type::Bool2:
+        return "bvec2";
+    case Type::Float:
+        return "float";
+    case Type::Int:
+        return "int";
+    case Type::Uint:
+        return "uint";
+    case Type::HalfFloat:
+        return "vec2";
+    default:
+        UNREACHABLE_MSG("Invalid type");
+        return "<invalid type>";
+    }
+}
+
 /// Generates code to use for a swizzle operation.
 constexpr const char* GetSwizzle(u32 element) {
-    constexpr std::array<const char*, 4> swizzle = {".x", ".y", ".z", ".w"};
+    constexpr std::array swizzle = {".x", ".y", ".z", ".w"};
     return swizzle.at(element);
 }
 
@@ -134,8 +282,8 @@ constexpr bool IsGenericAttribute(Attribute::Index index) {
     return index >= Attribute::Index::Attribute_0 && index <= Attribute::Index::Attribute_31;
 }
 
-constexpr Attribute::Index ToGenericAttribute(u32 value) {
-    return static_cast<Attribute::Index>(value + static_cast<u32>(Attribute::Index::Attribute_0));
+constexpr Attribute::Index ToGenericAttribute(u64 value) {
+    return static_cast<Attribute::Index>(value + static_cast<u64>(Attribute::Index::Attribute_0));
 }
 
 u32 GetGenericAttributeIndex(Attribute::Index index) {
@@ -191,7 +339,7 @@ public:
 
         // VM's program counter
         const auto first_address = ir.GetBasicBlocks().begin()->first;
-        code.AddLine("uint jmp_to = {}u;", first_address);
+        code.AddLine("uint jmp_to = {}U;", first_address);
 
         // TODO(Subv): Figure out the actual depth of the flow stack, for now it seems
         // unlikely that shaders will use 20 nested SSYs and PBKs.
@@ -199,7 +347,7 @@ public:
             constexpr u32 FLOW_STACK_SIZE = 20;
             for (const auto stack : std::array{MetaStackClass::Ssy, MetaStackClass::Pbk}) {
                 code.AddLine("uint {}[{}];", FlowStackName(stack), FLOW_STACK_SIZE);
-                code.AddLine("uint {} = 0u;", FlowStackTopName(stack));
+                code.AddLine("uint {} = 0U;", FlowStackTopName(stack));
             }
         }
 
@@ -210,7 +358,7 @@ public:
 
         for (const auto& pair : ir.GetBasicBlocks()) {
             const auto [address, bb] = pair;
-            code.AddLine("case 0x{:x}u: {{", address);
+            code.AddLine("case 0x{:X}U: {{", address);
             ++code.scope;
 
             VisitBlock(bb);
@@ -322,7 +470,7 @@ private:
     void DeclareRegisters() {
         const auto& registers = ir.GetRegisters();
         for (const u32 gpr : registers) {
-            code.AddLine("float {} = 0;", GetRegister(gpr));
+            code.AddLine("float {} = 0.0f;", GetRegister(gpr));
         }
         if (!registers.empty()) {
             code.AddNewLine();
@@ -348,7 +496,7 @@ private:
             return;
         }
         const auto element_count = Common::AlignUp(local_memory_size, 4) / 4;
-        code.AddLine("float {}[{}];", GetLocalMemory(), element_count);
+        code.AddLine("uint {}[{}];", GetLocalMemory(), element_count);
         code.AddNewLine();
     }
 
@@ -371,8 +519,6 @@ private:
             return "noperspective ";
         default:
         case AttributeUse::Unused:
-            UNREACHABLE_MSG("Unused attribute being fetched");
-            return {};
             UNIMPLEMENTED_MSG("Unknown attribute usage index={}", static_cast<u32>(attribute));
             return {};
         }
@@ -449,7 +595,7 @@ private:
             const auto [index, size] = entry;
             code.AddLine("layout (std140, binding = CBUF_BINDING_{}) uniform {} {{", index,
                          GetConstBufferBlock(index));
-            code.AddLine("    vec4 {}[MAX_CONSTBUFFER_ELEMENTS];", GetConstBuffer(index));
+            code.AddLine("    uvec4 {}[{}];", GetConstBuffer(index), MAX_CONSTBUFFER_ELEMENTS);
             code.AddLine("}};");
             code.AddNewLine();
         }
@@ -470,7 +616,7 @@ private:
 
             code.AddLine("layout (std430, binding = GMEM_BINDING_{}_{}) {} buffer {} {{",
                          base.cbuf_index, base.cbuf_offset, qualifier, GetGlobalMemoryBlock(base));
-            code.AddLine("    float {}[];", GetGlobalMemory(base));
+            code.AddLine("    uint {}[];", GetGlobalMemory(base));
             code.AddLine("}};");
             code.AddNewLine();
         }
@@ -528,7 +674,7 @@ private:
         if (!ir.HasPhysicalAttributes()) {
             return;
         }
-        code.AddLine("float readPhysicalAttribute(uint physical_address) {{");
+        code.AddLine("float ReadPhysicalAttribute(uint physical_address) {{");
         ++code.scope;
         code.AddLine("switch (physical_address) {{");
 
@@ -537,15 +683,16 @@ private:
         for (u32 index = 0; index < num_attributes; ++index) {
             const auto attribute{ToGenericAttribute(index)};
             for (u32 element = 0; element < 4; ++element) {
-                constexpr u32 generic_base{0x80};
-                constexpr u32 generic_stride{16};
-                constexpr u32 element_stride{4};
+                constexpr u32 generic_base = 0x80;
+                constexpr u32 generic_stride = 16;
+                constexpr u32 element_stride = 4;
                 const u32 address{generic_base + index * generic_stride + element * element_stride};
 
-                const bool declared{stage != ProgramType::Fragment ||
-                                    header.ps.GetAttributeUse(index) != AttributeUse::Unused};
-                const std::string value{declared ? ReadAttribute(attribute, element) : "0"};
-                code.AddLine("case 0x{:x}: return {};", address, value);
+                const bool declared = stage != ProgramType::Fragment ||
+                                      header.ps.GetAttributeUse(index) != AttributeUse::Unused;
+                const std::string value =
+                    declared ? ReadAttribute(attribute, element).AsFloat() : "0.0f";
+                code.AddLine("case 0x{:X}U: return {};", address, value);
             }
         }
 
@@ -590,13 +737,11 @@ private:
 
     void VisitBlock(const NodeBlock& bb) {
         for (const auto& node : bb) {
-            if (const std::string expr = Visit(node); !expr.empty()) {
-                code.AddLine(expr);
-            }
+            Visit(node).CheckVoid();
         }
     }
 
-    std::string Visit(const Node& node) {
+    Expression Visit(const Node& node) {
         if (const auto operation = std::get_if<OperationNode>(&*node)) {
             const auto operation_index = static_cast<std::size_t>(operation->GetCode());
             if (operation_index >= operation_decompilers.size()) {
@@ -614,18 +759,18 @@ private:
         if (const auto gpr = std::get_if<GprNode>(&*node)) {
             const u32 index = gpr->GetIndex();
             if (index == Register::ZeroIndex) {
-                return "0";
+                return {"0U", Type::Uint};
             }
-            return GetRegister(index);
+            return {GetRegister(index), Type::Float};
         }
 
         if (const auto immediate = std::get_if<ImmediateNode>(&*node)) {
             const u32 value = immediate->GetValue();
             if (value < 10) {
                 // For eyecandy avoid using hex numbers on single digits
-                return fmt::format("utof({}u)", immediate->GetValue());
+                return {fmt::format("{}U", immediate->GetValue()), Type::Uint};
             }
-            return fmt::format("utof(0x{:x}u)", immediate->GetValue());
+            return {fmt::format("0x{:X}U", immediate->GetValue()), Type::Uint};
         }
 
         if (const auto predicate = std::get_if<PredicateNode>(&*node)) {
@@ -640,17 +785,18 @@ private:
                 }
             }();
             if (predicate->IsNegated()) {
-                return fmt::format("!({})", value);
+                return {fmt::format("!({})", value), Type::Bool};
             }
-            return value;
+            return {value, Type::Bool};
         }
 
         if (const auto abuf = std::get_if<AbufNode>(&*node)) {
             UNIMPLEMENTED_IF_MSG(abuf->IsPhysicalBuffer() && stage == ProgramType::Geometry,
                                  "Physical attributes in geometry shaders are not implemented");
             if (abuf->IsPhysicalBuffer()) {
-                return fmt::format("readPhysicalAttribute(ftou({}))",
-                                   Visit(abuf->GetPhysicalAddress()));
+                return {fmt::format("ReadPhysicalAttribute({})",
+                                    Visit(abuf->GetPhysicalAddress()).AsUint()),
+                        Type::Float};
             }
             return ReadAttribute(abuf->GetIndex(), abuf->GetElement(), abuf->GetBuffer());
         }
@@ -661,59 +807,64 @@ private:
                 // Direct access
                 const u32 offset_imm = immediate->GetValue();
                 ASSERT_MSG(offset_imm % 4 == 0, "Unaligned cbuf direct access");
-                return fmt::format("{}[{}][{}]", GetConstBuffer(cbuf->GetIndex()),
-                                   offset_imm / (4 * 4), (offset_imm / 4) % 4);
+                return {fmt::format("{}[{}][{}]", GetConstBuffer(cbuf->GetIndex()),
+                                    offset_imm / (4 * 4), (offset_imm / 4) % 4),
+                        Type::Uint};
             }
 
             if (std::holds_alternative<OperationNode>(*offset)) {
                 // Indirect access
                 const std::string final_offset = code.GenerateTemporary();
-                code.AddLine("uint {} = ftou({}) >> 2;", final_offset, Visit(offset));
+                code.AddLine("uint {} = {} >> 2;", final_offset, Visit(offset).AsUint());
 
                 if (!device.HasComponentIndexingBug()) {
-                    return fmt::format("{}[{} >> 2][{} & 3]", GetConstBuffer(cbuf->GetIndex()),
-                                       final_offset, final_offset);
+                    return {fmt::format("{}[{} >> 2][{} & 3]", GetConstBuffer(cbuf->GetIndex()),
+                                        final_offset, final_offset),
+                            Type::Uint};
                 }
 
                 // AMD's proprietary GLSL compiler emits ill code for variable component access.
                 // To bypass this driver bug generate 4 ifs, one per each component.
                 const std::string pack = code.GenerateTemporary();
-                code.AddLine("vec4 {} = {}[{} >> 2];", pack, GetConstBuffer(cbuf->GetIndex()),
+                code.AddLine("uvec4 {} = {}[{} >> 2];", pack, GetConstBuffer(cbuf->GetIndex()),
                              final_offset);
 
                 const std::string result = code.GenerateTemporary();
-                code.AddLine("float {};", result);
+                code.AddLine("uint {};", result);
                 for (u32 swizzle = 0; swizzle < 4; ++swizzle) {
                     code.AddLine("if (({} & 3) == {}) {} = {}{};", final_offset, swizzle, result,
                                  pack, GetSwizzle(swizzle));
                 }
-                return result;
+                return {result, Type::Uint};
             }
 
             UNREACHABLE_MSG("Unmanaged offset node type");
         }
 
         if (const auto gmem = std::get_if<GmemNode>(&*node)) {
-            const std::string real = Visit(gmem->GetRealAddress());
-            const std::string base = Visit(gmem->GetBaseAddress());
-            const std::string final_offset = fmt::format("(ftou({}) - ftou({})) / 4", real, base);
-            return fmt::format("{}[{}]", GetGlobalMemory(gmem->GetDescriptor()), final_offset);
+            const std::string real = Visit(gmem->GetRealAddress()).AsUint();
+            const std::string base = Visit(gmem->GetBaseAddress()).AsUint();
+            const std::string final_offset = fmt::format("({} - {}) >> 2", real, base);
+            return {fmt::format("{}[{}]", GetGlobalMemory(gmem->GetDescriptor()), final_offset),
+                    Type::Uint};
         }
 
         if (const auto lmem = std::get_if<LmemNode>(&*node)) {
             if (stage == ProgramType::Compute) {
                 LOG_WARNING(Render_OpenGL, "Local memory is stubbed on compute shaders");
             }
-            return fmt::format("{}[ftou({}) / 4]", GetLocalMemory(), Visit(lmem->GetAddress()));
+            return {
+                fmt::format("{}[{} >> 2]", GetLocalMemory(), Visit(lmem->GetAddress()).AsUint()),
+                Type::Uint};
         }
 
         if (const auto internal_flag = std::get_if<InternalFlagNode>(&*node)) {
-            return GetInternalFlag(internal_flag->GetFlag());
+            return {GetInternalFlag(internal_flag->GetFlag()), Type::Bool};
         }
 
         if (const auto conditional = std::get_if<ConditionalNode>(&*node)) {
             // It's invalid to call conditional on nested nodes, use an operation instead
-            code.AddLine("if ({}) {{", Visit(conditional->GetCondition()));
+            code.AddLine("if ({}) {{", Visit(conditional->GetCondition()).AsBool());
             ++code.scope;
 
             VisitBlock(conditional->GetCode());
@@ -724,20 +875,21 @@ private:
         }
 
         if (const auto comment = std::get_if<CommentNode>(&*node)) {
-            return "// " + comment->GetText();
+            code.AddLine("// " + comment->GetText());
+            return {};
         }
 
         UNREACHABLE();
         return {};
     }
 
-    std::string ReadAttribute(Attribute::Index attribute, u32 element, const Node& buffer = {}) {
+    Expression ReadAttribute(Attribute::Index attribute, u32 element, const Node& buffer = {}) {
         const auto GeometryPass = [&](std::string_view name) {
             if (stage == ProgramType::Geometry && buffer) {
                 // TODO(Rodrigo): Guard geometry inputs against out of bound reads. Some games
                 // set an 0x80000000 index for those and the shader fails to build. Find out why
                 // this happens and what's its intent.
-                return fmt::format("gs_{}[ftou({}) % MAX_VERTEX_INPUT]", name, Visit(buffer));
+                return fmt::format("gs_{}[{} % MAX_VERTEX_INPUT]", name, Visit(buffer).AsUint());
             }
             return std::string(name);
         };
@@ -746,25 +898,27 @@ private:
         case Attribute::Index::Position:
             switch (stage) {
             case ProgramType::Geometry:
-                return fmt::format("gl_in[ftou({})].gl_Position{}", Visit(buffer),
-                                   GetSwizzle(element));
+                return {fmt::format("gl_in[{}].gl_Position{}", Visit(buffer).AsUint(),
+                                    GetSwizzle(element)),
+                        Type::Float};
             case ProgramType::Fragment:
-                return element == 3 ? "1.0f" : ("gl_FragCoord"s + GetSwizzle(element));
+                return {element == 3 ? "1.0f" : ("gl_FragCoord"s + GetSwizzle(element)),
+                        Type::Float};
             default:
                 UNREACHABLE();
             }
         case Attribute::Index::PointCoord:
             switch (element) {
             case 0:
-                return "gl_PointCoord.x";
+                return {"gl_PointCoord.x", Type::Float};
             case 1:
-                return "gl_PointCoord.y";
+                return {"gl_PointCoord.y", Type::Float};
             case 2:
             case 3:
-                return "0";
+                return {"0.0f", Type::Float};
             }
             UNREACHABLE();
-            return "0";
+            return {"0", Type::Int};
         case Attribute::Index::TessCoordInstanceIDVertexID:
             // TODO(Subv): Find out what the values are for the first two elements when inside a
             // vertex shader, and what's the value of the fourth element when inside a Tess Eval
@@ -773,44 +927,49 @@ private:
             switch (element) {
             case 2:
                 // Config pack's first value is instance_id.
-                return "uintBitsToFloat(config_pack[0])";
+                return {"config_pack[0]", Type::Uint};
             case 3:
-                return "uintBitsToFloat(gl_VertexID)";
+                return {"gl_VertexID", Type::Int};
             }
             UNIMPLEMENTED_MSG("Unmanaged TessCoordInstanceIDVertexID element={}", element);
-            return "0";
+            return {"0", Type::Int};
         case Attribute::Index::FrontFacing:
             // TODO(Subv): Find out what the values are for the other elements.
             ASSERT(stage == ProgramType::Fragment);
             switch (element) {
             case 3:
-                return "itof(gl_FrontFacing ? -1 : 0)";
+                return {"(gl_FrontFacing ? -1 : 0)", Type::Int};
             }
             UNIMPLEMENTED_MSG("Unmanaged FrontFacing element={}", element);
-            return "0";
+            return {"0", Type::Int};
         default:
             if (IsGenericAttribute(attribute)) {
-                return GeometryPass(GetInputAttribute(attribute)) + GetSwizzle(element);
+                return {GeometryPass(GetInputAttribute(attribute)) + GetSwizzle(element),
+                        Type::Float};
             }
             break;
         }
         UNIMPLEMENTED_MSG("Unhandled input attribute: {}", static_cast<u32>(attribute));
-        return "0";
+        return {"0", Type::Int};
     }
 
-    std::string ApplyPrecise(Operation operation, const std::string& value) {
+    Expression ApplyPrecise(Operation operation, std::string value, Type type) {
         if (!IsPrecise(operation)) {
-            return value;
+            return {std::move(value), type};
         }
-        // There's a bug in NVidia's proprietary drivers that makes precise fail on fragment shaders
-        const std::string precise = stage != ProgramType::Fragment ? "precise " : "";
+        // Old Nvidia drivers have a bug with precise and texture sampling. These are more likely to
+        // be found in fragment shaders, so we disable precise there. There are vertex shaders that
+        // also fail to build but nobody seems to care about those.
+        // Note: Only bugged drivers will skip precise.
+        const bool disable_precise = device.HasPreciseBug() && stage == ProgramType::Fragment;
 
-        const std::string temporary = code.GenerateTemporary();
-        code.AddLine("{}float {} = {};", precise, temporary, value);
-        return temporary;
+        std::string temporary = code.GenerateTemporary();
+        code.AddLine("{}{} {} = {};", disable_precise ? "" : "precise ", GetTypeString(type),
+                     temporary, value);
+        return {std::move(temporary), type};
     }
 
-    std::string VisitOperand(Operation operation, std::size_t operand_index) {
+    Expression VisitOperand(Operation operation, std::size_t operand_index) {
         const auto& operand = operation[operand_index];
         const bool parent_precise = IsPrecise(operation);
         const bool child_precise = IsPrecise(operand);
@@ -819,19 +978,16 @@ private:
             return Visit(operand);
         }
 
-        const std::string temporary = code.GenerateTemporary();
-        code.AddLine("float {} = {};", temporary, Visit(operand));
-        return temporary;
+        Expression value = Visit(operand);
+        std::string temporary = code.GenerateTemporary();
+        code.AddLine("{} {} = {};", GetTypeString(value.GetType()), temporary, value.GetCode());
+        return {std::move(temporary), value.GetType()};
     }
 
-    std::string VisitOperand(Operation operation, std::size_t operand_index, Type type) {
-        return CastOperand(VisitOperand(operation, operand_index), type);
-    }
-
-    std::optional<std::pair<std::string, bool>> GetOutputAttribute(const AbufNode* abuf) {
+    Expression GetOutputAttribute(const AbufNode* abuf) {
         switch (const auto attribute = abuf->GetIndex()) {
         case Attribute::Index::Position:
-            return std::make_pair("gl_Position"s + GetSwizzle(abuf->GetElement()), false);
+            return {"gl_Position"s + GetSwizzle(abuf->GetElement()), Type::Float};
         case Attribute::Index::LayerViewportPointSize:
             switch (abuf->GetElement()) {
             case 0:
@@ -841,119 +997,79 @@ private:
                 if (IsVertexShader(stage) && !device.HasVertexViewportLayer()) {
                     return {};
                 }
-                return std::make_pair("gl_Layer", true);
+                return {"gl_Layer", Type::Int};
             case 2:
                 if (IsVertexShader(stage) && !device.HasVertexViewportLayer()) {
                     return {};
                 }
-                return std::make_pair("gl_ViewportIndex", true);
+                return {"gl_ViewportIndex", Type::Int};
             case 3:
                 UNIMPLEMENTED_MSG("Requires some state changes for gl_PointSize to work in shader");
-                return std::make_pair("gl_PointSize", false);
+                return {"gl_PointSize", Type::Float};
             }
             return {};
         case Attribute::Index::ClipDistances0123:
-            return std::make_pair(fmt::format("gl_ClipDistance[{}]", abuf->GetElement()), false);
+            return {fmt::format("gl_ClipDistance[{}]", abuf->GetElement()), Type::Float};
         case Attribute::Index::ClipDistances4567:
-            return std::make_pair(fmt::format("gl_ClipDistance[{}]", abuf->GetElement() + 4),
-                                  false);
+            return {fmt::format("gl_ClipDistance[{}]", abuf->GetElement() + 4), Type::Float};
         default:
             if (IsGenericAttribute(attribute)) {
-                return std::make_pair(
-                    GetOutputAttribute(attribute) + GetSwizzle(abuf->GetElement()), false);
+                return {GetOutputAttribute(attribute) + GetSwizzle(abuf->GetElement()),
+                        Type::Float};
             }
             UNIMPLEMENTED_MSG("Unhandled output attribute: {}", static_cast<u32>(attribute));
             return {};
         }
     }
 
-    std::string CastOperand(const std::string& value, Type type) const {
-        switch (type) {
-        case Type::Bool:
-        case Type::Bool2:
-        case Type::Float:
-            return value;
-        case Type::Int:
-            return fmt::format("ftoi({})", value);
-        case Type::Uint:
-            return fmt::format("ftou({})", value);
-        case Type::HalfFloat:
-            return fmt::format("toHalf2({})", value);
-        }
-        UNREACHABLE();
-        return value;
+    Expression GenerateUnary(Operation operation, std::string_view func, Type result_type,
+                             Type type_a) {
+        std::string op_str = fmt::format("{}({})", func, VisitOperand(operation, 0).As(type_a));
+        return ApplyPrecise(operation, std::move(op_str), result_type);
     }
 
-    std::string BitwiseCastResult(const std::string& value, Type type,
-                                  bool needs_parenthesis = false) {
-        switch (type) {
-        case Type::Bool:
-        case Type::Bool2:
-        case Type::Float:
-            if (needs_parenthesis) {
-                return fmt::format("({})", value);
-            }
-            return value;
-        case Type::Int:
-            return fmt::format("itof({})", value);
-        case Type::Uint:
-            return fmt::format("utof({})", value);
-        case Type::HalfFloat:
-            return fmt::format("fromHalf2({})", value);
-        }
-        UNREACHABLE();
-        return value;
-    }
-
-    std::string GenerateUnary(Operation operation, const std::string& func, Type result_type,
-                              Type type_a, bool needs_parenthesis = true) {
-        const std::string op_str = fmt::format("{}({})", func, VisitOperand(operation, 0, type_a));
-
-        return ApplyPrecise(operation, BitwiseCastResult(op_str, result_type, needs_parenthesis));
-    }
-
-    std::string GenerateBinaryInfix(Operation operation, const std::string& func, Type result_type,
-                                    Type type_a, Type type_b) {
-        const std::string op_a = VisitOperand(operation, 0, type_a);
-        const std::string op_b = VisitOperand(operation, 1, type_b);
-        const std::string op_str = fmt::format("({} {} {})", op_a, func, op_b);
-
-        return ApplyPrecise(operation, BitwiseCastResult(op_str, result_type));
-    }
-
-    std::string GenerateBinaryCall(Operation operation, const std::string& func, Type result_type,
+    Expression GenerateBinaryInfix(Operation operation, std::string_view func, Type result_type,
                                    Type type_a, Type type_b) {
-        const std::string op_a = VisitOperand(operation, 0, type_a);
-        const std::string op_b = VisitOperand(operation, 1, type_b);
-        const std::string op_str = fmt::format("{}({}, {})", func, op_a, op_b);
+        const std::string op_a = VisitOperand(operation, 0).As(type_a);
+        const std::string op_b = VisitOperand(operation, 1).As(type_b);
+        std::string op_str = fmt::format("({} {} {})", op_a, func, op_b);
 
-        return ApplyPrecise(operation, BitwiseCastResult(op_str, result_type));
+        return ApplyPrecise(operation, std::move(op_str), result_type);
     }
 
-    std::string GenerateTernary(Operation operation, const std::string& func, Type result_type,
-                                Type type_a, Type type_b, Type type_c) {
-        const std::string op_a = VisitOperand(operation, 0, type_a);
-        const std::string op_b = VisitOperand(operation, 1, type_b);
-        const std::string op_c = VisitOperand(operation, 2, type_c);
-        const std::string op_str = fmt::format("{}({}, {}, {})", func, op_a, op_b, op_c);
+    Expression GenerateBinaryCall(Operation operation, std::string_view func, Type result_type,
+                                  Type type_a, Type type_b) {
+        const std::string op_a = VisitOperand(operation, 0).As(type_a);
+        const std::string op_b = VisitOperand(operation, 1).As(type_b);
+        std::string op_str = fmt::format("{}({}, {})", func, op_a, op_b);
 
-        return ApplyPrecise(operation, BitwiseCastResult(op_str, result_type));
+        return ApplyPrecise(operation, std::move(op_str), result_type);
     }
 
-    std::string GenerateQuaternary(Operation operation, const std::string& func, Type result_type,
-                                   Type type_a, Type type_b, Type type_c, Type type_d) {
-        const std::string op_a = VisitOperand(operation, 0, type_a);
-        const std::string op_b = VisitOperand(operation, 1, type_b);
-        const std::string op_c = VisitOperand(operation, 2, type_c);
-        const std::string op_d = VisitOperand(operation, 3, type_d);
-        const std::string op_str = fmt::format("{}({}, {}, {}, {})", func, op_a, op_b, op_c, op_d);
+    Expression GenerateTernary(Operation operation, std::string_view func, Type result_type,
+                               Type type_a, Type type_b, Type type_c) {
+        const std::string op_a = VisitOperand(operation, 0).As(type_a);
+        const std::string op_b = VisitOperand(operation, 1).As(type_b);
+        const std::string op_c = VisitOperand(operation, 2).As(type_c);
+        std::string op_str = fmt::format("{}({}, {}, {})", func, op_a, op_b, op_c);
 
-        return ApplyPrecise(operation, BitwiseCastResult(op_str, result_type));
+        return ApplyPrecise(operation, std::move(op_str), result_type);
+    }
+
+    Expression GenerateQuaternary(Operation operation, const std::string& func, Type result_type,
+                                  Type type_a, Type type_b, Type type_c, Type type_d) {
+        const std::string op_a = VisitOperand(operation, 0).As(type_a);
+        const std::string op_b = VisitOperand(operation, 1).As(type_b);
+        const std::string op_c = VisitOperand(operation, 2).As(type_c);
+        const std::string op_d = VisitOperand(operation, 3).As(type_d);
+        std::string op_str = fmt::format("{}({}, {}, {}, {})", func, op_a, op_b, op_c, op_d);
+
+        return ApplyPrecise(operation, std::move(op_str), result_type);
     }
 
     std::string GenerateTexture(Operation operation, const std::string& function_suffix,
                                 const std::vector<TextureIR>& extras) {
-        constexpr std::array<const char*, 4> coord_constructors = {"float", "vec2", "vec3", "vec4"};
+        constexpr std::array coord_constructors = {"float", "vec2", "vec3", "vec4"};
 
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
@@ -970,17 +1086,17 @@ private:
         expr += coord_constructors.at(count + (has_array ? 1 : 0) + (has_shadow ? 1 : 0) - 1);
         expr += '(';
         for (std::size_t i = 0; i < count; ++i) {
-            expr += Visit(operation[i]);
+            expr += Visit(operation[i]).AsFloat();
 
             const std::size_t next = i + 1;
             if (next < count)
                 expr += ", ";
         }
         if (has_array) {
-            expr += ", float(ftoi(" + Visit(meta->array) + "))";
+            expr += ", float(" + Visit(meta->array).AsInt() + ')';
         }
         if (has_shadow) {
-            expr += ", " + Visit(meta->depth_compare);
+            expr += ", " + Visit(meta->depth_compare).AsFloat();
         }
         expr += ')';
 
@@ -1011,11 +1127,11 @@ private:
                 // required to be constant)
                 expr += std::to_string(static_cast<s32>(immediate->GetValue()));
             } else {
-                expr += fmt::format("ftoi({})", Visit(operand));
+                expr += Visit(operand).AsInt();
             }
             break;
         case Type::Float:
-            expr += Visit(operand);
+            expr += Visit(operand).AsFloat();
             break;
         default: {
             const auto type_int = static_cast<u32>(type);
@@ -1031,7 +1147,7 @@ private:
         if (aoffi.empty()) {
             return {};
         }
-        constexpr std::array<const char*, 3> coord_constructors = {"int", "ivec2", "ivec3"};
+        constexpr std::array coord_constructors = {"int", "ivec2", "ivec3"};
         std::string expr = ", ";
         expr += coord_constructors.at(aoffi.size() - 1);
         expr += '(';
@@ -1044,7 +1160,7 @@ private:
                 expr += std::to_string(static_cast<s32>(immediate->GetValue()));
             } else if (device.HasVariableAoffi()) {
                 // Avoid using variable AOFFI on unsupported devices.
-                expr += fmt::format("ftoi({})", Visit(operand));
+                expr += Visit(operand).AsInt();
             } else {
                 // Insert 0 on devices not supporting variable AOFFI.
                 expr += '0';
@@ -1058,328 +1174,314 @@ private:
         return expr;
     }
 
-    std::string Assign(Operation operation) {
+    Expression Assign(Operation operation) {
         const Node& dest = operation[0];
         const Node& src = operation[1];
 
-        std::string target;
-        bool is_integer = false;
-
+        Expression target;
         if (const auto gpr = std::get_if<GprNode>(&*dest)) {
             if (gpr->GetIndex() == Register::ZeroIndex) {
                 // Writing to Register::ZeroIndex is a no op
                 return {};
             }
-            target = GetRegister(gpr->GetIndex());
+            target = {GetRegister(gpr->GetIndex()), Type::Float};
         } else if (const auto abuf = std::get_if<AbufNode>(&*dest)) {
             UNIMPLEMENTED_IF(abuf->IsPhysicalBuffer());
-            const auto result = GetOutputAttribute(abuf);
-            if (!result) {
-                return {};
-            }
-            target = result->first;
-            is_integer = result->second;
+            target = GetOutputAttribute(abuf);
         } else if (const auto lmem = std::get_if<LmemNode>(&*dest)) {
             if (stage == ProgramType::Compute) {
                 LOG_WARNING(Render_OpenGL, "Local memory is stubbed on compute shaders");
             }
-            target = fmt::format("{}[ftou({}) / 4]", GetLocalMemory(), Visit(lmem->GetAddress()));
+            target = {
+                fmt::format("{}[{} >> 2]", GetLocalMemory(), Visit(lmem->GetAddress()).AsUint()),
+                Type::Uint};
         } else if (const auto gmem = std::get_if<GmemNode>(&*dest)) {
-            const std::string real = Visit(gmem->GetRealAddress());
-            const std::string base = Visit(gmem->GetBaseAddress());
-            const std::string final_offset = fmt::format("(ftou({}) - ftou({})) / 4", real, base);
-            target = fmt::format("{}[{}]", GetGlobalMemory(gmem->GetDescriptor()), final_offset);
+            const std::string real = Visit(gmem->GetRealAddress()).AsUint();
+            const std::string base = Visit(gmem->GetBaseAddress()).AsUint();
+            const std::string final_offset = fmt::format("({} - {}) >> 2", real, base);
+            target = {fmt::format("{}[{}]", GetGlobalMemory(gmem->GetDescriptor()), final_offset),
+                      Type::Uint};
         } else {
             UNREACHABLE_MSG("Assign called without a proper target");
         }
 
-        if (is_integer) {
-            code.AddLine("{} = ftoi({});", target, Visit(src));
-        } else {
-            code.AddLine("{} = {};", target, Visit(src));
-        }
+        code.AddLine("{} = {};", target.GetCode(), Visit(src).As(target.GetType()));
         return {};
     }
 
     template <Type type>
-    std::string Add(Operation operation) {
+    Expression Add(Operation operation) {
         return GenerateBinaryInfix(operation, "+", type, type, type);
     }
 
     template <Type type>
-    std::string Mul(Operation operation) {
+    Expression Mul(Operation operation) {
         return GenerateBinaryInfix(operation, "*", type, type, type);
     }
 
     template <Type type>
-    std::string Div(Operation operation) {
+    Expression Div(Operation operation) {
         return GenerateBinaryInfix(operation, "/", type, type, type);
     }
 
     template <Type type>
-    std::string Fma(Operation operation) {
+    Expression Fma(Operation operation) {
         return GenerateTernary(operation, "fma", type, type, type, type);
     }
 
     template <Type type>
-    std::string Negate(Operation operation) {
-        return GenerateUnary(operation, "-", type, type, true);
+    Expression Negate(Operation operation) {
+        return GenerateUnary(operation, "-", type, type);
     }
 
     template <Type type>
-    std::string Absolute(Operation operation) {
-        return GenerateUnary(operation, "abs", type, type, false);
+    Expression Absolute(Operation operation) {
+        return GenerateUnary(operation, "abs", type, type);
     }
 
-    std::string FClamp(Operation operation) {
+    Expression FClamp(Operation operation) {
         return GenerateTernary(operation, "clamp", Type::Float, Type::Float, Type::Float,
                                Type::Float);
     }
 
-    std::string FCastHalf0(Operation operation) {
-        const std::string op_a = VisitOperand(operation, 0, Type::HalfFloat);
-        return fmt::format("({})[0]", op_a);
+    Expression FCastHalf0(Operation operation) {
+        return {fmt::format("({})[0]", VisitOperand(operation, 0).AsHalfFloat()), Type::Float};
     }
 
-    std::string FCastHalf1(Operation operation) {
-        const std::string op_a = VisitOperand(operation, 0, Type::HalfFloat);
-        return fmt::format("({})[1]", op_a);
+    Expression FCastHalf1(Operation operation) {
+        return {fmt::format("({})[1]", VisitOperand(operation, 0).AsHalfFloat()), Type::Float};
     }
 
     template <Type type>
-    std::string Min(Operation operation) {
+    Expression Min(Operation operation) {
         return GenerateBinaryCall(operation, "min", type, type, type);
     }
 
     template <Type type>
-    std::string Max(Operation operation) {
+    Expression Max(Operation operation) {
         return GenerateBinaryCall(operation, "max", type, type, type);
     }
 
-    std::string Select(Operation operation) {
-        const std::string condition = Visit(operation[0]);
-        const std::string true_case = Visit(operation[1]);
-        const std::string false_case = Visit(operation[2]);
-        const std::string op_str = fmt::format("({} ? {} : {})", condition, true_case, false_case);
+    Expression Select(Operation operation) {
+        const std::string condition = Visit(operation[0]).AsBool();
+        const std::string true_case = Visit(operation[1]).AsUint();
+        const std::string false_case = Visit(operation[2]).AsUint();
+        std::string op_str = fmt::format("({} ? {} : {})", condition, true_case, false_case);
 
-        return ApplyPrecise(operation, op_str);
+        return ApplyPrecise(operation, std::move(op_str), Type::Uint);
     }
 
-    std::string FCos(Operation operation) {
-        return GenerateUnary(operation, "cos", Type::Float, Type::Float, false);
+    Expression FCos(Operation operation) {
+        return GenerateUnary(operation, "cos", Type::Float, Type::Float);
     }
 
-    std::string FSin(Operation operation) {
-        return GenerateUnary(operation, "sin", Type::Float, Type::Float, false);
+    Expression FSin(Operation operation) {
+        return GenerateUnary(operation, "sin", Type::Float, Type::Float);
     }
 
-    std::string FExp2(Operation operation) {
-        return GenerateUnary(operation, "exp2", Type::Float, Type::Float, false);
+    Expression FExp2(Operation operation) {
+        return GenerateUnary(operation, "exp2", Type::Float, Type::Float);
     }
 
-    std::string FLog2(Operation operation) {
-        return GenerateUnary(operation, "log2", Type::Float, Type::Float, false);
+    Expression FLog2(Operation operation) {
+        return GenerateUnary(operation, "log2", Type::Float, Type::Float);
     }
 
-    std::string FInverseSqrt(Operation operation) {
-        return GenerateUnary(operation, "inversesqrt", Type::Float, Type::Float, false);
+    Expression FInverseSqrt(Operation operation) {
+        return GenerateUnary(operation, "inversesqrt", Type::Float, Type::Float);
     }
 
-    std::string FSqrt(Operation operation) {
-        return GenerateUnary(operation, "sqrt", Type::Float, Type::Float, false);
+    Expression FSqrt(Operation operation) {
+        return GenerateUnary(operation, "sqrt", Type::Float, Type::Float);
     }
 
-    std::string FRoundEven(Operation operation) {
-        return GenerateUnary(operation, "roundEven", Type::Float, Type::Float, false);
+    Expression FRoundEven(Operation operation) {
+        return GenerateUnary(operation, "roundEven", Type::Float, Type::Float);
     }
 
-    std::string FFloor(Operation operation) {
-        return GenerateUnary(operation, "floor", Type::Float, Type::Float, false);
+    Expression FFloor(Operation operation) {
+        return GenerateUnary(operation, "floor", Type::Float, Type::Float);
     }
 
-    std::string FCeil(Operation operation) {
-        return GenerateUnary(operation, "ceil", Type::Float, Type::Float, false);
+    Expression FCeil(Operation operation) {
+        return GenerateUnary(operation, "ceil", Type::Float, Type::Float);
     }
 
-    std::string FTrunc(Operation operation) {
-        return GenerateUnary(operation, "trunc", Type::Float, Type::Float, false);
-    }
-
-    template <Type type>
-    std::string FCastInteger(Operation operation) {
-        return GenerateUnary(operation, "float", Type::Float, type, false);
-    }
-
-    std::string ICastFloat(Operation operation) {
-        return GenerateUnary(operation, "int", Type::Int, Type::Float, false);
-    }
-
-    std::string ICastUnsigned(Operation operation) {
-        return GenerateUnary(operation, "int", Type::Int, Type::Uint, false);
+    Expression FTrunc(Operation operation) {
+        return GenerateUnary(operation, "trunc", Type::Float, Type::Float);
     }
 
     template <Type type>
-    std::string LogicalShiftLeft(Operation operation) {
+    Expression FCastInteger(Operation operation) {
+        return GenerateUnary(operation, "float", Type::Float, type);
+    }
+
+    Expression ICastFloat(Operation operation) {
+        return GenerateUnary(operation, "int", Type::Int, Type::Float);
+    }
+
+    Expression ICastUnsigned(Operation operation) {
+        return GenerateUnary(operation, "int", Type::Int, Type::Uint);
+    }
+
+    template <Type type>
+    Expression LogicalShiftLeft(Operation operation) {
         return GenerateBinaryInfix(operation, "<<", type, type, Type::Uint);
     }
 
-    std::string ILogicalShiftRight(Operation operation) {
-        const std::string op_a = VisitOperand(operation, 0, Type::Uint);
-        const std::string op_b = VisitOperand(operation, 1, Type::Uint);
-        const std::string op_str = fmt::format("int({} >> {})", op_a, op_b);
+    Expression ILogicalShiftRight(Operation operation) {
+        const std::string op_a = VisitOperand(operation, 0).AsUint();
+        const std::string op_b = VisitOperand(operation, 1).AsUint();
+        std::string op_str = fmt::format("int({} >> {})", op_a, op_b);
 
-        return ApplyPrecise(operation, BitwiseCastResult(op_str, Type::Int));
+        return ApplyPrecise(operation, std::move(op_str), Type::Int);
     }
 
-    std::string IArithmeticShiftRight(Operation operation) {
+    Expression IArithmeticShiftRight(Operation operation) {
         return GenerateBinaryInfix(operation, ">>", Type::Int, Type::Int, Type::Uint);
     }
 
     template <Type type>
-    std::string BitwiseAnd(Operation operation) {
+    Expression BitwiseAnd(Operation operation) {
         return GenerateBinaryInfix(operation, "&", type, type, type);
     }
 
     template <Type type>
-    std::string BitwiseOr(Operation operation) {
+    Expression BitwiseOr(Operation operation) {
         return GenerateBinaryInfix(operation, "|", type, type, type);
     }
 
     template <Type type>
-    std::string BitwiseXor(Operation operation) {
+    Expression BitwiseXor(Operation operation) {
         return GenerateBinaryInfix(operation, "^", type, type, type);
     }
 
     template <Type type>
-    std::string BitwiseNot(Operation operation) {
-        return GenerateUnary(operation, "~", type, type, false);
+    Expression BitwiseNot(Operation operation) {
+        return GenerateUnary(operation, "~", type, type);
     }
 
-    std::string UCastFloat(Operation operation) {
-        return GenerateUnary(operation, "uint", Type::Uint, Type::Float, false);
+    Expression UCastFloat(Operation operation) {
+        return GenerateUnary(operation, "uint", Type::Uint, Type::Float);
     }
 
-    std::string UCastSigned(Operation operation) {
-        return GenerateUnary(operation, "uint", Type::Uint, Type::Int, false);
+    Expression UCastSigned(Operation operation) {
+        return GenerateUnary(operation, "uint", Type::Uint, Type::Int);
     }
 
-    std::string UShiftRight(Operation operation) {
+    Expression UShiftRight(Operation operation) {
         return GenerateBinaryInfix(operation, ">>", Type::Uint, Type::Uint, Type::Uint);
     }
 
     template <Type type>
-    std::string BitfieldInsert(Operation operation) {
+    Expression BitfieldInsert(Operation operation) {
         return GenerateQuaternary(operation, "bitfieldInsert", type, type, type, Type::Int,
                                   Type::Int);
     }
 
     template <Type type>
-    std::string BitfieldExtract(Operation operation) {
+    Expression BitfieldExtract(Operation operation) {
         return GenerateTernary(operation, "bitfieldExtract", type, type, Type::Int, Type::Int);
     }
 
     template <Type type>
-    std::string BitCount(Operation operation) {
-        return GenerateUnary(operation, "bitCount", type, type, false);
+    Expression BitCount(Operation operation) {
+        return GenerateUnary(operation, "bitCount", type, type);
     }
 
-    std::string HNegate(Operation operation) {
+    Expression HNegate(Operation operation) {
         const auto GetNegate = [&](std::size_t index) {
-            return VisitOperand(operation, index, Type::Bool) + " ? -1 : 1";
+            return VisitOperand(operation, index).AsBool() + " ? -1 : 1";
         };
-        const std::string value =
-            fmt::format("({} * vec2({}, {}))", VisitOperand(operation, 0, Type::HalfFloat),
-                        GetNegate(1), GetNegate(2));
-        return BitwiseCastResult(value, Type::HalfFloat);
+        return {fmt::format("({} * vec2({}, {}))", VisitOperand(operation, 0).AsHalfFloat(),
+                            GetNegate(1), GetNegate(2)),
+                Type::HalfFloat};
     }
 
-    std::string HClamp(Operation operation) {
-        const std::string value = VisitOperand(operation, 0, Type::HalfFloat);
-        const std::string min = VisitOperand(operation, 1, Type::Float);
-        const std::string max = VisitOperand(operation, 2, Type::Float);
-        const std::string clamped = fmt::format("clamp({}, vec2({}), vec2({}))", value, min, max);
+    Expression HClamp(Operation operation) {
+        const std::string value = VisitOperand(operation, 0).AsHalfFloat();
+        const std::string min = VisitOperand(operation, 1).AsFloat();
+        const std::string max = VisitOperand(operation, 2).AsFloat();
+        std::string clamped = fmt::format("clamp({}, vec2({}), vec2({}))", value, min, max);
 
-        return ApplyPrecise(operation, BitwiseCastResult(clamped, Type::HalfFloat));
+        return ApplyPrecise(operation, std::move(clamped), Type::HalfFloat);
     }
 
-    std::string HCastFloat(Operation operation) {
-        const std::string op_a = VisitOperand(operation, 0, Type::Float);
-        return fmt::format("fromHalf2(vec2({}, 0.0f))", op_a);
+    Expression HCastFloat(Operation operation) {
+        return {fmt::format("vec2({})", VisitOperand(operation, 0).AsFloat()), Type::HalfFloat};
     }
 
-    std::string HUnpack(Operation operation) {
-        const std::string operand{VisitOperand(operation, 0, Type::HalfFloat)};
-        const auto value = [&]() -> std::string {
-            switch (std::get<Tegra::Shader::HalfType>(operation.GetMeta())) {
-            case Tegra::Shader::HalfType::H0_H1:
-                return operand;
-            case Tegra::Shader::HalfType::F32:
-                return fmt::format("vec2(fromHalf2({}))", operand);
-            case Tegra::Shader::HalfType::H0_H0:
-                return fmt::format("vec2({}[0])", operand);
-            case Tegra::Shader::HalfType::H1_H1:
-                return fmt::format("vec2({}[1])", operand);
-            }
-            UNREACHABLE();
-            return "0";
-        }();
-        return fmt::format("fromHalf2({})", value);
+    Expression HUnpack(Operation operation) {
+        Expression operand = VisitOperand(operation, 0);
+        switch (std::get<Tegra::Shader::HalfType>(operation.GetMeta())) {
+        case Tegra::Shader::HalfType::H0_H1:
+            return operand;
+        case Tegra::Shader::HalfType::F32:
+            return {fmt::format("vec2({})", operand.AsFloat()), Type::HalfFloat};
+        case Tegra::Shader::HalfType::H0_H0:
+            return {fmt::format("vec2({}[0])", operand.AsHalfFloat()), Type::HalfFloat};
+        case Tegra::Shader::HalfType::H1_H1:
+            return {fmt::format("vec2({}[1])", operand.AsHalfFloat()), Type::HalfFloat};
+        }
     }
 
-    std::string HMergeF32(Operation operation) {
-        return fmt::format("float(toHalf2({})[0])", Visit(operation[0]));
+    Expression HMergeF32(Operation operation) {
+        return {fmt::format("float({}[0])", VisitOperand(operation, 0).AsHalfFloat()), Type::Float};
     }
 
-    std::string HMergeH0(Operation operation) {
-        return fmt::format("fromHalf2(vec2(toHalf2({})[0], toHalf2({})[1]))", Visit(operation[1]),
-                           Visit(operation[0]));
+    Expression HMergeH0(Operation operation) {
+        std::string dest = VisitOperand(operation, 0).AsUint();
+        std::string src = VisitOperand(operation, 1).AsUint();
+        return {fmt::format("(({} & 0x0000FFFFU) | ({} & 0xFFFF0000U))", src, dest), Type::Uint};
     }
 
-    std::string HMergeH1(Operation operation) {
-        return fmt::format("fromHalf2(vec2(toHalf2({})[0], toHalf2({})[1]))", Visit(operation[0]),
-                           Visit(operation[1]));
+    Expression HMergeH1(Operation operation) {
+        std::string dest = VisitOperand(operation, 0).AsUint();
+        std::string src = VisitOperand(operation, 1).AsUint();
+        return {fmt::format("(({} & 0x0000FFFFU) | ({} & 0xFFFF0000U))", dest, src), Type::Uint};
     }
 
-    std::string HPack2(Operation operation) {
-        return fmt::format("utof(packHalf2x16(vec2({}, {})))", Visit(operation[0]),
-                           Visit(operation[1]));
+    Expression HPack2(Operation operation) {
+        return {fmt::format("vec2({}, {})", VisitOperand(operation, 0).AsFloat(),
+                            VisitOperand(operation, 1).AsFloat()),
+                Type::HalfFloat};
     }
 
     template <Type type>
-    std::string LogicalLessThan(Operation operation) {
+    Expression LogicalLessThan(Operation operation) {
         return GenerateBinaryInfix(operation, "<", Type::Bool, type, type);
     }
 
     template <Type type>
-    std::string LogicalEqual(Operation operation) {
+    Expression LogicalEqual(Operation operation) {
         return GenerateBinaryInfix(operation, "==", Type::Bool, type, type);
     }
 
     template <Type type>
-    std::string LogicalLessEqual(Operation operation) {
+    Expression LogicalLessEqual(Operation operation) {
         return GenerateBinaryInfix(operation, "<=", Type::Bool, type, type);
     }
 
     template <Type type>
-    std::string LogicalGreaterThan(Operation operation) {
+    Expression LogicalGreaterThan(Operation operation) {
         return GenerateBinaryInfix(operation, ">", Type::Bool, type, type);
     }
 
     template <Type type>
-    std::string LogicalNotEqual(Operation operation) {
+    Expression LogicalNotEqual(Operation operation) {
         return GenerateBinaryInfix(operation, "!=", Type::Bool, type, type);
     }
 
     template <Type type>
-    std::string LogicalGreaterEqual(Operation operation) {
+    Expression LogicalGreaterEqual(Operation operation) {
         return GenerateBinaryInfix(operation, ">=", Type::Bool, type, type);
     }
 
-    std::string LogicalFIsNan(Operation operation) {
-        return GenerateUnary(operation, "isnan", Type::Bool, Type::Float, false);
+    Expression LogicalFIsNan(Operation operation) {
+        return GenerateUnary(operation, "isnan", Type::Bool, Type::Float);
     }
 
-    std::string LogicalAssign(Operation operation) {
+    Expression LogicalAssign(Operation operation) {
         const Node& dest = operation[0];
         const Node& src = operation[1];
 
@@ -1400,78 +1502,80 @@ private:
             target = GetInternalFlag(flag->GetFlag());
         }
 
-        code.AddLine("{} = {};", target, Visit(src));
+        code.AddLine("{} = {};", target, Visit(src).AsBool());
         return {};
     }
 
-    std::string LogicalAnd(Operation operation) {
+    Expression LogicalAnd(Operation operation) {
         return GenerateBinaryInfix(operation, "&&", Type::Bool, Type::Bool, Type::Bool);
     }
 
-    std::string LogicalOr(Operation operation) {
+    Expression LogicalOr(Operation operation) {
         return GenerateBinaryInfix(operation, "||", Type::Bool, Type::Bool, Type::Bool);
     }
 
-    std::string LogicalXor(Operation operation) {
+    Expression LogicalXor(Operation operation) {
         return GenerateBinaryInfix(operation, "^^", Type::Bool, Type::Bool, Type::Bool);
     }
 
-    std::string LogicalNegate(Operation operation) {
-        return GenerateUnary(operation, "!", Type::Bool, Type::Bool, false);
+    Expression LogicalNegate(Operation operation) {
+        return GenerateUnary(operation, "!", Type::Bool, Type::Bool);
     }
 
-    std::string LogicalPick2(Operation operation) {
-        const std::string pair = VisitOperand(operation, 0, Type::Bool2);
-        return fmt::format("{}[{}]", pair, VisitOperand(operation, 1, Type::Uint));
+    Expression LogicalPick2(Operation operation) {
+        return {fmt::format("{}[{}]", VisitOperand(operation, 0).AsBool2(),
+                            VisitOperand(operation, 1).AsUint()),
+                Type::Bool};
     }
 
-    std::string LogicalAnd2(Operation operation) {
+    Expression LogicalAnd2(Operation operation) {
         return GenerateUnary(operation, "all", Type::Bool, Type::Bool2);
     }
 
     template <bool with_nan>
-    std::string GenerateHalfComparison(Operation operation, const std::string& compare_op) {
-        const std::string comparison{GenerateBinaryCall(operation, compare_op, Type::Bool2,
-                                                        Type::HalfFloat, Type::HalfFloat)};
+    Expression GenerateHalfComparison(Operation operation, std::string_view compare_op) {
+        Expression comparison = GenerateBinaryCall(operation, compare_op, Type::Bool2,
+                                                   Type::HalfFloat, Type::HalfFloat);
         if constexpr (!with_nan) {
             return comparison;
         }
-        return fmt::format("halfFloatNanComparison({}, {}, {})", comparison,
-                           VisitOperand(operation, 0, Type::HalfFloat),
-                           VisitOperand(operation, 1, Type::HalfFloat));
+        return {fmt::format("HalfFloatNanComparison({}, {}, {})", comparison.AsBool2(),
+                            VisitOperand(operation, 0).AsHalfFloat(),
+                            VisitOperand(operation, 1).AsHalfFloat()),
+                Type::Bool2};
     }
 
     template <bool with_nan>
-    std::string Logical2HLessThan(Operation operation) {
+    Expression Logical2HLessThan(Operation operation) {
         return GenerateHalfComparison<with_nan>(operation, "lessThan");
     }
 
     template <bool with_nan>
-    std::string Logical2HEqual(Operation operation) {
+    Expression Logical2HEqual(Operation operation) {
         return GenerateHalfComparison<with_nan>(operation, "equal");
     }
 
     template <bool with_nan>
-    std::string Logical2HLessEqual(Operation operation) {
+    Expression Logical2HLessEqual(Operation operation) {
         return GenerateHalfComparison<with_nan>(operation, "lessThanEqual");
     }
 
     template <bool with_nan>
-    std::string Logical2HGreaterThan(Operation operation) {
+    Expression Logical2HGreaterThan(Operation operation) {
         return GenerateHalfComparison<with_nan>(operation, "greaterThan");
     }
 
     template <bool with_nan>
-    std::string Logical2HNotEqual(Operation operation) {
+    Expression Logical2HNotEqual(Operation operation) {
         return GenerateHalfComparison<with_nan>(operation, "notEqual");
     }
 
     template <bool with_nan>
-    std::string Logical2HGreaterEqual(Operation operation) {
+    Expression Logical2HGreaterEqual(Operation operation) {
         return GenerateHalfComparison<with_nan>(operation, "greaterThanEqual");
     }
 
-    std::string Texture(Operation operation) {
+    Expression Texture(Operation operation) {
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
 
@@ -1480,10 +1584,10 @@ private:
         if (meta->sampler.IsShadow()) {
             expr = "vec4(" + expr + ')';
         }
-        return expr + GetSwizzle(meta->element);
+        return {expr + GetSwizzle(meta->element), Type::Float};
     }
 
-    std::string TextureLod(Operation operation) {
+    Expression TextureLod(Operation operation) {
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
 
@@ -1492,54 +1596,54 @@ private:
         if (meta->sampler.IsShadow()) {
             expr = "vec4(" + expr + ')';
         }
-        return expr + GetSwizzle(meta->element);
+        return {expr + GetSwizzle(meta->element), Type::Float};
     }
 
-    std::string TextureGather(Operation operation) {
+    Expression TextureGather(Operation operation) {
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
 
         const auto type = meta->sampler.IsShadow() ? Type::Float : Type::Int;
-        return GenerateTexture(operation, "Gather",
-                               {TextureArgument{type, meta->component}, TextureAoffi{}}) +
-               GetSwizzle(meta->element);
+        return {GenerateTexture(operation, "Gather",
+                                {TextureArgument{type, meta->component}, TextureAoffi{}}) +
+                    GetSwizzle(meta->element),
+                Type::Float};
     }
 
-    std::string TextureQueryDimensions(Operation operation) {
+    Expression TextureQueryDimensions(Operation operation) {
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
 
         const std::string sampler = GetSampler(meta->sampler);
-        const std::string lod = VisitOperand(operation, 0, Type::Int);
+        const std::string lod = VisitOperand(operation, 0).AsInt();
 
         switch (meta->element) {
         case 0:
         case 1:
-            return fmt::format("itof(int(textureSize({}, {}){}))", sampler, lod,
-                               GetSwizzle(meta->element));
-        case 2:
-            return "0";
+            return {fmt::format("textureSize({}, {}){}", sampler, lod, GetSwizzle(meta->element)),
+                    Type::Int};
         case 3:
-            return fmt::format("itof(textureQueryLevels({}))", sampler);
+            return {fmt::format("textureQueryLevels({})", sampler), Type::Int};
         }
         UNREACHABLE();
-        return "0";
+        return {"0", Type::Int};
     }
 
-    std::string TextureQueryLod(Operation operation) {
+    Expression TextureQueryLod(Operation operation) {
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
 
         if (meta->element < 2) {
-            return fmt::format("itof(int(({} * vec2(256)){}))",
-                               GenerateTexture(operation, "QueryLod", {}),
-                               GetSwizzle(meta->element));
+            return {fmt::format("int(({} * vec2(256)){})",
+                                GenerateTexture(operation, "QueryLod", {}),
+                                GetSwizzle(meta->element)),
+                    Type::Int};
         }
-        return "0";
+        return {"0", Type::Int};
     }
 
-    std::string TexelFetch(Operation operation) {
-        constexpr std::array<const char*, 4> constructors = {"int", "ivec2", "ivec3", "ivec4"};
+    Expression TexelFetch(Operation operation) {
+        constexpr std::array constructors = {"int", "ivec2", "ivec3", "ivec4"};
         const auto meta = std::get_if<MetaTexture>(&operation.GetMeta());
         ASSERT(meta);
         UNIMPLEMENTED_IF(meta->sampler.IsArray());
@@ -1552,7 +1656,7 @@ private:
         expr += constructors.at(operation.GetOperandsCount() - 1);
         expr += '(';
         for (std::size_t i = 0; i < count; ++i) {
-            expr += VisitOperand(operation, i, Type::Int);
+            expr += VisitOperand(operation, i).AsInt();
             const std::size_t next = i + 1;
             if (next == count)
                 expr += ')';
@@ -1565,7 +1669,7 @@ private:
 
         if (meta->lod) {
             expr += ", ";
-            expr += CastOperand(Visit(meta->lod), Type::Int);
+            expr += Visit(meta->lod).AsInt();
         }
         expr += ')';
         expr += GetSwizzle(meta->element);
@@ -1580,11 +1684,11 @@ private:
         code.AddLine("float {} = {};", tmp, expr);
         code.AddLine("#endif");
 
-        return tmp;
+        return {tmp, Type::Float};
     }
 
-    std::string ImageStore(Operation operation) {
-        constexpr std::array<const char*, 4> constructors{"int(", "ivec2(", "ivec3(", "ivec4("};
+    Expression ImageStore(Operation operation) {
+        constexpr std::array constructors{"int(", "ivec2(", "ivec3(", "ivec4("};
         const auto meta{std::get<MetaImage>(operation.GetMeta())};
 
         std::string expr = "imageStore(";
@@ -1594,7 +1698,7 @@ private:
         const std::size_t coords_count{operation.GetOperandsCount()};
         expr += constructors.at(coords_count - 1);
         for (std::size_t i = 0; i < coords_count; ++i) {
-            expr += VisitOperand(operation, i, Type::Int);
+            expr += VisitOperand(operation, i).AsInt();
             if (i + 1 < coords_count) {
                 expr += ", ";
             }
@@ -1605,7 +1709,7 @@ private:
         UNIMPLEMENTED_IF(values_count != 4);
         expr += "vec4(";
         for (std::size_t i = 0; i < values_count; ++i) {
-            expr += Visit(meta.values.at(i));
+            expr += Visit(meta.values.at(i)).AsFloat();
             if (i + 1 < values_count) {
                 expr += ", ";
             }
@@ -1616,52 +1720,52 @@ private:
         return {};
     }
 
-    std::string Branch(Operation operation) {
+    Expression Branch(Operation operation) {
         const auto target = std::get_if<ImmediateNode>(&*operation[0]);
         UNIMPLEMENTED_IF(!target);
 
-        code.AddLine("jmp_to = 0x{:x}u;", target->GetValue());
+        code.AddLine("jmp_to = 0x{:X}U;", target->GetValue());
         code.AddLine("break;");
         return {};
     }
 
-    std::string BranchIndirect(Operation operation) {
-        const std::string op_a = VisitOperand(operation, 0, Type::Uint);
+    Expression BranchIndirect(Operation operation) {
+        const std::string op_a = VisitOperand(operation, 0).AsUint();
 
         code.AddLine("jmp_to = {};", op_a);
         code.AddLine("break;");
         return {};
     }
 
-    std::string PushFlowStack(Operation operation) {
+    Expression PushFlowStack(Operation operation) {
         const auto stack = std::get<MetaStackClass>(operation.GetMeta());
         const auto target = std::get_if<ImmediateNode>(&*operation[0]);
         UNIMPLEMENTED_IF(!target);
 
-        code.AddLine("{}[{}++] = 0x{:x}u;", FlowStackName(stack), FlowStackTopName(stack),
+        code.AddLine("{}[{}++] = 0x{:X}U;", FlowStackName(stack), FlowStackTopName(stack),
                      target->GetValue());
         return {};
     }
 
-    std::string PopFlowStack(Operation operation) {
+    Expression PopFlowStack(Operation operation) {
         const auto stack = std::get<MetaStackClass>(operation.GetMeta());
         code.AddLine("jmp_to = {}[--{}];", FlowStackName(stack), FlowStackTopName(stack));
         code.AddLine("break;");
         return {};
     }
 
-    std::string Exit(Operation operation) {
+    Expression Exit(Operation operation) {
         if (stage != ProgramType::Fragment) {
             code.AddLine("return;");
             return {};
         }
         const auto& used_registers = ir.GetRegisters();
-        const auto SafeGetRegister = [&](u32 reg) -> std::string {
+        const auto SafeGetRegister = [&](u32 reg) -> Expression {
             // TODO(Rodrigo): Replace with contains once C++20 releases
             if (used_registers.find(reg) != used_registers.end()) {
-                return GetRegister(reg);
+                return {GetRegister(reg), Type::Float};
             }
-            return "0.0f";
+            return {"0.0f", Type::Float};
         };
 
         UNIMPLEMENTED_IF_MSG(header.ps.omap.sample_mask != 0, "Sample mask write is unimplemented");
@@ -1674,7 +1778,7 @@ private:
             for (u32 component = 0; component < 4; ++component) {
                 if (header.ps.IsColorComponentOutputEnabled(render_target, component)) {
                     code.AddLine("FragColor{}[{}] = {};", render_target, component,
-                                 SafeGetRegister(current_reg));
+                                 SafeGetRegister(current_reg).AsFloat());
                     ++current_reg;
                 }
             }
@@ -1683,14 +1787,14 @@ private:
         if (header.ps.omap.depth) {
             // The depth output is always 2 registers after the last color output, and current_reg
             // already contains one past the last color register.
-            code.AddLine("gl_FragDepth = {};", SafeGetRegister(current_reg + 1));
+            code.AddLine("gl_FragDepth = {};", SafeGetRegister(current_reg + 1).AsFloat());
         }
 
         code.AddLine("return;");
         return {};
     }
 
-    std::string Discard(Operation operation) {
+    Expression Discard(Operation operation) {
         // Enclose "discard" in a conditional, so that GLSL compilation does not complain
         // about unexecuted instructions that may follow this.
         code.AddLine("if (true) {{");
@@ -1701,7 +1805,7 @@ private:
         return {};
     }
 
-    std::string EmitVertex(Operation operation) {
+    Expression EmitVertex(Operation operation) {
         ASSERT_MSG(stage == ProgramType::Geometry,
                    "EmitVertex is expected to be used in a geometry shader.");
 
@@ -1712,7 +1816,7 @@ private:
         return {};
     }
 
-    std::string EndPrimitive(Operation operation) {
+    Expression EndPrimitive(Operation operation) {
         ASSERT_MSG(stage == ProgramType::Geometry,
                    "EndPrimitive is expected to be used in a geometry shader.");
 
@@ -1720,59 +1824,59 @@ private:
         return {};
     }
 
-    std::string YNegate(Operation operation) {
+    Expression YNegate(Operation operation) {
         // Config pack's third value is Y_NEGATE's state.
-        return "uintBitsToFloat(config_pack[2])";
+        return {"config_pack[2]", Type::Uint};
     }
 
     template <u32 element>
-    std::string LocalInvocationId(Operation) {
-        return "utof(gl_LocalInvocationID"s + GetSwizzle(element) + ')';
+    Expression LocalInvocationId(Operation) {
+        return {"gl_LocalInvocationID"s + GetSwizzle(element), Type::Uint};
     }
 
     template <u32 element>
-    std::string WorkGroupId(Operation) {
-        return "utof(gl_WorkGroupID"s + GetSwizzle(element) + ')';
+    Expression WorkGroupId(Operation) {
+        return {"gl_WorkGroupID"s + GetSwizzle(element), Type::Uint};
     }
 
-    std::string BallotThread(Operation operation) {
-        const std::string value = VisitOperand(operation, 0, Type::Bool);
+    Expression BallotThread(Operation operation) {
+        const std::string value = VisitOperand(operation, 0).AsBool();
         if (!device.HasWarpIntrinsics()) {
             LOG_ERROR(Render_OpenGL,
                       "Nvidia warp intrinsics are not available and its required by a shader");
             // Stub on non-Nvidia devices by simulating all threads voting the same as the active
             // one.
-            return fmt::format("utof({} ? 0xFFFFFFFFU : 0U)", value);
+            return {fmt::format("({} ? 0xFFFFFFFFU : 0U)", value), Type::Uint};
         }
-        return fmt::format("utof(ballotThreadNV({}))", value);
+        return {fmt::format("ballotThreadNV({})", value), Type::Uint};
     }
 
-    std::string Vote(Operation operation, const char* func) {
-        const std::string value = VisitOperand(operation, 0, Type::Bool);
+    Expression Vote(Operation operation, const char* func) {
+        const std::string value = VisitOperand(operation, 0).AsBool();
         if (!device.HasWarpIntrinsics()) {
             LOG_ERROR(Render_OpenGL,
                       "Nvidia vote intrinsics are not available and its required by a shader");
             // Stub with a warp size of one.
-            return value;
+            return {value, Type::Bool};
         }
-        return fmt::format("{}({})", func, value);
+        return {fmt::format("{}({})", func, value), Type::Bool};
     }
 
-    std::string VoteAll(Operation operation) {
+    Expression VoteAll(Operation operation) {
         return Vote(operation, "allThreadsNV");
     }
 
-    std::string VoteAny(Operation operation) {
+    Expression VoteAny(Operation operation) {
         return Vote(operation, "anyThreadNV");
     }
 
-    std::string VoteEqual(Operation operation) {
+    Expression VoteEqual(Operation operation) {
         if (!device.HasWarpIntrinsics()) {
             LOG_ERROR(Render_OpenGL,
                       "Nvidia vote intrinsics are not available and its required by a shader");
             // We must return true here since a stub for a theoretical warp size of 1 will always
             // return an equal result for all its votes.
-            return "true";
+            return {"true", Type::Bool};
         }
         return Vote(operation, "allThreadsEqualNV");
     }
@@ -1973,8 +2077,8 @@ private:
     }
 
     std::string GetInternalFlag(InternalFlag flag) const {
-        constexpr std::array<const char*, 4> InternalFlagNames = {"zero_flag", "sign_flag",
-                                                                  "carry_flag", "overflow_flag"};
+        constexpr std::array InternalFlagNames = {"zero_flag", "sign_flag", "carry_flag",
+                                                  "overflow_flag"};
         const auto index = static_cast<u32>(flag);
         ASSERT(index < static_cast<u32>(InternalFlag::Amount));
 
@@ -2022,24 +2126,16 @@ private:
 
 std::string GetCommonDeclarations() {
     return fmt::format(
-        "#define MAX_CONSTBUFFER_ELEMENTS {}\n"
         "#define ftoi floatBitsToInt\n"
         "#define ftou floatBitsToUint\n"
         "#define itof intBitsToFloat\n"
         "#define utof uintBitsToFloat\n\n"
-        "float fromHalf2(vec2 pair) {{\n"
-        "    return utof(packHalf2x16(pair));\n"
-        "}}\n\n"
-        "vec2 toHalf2(float value) {{\n"
-        "    return unpackHalf2x16(ftou(value));\n"
-        "}}\n\n"
-        "bvec2 halfFloatNanComparison(bvec2 comparison, vec2 pair1, vec2 pair2) {{\n"
+        "bvec2 HalfFloatNanComparison(bvec2 comparison, vec2 pair1, vec2 pair2) {{\n"
         "    bvec2 is_nan1 = isnan(pair1);\n"
         "    bvec2 is_nan2 = isnan(pair2);\n"
         "    return bvec2(comparison.x || is_nan1.x || is_nan2.x, comparison.y || is_nan1.y || "
         "is_nan2.y);\n"
-        "}}\n",
-        MAX_CONSTBUFFER_ELEMENTS);
+        "}}\n\n");
 }
 
 ProgramResult Decompile(const Device& device, const ShaderIR& ir, ProgramType stage,
