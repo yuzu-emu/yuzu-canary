@@ -24,55 +24,62 @@ using VideoCore::Surface::SurfaceTarget;
 using VideoCore::Surface::SurfaceTargetFromTextureType;
 using VideoCore::Surface::SurfaceType;
 
-SurfaceTarget TextureType2SurfaceTarget(Tegra::Shader::TextureType type, bool is_array) {
+namespace {
+
+SurfaceTarget TextureTypeToSurfaceTarget(Tegra::Shader::TextureType type, bool is_array) {
     switch (type) {
-    case Tegra::Shader::TextureType::Texture1D: {
-        if (is_array)
-            return SurfaceTarget::Texture1DArray;
-        else
-            return SurfaceTarget::Texture1D;
-    }
-    case Tegra::Shader::TextureType::Texture2D: {
-        if (is_array)
-            return SurfaceTarget::Texture2DArray;
-        else
-            return SurfaceTarget::Texture2D;
-    }
-    case Tegra::Shader::TextureType::Texture3D: {
+    case Tegra::Shader::TextureType::Texture1D:
+        return is_array ? SurfaceTarget::Texture1DArray : SurfaceTarget::Texture1D;
+    case Tegra::Shader::TextureType::Texture2D:
+        return is_array ? SurfaceTarget::Texture2DArray : SurfaceTarget::Texture2D;
+    case Tegra::Shader::TextureType::Texture3D:
         ASSERT(!is_array);
         return SurfaceTarget::Texture3D;
-    }
-    case Tegra::Shader::TextureType::TextureCube: {
-        if (is_array)
-            return SurfaceTarget::TextureCubeArray;
-        else
-            return SurfaceTarget::TextureCubemap;
-    }
-    default: {
+    case Tegra::Shader::TextureType::TextureCube:
+        return is_array ? SurfaceTarget::TextureCubeArray : SurfaceTarget::TextureCubemap;
+    default:
         UNREACHABLE();
         return SurfaceTarget::Texture2D;
     }
+}
+
+SurfaceTarget ImageTypeToSurfaceTarget(Tegra::Shader::ImageType type) {
+    switch (type) {
+    case Tegra::Shader::ImageType::Texture1D:
+        return SurfaceTarget::Texture1D;
+    case Tegra::Shader::ImageType::TextureBuffer:
+        return SurfaceTarget::TextureBuffer;
+    case Tegra::Shader::ImageType::Texture1DArray:
+        return SurfaceTarget::Texture1DArray;
+    case Tegra::Shader::ImageType::Texture2D:
+        return SurfaceTarget::Texture2D;
+    case Tegra::Shader::ImageType::Texture2DArray:
+        return SurfaceTarget::Texture2DArray;
+    case Tegra::Shader::ImageType::Texture3D:
+        return SurfaceTarget::Texture3D;
+    default:
+        UNREACHABLE();
+        return SurfaceTarget::Texture2D;
     }
 }
 
-namespace {
 constexpr u32 GetMipmapSize(bool uncompressed, u32 mip_size, u32 tile) {
     return uncompressed ? mip_size : std::max(1U, (mip_size + tile - 1) / tile);
 }
+
 } // Anonymous namespace
 
-SurfaceParams SurfaceParams::CreateForTexture(Core::System& system,
-                                              const Tegra::Texture::FullTextureInfo& config,
+SurfaceParams SurfaceParams::CreateForTexture(const Tegra::Texture::TICEntry& tic,
                                               const VideoCommon::Shader::Sampler& entry) {
     SurfaceParams params;
-    params.is_tiled = config.tic.IsTiled();
-    params.srgb_conversion = config.tic.IsSrgbConversionEnabled();
-    params.block_width = params.is_tiled ? config.tic.BlockWidth() : 0,
-    params.block_height = params.is_tiled ? config.tic.BlockHeight() : 0,
-    params.block_depth = params.is_tiled ? config.tic.BlockDepth() : 0,
-    params.tile_width_spacing = params.is_tiled ? (1 << config.tic.tile_width_spacing.Value()) : 1;
-    params.pixel_format = PixelFormatFromTextureFormat(config.tic.format, config.tic.r_type.Value(),
-                                                       params.srgb_conversion);
+    params.is_tiled = tic.IsTiled();
+    params.srgb_conversion = tic.IsSrgbConversionEnabled();
+    params.block_width = params.is_tiled ? tic.BlockWidth() : 0,
+    params.block_height = params.is_tiled ? tic.BlockHeight() : 0,
+    params.block_depth = params.is_tiled ? tic.BlockDepth() : 0,
+    params.tile_width_spacing = params.is_tiled ? (1 << tic.tile_width_spacing.Value()) : 1;
+    params.pixel_format =
+        PixelFormatFromTextureFormat(tic.format, tic.r_type.Value(), params.srgb_conversion);
     params.type = GetFormatType(params.pixel_format);
     if (entry.IsShadow() && params.type == SurfaceType::ColorTexture) {
         switch (params.pixel_format) {
@@ -92,31 +99,72 @@ SurfaceParams SurfaceParams::CreateForTexture(Core::System& system,
         }
         params.type = GetFormatType(params.pixel_format);
     }
-    params.component_type = ComponentTypeFromTexture(config.tic.r_type.Value());
+    params.component_type = ComponentTypeFromTexture(tic.r_type.Value());
     params.type = GetFormatType(params.pixel_format);
     // TODO: on 1DBuffer we should use the tic info.
-    if (!config.tic.IsBuffer()) {
-        params.target = TextureType2SurfaceTarget(entry.GetType(), entry.IsArray());
-        params.width = config.tic.Width();
-        params.height = config.tic.Height();
-        params.depth = config.tic.Depth();
-        params.pitch = params.is_tiled ? 0 : config.tic.Pitch();
-        if (params.target == SurfaceTarget::TextureCubemap ||
-            params.target == SurfaceTarget::TextureCubeArray) {
-            params.depth *= 6;
-        }
-        params.num_levels = config.tic.max_mip_level + 1;
-        params.emulated_levels = std::min(params.num_levels, params.MaxPossibleMipmap());
-        params.is_layered = params.IsLayered();
-    } else {
+    if (tic.IsBuffer()) {
         params.target = SurfaceTarget::TextureBuffer;
-        params.width = config.tic.Width();
+        params.width = tic.Width();
         params.pitch = params.width * params.GetBytesPerPixel();
         params.height = 1;
         params.depth = 1;
         params.num_levels = 1;
         params.emulated_levels = 1;
         params.is_layered = false;
+    } else {
+        params.target = TextureTypeToSurfaceTarget(entry.GetType(), entry.IsArray());
+        params.width = tic.Width();
+        params.height = tic.Height();
+        params.depth = tic.Depth();
+        params.pitch = params.is_tiled ? 0 : tic.Pitch();
+        if (params.target == SurfaceTarget::TextureCubemap ||
+            params.target == SurfaceTarget::TextureCubeArray) {
+            params.depth *= 6;
+        }
+        params.num_levels = tic.max_mip_level + 1;
+        params.emulated_levels = std::min(params.num_levels, params.MaxPossibleMipmap());
+        params.is_layered = params.IsLayered();
+    }
+    return params;
+}
+
+SurfaceParams SurfaceParams::CreateForImage(const Tegra::Texture::TICEntry& tic,
+                                            const VideoCommon::Shader::Image& entry) {
+    SurfaceParams params;
+    params.is_tiled = tic.IsTiled();
+    params.srgb_conversion = tic.IsSrgbConversionEnabled();
+    params.block_width = params.is_tiled ? tic.BlockWidth() : 0,
+    params.block_height = params.is_tiled ? tic.BlockHeight() : 0,
+    params.block_depth = params.is_tiled ? tic.BlockDepth() : 0,
+    params.tile_width_spacing = params.is_tiled ? (1 << tic.tile_width_spacing.Value()) : 1;
+    params.pixel_format =
+        PixelFormatFromTextureFormat(tic.format, tic.r_type.Value(), params.srgb_conversion);
+    params.type = GetFormatType(params.pixel_format);
+    params.component_type = ComponentTypeFromTexture(tic.r_type.Value());
+    params.type = GetFormatType(params.pixel_format);
+    params.target = ImageTypeToSurfaceTarget(entry.GetType());
+    // TODO: on 1DBuffer we should use the tic info.
+    if (tic.IsBuffer()) {
+        params.target = SurfaceTarget::TextureBuffer;
+        params.width = tic.Width();
+        params.pitch = params.width * params.GetBytesPerPixel();
+        params.height = 1;
+        params.depth = 1;
+        params.num_levels = 1;
+        params.emulated_levels = 1;
+        params.is_layered = false;
+    } else {
+        params.width = tic.Width();
+        params.height = tic.Height();
+        params.depth = tic.Depth();
+        params.pitch = params.is_tiled ? 0 : tic.Pitch();
+        if (params.target == SurfaceTarget::TextureCubemap ||
+            params.target == SurfaceTarget::TextureCubeArray) {
+            params.depth *= 6;
+        }
+        params.num_levels = tic.max_mip_level + 1;
+        params.emulated_levels = std::min(params.num_levels, params.MaxPossibleMipmap());
+        params.is_layered = params.IsLayered();
     }
     return params;
 }
