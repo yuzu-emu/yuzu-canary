@@ -26,20 +26,18 @@ AppLoader_NSP::AppLoader_NSP(FileSys::VirtualFile file)
 
     if (nsp->GetStatus() != ResultStatus::Success)
         return;
-    if (nsp->IsExtractedType())
-        return;
-
-    const auto control_nca =
-        nsp->GetNCA(nsp->GetProgramTitleID(), FileSys::ContentRecordType::Control);
-    if (control_nca == nullptr || control_nca->GetStatus() != ResultStatus::Success)
-        return;
-
-    std::tie(nacp_file, icon_file) =
-        FileSys::PatchManager(nsp->GetProgramTitleID()).ParseControlNCA(*control_nca);
 
     if (nsp->IsExtractedType()) {
         secondary_loader = std::make_unique<AppLoader_DeconstructedRomDirectory>(nsp->GetExeFS());
     } else {
+        const auto control_nca =
+            nsp->GetNCA(nsp->GetProgramTitleID(), FileSys::ContentRecordType::Control);
+        if (control_nca == nullptr || control_nca->GetStatus() != ResultStatus::Success)
+            return;
+
+        std::tie(nacp_file, icon_file) =
+            FileSys::PatchManager(nsp->GetProgramTitleID()).ParseControlNCA(*control_nca);
+
         if (title_id == 0)
             return;
 
@@ -56,11 +54,11 @@ FileType AppLoader_NSP::IdentifyType(const FileSys::VirtualFile& file) {
     if (nsp.GetStatus() == ResultStatus::Success) {
         // Extracted Type case
         if (nsp.IsExtractedType() && nsp.GetExeFS() != nullptr &&
-            FileSys::IsDirectoryExeFS(nsp.GetExeFS()) && nsp.GetRomFS() != nullptr) {
+            FileSys::IsDirectoryExeFS(nsp.GetExeFS())) {
             return FileType::NSP;
         }
 
-        // Non-Ectracted Type case
+        // Non-Extracted Type case
         if (!nsp.IsExtractedType() &&
             nsp.GetNCA(nsp.GetFirstTitleID(), FileSys::ContentRecordType::Program) != nullptr &&
             AppLoader_NCA::IdentifyType(nsp.GetNCAFile(
@@ -77,7 +75,7 @@ AppLoader_NSP::LoadResult AppLoader_NSP::Load(Kernel::Process& process) {
         return {ResultStatus::ErrorAlreadyLoaded, {}};
     }
 
-    if (title_id == 0) {
+    if (!nsp->IsExtractedType() && title_id == 0) {
         return {ResultStatus::ErrorNSPMissingProgramNCA, {}};
     }
 
@@ -91,7 +89,8 @@ AppLoader_NSP::LoadResult AppLoader_NSP::Load(Kernel::Process& process) {
         return {nsp_program_status, {}};
     }
 
-    if (nsp->GetNCA(title_id, FileSys::ContentRecordType::Program) == nullptr) {
+    if (!nsp->IsExtractedType() &&
+        nsp->GetNCA(title_id, FileSys::ContentRecordType::Program) == nullptr) {
         if (!Core::Crypto::KeyManager::KeyFileExists(false)) {
             return {ResultStatus::ErrorMissingProductionKeyFile, {}};
         }
