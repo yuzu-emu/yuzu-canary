@@ -17,8 +17,8 @@ u32 ShaderIR::DecodeShift(NodeBlock& bb, u32 pc) {
     const Instruction instr = {program_code[pc]};
     const auto opcode = OpCode::Decode(instr);
 
-    const Node op_a = GetRegister(instr.gpr8);
-    const Node op_b = [&]() {
+    Node op_a = GetRegister(instr.gpr8);
+    Node op_b = [&]() {
         if (instr.is_b_imm) {
             return Immediate(instr.alu.GetSignedImm20_20());
         } else if (instr.is_b_gpr) {
@@ -32,16 +32,23 @@ u32 ShaderIR::DecodeShift(NodeBlock& bb, u32 pc) {
     case OpCode::Id::SHR_C:
     case OpCode::Id::SHR_R:
     case OpCode::Id::SHR_IMM: {
-        const Node value = SignedOperation(OperationCode::IArithmeticShiftRight,
-                                           instr.shift.is_signed, PRECISE, op_a, op_b);
+        if (instr.shr.wrap) {
+            op_b = Operation(OperationCode::UBitwiseAnd, std::move(op_b), Immediate(0x1f));
+        } else {
+            op_b = Operation(OperationCode::IMax, std::move(op_b), Immediate(0));
+            op_b = Operation(OperationCode::IMin, std::move(op_b), Immediate(31));
+        }
+
+        Node value = SignedOperation(OperationCode::IArithmeticShiftRight, instr.shift.is_signed,
+                                     std::move(op_a), std::move(op_b));
         SetInternalFlagsFromInteger(bb, value, instr.generates_cc);
-        SetRegister(bb, instr.gpr0, value);
+        SetRegister(bb, instr.gpr0, std::move(value));
         break;
     }
     case OpCode::Id::SHL_C:
     case OpCode::Id::SHL_R:
     case OpCode::Id::SHL_IMM: {
-        const Node value = Operation(OperationCode::ILogicalShiftLeft, PRECISE, op_a, op_b);
+        const Node value = Operation(OperationCode::ILogicalShiftLeft, op_a, op_b);
         SetInternalFlagsFromInteger(bb, value, instr.generates_cc);
         SetRegister(bb, instr.gpr0, value);
         break;
