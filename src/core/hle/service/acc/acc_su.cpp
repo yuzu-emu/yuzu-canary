@@ -41,7 +41,7 @@ ACC_SU::ACC_SU(std::shared_ptr<Module> module, std::shared_ptr<ProfileManager> p
         {202, nullptr, "CancelUserRegistration"},
         {203, nullptr, "DeleteUser"},
         {204, nullptr, "SetUserPosition"},
-        {205, nullptr, "GetProfileEditor"},
+        {205, &ACC_SU::GetProfileEditor, "GetProfileEditor"},
         {206, nullptr, "CompleteUserRegistrationForcibly"},
         {210, nullptr, "CreateFloatingRegistrationRequest"},
         {230, nullptr, "AuthenticateServiceAsync"},
