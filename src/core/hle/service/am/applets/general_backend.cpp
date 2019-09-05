@@ -37,7 +37,8 @@ static void LogCurrentStorage(AppletDataBroker& broker, std::string_view prefix)
     }
 }
 
-Auth::Auth(Core::Frontend::ParentalControlsApplet& frontend) : frontend(frontend) {}
+Auth::Auth(Core::System& system_, Core::Frontend::ParentalControlsApplet& frontend_)
+    : Applet{system_.Kernel()}, frontend(frontend_) {}
 
 Auth::~Auth() = default;
 
@@ -151,7 +152,8 @@ void Auth::AuthFinished(bool successful) {
     broker.SignalStateChanged();
 }
 
-PhotoViewer::PhotoViewer(const Core::Frontend::PhotoViewerApplet& frontend) : frontend(frontend) {}
+PhotoViewer::PhotoViewer(Core::System& system_, const Core::Frontend::PhotoViewerApplet& frontend_)
+    : Applet{system_.Kernel()}, frontend(frontend_), system{system_} {}
 
 PhotoViewer::~PhotoViewer() = default;
 
@@ -185,7 +187,7 @@ void PhotoViewer::Execute() {
     const auto callback = [this] { ViewFinished(); };
     switch (mode) {
     case PhotoViewerAppletMode::CurrentApp:
-        frontend.ShowPhotosForApplication(Core::CurrentProcess()->GetTitleID(), callback);
+        frontend.ShowPhotosForApplication(system.CurrentProcess()->GetTitleID(), callback);
         break;
     case PhotoViewerAppletMode::AllApps:
         frontend.ShowAllPhotos(callback);
@@ -200,7 +202,8 @@ void PhotoViewer::ViewFinished() {
     broker.SignalStateChanged();
 }
 
-StubApplet::StubApplet(AppletId id) : id(id) {}
+StubApplet::StubApplet(Core::System& system_, AppletId id_)
+    : Applet{system_.Kernel()}, id(id_), system{system_} {}
 
 StubApplet::~StubApplet() = default;
 
@@ -209,7 +212,7 @@ void StubApplet::Initialize() {
     Applet::Initialize();
 
     const auto data = broker.PeekDataToAppletForDebug();
-    Core::System::GetInstance().GetReporter().SaveUnimplementedAppletReport(
+    system.GetReporter().SaveUnimplementedAppletReport(
         static_cast<u32>(id), common_args.arguments_version, common_args.library_version,
         common_args.theme_color, common_args.play_startup_sound, common_args.system_tick,
         data.normal, data.interactive);
