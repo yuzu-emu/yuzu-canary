@@ -454,8 +454,8 @@ public:
 
     /// Maps memory at a given address.
     ///
-    /// @param addr The virtual address to map memory at.
-    /// @param size The amount of memory to map.
+    /// @param target The virtual address to map memory at.
+    /// @param size   The amount of memory to map.
     ///
     /// @note The destination address must lie within the Map region.
     ///
@@ -468,8 +468,8 @@ public:
 
     /// Unmaps memory at a given address.
     ///
-    /// @param addr The virtual address to unmap memory at.
-    /// @param size The amount of memory to unmap.
+    /// @param target The virtual address to unmap memory at.
+    /// @param size   The amount of memory to unmap.
     ///
     /// @note The destination address must lie within the Map region.
     ///
