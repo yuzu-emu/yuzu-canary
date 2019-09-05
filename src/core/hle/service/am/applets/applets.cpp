@@ -23,8 +23,7 @@
 
 namespace Service::AM::Applets {
 
-AppletDataBroker::AppletDataBroker() {
-    auto& kernel = Core::System::GetInstance().Kernel();
+AppletDataBroker::AppletDataBroker(Kernel::KernelCore& kernel) {
     state_changed_event = Kernel::WritableEvent::CreateEventPair(
         kernel, Kernel::ResetType::Manual, "ILibraryAppletAccessor:StateChangedEvent");
     pop_out_data_event = Kernel::WritableEvent::CreateEventPair(
@@ -121,7 +120,7 @@ Kernel::SharedPtr<Kernel::ReadableEvent> AppletDataBroker::GetStateChangedEvent(
     return state_changed_event.readable;
 }
 
-Applet::Applet() = default;
+Applet::Applet(Kernel::KernelCore& kernel_) : broker{kernel_} {}
 
 Applet::~Applet() = default;
 
@@ -154,7 +153,7 @@ AppletFrontendSet::AppletFrontendSet(AppletFrontendSet&&) noexcept = default;
 
 AppletFrontendSet& AppletFrontendSet::operator=(AppletFrontendSet&&) noexcept = default;
 
-AppletManager::AppletManager() = default;
+AppletManager::AppletManager(Core::System& system_) : system{system_} {}
 
 AppletManager::~AppletManager() = default;
 
@@ -216,28 +215,28 @@ void AppletManager::ClearAll() {
     frontend = {};
 }
 
-std::shared_ptr<Applet> AppletManager::GetApplet(AppletId id, u64 current_process_title_id) const {
+std::shared_ptr<Applet> AppletManager::GetApplet(AppletId id) const {
     switch (id) {
     case AppletId::Auth:
-        return std::make_shared<Auth>(*frontend.parental_controls);
+        return std::make_shared<Auth>(system, *frontend.parental_controls);
     case AppletId::Error:
-        return std::make_shared<Error>(*frontend.error);
+        return std::make_shared<Error>(system, *frontend.error);
     case AppletId::ProfileSelect:
-        return std::make_shared<ProfileSelect>(*frontend.profile_select);
+        return std::make_shared<ProfileSelect>(system, *frontend.profile_select);
     case AppletId::SoftwareKeyboard:
-        return std::make_shared<SoftwareKeyboard>(*frontend.software_keyboard);
+        return std::make_shared<SoftwareKeyboard>(system, *frontend.software_keyboard);
     case AppletId::PhotoViewer:
-        return std::make_shared<PhotoViewer>(*frontend.photo_viewer);
+        return std::make_shared<PhotoViewer>(system, *frontend.photo_viewer);
     case AppletId::LibAppletShop:
-        return std::make_shared<WebBrowser>(*frontend.web_browser, current_process_title_id,
+        return std::make_shared<WebBrowser>(system, *frontend.web_browser,
                                             frontend.e_commerce.get());
     case AppletId::LibAppletOff:
-        return std::make_shared<WebBrowser>(*frontend.web_browser, current_process_title_id);
+        return std::make_shared<WebBrowser>(system, *frontend.web_browser);
     default:
         UNIMPLEMENTED_MSG(
             "No backend implementation exists for applet_id={:02X}! Falling back to stub applet.",
             static_cast<u8>(id));
-        return std::make_shared<StubApplet>(id);
+        return std::make_shared<StubApplet>(system, id);
     }
 }
 
