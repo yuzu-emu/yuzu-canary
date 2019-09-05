@@ -303,6 +303,10 @@ public:
         return is_bindless;
     }
 
+    std::pair<u32, u32> GetBindlessCBuf() const {
+        return {static_cast<u32>(offset >> 32), static_cast<u32>(offset)};
+    }
+
     bool operator<(const Image& rhs) const {
         return std::tie(offset, index, type, is_bindless) <
                std::tie(rhs.offset, rhs.index, rhs.type, rhs.is_bindless);
