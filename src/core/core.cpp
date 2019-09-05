@@ -104,7 +104,8 @@ FileSys::VirtualFile GetGameFileFromPath(const FileSys::VirtualFilesystem& vfs,
     return vfs->OpenFile(path, FileSys::Mode::Read);
 }
 struct System::Impl {
-    explicit Impl(System& system) : kernel{system}, cpu_core_manager{system}, reporter{system} {}
+    explicit Impl(System& system)
+        : kernel{system}, cpu_core_manager{system}, applet_manager{system}, reporter{system} {}
 
     Cpu& CurrentCpuCore() {
         return cpu_core_manager.GetCurrentCore();

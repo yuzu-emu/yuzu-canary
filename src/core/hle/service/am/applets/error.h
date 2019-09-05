@@ -7,6 +7,10 @@
 #include "core/hle/result.h"
 #include "core/hle/service/am/applets/applets.h"
 
+namespace Core {
+class System;
+}
+
 namespace Service::AM::Applets {
 
 enum class ErrorAppletMode : u8 {
@@ -21,7 +25,7 @@ enum class ErrorAppletMode : u8 {
 
 class Error final : public Applet {
 public:
-    explicit Error(const Core::Frontend::ErrorApplet& frontend);
+    explicit Error(Core::System& system_, const Core::Frontend::ErrorApplet& frontend_);
     ~Error() override;
 
     void Initialize() override;
@@ -42,6 +46,7 @@ private:
     std::unique_ptr<ErrorArguments> args;
 
     bool complete = false;
+    Core::System& system;
 };
 
 } // namespace Service::AM::Applets
