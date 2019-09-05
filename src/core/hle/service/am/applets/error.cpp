@@ -85,7 +85,8 @@ ResultCode Decode64BitError(u64 error) {
 
 } // Anonymous namespace
 
-Error::Error(const Core::Frontend::ErrorApplet& frontend) : frontend(frontend) {}
+Error::Error(Core::System& system_, const Core::Frontend::ErrorApplet& frontend_)
+    : Applet{system_.Kernel()}, frontend(frontend_), system{system_} {}
 
 Error::~Error() = default;
 
@@ -145,8 +146,8 @@ void Error::Execute() {
     }
 
     const auto callback = [this] { DisplayCompleted(); };
-    const auto title_id = Core::CurrentProcess()->GetTitleID();
-    const auto& reporter{Core::System::GetInstance().GetReporter()};
+    const auto title_id = system.CurrentProcess()->GetTitleID();
+    const auto& reporter{system.GetReporter()};
 
     switch (mode) {
     case ErrorAppletMode::ShowError:

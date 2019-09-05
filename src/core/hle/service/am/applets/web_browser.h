@@ -9,6 +9,10 @@
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/am/applets/applets.h"
 
+namespace Core {
+class System;
+}
+
 namespace Service::AM::Applets {
 
 enum class ShimKind : u32;
@@ -17,8 +21,8 @@ enum class WebArgTLVType : u16;
 
 class WebBrowser final : public Applet {
 public:
-    WebBrowser(Core::Frontend::WebBrowserApplet& frontend, u64 current_process_title_id,
-               Core::Frontend::ECommerceApplet* frontend_e_commerce = nullptr);
+    WebBrowser(Core::System& system_, Core::Frontend::WebBrowserApplet& frontend_,
+               Core::Frontend::ECommerceApplet* frontend_e_commerce_ = nullptr);
 
     ~WebBrowser() override;
 
@@ -59,8 +63,6 @@ private:
     bool unpacked = false;
     ResultCode status = RESULT_SUCCESS;
 
-    u64 current_process_title_id;
-
     ShimKind kind;
     std::map<WebArgTLVType, std::vector<u8>> args;
 
@@ -74,6 +76,8 @@ private:
     std::optional<u128> user_id;
     std::optional<bool> shop_full_display;
     std::string shop_extra_parameter;
+
+    Core::System& system;
 };
 
 } // namespace Service::AM::Applets
