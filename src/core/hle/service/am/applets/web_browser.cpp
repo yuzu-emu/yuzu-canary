@@ -190,8 +190,9 @@ std::map<WebArgTLVType, std::vector<u8>> GetWebArguments(const std::vector<u8>& 
     return out;
 }
 
-FileSys::VirtualFile GetApplicationRomFS(u64 title_id, FileSys::ContentRecordType type) {
-    const auto& installed{Core::System::GetInstance().GetContentProvider()};
+FileSys::VirtualFile GetApplicationRomFS(const Core::System& system, u64 title_id,
+                                         FileSys::ContentRecordType type) {
+    const auto& installed{system.GetContentProvider()};
     const auto res = installed.GetEntry(title_id, type);
 
     if (res != nullptr) {
@@ -207,10 +208,10 @@ FileSys::VirtualFile GetApplicationRomFS(u64 title_id, FileSys::ContentRecordTyp
 
 } // Anonymous namespace
 
-WebBrowser::WebBrowser(Core::Frontend::WebBrowserApplet& frontend, u64 current_process_title_id,
-                       Core::Frontend::ECommerceApplet* frontend_e_commerce)
-    : frontend(frontend), frontend_e_commerce(frontend_e_commerce),
-      current_process_title_id(current_process_title_id) {}
+WebBrowser::WebBrowser(Core::System& system_, Core::Frontend::WebBrowserApplet& frontend_,
+                       Core::Frontend::ECommerceApplet* frontend_e_commerce_)
+    : Applet{system_.Kernel()}, frontend(frontend_),
+      frontend_e_commerce(frontend_e_commerce_), system{system_} {}
 
 WebBrowser::~WebBrowser() = default;
 
@@ -266,7 +267,7 @@ void WebBrowser::UnpackRomFS() {
     ASSERT(offline_romfs != nullptr);
     const auto dir =
         FileSys::ExtractRomFS(offline_romfs, FileSys::RomFSExtractionType::SingleDiscard);
-    const auto& vfs{Core::System::GetInstance().GetFilesystem()};
+    const auto& vfs{system.GetFilesystem()};
     const auto temp_dir = vfs->CreateDirectory(temporary_dir, FileSys::Mode::ReadWrite);
     FileSys::VfsRawCopyD(dir, temp_dir);
 
@@ -470,10 +471,10 @@ void WebBrowser::InitializeOffline() {
     }
 
     if (title_id == 0) {
-        title_id = current_process_title_id;
+        title_id = system.CurrentProcess()->GetTitleID();
     }
 
-    offline_romfs = GetApplicationRomFS(title_id, type);
+    offline_romfs = GetApplicationRomFS(system, title_id, type);
     if (offline_romfs == nullptr) {
         status = ResultCode(-1);
         LOG_ERROR(Service_AM, "Failed to find offline data for request!");

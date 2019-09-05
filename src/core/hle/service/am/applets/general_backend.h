@@ -6,6 +6,10 @@
 
 #include "core/hle/service/am/applets/applets.h"
 
+namespace Core {
+class System;
+}
+
 namespace Service::AM::Applets {
 
 enum class AuthAppletType : u32 {
@@ -16,7 +20,7 @@ enum class AuthAppletType : u32 {
 
 class Auth final : public Applet {
 public:
-    explicit Auth(Core::Frontend::ParentalControlsApplet& frontend);
+    explicit Auth(Core::System& system_, Core::Frontend::ParentalControlsApplet& frontend_);
     ~Auth() override;
 
     void Initialize() override;
@@ -45,7 +49,7 @@ enum class PhotoViewerAppletMode : u8 {
 
 class PhotoViewer final : public Applet {
 public:
-    explicit PhotoViewer(const Core::Frontend::PhotoViewerApplet& frontend);
+    explicit PhotoViewer(Core::System& system_, const Core::Frontend::PhotoViewerApplet& frontend_);
     ~PhotoViewer() override;
 
     void Initialize() override;
@@ -60,11 +64,12 @@ private:
     const Core::Frontend::PhotoViewerApplet& frontend;
     bool complete = false;
     PhotoViewerAppletMode mode = PhotoViewerAppletMode::CurrentApp;
+    Core::System& system;
 };
 
 class StubApplet final : public Applet {
 public:
-    explicit StubApplet(AppletId id);
+    explicit StubApplet(Core::System& system_, AppletId id_);
     ~StubApplet() override;
 
     void Initialize() override;
@@ -76,6 +81,7 @@ public:
 
 private:
     AppletId id;
+    Core::System& system;
 };
 
 } // namespace Service::AM::Applets
