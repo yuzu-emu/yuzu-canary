@@ -1,3 +1,30 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: 14d8c1b59405f6f34c92141bd6b7b061a836d81e
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe54](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+|[2833](https://github.com/yuzu-emu/yuzu/pull/2833)|[7bbc98c](https://github.com/yuzu-emu/yuzu/pull/2833/files/)|gl_rasterizer: Fix stencil testing|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2824](https://github.com/yuzu-emu/yuzu/pull/2824)|[5f309b8](https://github.com/yuzu-emu/yuzu/pull/2824/files/)|Revert "Revert #2466" and stub FirmwareCall 4|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2802](https://github.com/yuzu-emu/yuzu/pull/2802)|[dfae2d1](https://github.com/yuzu-emu/yuzu/pull/2802/files/)|half_set_predicate: Fix HSETP2 predicate assignments|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2763](https://github.com/yuzu-emu/yuzu/pull/2763)|[f763e23](https://github.com/yuzu-emu/yuzu/pull/2763/files/)|kernel/vm_manager: Minor cleanup|[lioncash](https://github.com/lioncash)|Yes|
+|[2759](https://github.com/yuzu-emu/yuzu/pull/2759)|[2791886](https://github.com/yuzu-emu/yuzu/pull/2759/files/)|gl_rasterizer: Bind images and samplers to compute|[ReinUsesLisp](https://github.com/ReinUsesLisp)|Yes|
+|[2716](https://github.com/yuzu-emu/yuzu/pull/2716)|[d1abe8e](https://github.com/yuzu-emu/yuzu/pull/2716/files/)|service/am: Remove usages of global system accessors|[lioncash](https://github.com/lioncash)|Yes|
+|[2710](https://github.com/yuzu-emu/yuzu/pull/2710)|[abb2c5f](https://github.com/yuzu-emu/yuzu/pull/2710/files/)|am/kernel: Fix various bugs related to applet signalling and software keyboard|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[2542](https://github.com/yuzu-emu/yuzu/pull/2542)|[7aeb676](https://github.com/yuzu-emu/yuzu/pull/2542/files/)|lbl: Implement brightness and backlight services|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[2365](https://github.com/yuzu-emu/yuzu/pull/2365)|[4fe8093](https://github.com/yuzu-emu/yuzu/pull/2365/files/)|Workaround to Mutex Corruption|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1703](https://github.com/yuzu-emu/yuzu/pull/1703)|[09d8109](https://github.com/yuzu-emu/yuzu/pull/1703/files/)|nvdrv: Stub nvdec/vic ioctls to bypass nvdec movies|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+|[1340](https://github.com/yuzu-emu/yuzu/pull/1340)|[c359c00](https://github.com/yuzu-emu/yuzu/pull/1340/files/)|Implement a Better Ignore Assert|[FernandoS27](https://github.com/FernandoS27)|Yes|
+|[1012](https://github.com/yuzu-emu/yuzu/pull/1012)|[7b98ac7](https://github.com/yuzu-emu/yuzu/pull/1012/files/)|filesystem: Create directory if it dosen't exist on open|[DarkLordZach](https://github.com/DarkLordZach)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 yuzu emulator
 =============
 [![Travis CI Build Status](https://travis-ci.org/yuzu-emu/yuzu.svg?branch=master)](https://travis-ci.org/yuzu-emu/yuzu)
