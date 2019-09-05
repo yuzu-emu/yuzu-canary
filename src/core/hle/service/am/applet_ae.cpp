@@ -50,7 +50,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ISelfController>(nvflinger);
+        rb.PushIpcInterface<ISelfController>(system, nvflinger);
     }
 
     void GetWindowController(Kernel::HLERequestContext& ctx) {
@@ -58,7 +58,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<IWindowController>();
+        rb.PushIpcInterface<IWindowController>(system);
     }
 
     void GetAudioController(Kernel::HLERequestContext& ctx) {
@@ -98,7 +98,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ILibraryAppletCreator>(system.CurrentProcess()->GetTitleID());
+        rb.PushIpcInterface<ILibraryAppletCreator>(system);
     }
 
     void GetApplicationFunctions(Kernel::HLERequestContext& ctx) {
@@ -106,7 +106,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<IApplicationFunctions>();
+        rb.PushIpcInterface<IApplicationFunctions>(system);
     }
 
     std::shared_ptr<NVFlinger::NVFlinger> nvflinger;
@@ -154,7 +154,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ISelfController>(nvflinger);
+        rb.PushIpcInterface<ISelfController>(system, nvflinger);
     }
 
     void GetWindowController(Kernel::HLERequestContext& ctx) {
@@ -162,7 +162,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<IWindowController>();
+        rb.PushIpcInterface<IWindowController>(system);
     }
 
     void GetAudioController(Kernel::HLERequestContext& ctx) {
@@ -194,7 +194,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ILibraryAppletCreator>(system.CurrentProcess()->GetTitleID());
+        rb.PushIpcInterface<ILibraryAppletCreator>(system);
     }
 
     void GetHomeMenuFunctions(Kernel::HLERequestContext& ctx) {

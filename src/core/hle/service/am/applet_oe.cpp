@@ -4,7 +4,6 @@
 
 #include "common/logging/log.h"
 #include "core/hle/ipc_helpers.h"
-#include "core/hle/kernel/process.h"
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/am/applet_oe.h"
 #include "core/hle/service/nvflinger/nvflinger.h"
@@ -64,7 +63,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<IWindowController>();
+        rb.PushIpcInterface<IWindowController>(system);
     }
 
     void GetSelfController(Kernel::HLERequestContext& ctx) {
@@ -72,7 +71,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ISelfController>(nvflinger);
+        rb.PushIpcInterface<ISelfController>(system, nvflinger);
     }
 
     void GetCommonStateGetter(Kernel::HLERequestContext& ctx) {
@@ -88,7 +87,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ILibraryAppletCreator>(system.CurrentProcess()->GetTitleID());
+        rb.PushIpcInterface<ILibraryAppletCreator>(system);
     }
 
     void GetApplicationFunctions(Kernel::HLERequestContext& ctx) {
@@ -96,7 +95,7 @@ private:
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<IApplicationFunctions>();
+        rb.PushIpcInterface<IApplicationFunctions>(system);
     }
 
     std::shared_ptr<NVFlinger::NVFlinger> nvflinger;
