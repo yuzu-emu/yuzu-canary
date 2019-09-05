@@ -277,6 +277,14 @@ public:
 
     void LoadModule(CodeSet module_, VAddr base_addr);
 
+    const std::map<VAddr, std::shared_ptr<std::vector<u8>>>& GetModules() const {
+        return modules;
+    }
+
+    const FileSys::ProgramMetadata& GetProgramMetadata() const {
+        return *program_metadata;
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // Thread-local storage management
 
@@ -380,6 +388,12 @@ private:
 
     /// Name of this process
     std::string name;
+
+    /// List of loaded modules, keyed by base address
+    std::map<VAddr, std::shared_ptr<std::vector<u8>>> modules;
+
+    /// Program Metadata
+    std::unique_ptr<FileSys::ProgramMetadata> program_metadata;
 };
 
 } // namespace Kernel
