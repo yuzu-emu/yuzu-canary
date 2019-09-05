@@ -537,8 +537,7 @@ std::pair<bool, bool> RasterizerOpenGL::ConfigureFramebuffers(
         texture_cache.MarkDepthBufferInUse();
 
         fbkey.zeta = depth_surface;
-        fbkey.stencil_enable = regs.stencil_enable &&
-                               depth_surface->GetSurfaceParams().type == SurfaceType::DepthStencil;
+        fbkey.stencil_enable = depth_surface->GetSurfaceParams().type == SurfaceType::DepthStencil;
     }
 
     texture_cache.GuardRenderTargets(false);
@@ -577,16 +576,15 @@ void RasterizerOpenGL::ConfigureClearFramebuffer(OpenGLState& current_state, boo
     if (depth_surface) {
         const auto& params = depth_surface->GetSurfaceParams();
         switch (params.type) {
-        case VideoCore::Surface::SurfaceType::Depth: {
+        case VideoCore::Surface::SurfaceType::Depth:
             depth_surface->Attach(GL_DEPTH_ATTACHMENT, GL_DRAW_FRAMEBUFFER);
             glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
             break;
-        }
-        case VideoCore::Surface::SurfaceType::DepthStencil: {
-            depth_surface->Attach(GL_DEPTH_ATTACHMENT, GL_DRAW_FRAMEBUFFER);
+        case VideoCore::Surface::SurfaceType::DepthStencil:
+            depth_surface->Attach(GL_DEPTH_STENCIL_ATTACHMENT, GL_DRAW_FRAMEBUFFER);
             break;
-        }
-        default: { UNIMPLEMENTED(); }
+        default:
+            UNIMPLEMENTED();
         }
     } else {
         glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0,
@@ -639,6 +637,7 @@ void RasterizerOpenGL::Clear() {
         ASSERT_MSG(regs.zeta_enable != 0, "Tried to clear stencil but buffer is not enabled!");
         use_stencil = true;
         clear_state.stencil.test_enabled = true;
+
         if (regs.clear_flags.stencil) {
             // Stencil affects the clear so fill it with the used masks
             clear_state.stencil.front.test_func = GL_ALWAYS;
@@ -1119,9 +1118,12 @@ void RasterizerOpenGL::SyncStencilTestState() {
     if (!maxwell3d.dirty.stencil_test) {
         return;
     }
-    const auto& regs = maxwell3d.regs;
+    maxwell3d.dirty.stencil_test = false;
 
+    const auto& regs = maxwell3d.regs;
     state.stencil.test_enabled = regs.stencil_enable != 0;
+    state.MarkDirtyStencilState();
+
     if (!regs.stencil_enable) {
         return;
     }
@@ -1150,8 +1152,6 @@ void RasterizerOpenGL::SyncStencilTestState() {
         state.stencil.back.action_depth_fail = GL_KEEP;
         state.stencil.back.action_depth_pass = GL_KEEP;
     }
-    state.MarkDirtyStencilState();
-    maxwell3d.dirty.stencil_test = false;
 }
 
 void RasterizerOpenGL::SyncColorMask() {
