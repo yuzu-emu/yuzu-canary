@@ -86,22 +86,6 @@ private:
     explicit CachedShader(const ShaderParameters& params, ProgramType program_type,
                           GLShader::ProgramResult result);
 
-    // Geometry programs. These are needed because GLSL needs an input topology but it's not
-    // declared by the hardware. Workaround this issue by generating a different shader per input
-    // topology class.
-    struct GeometryPrograms {
-        CachedProgram points;
-        CachedProgram lines;
-        CachedProgram lines_adjacency;
-        CachedProgram triangles;
-        CachedProgram triangles_adjacency;
-    };
-
-    GLuint GetGeometryShader(const ProgramVariant& variant);
-
-    /// Generates a geometry shader or returns one that already exists.
-    GLuint LazyGeometryProgram(CachedProgram& target_program, const ProgramVariant& variant);
-
     CachedProgram TryLoadProgram(const ProgramVariant& variant) const;
 
     ShaderDiskCacheUsage GetUsage(const ProgramVariant& variant) const;
@@ -117,11 +101,6 @@ private:
     std::size_t shader_length{};
 
     std::unordered_map<ProgramVariant, CachedProgram> programs;
-    std::unordered_map<ProgramVariant, GeometryPrograms> geometry_programs;
-
-    std::unordered_map<u32, GLuint> cbuf_resource_cache;
-    std::unordered_map<u32, GLuint> gmem_resource_cache;
-    std::unordered_map<u32, GLint> uniform_cache;
 };
 
 class ShaderCacheOpenGL final : public RasterizerCache<Shader> {

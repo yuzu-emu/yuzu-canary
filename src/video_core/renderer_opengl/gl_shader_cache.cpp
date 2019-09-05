@@ -348,23 +348,16 @@ Shader CachedShader::CreateKernelFromCache(const ShaderParameters& params,
 }
 
 std::tuple<GLuint, BaseBindings> CachedShader::GetProgramHandle(const ProgramVariant& variant) {
-    GLuint handle{};
-    if (program_type == ProgramType::Geometry) {
-        handle = GetGeometryShader(variant);
-    } else {
-        const auto [entry, is_cache_miss] = programs.try_emplace(variant);
-        auto& program = entry->second;
-        if (is_cache_miss) {
-            program = TryLoadProgram(variant);
-            if (!program) {
-                program = SpecializeShader(code, entries, program_type, variant);
-                disk_cache.SaveUsage(GetUsage(variant));
-            }
-
-            LabelGLObject(GL_PROGRAM, program->handle, cpu_addr);
+    const auto [entry, is_cache_miss] = programs.try_emplace(variant);
+    auto& program = entry->second;
+    if (is_cache_miss) {
+        program = TryLoadProgram(variant);
+        if (!program) {
+            program = SpecializeShader(code, entries, program_type, variant);
+            disk_cache.SaveUsage(GetUsage(variant));
         }
 
-        handle = program->handle;
+        LabelGLObject(GL_PROGRAM, program->handle, cpu_addr);
     }
 
     auto base_bindings = variant.base_bindings;
@@ -375,51 +368,8 @@ std::tuple<GLuint, BaseBindings> CachedShader::GetProgramHandle(const ProgramVar
     base_bindings.gmem += static_cast<u32>(entries.global_memory_entries.size());
     base_bindings.sampler += static_cast<u32>(entries.samplers.size());
 
-    return {handle, base_bindings};
+    return {program->handle, base_bindings};
 }
-
-GLuint CachedShader::GetGeometryShader(const ProgramVariant& variant) {
-    const auto [entry, is_cache_miss] = geometry_programs.try_emplace(variant);
-    auto& programs = entry->second;
-
-    switch (variant.primitive_mode) {
-    case GL_POINTS:
-        return LazyGeometryProgram(programs.points, variant);
-    case GL_LINES:
-    case GL_LINE_STRIP:
-        return LazyGeometryProgram(programs.lines, variant);
-    case GL_LINES_ADJACENCY:
-    case GL_LINE_STRIP_ADJACENCY:
-        return LazyGeometryProgram(programs.lines_adjacency, variant);
-    case GL_TRIANGLES:
-    case GL_TRIANGLE_STRIP:
-    case GL_TRIANGLE_FAN:
-        return LazyGeometryProgram(programs.triangles, variant);
-    case GL_TRIANGLES_ADJACENCY:
-    case GL_TRIANGLE_STRIP_ADJACENCY:
-        return LazyGeometryProgram(programs.triangles_adjacency, variant);
-    default:
-        UNREACHABLE_MSG("Unknown primitive mode.");
-        return LazyGeometryProgram(programs.points, variant);
-    }
-}
-
-GLuint CachedShader::LazyGeometryProgram(CachedProgram& target_program,
-                                         const ProgramVariant& variant) {
-    if (target_program) {
-        return target_program->handle;
-    }
-    const auto [glsl_name, debug_name, vertices] = GetPrimitiveDescription(variant.primitive_mode);
-    target_program = TryLoadProgram(variant);
-    if (!target_program) {
-        target_program = SpecializeShader(code, entries, program_type, variant);
-        disk_cache.SaveUsage(GetUsage(variant));
-    }
-
-    LabelGLObject(GL_PROGRAM, target_program->handle, cpu_addr, debug_name);
-
-    return target_program->handle;
-};
 
 CachedProgram CachedShader::TryLoadProgram(const ProgramVariant& variant) const {
     const auto found = precompiled_programs.find(GetUsage(variant));
