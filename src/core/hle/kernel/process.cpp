@@ -166,6 +166,8 @@ ResultCode Process::ClearSignalState() {
 }
 
 ResultCode Process::LoadFromMetadata(const FileSys::ProgramMetadata& metadata) {
+    program_metadata = std::make_unique<FileSys::ProgramMetadata>(metadata);
+
     program_id = metadata.GetTitleID();
     ideal_core = metadata.GetMainThreadCore();
     is_64bit_process = metadata.Is64BitProgram();
@@ -278,6 +280,8 @@ void Process::FreeTLSRegion(VAddr tls_address) {
 
 void Process::LoadModule(CodeSet module_, VAddr base_addr) {
     const auto memory = std::make_shared<PhysicalMemory>(std::move(module_.memory));
+
+    modules.insert_or_assign(base_addr, memory);
 
     const auto MapSegment = [&](const CodeSet::Segment& segment, VMAPermission permissions,
                                 MemoryState memory_state) {

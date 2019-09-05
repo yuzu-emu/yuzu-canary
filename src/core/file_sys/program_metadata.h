@@ -61,6 +61,11 @@ public:
     u32 GetSystemResourceSize() const;
     const KernelCapabilityDescriptors& GetKernelCapabilities() const;
 
+    std::vector<u8> GetACIDFileAccessControl() const;
+    std::vector<u8> GetACI0FileAccessControl() const;
+    std::vector<u8> GetACIDServiceAccessControl() const;
+    std::vector<u8> GetACI0ServiceAccessControl() const;
+
     void Print() const;
 
 private:
@@ -163,6 +168,11 @@ private:
 
     FileAccessControl acid_file_access;
     FileAccessHeader aci_file_access;
+
+    std::vector<u8> acid_file_access_raw;
+    std::vector<u8> aci0_file_access_raw;
+    std::vector<u8> acid_service_access_raw;
+    std::vector<u8> aci0_service_access_raw;
 
     KernelCapabilityDescriptors aci_kernel_capabilities;
 };
