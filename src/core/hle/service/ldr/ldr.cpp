@@ -8,13 +8,21 @@
 
 #include "common/alignment.h"
 #include "common/hex_util.h"
+#include "core/file_sys/program_metadata.h"
+#include "core/file_sys/romfs_factory.h"
 #include "core/hle/ipc_helpers.h"
+#include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/service/ldr/ldr.h"
 #include "core/hle/service/service.h"
 #include "core/loader/nro.h"
 
 namespace Service::LDR {
+
+namespace {
+
+constexpr ResultCode ERROR_ALREADY_REGISTERED{ErrorModule::Loader, 7};
+constexpr ResultCode ERROR_TITLE_NOT_FOUND{ErrorModule::Loader, 8};
 
 constexpr ResultCode ERROR_INVALID_MEMORY_STATE{ErrorModule::Loader, 51};
 constexpr ResultCode ERROR_INVALID_NRO{ErrorModule::Loader, 52};
@@ -31,35 +39,241 @@ constexpr ResultCode ERROR_NOT_INITIALIZED{ErrorModule::Loader, 87};
 
 constexpr u64 MAXIMUM_LOADED_RO = 0x40;
 
+constexpr u64 NSO_BUILD_ID_OFFSET = 0x40;
+
+enum class ApplicationType : u8 {
+    Sysmodule = 0,
+    Application = 1,
+    Applet = 2,
+};
+
+struct NSOInfo {
+    std::array<u8, 0x20> build_id;
+    VAddr map_address;
+    u64 map_size;
+};
+static_assert(sizeof(NSOInfo) == 0x30, "NSOInfo has incorrect size.");
+
+struct ProgramInfoHeader {
+    u8 main_thread_priority;
+    u8 default_cpu_id;
+    ApplicationType application_type;
+    INSERT_PADDING_BYTES(0x1);
+    u32_le main_thread_stack_size;
+    u64_le title_id;
+    u32_le acid_sac_size;
+    u32_le aci0_sac_size;
+    u32_le acid_fac_size;
+    u32_le aci0_fac_size;
+};
+static_assert(sizeof(ProgramInfoHeader) == 0x20, "ProgramInfoHeader has incorrect size.");
+
+std::vector<NSOInfo> GetNSOInfo(const std::map<VAddr, std::shared_ptr<std::vector<u8>>>& modules) {
+    std::vector<NSOInfo> out;
+
+    for (const auto& [base_addr, memory] : modules) {
+        out.emplace_back();
+        out.back().map_address = base_addr;
+        out.back().map_size = memory->size();
+        std::memcpy(out.back().build_id.data(), memory->data() + NSO_BUILD_ID_OFFSET,
+                    out.back().build_id.size());
+    }
+
+    return out;
+}
+
+std::vector<u8> GetProgramInfoFromProcess(const Kernel::Process& process) {
+    const auto& meta = process.GetProgramMetadata();
+
+    ProgramInfoHeader header{};
+    header.main_thread_priority = meta.GetMainThreadPriority();
+    header.default_cpu_id = meta.GetMainThreadCore();
+    header.application_type = ApplicationType::Application;
+    header.main_thread_stack_size = meta.GetMainThreadStackSize();
+    header.title_id = meta.GetTitleID();
+
+    const auto acid_file_access = meta.GetACIDFileAccessControl();
+    const auto aci0_file_access = meta.GetACI0FileAccessControl();
+    const auto acid_service_access = meta.GetACIDServiceAccessControl();
+    const auto aci0_service_access = meta.GetACI0ServiceAccessControl();
+
+    header.acid_fac_size = acid_file_access.size();
+    header.aci0_fac_size = aci0_file_access.size();
+    header.acid_sac_size = acid_service_access.size();
+    header.aci0_sac_size = aci0_service_access.size();
+
+    std::vector<u8> out(sizeof(ProgramInfoHeader) + acid_file_access.size() +
+                        aci0_file_access.size() + acid_service_access.size() +
+                        aci0_service_access.size());
+
+    u64 offset = 0;
+    std::memcpy(out.data() + offset, &header, sizeof(ProgramInfoHeader));
+    offset += sizeof(ProgramInfoHeader);
+    std::memcpy(out.data() + offset, acid_service_access.data(), acid_service_access.size());
+    offset += acid_service_access.size();
+    std::memcpy(out.data() + offset, aci0_service_access.data(), aci0_service_access.size());
+    offset += aci0_service_access.size();
+    std::memcpy(out.data() + offset, acid_file_access.data(), acid_file_access.size());
+    offset += acid_file_access.size();
+    std::memcpy(out.data() + offset, aci0_file_access.data(), aci0_file_access.size());
+
+    return out;
+}
+
+} // Anonymous namespace
+
 class DebugMonitor final : public ServiceFramework<DebugMonitor> {
 public:
-    explicit DebugMonitor() : ServiceFramework{"ldr:dmnt"} {
+    explicit DebugMonitor(const std::vector<Kernel::SharedPtr<Kernel::Process>>& process_list)
+        : ServiceFramework{"ldr:dmnt"}, process_list(process_list) {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, nullptr, "AddProcessToDebugLaunchQueue"},
             {1, nullptr, "ClearDebugLaunchQueue"},
-            {2, nullptr, "GetNsoInfos"},
+            {2, &DebugMonitor::GetNsoInfos, "GetNsoInfos"},
         };
         // clang-format on
 
         RegisterHandlers(functions);
     }
+
+private:
+    void GetNsoInfos(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        const auto process_id = rp.PopRaw<u64>();
+
+        auto write_size = ctx.GetWriteBufferSize() / sizeof(NSOInfo);
+
+        LOG_DEBUG(Service_LDR, "called, process_id={:016X}, write_size={:08X}", process_id,
+                  write_size);
+
+        const auto iter = std::find_if(
+            process_list.begin(), process_list.end(),
+            [process_id](const auto& process) { return process->GetProcessID() == process_id; });
+
+        if (iter == process_list.end()) {
+            LOG_ERROR(Service_LDR, "Cannot find process with given process ID!");
+            IPC::ResponseBuilder rb{ctx, 2};
+            rb.Push(ERROR_TITLE_NOT_FOUND);
+            return;
+        }
+
+        const auto& modules = (*iter)->GetModules();
+        const auto nso_infos = GetNSOInfo(modules);
+
+        write_size = std::min<std::size_t>(write_size, nso_infos.size());
+
+        ctx.WriteBuffer(nso_infos.data(), write_size * sizeof(NSOInfo));
+
+        IPC::ResponseBuilder rb{ctx, 3};
+        rb.Push(RESULT_SUCCESS);
+        rb.Push<u32>(write_size);
+    }
+
+    const std::vector<Kernel::SharedPtr<Kernel::Process>>& process_list;
 };
 
 class ProcessManager final : public ServiceFramework<ProcessManager> {
 public:
-    explicit ProcessManager() : ServiceFramework{"ldr:pm"} {
+    explicit ProcessManager(const std::vector<Kernel::SharedPtr<Kernel::Process>>& process_list)
+        : ServiceFramework{"ldr:pm"}, process_list(process_list) {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, nullptr, "CreateProcess"},
-            {1, nullptr, "GetProgramInfo"},
-            {2, nullptr, "RegisterTitle"},
-            {3, nullptr, "UnregisterTitle"},
+            {1, &ProcessManager::GetProgramInfo, "GetProgramInfo"},
+            {2, &ProcessManager::RegisterTitle, "RegisterTitle"},
+            {3, &ProcessManager::UnregisterTitle, "UnregisterTitle"},
         };
         // clang-format on
 
         RegisterHandlers(functions);
     }
+
+private:
+    void GetProgramInfo(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        const auto title_id = rp.PopRaw<u64>();
+        const auto storage_id = rp.PopEnum<FileSys::StorageId>();
+
+        LOG_DEBUG(Service_LDR, "called, title_id={:016X}, storage_id={:02X}", title_id,
+                  static_cast<u8>(storage_id));
+
+        const auto iter =
+            std::find_if(process_list.begin(), process_list.end(), [title_id](const auto& process) {
+                return process->GetTitleID() == title_id;
+            });
+
+        if (iter == process_list.end()) {
+            LOG_ERROR(Service_LDR, "Cannot find process with given title ID!");
+            IPC::ResponseBuilder rb{ctx, 2};
+            rb.Push(ERROR_TITLE_NOT_FOUND);
+            return;
+        }
+
+        const auto info = GetProgramInfoFromProcess(**iter);
+
+        ctx.WriteBuffer(info);
+
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+    }
+
+    void RegisterTitle(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        const auto title_id = rp.PopRaw<u64>();
+        const auto storage_id = rp.PopEnum<FileSys::StorageId>();
+
+        LOG_DEBUG(Service_LDR, "called, title_id={:016X}, storage_id={:02X}", title_id,
+                  static_cast<u8>(storage_id));
+
+        const auto iter =
+            std::find_if(registry.begin(), registry.end(),
+                         [title_id](const auto& kv) { return kv.second.title_id == title_id; });
+
+        if (iter != registry.end()) {
+            LOG_ERROR(Service_LDR, "Cannot register title with identical ID!");
+            IPC::ResponseBuilder rb{ctx, 2};
+            rb.Push(ERROR_ALREADY_REGISTERED);
+            return;
+        }
+
+        const auto index = next_register_id;
+        registry.insert_or_assign(next_register_id++, TitleRegistration{title_id, storage_id});
+
+        IPC::ResponseBuilder rb{ctx, 3};
+        rb.Push(RESULT_SUCCESS);
+        rb.Push<u64>(index);
+    }
+
+    void UnregisterTitle(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        const auto register_id = rp.PopRaw<u64>();
+
+        LOG_DEBUG(Service_LDR, "called, register_id={:08X}", register_id);
+
+        const auto iter = registry.find(register_id);
+
+        if (iter == registry.end()) {
+            LOG_ERROR(Service_LDR, "Cannot unregister nonexistant ID!");
+            IPC::ResponseBuilder rb{ctx, 2};
+            rb.Push(ERROR_TITLE_NOT_FOUND);
+            return;
+        }
+
+        registry.erase(iter);
+
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+    }
+
+    struct TitleRegistration {
+        u64 title_id;
+        FileSys::StorageId storage_id;
+    };
+    u64 next_register_id = 1;
+    std::map<u64, TitleRegistration> registry;
+
+    const std::vector<Kernel::SharedPtr<Kernel::Process>>& process_list;
 };
 
 class Shell final : public ServiceFramework<Shell> {
@@ -78,7 +292,7 @@ public:
 
 class RelocatableObject final : public ServiceFramework<RelocatableObject> {
 public:
-    explicit RelocatableObject() : ServiceFramework{"ldr:ro"} {
+    explicit RelocatableObject(const char* name) : ServiceFramework{name} {
         // clang-format off
         static const FunctionInfo functions[] = {
             {0, &RelocatableObject::LoadNro, "LoadNro"},
@@ -518,11 +732,14 @@ private:
     }
 };
 
-void InstallInterfaces(SM::ServiceManager& sm) {
-    std::make_shared<DebugMonitor>()->InstallAsService(sm);
-    std::make_shared<ProcessManager>()->InstallAsService(sm);
-    std::make_shared<Shell>()->InstallAsService(sm);
-    std::make_shared<RelocatableObject>()->InstallAsService(sm);
+void InstallInterfaces(Core::System& system) {
+    std::make_shared<DebugMonitor>(system.Kernel().GetProcessList())
+        ->InstallAsService(system.ServiceManager());
+    std::make_shared<ProcessManager>(system.Kernel().GetProcessList())
+        ->InstallAsService(system.ServiceManager());
+    std::make_shared<Shell>()->InstallAsService(system.ServiceManager());
+    std::make_shared<RelocatableObject>("ldr:ro")->InstallAsService(system.ServiceManager());
+    std::make_shared<RelocatableObject>("ro:1")->InstallAsService(system.ServiceManager());
 }
 
 } // namespace Service::LDR

@@ -48,6 +48,15 @@ Loader::ResultStatus ProgramMetadata::Load(VirtualFile file) {
         return Loader::ResultStatus::ErrorBadKernelCapabilityDescriptors;
     }
 
+    acid_file_access_raw =
+        file->ReadBytes(acid_header.fac_size, npdm_header.acid_offset + acid_header.fac_offset);
+    aci0_file_access_raw =
+        file->ReadBytes(aci_header.fah_size, npdm_header.aci_offset + aci_header.fah_offset);
+    acid_service_access_raw =
+        file->ReadBytes(acid_header.sac_size, npdm_header.acid_offset + acid_header.sac_offset);
+    aci0_service_access_raw =
+        file->ReadBytes(aci_header.sac_size, npdm_header.aci_offset + aci_header.sac_offset);
+
     return Loader::ResultStatus::Success;
 }
 
@@ -64,6 +73,22 @@ void ProgramMetadata::LoadManual(bool is_64_bit, ProgramAddressSpaceType address
     aci_header.title_id = title_id;
     aci_file_access.permissions = filesystem_permissions;
     aci_kernel_capabilities = std ::move(capabilities);
+}
+
+std::vector<u8> ProgramMetadata::GetACIDFileAccessControl() const {
+    return acid_file_access_raw;
+}
+
+std::vector<u8> ProgramMetadata::GetACI0FileAccessControl() const {
+    return aci0_file_access_raw;
+}
+
+std::vector<u8> ProgramMetadata::GetACIDServiceAccessControl() const {
+    return acid_service_access_raw;
+}
+
+std::vector<u8> ProgramMetadata::GetACI0ServiceAccessControl() const {
+    return aci0_service_access_raw;
 }
 
 bool ProgramMetadata::Is64BitProgram() const {
