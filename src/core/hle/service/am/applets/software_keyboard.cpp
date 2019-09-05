@@ -39,8 +39,9 @@ static Core::Frontend::SoftwareKeyboardParameters ConvertToFrontendParameters(
     return params;
 }
 
-SoftwareKeyboard::SoftwareKeyboard(const Core::Frontend::SoftwareKeyboardApplet& frontend)
-    : frontend(frontend) {}
+SoftwareKeyboard::SoftwareKeyboard(Core::System& system_,
+                                   const Core::Frontend::SoftwareKeyboardApplet& frontend_)
+    : Applet{system_.Kernel()}, frontend(frontend_) {}
 
 SoftwareKeyboard::~SoftwareKeyboard() = default;
 

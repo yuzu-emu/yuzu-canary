@@ -12,6 +12,10 @@
 
 union ResultCode;
 
+namespace Core {
+class System;
+}
+
 namespace Core::Frontend {
 class ECommerceApplet;
 class ErrorApplet;
@@ -21,6 +25,10 @@ class ProfileSelectApplet;
 class SoftwareKeyboardApplet;
 class WebBrowserApplet;
 } // namespace Core::Frontend
+
+namespace Kernel {
+class KernelCore;
+}
 
 namespace Service::AM {
 
@@ -53,7 +61,7 @@ enum class AppletId : u32 {
 
 class AppletDataBroker final {
 public:
-    AppletDataBroker();
+    explicit AppletDataBroker(Kernel::KernelCore& kernel_);
     ~AppletDataBroker();
 
     struct RawChannelData {
@@ -108,7 +116,7 @@ private:
 
 class Applet {
 public:
-    Applet();
+    explicit Applet(Kernel::KernelCore& kernel_);
     virtual ~Applet();
 
     virtual void Initialize();
@@ -179,7 +187,7 @@ struct AppletFrontendSet {
 
 class AppletManager {
 public:
-    AppletManager();
+    explicit AppletManager(Core::System& system_);
     ~AppletManager();
 
     void SetAppletFrontendSet(AppletFrontendSet set);
@@ -187,10 +195,11 @@ public:
     void SetDefaultAppletsIfMissing();
     void ClearAll();
 
-    std::shared_ptr<Applet> GetApplet(AppletId id, u64 current_process_title_id) const;
+    std::shared_ptr<Applet> GetApplet(AppletId id) const;
 
 private:
     AppletFrontendSet frontend;
+    Core::System& system;
 };
 
 } // namespace Applets

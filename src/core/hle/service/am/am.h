@@ -10,12 +10,15 @@
 #include "core/hle/kernel/writable_event.h"
 #include "core/hle/service/service.h"
 
-namespace Service {
-namespace NVFlinger {
+namespace Kernel {
+class KernelCore;
+}
+
+namespace Service::NVFlinger {
 class NVFlinger;
 }
 
-namespace AM {
+namespace Service::AM {
 
 enum SystemLanguage {
     Japanese = 0,
@@ -47,7 +50,7 @@ public:
         PerformanceModeChanged = 31,
     };
 
-    AppletMessageQueue();
+    explicit AppletMessageQueue(Kernel::KernelCore& kernel);
     ~AppletMessageQueue();
 
     const Kernel::SharedPtr<Kernel::ReadableEvent>& GetMesssageRecieveEvent() const;
@@ -65,12 +68,14 @@ private:
 
 class IWindowController final : public ServiceFramework<IWindowController> {
 public:
-    IWindowController();
+    explicit IWindowController(Core::System& system_);
     ~IWindowController() override;
 
 private:
     void GetAppletResourceUserId(Kernel::HLERequestContext& ctx);
     void AcquireForegroundRights(Kernel::HLERequestContext& ctx);
+
+    Core::System& system;
 };
 
 class IAudioController final : public ServiceFramework<IAudioController> {
@@ -113,7 +118,8 @@ public:
 
 class ISelfController final : public ServiceFramework<ISelfController> {
 public:
-    explicit ISelfController(std::shared_ptr<NVFlinger::NVFlinger> nvflinger);
+    explicit ISelfController(Core::System& system_,
+                             std::shared_ptr<NVFlinger::NVFlinger> nvflinger_);
     ~ISelfController() override;
 
 private:
@@ -208,7 +214,7 @@ private:
 
 class ILibraryAppletCreator final : public ServiceFramework<ILibraryAppletCreator> {
 public:
-    ILibraryAppletCreator(u64 current_process_title_id);
+    explicit ILibraryAppletCreator(Core::System& system_);
     ~ILibraryAppletCreator() override;
 
 private:
@@ -216,12 +222,12 @@ private:
     void CreateStorage(Kernel::HLERequestContext& ctx);
     void CreateTransferMemoryStorage(Kernel::HLERequestContext& ctx);
 
-    u64 current_process_title_id;
+    Core::System& system;
 };
 
 class IApplicationFunctions final : public ServiceFramework<IApplicationFunctions> {
 public:
-    IApplicationFunctions();
+    explicit IApplicationFunctions(Core::System& system_);
     ~IApplicationFunctions() override;
 
 private:
@@ -245,6 +251,7 @@ private:
     void GetGpuErrorDetectedSystemEvent(Kernel::HLERequestContext& ctx);
 
     Kernel::EventPair gpu_error_detected_event;
+    Core::System& system;
 };
 
 class IHomeMenuFunctions final : public ServiceFramework<IHomeMenuFunctions> {
@@ -278,5 +285,4 @@ public:
 void InstallInterfaces(SM::ServiceManager& service_manager,
                        std::shared_ptr<NVFlinger::NVFlinger> nvflinger, Core::System& system);
 
-} // namespace AM
-} // namespace Service
+} // namespace Service::AM
