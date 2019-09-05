@@ -56,7 +56,8 @@ struct LaunchParameters {
 };
 static_assert(sizeof(LaunchParameters) == 0x88);
 
-IWindowController::IWindowController() : ServiceFramework("IWindowController") {
+IWindowController::IWindowController(Core::System& system_)
+    : ServiceFramework("IWindowController"), system{system_} {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, nullptr, "CreateWindow"},
@@ -75,7 +76,7 @@ IWindowController::IWindowController() : ServiceFramework("IWindowController") {
 IWindowController::~IWindowController() = default;
 
 void IWindowController::GetAppletResourceUserId(Kernel::HLERequestContext& ctx) {
-    const u64 process_id = Core::System::GetInstance().Kernel().CurrentProcess()->GetProcessID();
+    const u64 process_id = system.CurrentProcess()->GetProcessID();
 
     LOG_DEBUG(Service_AM, "called. Process ID=0x{:016X}", process_id);
 
@@ -231,8 +232,9 @@ IDebugFunctions::IDebugFunctions() : ServiceFramework{"IDebugFunctions"} {
 
 IDebugFunctions::~IDebugFunctions() = default;
 
-ISelfController::ISelfController(std::shared_ptr<NVFlinger::NVFlinger> nvflinger)
-    : ServiceFramework("ISelfController"), nvflinger(std::move(nvflinger)) {
+ISelfController::ISelfController(Core::System& system_,
+                                 std::shared_ptr<NVFlinger::NVFlinger> nvflinger_)
+    : ServiceFramework("ISelfController"), nvflinger(std::move(nvflinger_)) {
     // clang-format off
     static const FunctionInfo functions[] = {
         {0, nullptr, "Exit"},
@@ -280,7 +282,7 @@ ISelfController::ISelfController(std::shared_ptr<NVFlinger::NVFlinger> nvflinger
 
     RegisterHandlers(functions);
 
-    auto& kernel = Core::System::GetInstance().Kernel();
+    auto& kernel = system_.Kernel();
     launchable_event = Kernel::WritableEvent::CreateEventPair(kernel, Kernel::ResetType::Manual,
                                                               "ISelfController:LaunchableEvent");
 
@@ -501,8 +503,7 @@ void ISelfController::GetAccumulatedSuspendedTickChangedEvent(Kernel::HLERequest
     rb.PushCopyObjects(accumulated_suspended_tick_changed_event.readable);
 }
 
-AppletMessageQueue::AppletMessageQueue() {
-    auto& kernel = Core::System::GetInstance().Kernel();
+AppletMessageQueue::AppletMessageQueue(Kernel::KernelCore& kernel) {
     on_new_message = Kernel::WritableEvent::CreateEventPair(kernel, Kernel::ResetType::Manual,
                                                             "AMMessageQueue:OnMessageRecieved");
     on_operation_mode_changed = Kernel::WritableEvent::CreateEventPair(
@@ -937,9 +938,8 @@ void IStorageAccessor::Read(Kernel::HLERequestContext& ctx) {
     rb.Push(RESULT_SUCCESS);
 }
 
-ILibraryAppletCreator::ILibraryAppletCreator(u64 current_process_title_id)
-    : ServiceFramework("ILibraryAppletCreator"),
-      current_process_title_id(current_process_title_id) {
+ILibraryAppletCreator::ILibraryAppletCreator(Core::System& system_)
+    : ServiceFramework("ILibraryAppletCreator"), system{system_} {
     static const FunctionInfo functions[] = {
         {0, &ILibraryAppletCreator::CreateLibraryApplet, "CreateLibraryApplet"},
         {1, nullptr, "TerminateAllLibraryApplets"},
@@ -961,8 +961,8 @@ void ILibraryAppletCreator::CreateLibraryApplet(Kernel::HLERequestContext& ctx) 
     LOG_DEBUG(Service_AM, "called with applet_id={:08X}, applet_mode={:08X}",
               static_cast<u32>(applet_id), applet_mode);
 
-    const auto& applet_manager{Core::System::GetInstance().GetAppletManager()};
-    const auto applet = applet_manager.GetApplet(applet_id, current_process_title_id);
+    const auto& applet_manager{system.GetAppletManager()};
+    const auto applet = applet_manager.GetApplet(applet_id);
 
     if (applet == nullptr) {
         LOG_ERROR(Service_AM, "Applet doesn't exist! applet_id={}", static_cast<u32>(applet_id));
@@ -999,8 +999,7 @@ void ILibraryAppletCreator::CreateTransferMemoryStorage(Kernel::HLERequestContex
     const auto handle{rp.Pop<Kernel::Handle>()};
 
     const auto transfer_mem =
-        Core::System::GetInstance().CurrentProcess()->GetHandleTable().Get<Kernel::TransferMemory>(
-            handle);
+        system.CurrentProcess()->GetHandleTable().Get<Kernel::TransferMemory>(handle);
 
     if (transfer_mem == nullptr) {
         LOG_ERROR(Service_AM, "shared_mem is a nullpr for handle={:08X}", handle);
@@ -1018,7 +1017,8 @@ void ILibraryAppletCreator::CreateTransferMemoryStorage(Kernel::HLERequestContex
     rb.PushIpcInterface(std::make_shared<IStorage>(std::move(memory)));
 }
 
-IApplicationFunctions::IApplicationFunctions() : ServiceFramework("IApplicationFunctions") {
+IApplicationFunctions::IApplicationFunctions(Core::System& system_)
+    : ServiceFramework("IApplicationFunctions"), system{system_} {
     // clang-format off
     static const FunctionInfo functions[] = {
         {1, &IApplicationFunctions::PopLaunchParameter, "PopLaunchParameter"},
@@ -1180,7 +1180,7 @@ void IApplicationFunctions::GetDesiredLanguage(Kernel::HLERequestContext& ctx) {
     // Get supported languages from NACP, if possible
     // Default to 0 (all languages supported)
     u32 supported_languages = 0;
-    FileSys::PatchManager pm{Core::System::GetInstance().CurrentProcess()->GetTitleID()};
+    FileSys::PatchManager pm{system.CurrentProcess()->GetTitleID()};
 
     const auto res = pm.GetControlMetadata();
     if (res.first != nullptr) {
@@ -1188,8 +1188,8 @@ void IApplicationFunctions::GetDesiredLanguage(Kernel::HLERequestContext& ctx) {
     }
 
     // Call IApplicationManagerInterface implementation.
-    auto& service_manager = Core::System::GetInstance().ServiceManager();
-    auto ns_am2 = service_manager.GetService<Service::NS::NS>("ns:am2");
+    auto& service_manager = system.ServiceManager();
+    auto ns_am2 = service_manager.GetService<NS::NS>("ns:am2");
     auto app_man = ns_am2->GetApplicationManagerInterface();
 
     // Get desired application language
@@ -1261,8 +1261,8 @@ void IApplicationFunctions::ExtendSaveData(Kernel::HLERequestContext& ctx) {
               "new_journal={:016X}",
               static_cast<u8>(type), user_id[1], user_id[0], new_normal_size, new_journal_size);
 
-    FileSystem::WriteSaveDataSize(type, Core::CurrentProcess()->GetTitleID(), user_id,
-                                  {new_normal_size, new_journal_size});
+    const auto title_id = system.CurrentProcess()->GetTitleID();
+    FileSystem::WriteSaveDataSize(type, title_id, user_id, {new_normal_size, new_journal_size});
 
     IPC::ResponseBuilder rb{ctx, 4};
     rb.Push(RESULT_SUCCESS);
@@ -1281,8 +1281,8 @@ void IApplicationFunctions::GetSaveDataSize(Kernel::HLERequestContext& ctx) {
     LOG_DEBUG(Service_AM, "called with type={:02X}, user_id={:016X}{:016X}", static_cast<u8>(type),
               user_id[1], user_id[0]);
 
-    const auto size =
-        FileSystem::ReadSaveDataSize(type, Core::CurrentProcess()->GetTitleID(), user_id);
+    const auto title_id = system.CurrentProcess()->GetTitleID();
+    const auto size = FileSystem::ReadSaveDataSize(type, title_id, user_id);
 
     IPC::ResponseBuilder rb{ctx, 6};
     rb.Push(RESULT_SUCCESS);
@@ -1300,9 +1300,9 @@ void IApplicationFunctions::GetGpuErrorDetectedSystemEvent(Kernel::HLERequestCon
 
 void InstallInterfaces(SM::ServiceManager& service_manager,
                        std::shared_ptr<NVFlinger::NVFlinger> nvflinger, Core::System& system) {
-    auto message_queue = std::make_shared<AppletMessageQueue>();
-    message_queue->PushMessage(AppletMessageQueue::AppletMessage::FocusStateChanged); // Needed on
-                                                                                      // game boot
+    auto message_queue = std::make_shared<AppletMessageQueue>(system.Kernel());
+    // Needed on game boot
+    message_queue->PushMessage(AppletMessageQueue::AppletMessage::FocusStateChanged);
 
     std::make_shared<AppletAE>(nvflinger, message_queue, system)->InstallAsService(service_manager);
     std::make_shared<AppletOE>(nvflinger, message_queue, system)->InstallAsService(service_manager);

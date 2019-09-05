@@ -16,6 +16,10 @@
 
 union ResultCode;
 
+namespace Core {
+class System;
+}
+
 namespace Service::AM::Applets {
 
 enum class KeysetDisable : u32 {
@@ -55,7 +59,8 @@ static_assert(sizeof(KeyboardConfig) == 0x3E0, "KeyboardConfig has incorrect siz
 
 class SoftwareKeyboard final : public Applet {
 public:
-    explicit SoftwareKeyboard(const Core::Frontend::SoftwareKeyboardApplet& frontend);
+    explicit SoftwareKeyboard(Core::System& system_,
+                              const Core::Frontend::SoftwareKeyboardApplet& frontend_);
     ~SoftwareKeyboard() override;
 
     void Initialize() override;
