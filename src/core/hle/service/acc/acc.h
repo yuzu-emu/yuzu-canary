@@ -32,6 +32,7 @@ public:
         void IsUserRegistrationRequestPermitted(Kernel::HLERequestContext& ctx);
         void TrySelectUserWithoutInteraction(Kernel::HLERequestContext& ctx);
         void IsUserAccountSwitchLocked(Kernel::HLERequestContext& ctx);
+        void GetProfileEditor(Kernel::HLERequestContext& ctx);
 
     private:
         ResultCode InitializeApplicationInfoBase(u64 process_id);

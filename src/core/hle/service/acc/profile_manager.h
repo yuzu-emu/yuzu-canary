@@ -91,6 +91,8 @@ public:
 
     bool RemoveUser(Common::UUID uuid);
     bool SetProfileBase(Common::UUID uuid, const ProfileBase& profile_new);
+    bool SetProfileBaseAndData(Common::UUID uuid, const ProfileBase& profile_new,
+                               const ProfileData& data_new);
 
 private:
     void ParseUserSaveFile();

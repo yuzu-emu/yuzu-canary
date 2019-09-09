@@ -305,6 +305,17 @@ bool ProfileManager::SetProfileBase(UUID uuid, const ProfileBase& profile_new) {
     return true;
 }
 
+bool ProfileManager::SetProfileBaseAndData(Common::UUID uuid, const ProfileBase& profile_new,
+                                           const ProfileData& data_new) {
+    const auto index = GetUserIndex(uuid);
+    if (index.has_value() && SetProfileBase(uuid, profile_new)) {
+        profiles[*index].data = data_new;
+        return true;
+    }
+
+    return false;
+}
+
 void ProfileManager::ParseUserSaveFile() {
     FileUtil::IOFile save(FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) +
                               ACC_SAVE_AVATORS_BASE_PATH + "profiles.dat",
