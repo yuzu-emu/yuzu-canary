@@ -244,7 +244,7 @@ void Maxwell3D::InitDirtySettings() {
     dirty_pointers[MAXWELL3D_REG_INDEX(polygon_offset_clamp)] = polygon_offset_dirty_reg;
 }
 
-void Maxwell3D::CallMacroMethod(u32 method, std::vector<u32> parameters) {
+void Maxwell3D::CallMacroMethod(u32 method, std::size_t num_parameters, const u32* parameters) {
     // Reset the current macro.
     executing_macro = 0;
 
@@ -252,7 +252,7 @@ void Maxwell3D::CallMacroMethod(u32 method, std::vector<u32> parameters) {
     const u32 entry = ((method - MacroRegistersStart) >> 1) % macro_positions.size();
 
     // Execute the current macro.
-    macro_interpreter.Execute(macro_positions[entry], std::move(parameters));
+    macro_interpreter.Execute(macro_positions[entry], num_parameters, parameters);
 }
 
 void Maxwell3D::CallMethod(const GPU::MethodCall& method_call) {
@@ -289,7 +289,8 @@ void Maxwell3D::CallMethod(const GPU::MethodCall& method_call) {
 
         // Call the macro when there are no more parameters in the command buffer
         if (method_call.IsLastCall()) {
-            CallMacroMethod(executing_macro, std::move(macro_params));
+            CallMacroMethod(executing_macro, macro_params.size(), macro_params.data());
+            macro_params.clear();
         }
         return;
     }
