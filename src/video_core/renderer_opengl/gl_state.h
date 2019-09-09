@@ -118,21 +118,9 @@ public:
         GLenum operation;
     } logic_op;
 
-    // 3 texture units - one for each that is used in PICA fragment shader emulation
-    struct TextureUnit {
-        GLuint texture; // GL_TEXTURE_BINDING_2D
-        GLuint sampler; // GL_SAMPLER_BINDING
-
-        void Unbind() {
-            texture = 0;
-        }
-
-        void Reset() {
-            Unbind();
-            sampler = 0;
-        }
-    };
-    std::array<TextureUnit, Tegra::Engines::Maxwell3D::Regs::NumTextureSamplers> texture_units;
+    std::array<GLuint, Tegra::Engines::Maxwell3D::Regs::NumTextureSamplers> textures{};
+    std::array<GLuint, Tegra::Engines::Maxwell3D::Regs::NumTextureSamplers> samplers{};
+    std::array<GLuint, Tegra::Engines::Maxwell3D::Regs::NumImages> images{};
 
     struct {
         GLuint read_framebuffer; // GL_READ_FRAMEBUFFER_BINDING
@@ -220,6 +208,7 @@ public:
     void ApplyLogicOp() const;
     void ApplyTextures() const;
     void ApplySamplers() const;
+    void ApplyImages() const;
     void ApplyDepthClamp() const;
     void ApplyPolygonOffset() const;
     void ApplyAlphaTest() const;

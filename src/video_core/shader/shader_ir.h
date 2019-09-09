@@ -95,7 +95,7 @@ public:
         return used_samplers;
     }
 
-    const std::set<Image>& GetImages() const {
+    const std::map<u64, Image>& GetImages() const {
         return used_images;
     }
 
@@ -272,10 +272,10 @@ private:
                                       bool is_shadow);
 
     /// Accesses an image.
-    const Image& GetImage(Tegra::Shader::Image image, Tegra::Shader::ImageType type);
+    Image& GetImage(Tegra::Shader::Image image, Tegra::Shader::ImageType type);
 
     /// Access a bindless image sampler.
-    const Image& GetBindlessImage(Tegra::Shader::Register reg, Tegra::Shader::ImageType type);
+    Image& GetBindlessImage(Tegra::Shader::Register reg, Tegra::Shader::ImageType type);
 
     /// Extracts a sequence of bits from a node
     Node BitfieldExtract(Node value, u32 offset, u32 bits);
@@ -356,7 +356,7 @@ private:
     std::set<Tegra::Shader::Attribute::Index> used_output_attributes;
     std::map<u32, ConstBuffer> used_cbufs;
     std::set<Sampler> used_samplers;
-    std::set<Image> used_images;
+    std::map<u64, Image> used_images;
     std::array<bool, Tegra::Engines::Maxwell3D::Regs::NumClipDistances> used_clip_distances{};
     std::map<GlobalMemoryBase, GlobalMemoryUsage> used_global_memory;
     bool uses_layer{};

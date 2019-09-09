@@ -389,11 +389,10 @@ public:
         for (const auto& sampler : ir.GetSamplers()) {
             entries.samplers.emplace_back(sampler);
         }
-        for (const auto& image : ir.GetImages()) {
+        for (const auto& [offset, image] : ir.GetImages()) {
             entries.images.emplace_back(image);
         }
-        for (const auto& gmem_pair : ir.GetGlobalMemory()) {
-            const auto& [base, usage] = gmem_pair;
+        for (const auto& [base, usage] : ir.GetGlobalMemory()) {
             entries.global_memory_entries.emplace_back(base.cbuf_index, base.cbuf_offset,
                                                        usage.is_read, usage.is_written);
         }
@@ -706,7 +705,7 @@ private:
 
     void DeclareImages() {
         const auto& images{ir.GetImages()};
-        for (const auto& image : images) {
+        for (const auto& [offset, image] : images) {
             const std::string image_type = [&]() {
                 switch (image.GetType()) {
                 case Tegra::Shader::ImageType::Texture1D:
@@ -726,9 +725,16 @@ private:
                     return "image1D";
                 }
             }();
-            code.AddLine("layout (binding = IMAGE_BINDING_{}) coherent volatile writeonly uniform "
+            std::string qualifier = "coherent volatile";
+            if (image.IsRead() && !image.IsWritten()) {
+                qualifier += " readonly";
+            } else if (image.IsWritten() && !image.IsRead()) {
+                qualifier += " writeonly";
+            }
+
+            code.AddLine("layout (binding = IMAGE_BINDING_{}) {} uniform "
                          "{} {};",
-                         image.GetIndex(), image_type, GetImage(image));
+                         image.GetIndex(), qualifier, image_type, GetImage(image));
         }
         if (!images.empty()) {
             code.AddNewLine();
