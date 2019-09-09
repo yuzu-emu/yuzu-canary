@@ -342,7 +342,7 @@ void RendererOpenGL::DrawScreenTriangles(const ScreenInfo& screen_info, float x,
         ScreenRectVertex(x + w, y + h, texcoords.bottom * scale_u, right * scale_v),
     }};
 
-    state.texture_units[0].texture = screen_info.display_texture;
+    state.textures[0] = screen_info.display_texture;
     // Workaround brigthness problems in SMO by enabling sRGB in the final output
     // if it has been used in the frame. Needed because of this bug in QT: QTBUG-50987
     state.framebuffer_srgb.enabled = OpenGLState::GetsRGBUsed();
@@ -352,7 +352,7 @@ void RendererOpenGL::DrawScreenTriangles(const ScreenInfo& screen_info, float x,
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     // Restore default state
     state.framebuffer_srgb.enabled = false;
-    state.texture_units[0].texture = 0;
+    state.textures[0] = 0;
     state.AllDirty();
     state.Apply();
     // Clear sRGB state for the next frame
