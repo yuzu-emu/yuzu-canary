@@ -10,7 +10,7 @@
 namespace VideoCommon {
 
 std::size_t ViewParams::Hash() const {
-    return static_cast<std::size_t>(base_layer) ^ static_cast<std::size_t>(num_layers << 16) ^
+    return static_cast<std::size_t>(base_layer) ^ (static_cast<std::size_t>(num_layers) << 16) ^
            (static_cast<std::size_t>(base_level) << 24) ^
            (static_cast<std::size_t>(num_levels) << 32) ^ (static_cast<std::size_t>(target) << 36);
 }
