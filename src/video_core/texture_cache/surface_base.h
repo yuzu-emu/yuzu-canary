@@ -195,18 +195,18 @@ public:
 
     virtual void DownloadTexture(std::vector<u8>& staging_buffer) = 0;
 
-    void MarkAsModified(const bool is_modified_, const u64 tick) {
+    void MarkAsModified(bool is_modified_, u64 tick) {
         is_modified = is_modified_ || is_target;
         modification_tick = tick;
     }
 
-    void MarkAsRenderTarget(const bool is_target, const u32 index) {
-        this->is_target = is_target;
-        this->index = index;
+    void MarkAsRenderTarget(bool is_target_, u32 index_) {
+        is_target = is_target_;
+        index = index_;
     }
 
-    void MarkAsPicked(const bool is_picked) {
-        this->is_picked = is_picked;
+    void MarkAsPicked(bool is_picked_) {
+        is_picked = is_picked_;
     }
 
     bool IsModified() const {
