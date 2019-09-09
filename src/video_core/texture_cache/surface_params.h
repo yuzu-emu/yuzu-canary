@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <map>
-
 #include "common/alignment.h"
 #include "common/bit_util.h"
 #include "common/cityhash.h"
@@ -23,9 +21,12 @@ using VideoCore::Surface::SurfaceCompression;
 class SurfaceParams {
 public:
     /// Creates SurfaceCachedParams from a texture configuration.
-    static SurfaceParams CreateForTexture(Core::System& system,
-                                          const Tegra::Texture::FullTextureInfo& config,
+    static SurfaceParams CreateForTexture(const Tegra::Texture::TICEntry& tic,
                                           const VideoCommon::Shader::Sampler& entry);
+
+    /// Creates SurfaceCachedParams from an image configuration.
+    static SurfaceParams CreateForImage(const Tegra::Texture::TICEntry& tic,
+                                        const VideoCommon::Shader::Image& entry);
 
     /// Creates SurfaceCachedParams for a depth buffer configuration.
     static SurfaceParams CreateForDepthBuffer(

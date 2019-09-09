@@ -273,46 +273,64 @@ private:
     bool is_bindless{}; ///< Whether this sampler belongs to a bindless texture or not.
 };
 
-class Image {
+class Image final {
 public:
-    explicit Image(std::size_t offset, std::size_t index, Tegra::Shader::ImageType type)
+    constexpr explicit Image(u64 offset, std::size_t index, Tegra::Shader::ImageType type)
         : offset{offset}, index{index}, type{type}, is_bindless{false} {}
 
-    explicit Image(u32 cbuf_index, u32 cbuf_offset, std::size_t index,
-                   Tegra::Shader::ImageType type)
+    constexpr explicit Image(u32 cbuf_index, u32 cbuf_offset, std::size_t index,
+                             Tegra::Shader::ImageType type)
         : offset{(static_cast<u64>(cbuf_index) << 32) | cbuf_offset}, index{index}, type{type},
           is_bindless{true} {}
 
-    explicit Image(std::size_t offset, std::size_t index, Tegra::Shader::ImageType type,
-                   bool is_bindless)
-        : offset{offset}, index{index}, type{type}, is_bindless{is_bindless} {}
+    constexpr explicit Image(std::size_t offset, std::size_t index, Tegra::Shader::ImageType type,
+                             bool is_bindless, bool is_written, bool is_read)
+        : offset{offset}, index{index}, type{type}, is_bindless{is_bindless},
+          is_written{is_written}, is_read{is_read} {}
 
-    std::size_t GetOffset() const {
+    void MarkRead() {
+        is_read = true;
+    }
+
+    void MarkWrite() {
+        is_written = true;
+    }
+
+    constexpr std::size_t GetOffset() const {
         return offset;
     }
 
-    std::size_t GetIndex() const {
+    constexpr std::size_t GetIndex() const {
         return index;
     }
 
-    Tegra::Shader::ImageType GetType() const {
+    constexpr Tegra::Shader::ImageType GetType() const {
         return type;
     }
 
-    bool IsBindless() const {
+    constexpr bool IsBindless() const {
         return is_bindless;
     }
 
-    bool operator<(const Image& rhs) const {
-        return std::tie(offset, index, type, is_bindless) <
-               std::tie(rhs.offset, rhs.index, rhs.type, rhs.is_bindless);
+    constexpr bool IsRead() const {
+        return is_read;
+    }
+
+    constexpr bool IsWritten() const {
+        return is_written;
+    }
+
+    constexpr std::pair<u32, u32> GetBindlessCBuf() const {
+        return {static_cast<u32>(offset >> 32), static_cast<u32>(offset)};
     }
 
 private:
-    std::size_t offset{};
+    u64 offset{};
     std::size_t index{};
     Tegra::Shader::ImageType type{};
     bool is_bindless{};
+    bool is_read{};
+    bool is_written{};
 };
 
 struct GlobalMemoryBase {

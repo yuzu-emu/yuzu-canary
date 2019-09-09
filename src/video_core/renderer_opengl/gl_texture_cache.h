@@ -78,6 +78,17 @@ public:
     /// Attaches this texture view to the current bound GL_DRAW_FRAMEBUFFER
     void Attach(GLenum attachment, GLenum target) const;
 
+    void ApplySwizzle(Tegra::Texture::SwizzleSource x_source,
+                      Tegra::Texture::SwizzleSource y_source,
+                      Tegra::Texture::SwizzleSource z_source,
+                      Tegra::Texture::SwizzleSource w_source);
+
+    void DecorateViewName(GPUVAddr gpu_addr, std::string prefix);
+
+    void MarkAsModified(u64 tick) {
+        surface.MarkAsModified(true, tick);
+    }
+
     GLuint GetTexture() const {
         if (is_proxy) {
             return surface.GetTexture();
@@ -88,13 +99,6 @@ public:
     const SurfaceParams& GetSurfaceParams() const {
         return surface.GetSurfaceParams();
     }
-
-    void ApplySwizzle(Tegra::Texture::SwizzleSource x_source,
-                      Tegra::Texture::SwizzleSource y_source,
-                      Tegra::Texture::SwizzleSource z_source,
-                      Tegra::Texture::SwizzleSource w_source);
-
-    void DecorateViewName(GPUVAddr gpu_addr, std::string prefix);
 
 private:
     u32 EncodeSwizzle(Tegra::Texture::SwizzleSource x_source,
@@ -111,8 +115,8 @@ private:
     GLenum target{};
 
     OGLTextureView texture_view;
-    u32 swizzle;
-    bool is_proxy;
+    u32 swizzle{};
+    bool is_proxy{};
 };
 
 class TextureCacheOpenGL final : public TextureCacheBase {

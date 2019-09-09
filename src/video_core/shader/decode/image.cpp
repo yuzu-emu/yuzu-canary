@@ -61,56 +61,54 @@ u32 ShaderIR::DecodeImage(NodeBlock& bb, u32 pc) {
         }
 
         const auto type{instr.sust.image_type};
-        const auto& image{instr.sust.is_immediate ? GetImage(instr.image, type)
-                                                  : GetBindlessImage(instr.gpr39, type)};
+        auto& image{instr.sust.is_immediate ? GetImage(instr.image, type)
+                                            : GetBindlessImage(instr.gpr39, type)};
+        image.MarkWrite();
+
         MetaImage meta{image, values};
         const Node store{Operation(OperationCode::ImageStore, meta, std::move(coords))};
         bb.push_back(store);
         break;
     }
     default:
-        UNIMPLEMENTED_MSG("Unhandled conversion instruction: {}", opcode->get().GetName());
+        UNIMPLEMENTED_MSG("Unhandled image instruction: {}", opcode->get().GetName());
     }
 
     return pc;
 }
 
-const Image& ShaderIR::GetImage(Tegra::Shader::Image image, Tegra::Shader::ImageType type) {
-    const auto offset{static_cast<std::size_t>(image.index.Value())};
+Image& ShaderIR::GetImage(Tegra::Shader::Image image, Tegra::Shader::ImageType type) {
+    const auto offset{static_cast<u64>(image.index.Value())};
 
     // If this image has already been used, return the existing mapping.
-    const auto itr{std::find_if(used_images.begin(), used_images.end(),
-                                [=](const Image& entry) { return entry.GetOffset() == offset; })};
-    if (itr != used_images.end()) {
-        ASSERT(itr->GetType() == type);
-        return *itr;
+    const auto it = used_images.find(offset);
+    if (it != used_images.end()) {
+        ASSERT(it->second.GetType() == type);
+        return it->second;
     }
 
     // Otherwise create a new mapping for this image.
     const std::size_t next_index{used_images.size()};
-    const Image entry{offset, next_index, type};
-    return *used_images.emplace(entry).first;
+    return used_images.emplace(offset, Image{offset, next_index, type}).first->second;
 }
 
-const Image& ShaderIR::GetBindlessImage(Tegra::Shader::Register reg,
-                                        Tegra::Shader::ImageType type) {
+Image& ShaderIR::GetBindlessImage(Tegra::Shader::Register reg, Tegra::Shader::ImageType type) {
     const Node image_register{GetRegister(reg)};
     const auto [base_image, cbuf_index, cbuf_offset]{
         TrackCbuf(image_register, global_code, static_cast<s64>(global_code.size()))};
     const auto cbuf_key{(static_cast<u64>(cbuf_index) << 32) | static_cast<u64>(cbuf_offset)};
 
     // If this image has already been used, return the existing mapping.
-    const auto itr{std::find_if(used_images.begin(), used_images.end(),
-                                [=](const Image& entry) { return entry.GetOffset() == cbuf_key; })};
-    if (itr != used_images.end()) {
-        ASSERT(itr->GetType() == type);
-        return *itr;
+    const auto it = used_images.find(cbuf_key);
+    if (it != used_images.end()) {
+        ASSERT(it->second.GetType() == type);
+        return it->second;
     }
 
     // Otherwise create a new mapping for this image.
     const std::size_t next_index{used_images.size()};
-    const Image entry{cbuf_index, cbuf_offset, next_index, type};
-    return *used_images.emplace(entry).first;
+    return used_images.emplace(cbuf_key, Image{cbuf_index, cbuf_offset, next_index, type})
+        .first->second;
 }
 
 } // namespace VideoCommon::Shader
