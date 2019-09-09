@@ -11,6 +11,10 @@
 #include "core/hle/result.h"
 #include "core/hle/service/am/applets/applets.h"
 
+namespace Core {
+class System;
+}
+
 namespace Service::AM::Applets {
 
 struct UserSelectionConfig {
@@ -29,7 +33,8 @@ static_assert(sizeof(UserSelectionOutput) == 0x18, "UserSelectionOutput has inco
 
 class ProfileSelect final : public Applet {
 public:
-    explicit ProfileSelect(const Core::Frontend::ProfileSelectApplet& frontend);
+    explicit ProfileSelect(Core::System& system_,
+                           const Core::Frontend::ProfileSelectApplet& frontend_);
     ~ProfileSelect() override;
 
     void Initialize() override;
