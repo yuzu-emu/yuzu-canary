@@ -984,10 +984,10 @@ private:
         return {std::move(temporary), value.GetType()};
     }
 
-    Expression GetOutputAttribute(const AbufNode* abuf) {
+    std::optional<Expression> GetOutputAttribute(const AbufNode* abuf) {
         switch (const auto attribute = abuf->GetIndex()) {
         case Attribute::Index::Position:
-            return {"gl_Position"s + GetSwizzle(abuf->GetElement()), Type::Float};
+            return {{"gl_Position"s + GetSwizzle(abuf->GetElement()), Type::Float}};
         case Attribute::Index::LayerViewportPointSize:
             switch (abuf->GetElement()) {
             case 0:
@@ -997,25 +997,25 @@ private:
                 if (IsVertexShader(stage) && !device.HasVertexViewportLayer()) {
                     return {};
                 }
-                return {"gl_Layer", Type::Int};
+                return {{"gl_Layer", Type::Int}};
             case 2:
                 if (IsVertexShader(stage) && !device.HasVertexViewportLayer()) {
                     return {};
                 }
-                return {"gl_ViewportIndex", Type::Int};
+                return {{"gl_ViewportIndex", Type::Int}};
             case 3:
                 UNIMPLEMENTED_MSG("Requires some state changes for gl_PointSize to work in shader");
-                return {"gl_PointSize", Type::Float};
+                return {{"gl_PointSize", Type::Float}};
             }
             return {};
         case Attribute::Index::ClipDistances0123:
-            return {fmt::format("gl_ClipDistance[{}]", abuf->GetElement()), Type::Float};
+            return {{fmt::format("gl_ClipDistance[{}]", abuf->GetElement()), Type::Float}};
         case Attribute::Index::ClipDistances4567:
-            return {fmt::format("gl_ClipDistance[{}]", abuf->GetElement() + 4), Type::Float};
+            return {{fmt::format("gl_ClipDistance[{}]", abuf->GetElement() + 4), Type::Float}};
         default:
             if (IsGenericAttribute(attribute)) {
-                return {GetOutputAttribute(attribute) + GetSwizzle(abuf->GetElement()),
-                        Type::Float};
+                return {
+                    {GetOutputAttribute(attribute) + GetSwizzle(abuf->GetElement()), Type::Float}};
             }
             UNIMPLEMENTED_MSG("Unhandled output attribute: {}", static_cast<u32>(attribute));
             return {};
@@ -1187,7 +1187,11 @@ private:
             target = {GetRegister(gpr->GetIndex()), Type::Float};
         } else if (const auto abuf = std::get_if<AbufNode>(&*dest)) {
             UNIMPLEMENTED_IF(abuf->IsPhysicalBuffer());
-            target = GetOutputAttribute(abuf);
+            auto output = GetOutputAttribute(abuf);
+            if (!output) {
+                return {};
+            }
+            target = std::move(*output);
         } else if (const auto lmem = std::get_if<LmemNode>(&*dest)) {
             if (stage == ProgramType::Compute) {
                 LOG_WARNING(Render_OpenGL, "Local memory is stubbed on compute shaders");
