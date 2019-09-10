@@ -1089,7 +1089,9 @@ public:
                     INSERT_PADDING_WORDS(14);
                 } shader_config[MaxShaderProgram];
 
-                INSERT_PADDING_WORDS(0x80);
+                INSERT_PADDING_WORDS(0x60);
+
+                u32 firmware[0x20];
 
                 struct {
                     u32 cb_size;
@@ -1319,6 +1321,9 @@ private:
     /// Handles writes to the macro bind register.
     void ProcessMacroBind(u32 data);
 
+    /// Handles firmware blob 4
+    void ProcessFirmwareCall4();
+
     /// Handles a write to the CLEAR_BUFFERS register.
     void ProcessClearBuffers();
 
@@ -1431,6 +1436,7 @@ ASSERT_REG_POSITION(vertex_array[0], 0x700);
 ASSERT_REG_POSITION(independent_blend, 0x780);
 ASSERT_REG_POSITION(vertex_array_limit[0], 0x7C0);
 ASSERT_REG_POSITION(shader_config[0], 0x800);
+ASSERT_REG_POSITION(firmware, 0x8C0);
 ASSERT_REG_POSITION(const_buffer, 0x8E0);
 ASSERT_REG_POSITION(cb_bind[0], 0x904);
 ASSERT_REG_POSITION(tex_cb_index, 0x982);
