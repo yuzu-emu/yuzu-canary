@@ -213,10 +213,7 @@ void Process::PrepareForTermination() {
         }
     };
 
-    stop_threads(system.Scheduler(0).GetThreadList());
-    stop_threads(system.Scheduler(1).GetThreadList());
-    stop_threads(system.Scheduler(2).GetThreadList());
-    stop_threads(system.Scheduler(3).GetThreadList());
+    stop_threads(system.GlobalScheduler().GetThreadList());
 
     FreeTLSRegion(tls_region_address);
     tls_region_address = 0;
