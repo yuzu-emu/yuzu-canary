@@ -208,6 +208,8 @@ private:
     Node GetInternalFlag(InternalFlag flag, bool negated = false);
     /// Generates a node representing a local memory address
     Node GetLocalMemory(Node address);
+    /// Generates a node representing a shared memory address
+    Node GetSharedMemory(Node address);
     /// Generates a temporary, internally it uses a post-RZ register
     Node GetTemporary(u32 id);
 
@@ -217,8 +219,10 @@ private:
     void SetPredicate(NodeBlock& bb, u64 dest, Node src);
     /// Sets an internal flag. src value must be a bool-evaluated node
     void SetInternalFlag(NodeBlock& bb, InternalFlag flag, Node value);
-    /// Sets a local memory address. address and value must be a number-evaluated node
+    /// Sets a local memory address with a value.
     void SetLocalMemory(NodeBlock& bb, Node address, Node value);
+    /// Sets a shared memory address with a value.
+    void SetSharedMemory(NodeBlock& bb, Node address, Node value);
     /// Sets a temporary. Internally it uses a post-RZ register
     void SetTemporary(NodeBlock& bb, u32 id, Node value);
 
