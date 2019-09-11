@@ -264,7 +264,6 @@ void RendererOpenGL::CreateRasterizer() {
     if (rasterizer) {
         return;
     }
-    OpenGLState::ClearsRGBUsed();
     rasterizer = std::make_unique<RasterizerOpenGL>(system, emu_window, screen_info);
 }
 
@@ -342,10 +341,8 @@ void RendererOpenGL::DrawScreenTriangles(const ScreenInfo& screen_info, float x,
         ScreenRectVertex(x + w, y + h, texcoords.bottom * scale_u, right * scale_v),
     }};
 
-    state.textures[0] = screen_info.display_texture;
-    // Workaround brigthness problems in SMO by enabling sRGB in the final output
-    // if it has been used in the frame. Needed because of this bug in QT: QTBUG-50987
-    state.framebuffer_srgb.enabled = OpenGLState::GetsRGBUsed();
+    state.textures[0].texture = screen_info.display_texture;
+    state.framebuffer_srgb.enabled = screen_info.display_srgb;
     state.AllDirty();
     state.Apply();
     glNamedBufferSubData(vertex_buffer.handle, 0, sizeof(vertices), vertices.data());
@@ -355,8 +352,6 @@ void RendererOpenGL::DrawScreenTriangles(const ScreenInfo& screen_info, float x,
     state.textures[0] = 0;
     state.AllDirty();
     state.Apply();
-    // Clear sRGB state for the next frame
-    OpenGLState::ClearsRGBUsed();
 }
 
 /**
@@ -406,8 +401,8 @@ void RendererOpenGL::CaptureScreenshot() {
     GLuint renderbuffer;
     glGenRenderbuffers(1, &renderbuffer);
     glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, state.GetsRGBUsed() ? GL_SRGB8 : GL_RGB8, layout.width,
-                          layout.height);
+    glRenderbufferStorage(GL_RENDERBUFFER, screen_info.display_srgb ? GL_SRGB8 : GL_RGB8,
+                          layout.width, layout.height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, renderbuffer);
 
     DrawScreen(layout);

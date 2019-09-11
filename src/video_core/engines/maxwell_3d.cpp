@@ -89,6 +89,9 @@ void Maxwell3D::InitializeRegisterDefaults() {
 
     // Commercial games seem to assume this value is enabled and nouveau sets this value manually.
     regs.rt_separate_frag_data = 1;
+
+    // Some games (like Super Mario Odyssey) assume that SRGB is enabled.
+    regs.framebuffer_srgb = 1;
 }
 
 #define DIRTY_REGS_POS(field_name) (offsetof(Maxwell3D::DirtyRegs, field_name))
