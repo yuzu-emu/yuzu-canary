@@ -944,6 +944,41 @@ private:
         return {};
     }
 
+    Id AtomicImageAdd(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    Id AtomicImageMin(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    Id AtomicImageMax(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    Id AtomicImageAnd(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    Id AtomicImageOr(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    Id AtomicImageXor(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
+    Id AtomicImageExchange(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
     Id Branch(Operation operation) {
         const auto target = std::get_if<ImmediateNode>(&*operation[0]);
         UNIMPLEMENTED_IF(!target);
@@ -1366,6 +1401,13 @@ private:
         &SPIRVDecompiler::TexelFetch,
 
         &SPIRVDecompiler::ImageStore,
+        &SPIRVDecompiler::AtomicImageAdd,
+        &SPIRVDecompiler::AtomicImageMin,
+        &SPIRVDecompiler::AtomicImageMax,
+        &SPIRVDecompiler::AtomicImageAnd,
+        &SPIRVDecompiler::AtomicImageOr,
+        &SPIRVDecompiler::AtomicImageXor,
+        &SPIRVDecompiler::AtomicImageExchange,
 
         &SPIRVDecompiler::Branch,
         &SPIRVDecompiler::BranchIndirect,

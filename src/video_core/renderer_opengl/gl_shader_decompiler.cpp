@@ -714,7 +714,7 @@ private:
     void DeclareImages() {
         const auto& images{ir.GetImages()};
         for (const auto& [offset, image] : images) {
-            const std::string image_type = [&]() {
+            const char* image_type = [&] {
                 switch (image.GetType()) {
                 case Tegra::Shader::ImageType::Texture1D:
                     return "image1D";
@@ -733,6 +733,23 @@ private:
                     return "image1D";
                 }
             }();
+
+            const auto [type_prefix, format] = [&]() -> std::pair<const char*, const char*> {
+                if (!image.IsSizeKnown()) {
+                    return {"", ""};
+                }
+                switch (image.GetSize()) {
+                case Tegra::Shader::ImageAtomicSize::U32:
+                    return {"u", "r32ui, "};
+                case Tegra::Shader::ImageAtomicSize::S32:
+                    return {"i", "r32i, "};
+                default:
+                    UNIMPLEMENTED_MSG("Unimplemented atomic size={}",
+                                      static_cast<u32>(image.GetSize()));
+                    return {"", ""};
+                }
+            }();
+
             std::string qualifier = "coherent volatile";
             if (image.IsRead() && !image.IsWritten()) {
                 qualifier += " readonly";
@@ -1192,6 +1209,74 @@ private:
         expr += ')';
 
         return expr;
+    }
+
+    std::string BuildIntegerCoordinates(Operation operation) {
+        constexpr std::array constructors{"int(", "ivec2(", "ivec3(", "ivec4("};
+        const std::size_t coords_count{operation.GetOperandsCount()};
+        std::string expr = constructors.at(coords_count - 1);
+        for (std::size_t i = 0; i < coords_count; ++i) {
+            expr += VisitOperand(operation, i).AsInt();
+            if (i + 1 < coords_count) {
+                expr += ", ";
+            }
+        }
+        expr += ')';
+        return expr;
+    }
+
+    std::string BuildImageValues(Operation operation) {
+        const auto meta{std::get<MetaImage>(operation.GetMeta())};
+        const auto [constructors, type] = [&]() -> std::pair<std::array<const char*, 4>, Type> {
+            constexpr std::array float_constructors{"float", "vec2", "vec3", "vec4"};
+            if (!meta.image.IsSizeKnown()) {
+                return {float_constructors, Type::Float};
+            }
+            switch (meta.image.GetSize()) {
+            case Tegra::Shader::ImageAtomicSize::U32:
+                return {{"uint", "uvec2", "uvec3", "uvec4"}, Type::Uint};
+            case Tegra::Shader::ImageAtomicSize::S32:
+                return {{"int", "ivec2", "ivec3", "ivec4"}, Type::Uint};
+            default:
+                UNIMPLEMENTED_MSG("Unimplemented image size={}",
+                                  static_cast<u32>(meta.image.GetSize()));
+                return {float_constructors, Type::Float};
+            }
+        }();
+
+        const std::size_t values_count{meta.values.size()};
+        std::string expr = fmt::format("{}(", constructors.at(values_count - 1));
+        for (std::size_t i = 0; i < values_count; ++i) {
+            expr += Visit(meta.values.at(i)).As(type);
+            if (i + 1 < values_count) {
+                expr += ", ";
+            }
+        }
+        expr += ')';
+        return expr;
+    }
+
+    Expression AtomicImage(Operation operation, const char* opname) {
+        constexpr std::array constructors{"int(", "ivec2(", "ivec3(", "ivec4("};
+        const auto meta{std::get<MetaImage>(operation.GetMeta())};
+        ASSERT(meta.values.size() == 1);
+        ASSERT(meta.image.IsSizeKnown());
+
+        const auto type = [&]() {
+            switch (const auto size = meta.image.GetSize()) {
+            case Tegra::Shader::ImageAtomicSize::U32:
+                return Type::Uint;
+            case Tegra::Shader::ImageAtomicSize::S32:
+                return Type::Int;
+            default:
+                UNIMPLEMENTED_MSG("Unimplemented image size={}", static_cast<u32>(size));
+                return Type::Uint;
+            }
+        }();
+
+        return {fmt::format("{}({}, {}, {})", opname, GetImage(meta.image),
+                            BuildIntegerCoordinates(operation), Visit(meta.values[0]).As(type)),
+                type};
     }
 
     Expression Assign(Operation operation) {
@@ -1717,36 +1802,37 @@ private:
     }
 
     Expression ImageStore(Operation operation) {
-        constexpr std::array constructors{"int(", "ivec2(", "ivec3(", "ivec4("};
         const auto meta{std::get<MetaImage>(operation.GetMeta())};
-
-        std::string expr = "imageStore(";
-        expr += GetImage(meta.image);
-        expr += ", ";
-
-        const std::size_t coords_count{operation.GetOperandsCount()};
-        expr += constructors.at(coords_count - 1);
-        for (std::size_t i = 0; i < coords_count; ++i) {
-            expr += VisitOperand(operation, i).AsInt();
-            if (i + 1 < coords_count) {
-                expr += ", ";
-            }
-        }
-        expr += "), ";
-
-        const std::size_t values_count{meta.values.size()};
-        UNIMPLEMENTED_IF(values_count != 4);
-        expr += "vec4(";
-        for (std::size_t i = 0; i < values_count; ++i) {
-            expr += Visit(meta.values.at(i)).AsFloat();
-            if (i + 1 < values_count) {
-                expr += ", ";
-            }
-        }
-        expr += "));";
-
-        code.AddLine(expr);
+        code.AddLine("imageStore({}, {}, {});", GetImage(meta.image),
+                     BuildIntegerCoordinates(operation), BuildImageValues(operation));
         return {};
+    }
+
+    Expression AtomicImageAdd(Operation operation) {
+        return AtomicImage(operation, "imageAtomicAdd");
+    }
+
+    Expression AtomicImageMin(Operation operation) {
+        return AtomicImage(operation, "imageAtomicMin");
+    }
+
+    Expression AtomicImageMax(Operation operation) {
+        return AtomicImage(operation, "imageAtomicMax");
+    }
+    Expression AtomicImageAnd(Operation operation) {
+        return AtomicImage(operation, "imageAtomicAnd");
+    }
+
+    Expression AtomicImageOr(Operation operation) {
+        return AtomicImage(operation, "imageAtomicOr");
+    }
+
+    Expression AtomicImageXor(Operation operation) {
+        return AtomicImage(operation, "imageAtomicXor");
+    }
+
+    Expression AtomicImageExchange(Operation operation) {
+        return AtomicImage(operation, "imageAtomicExchange");
     }
 
     Expression Branch(Operation operation) {
@@ -2042,6 +2128,13 @@ private:
         &GLSLDecompiler::TexelFetch,
 
         &GLSLDecompiler::ImageStore,
+        &GLSLDecompiler::AtomicImageAdd,
+        &GLSLDecompiler::AtomicImageMin,
+        &GLSLDecompiler::AtomicImageMax,
+        &GLSLDecompiler::AtomicImageAnd,
+        &GLSLDecompiler::AtomicImageOr,
+        &GLSLDecompiler::AtomicImageXor,
+        &GLSLDecompiler::AtomicImageExchange,
 
         &GLSLDecompiler::Branch,
         &GLSLDecompiler::BranchIndirect,

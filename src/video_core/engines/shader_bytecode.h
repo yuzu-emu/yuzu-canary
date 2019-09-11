@@ -544,6 +544,28 @@ enum class VoteOperation : u64 {
     Eq = 2,  // allThreadsEqualNV
 };
 
+enum class ImageAtomicSize : u64 {
+    U32 = 0,
+    S32 = 1,
+    U64 = 2,
+    F32 = 3,
+    S64 = 5,
+    SD32 = 6,
+    SD64 = 7,
+};
+
+enum class ImageAtomicOperation : u64 {
+    Add = 0,
+    Min = 1,
+    Max = 2,
+    Inc = 3,
+    Dec = 4,
+    And = 5,
+    Or = 6,
+    Xor = 7,
+    Exch = 8,
+};
+
 union Instruction {
     Instruction& operator=(const Instruction& instr) {
         value = instr.value;
@@ -1392,6 +1414,14 @@ union Instruction {
     } sust;
 
     union {
+        BitField<28, 1, u64> is_ba;
+        BitField<51, 3, ImageAtomicSize> size;
+        BitField<33, 3, ImageType> image_type;
+        BitField<29, 4, ImageAtomicOperation> operation;
+        BitField<49, 2, OutOfBoundsStore> out_of_bounds_store;
+    } suatom_d;
+
+    union {
         BitField<20, 24, u64> target;
         BitField<5, 1, u64> constant_buffer;
 
@@ -1543,6 +1573,7 @@ public:
         TMML_B, // Texture Mip Map Level
         TMML,   // Texture Mip Map Level
         SUST,   // Surface Store
+        SUATOM, // Surface Atomic Operation
         EXIT,
         NOP,
         IPA,
@@ -1826,6 +1857,7 @@ private:
             INST("110111110110----", Id::TMML_B, Type::Texture, "TMML_B"),
             INST("1101111101011---", Id::TMML, Type::Texture, "TMML"),
             INST("11101011001-----", Id::SUST, Type::Image, "SUST"),
+            INST("1110101000------", Id::SUATOM, Type::Image, "SUATOM_D"),
             INST("0101000010110---", Id::NOP, Type::Trivial, "NOP"),
             INST("11100000--------", Id::IPA, Type::Trivial, "IPA"),
             INST("1111101111100---", Id::OUT_R, Type::Trivial, "OUT_R"),
