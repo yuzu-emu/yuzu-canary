@@ -16,7 +16,6 @@ namespace OpenGL {
 using Maxwell = Tegra::Engines::Maxwell3D::Regs;
 
 OpenGLState OpenGLState::cur_state;
-bool OpenGLState::s_rgb_used;
 
 namespace {
 
@@ -282,8 +281,6 @@ void OpenGLState::ApplySRgb() const {
         return;
     cur_state.framebuffer_srgb.enabled = framebuffer_srgb.enabled;
     if (framebuffer_srgb.enabled) {
-        // Track if sRGB is used
-        s_rgb_used = true;
         glEnable(GL_FRAMEBUFFER_SRGB);
     } else {
         glDisable(GL_FRAMEBUFFER_SRGB);
