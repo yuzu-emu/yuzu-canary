@@ -54,11 +54,13 @@ in vec2 frag_tex_coord;
 out vec4 color;
 
 uniform sampler2D color_texture;
+uniform vec4 backlight;
 
 void main() {
     // Swap RGBA -> ABGR so we don't have to do this on the CPU. This needs to change if we have to
     // support more framebuffer pixel formats.
-    color = texture(color_texture, frag_tex_coord);
+    // Also multiply the color by the backlight multiplier supplied.
+    color = texture(color_texture, frag_tex_coord) * backlight;
 }
 )";
 
@@ -123,8 +125,13 @@ void RendererOpenGL::SwapBuffers(const Tegra::FramebufferConfig* framebuffer) {
         // Load the framebuffer from memory, draw it to the screen, and swap buffers
         LoadFBToScreenInfo(*framebuffer);
 
-        if (renderer_settings.screenshot_requested)
+        if (renderer_settings.screenshot_requested) {
             CaptureScreenshot();
+        }
+
+        if (renderer_settings.backlight_fade_time > 0) {
+            UpdateBacklight();
+        }
 
         DrawScreen(render_window.GetFramebufferLayout());
 
@@ -210,8 +217,12 @@ void RendererOpenGL::InitOpenGLObjects() {
     state.Apply();
     uniform_modelview_matrix = glGetUniformLocation(shader.handle, "modelview_matrix");
     uniform_color_texture = glGetUniformLocation(shader.handle, "color_texture");
+    uniform_backlight = glGetUniformLocation(shader.handle, "backlight");
     attrib_position = glGetAttribLocation(shader.handle, "vert_position");
     attrib_tex_coord = glGetAttribLocation(shader.handle, "vert_tex_coord");
+
+    // Initialize backlight
+    glUniform4f(uniform_backlight, 1.f, 1.f, 1.f, 1.f);
 
     // Generate VBO handle for drawing
     vertex_buffer.Create();
@@ -419,6 +430,29 @@ void RendererOpenGL::CaptureScreenshot() {
 
     renderer_settings.screenshot_complete_callback();
     renderer_settings.screenshot_requested = false;
+}
+
+void RendererOpenGL::UpdateBacklight() {
+    constexpr u64 PER_FRAME_FADE_TIME = 1000000000.0f / 60;
+
+    const auto fade_time = renderer_settings.backlight_fade_time.load(std::memory_order_relaxed);
+    auto value = renderer_settings.current_brightness.load(std::memory_order_relaxed);
+    if (fade_time <= PER_FRAME_FADE_TIME) {
+        glUniform4f(uniform_backlight, value, value, value, value);
+        renderer_settings.backlight_fade_time = 0;
+        fade_time_max = 0;
+    } else {
+        if (fade_time_max == 0) {
+            fade_time_max = fade_time;
+            value_max = value;
+        }
+
+        value += (value_max - value) * PER_FRAME_FADE_TIME / fade_time_max;
+
+        glUniform4f(uniform_backlight, value, value, value, value);
+        renderer_settings.backlight_fade_time -= PER_FRAME_FADE_TIME;
+        renderer_settings.current_brightness = value;
+    }
 }
 
 static const char* GetSource(GLenum source) {
