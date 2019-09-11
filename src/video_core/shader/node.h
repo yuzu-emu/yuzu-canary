@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -148,7 +149,14 @@ enum class OperationCode {
     TextureQueryLod,        /// (MetaTexture, float[N] coords) -> float4
     TexelFetch,             /// (MetaTexture, int[N], int) -> float4
 
-    ImageStore, /// (MetaImage, float[N] coords) -> void
+    ImageStore,          /// (MetaImage, int[N] values) -> void
+    AtomicImageAdd,      /// (MetaImage, int[N] coords) -> void
+    AtomicImageMin,      /// (MetaImage, int[N] coords) -> void
+    AtomicImageMax,      /// (MetaImage, int[N] coords) -> void
+    AtomicImageAnd,      /// (MetaImage, int[N] coords) -> void
+    AtomicImageOr,       /// (MetaImage, int[N] coords) -> void
+    AtomicImageXor,      /// (MetaImage, int[N] coords) -> void
+    AtomicImageExchange, /// (MetaImage, int[N] coords) -> void
 
     Branch,         /// (uint branch_target) -> void
     BranchIndirect, /// (uint branch_target) -> void
@@ -276,25 +284,32 @@ private:
 
 class Image final {
 public:
-    constexpr explicit Image(u64 offset, std::size_t index, Tegra::Shader::ImageType type)
-        : offset{offset}, index{index}, type{type}, is_bindless{false} {}
+    constexpr explicit Image(std::size_t offset, std::size_t index, Tegra::Shader::ImageType type,
+                             std::optional<Tegra::Shader::ImageAtomicSize> size)
+        : offset{offset}, index{index}, type{type}, is_bindless{false}, size{size} {}
 
     constexpr explicit Image(u32 cbuf_index, u32 cbuf_offset, std::size_t index,
-                             Tegra::Shader::ImageType type)
+                             Tegra::Shader::ImageType type,
+                             std::optional<Tegra::Shader::ImageAtomicSize> size)
         : offset{(static_cast<u64>(cbuf_index) << 32) | cbuf_offset}, index{index}, type{type},
-          is_bindless{true} {}
+          is_bindless{true}, size{size} {}
 
     constexpr explicit Image(std::size_t offset, std::size_t index, Tegra::Shader::ImageType type,
-                             bool is_bindless, bool is_written, bool is_read)
+                             bool is_bindless, bool is_written, bool is_read,
+                             std::optional<Tegra::Shader::ImageAtomicSize> size)
         : offset{offset}, index{index}, type{type}, is_bindless{is_bindless},
-          is_written{is_written}, is_read{is_read} {}
+          is_written{is_written}, is_read{is_read}, size{size} {}
+
+    void MarkWrite() {
+        is_written = true;
+    }
 
     void MarkRead() {
         is_read = true;
     }
 
-    void MarkWrite() {
-        is_written = true;
+    void SetSize(Tegra::Shader::ImageAtomicSize size_) {
+        size = size_;
     }
 
     constexpr std::size_t GetOffset() const {
@@ -313,16 +328,29 @@ public:
         return is_bindless;
     }
 
-    constexpr bool IsRead() const {
-        return is_read;
-    }
-
     constexpr bool IsWritten() const {
         return is_written;
     }
 
+    constexpr bool IsRead() const {
+        return is_read;
+    }
+
     constexpr std::pair<u32, u32> GetBindlessCBuf() const {
         return {static_cast<u32>(offset >> 32), static_cast<u32>(offset)};
+    }
+
+    constexpr bool IsSizeKnown() const {
+        return size.has_value();
+    }
+
+    constexpr Tegra::Shader::ImageAtomicSize GetSize() const {
+        return size.value();
+    }
+
+    constexpr bool operator<(const Image& rhs) const {
+        return std::tie(offset, index, type, size, is_bindless) <
+               std::tie(rhs.offset, rhs.index, rhs.type, rhs.size, rhs.is_bindless);
     }
 
 private:
@@ -330,8 +358,9 @@ private:
     std::size_t index{};
     Tegra::Shader::ImageType type{};
     bool is_bindless{};
-    bool is_read{};
     bool is_written{};
+    bool is_read{};
+    std::optional<Tegra::Shader::ImageAtomicSize> size{};
 };
 
 struct GlobalMemoryBase {

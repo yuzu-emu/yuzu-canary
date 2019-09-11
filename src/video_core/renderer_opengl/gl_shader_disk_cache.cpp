@@ -341,16 +341,22 @@ std::optional<ShaderDiskCacheDecompiled> ShaderDiskCacheOpenGL::LoadDecompiledEn
         u64 index{};
         u32 type{};
         u8 is_bindless{};
-        u8 is_read{};
         u8 is_written{};
+        u8 is_read{};
+        u8 is_size_known{};
+        u32 size{};
         if (!LoadObjectFromPrecompiled(offset) || !LoadObjectFromPrecompiled(index) ||
             !LoadObjectFromPrecompiled(type) || !LoadObjectFromPrecompiled(is_bindless) ||
-            !LoadObjectFromPrecompiled(is_read) || !LoadObjectFromPrecompiled(is_written)) {
+            !LoadObjectFromPrecompiled(is_written) || !LoadObjectFromPrecompiled(is_read) ||
+            !LoadObjectFromPrecompiled(is_size_known) || !LoadObjectFromPrecompiled(size)) {
             return {};
         }
-        entry.entries.images.emplace_back(static_cast<u64>(offset), static_cast<std::size_t>(index),
-                                          static_cast<Tegra::Shader::ImageType>(type),
-                                          is_bindless != 0, is_written != 0, is_read != 0);
+        entry.entries.images.emplace_back(
+            static_cast<std::size_t>(offset), static_cast<std::size_t>(index),
+            static_cast<Tegra::Shader::ImageType>(type), is_bindless != 0, is_written != 0,
+            is_read != 0,
+            is_size_known ? std::make_optional(static_cast<Tegra::Shader::ImageAtomicSize>(size))
+                          : std::nullopt);
     }
 
     u32 global_memory_count{};
@@ -429,12 +435,14 @@ bool ShaderDiskCacheOpenGL::SaveDecompiledFile(u64 unique_identifier, const std:
         return false;
     }
     for (const auto& image : entries.images) {
+        const u32 size = image.IsSizeKnown() ? static_cast<u32>(image.GetSize()) : 0U;
         if (!SaveObjectToPrecompiled(static_cast<u64>(image.GetOffset())) ||
             !SaveObjectToPrecompiled(static_cast<u64>(image.GetIndex())) ||
             !SaveObjectToPrecompiled(static_cast<u32>(image.GetType())) ||
             !SaveObjectToPrecompiled(static_cast<u8>(image.IsBindless() ? 1 : 0)) ||
+            !SaveObjectToPrecompiled(static_cast<u8>(image.IsWritten() ? 1 : 0)) ||
             !SaveObjectToPrecompiled(static_cast<u8>(image.IsRead() ? 1 : 0)) ||
-            !SaveObjectToPrecompiled(static_cast<u8>(image.IsWritten() ? 1 : 0))) {
+            !SaveObjectToPrecompiled(image.IsSizeKnown()) || !SaveObjectToPrecompiled(size)) {
             return false;
         }
     }
