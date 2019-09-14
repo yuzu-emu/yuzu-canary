@@ -35,7 +35,7 @@ u32 GetUniformTypeElementsCount(Tegra::Shader::UniformType uniform_type) {
         return 1;
     }
 }
-} // namespace
+} // Anonymous namespace
 
 u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
     const Instruction instr = {program_code[pc]};
@@ -106,16 +106,17 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
         }
         break;
     }
-    case OpCode::Id::LD_L: {
-        LOG_DEBUG(HW_GPU, "LD_L cache management mode: {}",
-                  static_cast<u64>(instr.ld_l.unknown.Value()));
-
-        const auto GetLmem = [&](s32 offset) {
+    case OpCode::Id::LD_L:
+        LOG_DEBUG(HW_GPU, "LD_L cache management mode: {}", static_cast<u64>(instr.ld_l.unknown));
+        [[fallthrough]];
+    case OpCode::Id::LD_S: {
+        const auto GetMemory = [&](s32 offset) {
             ASSERT(offset % 4 == 0);
             const Node immediate_offset = Immediate(static_cast<s32>(instr.smem_imm) + offset);
             const Node address = Operation(OperationCode::IAdd, NO_PRECISE, GetRegister(instr.gpr8),
                                            immediate_offset);
-            return GetLocalMemory(address);
+            return opcode->get().GetId() == OpCode::Id::LD_S ? GetSharedMemory(address)
+                                                             : GetLocalMemory(address);
         };
 
         switch (instr.ldst_sl.type.Value()) {
@@ -135,14 +136,16 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
                     return 0;
                 }
             }();
-            for (u32 i = 0; i < count; ++i)
-                SetTemporary(bb, i, GetLmem(i * 4));
-            for (u32 i = 0; i < count; ++i)
+            for (u32 i = 0; i < count; ++i) {
+                SetTemporary(bb, i, GetMemory(i * 4));
+            }
+            for (u32 i = 0; i < count; ++i) {
                 SetRegister(bb, instr.gpr0.Value() + i, GetTemporary(i));
+            }
             break;
         }
         default:
-            UNIMPLEMENTED_MSG("LD_L Unhandled type: {}",
+            UNIMPLEMENTED_MSG("{} Unhandled type: {}", opcode->get().GetName(),
                               static_cast<u32>(instr.ldst_sl.type.Value()));
         }
         break;
@@ -209,27 +212,34 @@ u32 ShaderIR::DecodeMemory(NodeBlock& bb, u32 pc) {
 
         break;
     }
-    case OpCode::Id::ST_L: {
+    case OpCode::Id::ST_L:
         LOG_DEBUG(HW_GPU, "ST_L cache management mode: {}",
                   static_cast<u64>(instr.st_l.cache_management.Value()));
-
-        const auto GetLmemAddr = [&](s32 offset) {
+        [[fallthrough]];
+    case OpCode::Id::ST_S: {
+        const auto GetAddress = [&](s32 offset) {
             ASSERT(offset % 4 == 0);
             const Node immediate = Immediate(static_cast<s32>(instr.smem_imm) + offset);
             return Operation(OperationCode::IAdd, NO_PRECISE, GetRegister(instr.gpr8), immediate);
         };
 
+        const auto set_memory = opcode->get().GetId() == OpCode::Id::ST_L
+                                    ? &ShaderIR::SetLocalMemory
+                                    : &ShaderIR::SetSharedMemory;
+
         switch (instr.ldst_sl.type.Value()) {
         case Tegra::Shader::StoreType::Bits128:
-            SetLocalMemory(bb, GetLmemAddr(12), GetRegister(instr.gpr0.Value() + 3));
-            SetLocalMemory(bb, GetLmemAddr(8), GetRegister(instr.gpr0.Value() + 2));
+            (this->*set_memory)(bb, GetAddress(12), GetRegister(instr.gpr0.Value() + 3));
+            (this->*set_memory)(bb, GetAddress(8), GetRegister(instr.gpr0.Value() + 2));
+            [[fallthrough]];
         case Tegra::Shader::StoreType::Bits64:
-            SetLocalMemory(bb, GetLmemAddr(4), GetRegister(instr.gpr0.Value() + 1));
+            (this->*set_memory)(bb, GetAddress(4), GetRegister(instr.gpr0.Value() + 1));
+            [[fallthrough]];
         case Tegra::Shader::StoreType::Bits32:
-            SetLocalMemory(bb, GetLmemAddr(0), GetRegister(instr.gpr0));
+            (this->*set_memory)(bb, GetAddress(0), GetRegister(instr.gpr0));
             break;
         default:
-            UNIMPLEMENTED_MSG("ST_L Unhandled type: {}",
+            UNIMPLEMENTED_MSG("{} unhandled type: {}", opcode->get().GetName(),
                               static_cast<u32>(instr.ldst_sl.type.Value()));
         }
         break;
