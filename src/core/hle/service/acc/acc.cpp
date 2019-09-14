@@ -31,6 +31,9 @@
 
 namespace Service::Account {
 
+constexpr ResultCode ERR_INVALID_BUFFER_SIZE{ErrorModule::Account, 30};
+constexpr ResultCode ERR_FAILED_SAVE_DATA{ErrorModule::Account, 100};
+
 static std::string GetImagePath(Common::UUID uuid) {
     return FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) +
            "/system/save/8000000000000010/su/avators/" + uuid.FormatSwitch() + ".jpg";
@@ -41,20 +44,31 @@ static constexpr u32 SanitizeJPEGSize(std::size_t size) {
     return static_cast<u32>(std::min(size, max_jpeg_image_size));
 }
 
-class IProfile final : public ServiceFramework<IProfile> {
+class IProfileCommon : public ServiceFramework<IProfileCommon> {
 public:
-    explicit IProfile(Common::UUID user_id, ProfileManager& profile_manager)
-        : ServiceFramework("IProfile"), profile_manager(profile_manager), user_id(user_id) {
+    explicit IProfileCommon(const char* name, bool editor_commands, Common::UUID user_id,
+                            ProfileManager& profile_manager)
+        : ServiceFramework(name), profile_manager(profile_manager), user_id(user_id) {
         static const FunctionInfo functions[] = {
-            {0, &IProfile::Get, "Get"},
-            {1, &IProfile::GetBase, "GetBase"},
-            {10, &IProfile::GetImageSize, "GetImageSize"},
-            {11, &IProfile::LoadImage, "LoadImage"},
+            {0, &IProfileCommon::Get, "Get"},
+            {1, &IProfileCommon::GetBase, "GetBase"},
+            {10, &IProfileCommon::GetImageSize, "GetImageSize"},
+            {11, &IProfileCommon::LoadImage, "LoadImage"},
         };
+
         RegisterHandlers(functions);
+
+        if (editor_commands) {
+            static const FunctionInfo editor_functions[] = {
+                {100, &IProfileCommon::Store, "Store"},
+                {101, &IProfileCommon::StoreWithImage, "StoreWithImage"},
+            };
+
+            RegisterHandlers(editor_functions);
+        }
     }
 
-private:
+protected:
     void Get(Kernel::HLERequestContext& ctx) {
         LOG_INFO(Service_ACC, "called user_id={}", user_id.Format());
         ProfileBase profile_base{};
@@ -127,8 +141,89 @@ private:
         }
     }
 
-    const ProfileManager& profile_manager;
+    void Store(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        const auto base = rp.PopRaw<ProfileBase>();
+
+        const auto user_data = ctx.ReadBuffer();
+
+        LOG_DEBUG(Service_ACC, "called, username='{}', timestamp={:016X}, uuid={}",
+                  Common::StringFromFixedZeroTerminatedBuffer(
+                      reinterpret_cast<const char*>(base.username.data()), base.username.size()),
+                  base.timestamp, base.user_uuid.Format());
+
+        if (user_data.size() < sizeof(ProfileData)) {
+            LOG_ERROR(Service_ACC, "ProfileData buffer too small!");
+            IPC::ResponseBuilder rb{ctx, 2};
+            rb.Push(ERR_INVALID_BUFFER_SIZE);
+            return;
+        }
+
+        ProfileData data;
+        std::memcpy(&data, user_data.data(), sizeof(ProfileData));
+
+        if (!profile_manager.SetProfileBaseAndData(user_id, base, data)) {
+            LOG_ERROR(Service_ACC, "Failed to update profile data and base!");
+            IPC::ResponseBuilder rb{ctx, 2};
+            rb.Push(ERR_FAILED_SAVE_DATA);
+            return;
+        }
+
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+    }
+
+    void StoreWithImage(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        const auto base = rp.PopRaw<ProfileBase>();
+
+        const auto user_data = ctx.ReadBuffer();
+        const auto image_data = ctx.ReadBuffer(1);
+
+        LOG_DEBUG(Service_ACC, "called, username='{}', timestamp={:016X}, uuid={}",
+                  Common::StringFromFixedZeroTerminatedBuffer(
+                      reinterpret_cast<const char*>(base.username.data()), base.username.size()),
+                  base.timestamp, base.user_uuid.Format());
+
+        if (user_data.size() < sizeof(ProfileData)) {
+            LOG_ERROR(Service_ACC, "ProfileData buffer too small!");
+            IPC::ResponseBuilder rb{ctx, 2};
+            rb.Push(ERR_INVALID_BUFFER_SIZE);
+            return;
+        }
+
+        ProfileData data;
+        std::memcpy(&data, user_data.data(), sizeof(ProfileData));
+
+        FileUtil::IOFile image(GetImagePath(user_id), "wb");
+
+        if (!image.IsOpen() || !image.Resize(image_data.size()) ||
+            image.WriteBytes(image_data.data(), image_data.size()) != image_data.size() ||
+            !profile_manager.SetProfileBaseAndData(user_id, base, data)) {
+            LOG_ERROR(Service_ACC, "Failed to update profile data, base, and image!");
+            IPC::ResponseBuilder rb{ctx, 2};
+            rb.Push(ERR_FAILED_SAVE_DATA);
+            return;
+        }
+
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
+    }
+
+    ProfileManager& profile_manager;
     Common::UUID user_id; ///< The user id this profile refers to.
+};
+
+class IProfile final : public IProfileCommon {
+public:
+    IProfile(Common::UUID user_id, ProfileManager& profile_manager)
+        : IProfileCommon("IProfile", false, user_id, profile_manager) {}
+};
+
+class IProfileEditor final : public IProfileCommon {
+public:
+    IProfileEditor(Common::UUID user_id, ProfileManager& profile_manager)
+        : IProfileCommon("IProfileEditor", true, user_id, profile_manager) {}
 };
 
 class IManagerForApplication final : public ServiceFramework<IManagerForApplication> {
@@ -320,6 +415,17 @@ void Module::Interface::IsUserAccountSwitchLocked(Kernel::HLERequestContext& ctx
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(RESULT_SUCCESS);
     rb.Push(is_locked);
+}
+
+void Module::Interface::GetProfileEditor(Kernel::HLERequestContext& ctx) {
+    IPC::RequestParser rp{ctx};
+    Common::UUID user_id = rp.PopRaw<Common::UUID>();
+
+    LOG_DEBUG(Service_ACC, "called, user_id={}", user_id.Format());
+
+    IPC::ResponseBuilder rb{ctx, 2, 0, 1};
+    rb.Push(RESULT_SUCCESS);
+    rb.PushIpcInterface<IProfileEditor>(user_id, *profile_manager);
 }
 
 void Module::Interface::TrySelectUserWithoutInteraction(Kernel::HLERequestContext& ctx) {
