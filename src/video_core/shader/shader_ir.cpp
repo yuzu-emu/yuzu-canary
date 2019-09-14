@@ -137,6 +137,10 @@ Node ShaderIR::GetLocalMemory(Node address) {
     return MakeNode<LmemNode>(std::move(address));
 }
 
+Node ShaderIR::GetSharedMemory(Node address) {
+    return MakeNode<SmemNode>(std::move(address));
+}
+
 Node ShaderIR::GetTemporary(u32 id) {
     return GetRegister(Register::ZeroIndex + 1 + id);
 }
@@ -376,6 +380,11 @@ void ShaderIR::SetInternalFlag(NodeBlock& bb, InternalFlag flag, Node value) {
 void ShaderIR::SetLocalMemory(NodeBlock& bb, Node address, Node value) {
     bb.push_back(
         Operation(OperationCode::Assign, GetLocalMemory(std::move(address)), std::move(value)));
+}
+
+void ShaderIR::SetSharedMemory(NodeBlock& bb, Node address, Node value) {
+    bb.push_back(
+        Operation(OperationCode::Assign, GetSharedMemory(std::move(address)), std::move(value)));
 }
 
 void ShaderIR::SetTemporary(NodeBlock& bb, u32 id, Node value) {
