@@ -175,14 +175,6 @@ public:
         return cur_state;
     }
 
-    static bool GetsRGBUsed() {
-        return s_rgb_used;
-    }
-
-    static void ClearsRGBUsed() {
-        s_rgb_used = false;
-    }
-
     void SetDefaultViewports();
     /// Apply this state as the current OpenGL state
     void Apply();
@@ -253,8 +245,6 @@ public:
 private:
     static OpenGLState cur_state;
 
-    // Workaround for sRGB problems caused by QT not supporting srgb output
-    static bool s_rgb_used;
     struct {
         bool blend_state;
         bool stencil_state;
