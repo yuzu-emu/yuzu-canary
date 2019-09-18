@@ -325,6 +325,7 @@ public:
         DeclareRegisters();
         DeclarePredicates();
         DeclareLocalMemory();
+        DeclareSharedMemory();
         DeclareInternalFlags();
         DeclareInputAttributes();
         DeclareOutputAttributes();
@@ -505,6 +506,13 @@ private:
         const auto element_count = Common::AlignUp(local_memory_size, 4) / 4;
         code.AddLine("uint {}[{}];", GetLocalMemory(), element_count);
         code.AddNewLine();
+    }
+
+    void DeclareSharedMemory() {
+        if (stage != ProgramType::Compute) {
+            return;
+        }
+        code.AddLine("shared uint {}[];", GetSharedMemory());
     }
 
     void DeclareInternalFlags() {
@@ -886,6 +894,12 @@ private:
             }
             return {
                 fmt::format("{}[{} >> 2]", GetLocalMemory(), Visit(lmem->GetAddress()).AsUint()),
+                Type::Uint};
+        }
+
+        if (const auto smem = std::get_if<SmemNode>(&*node)) {
+            return {
+                fmt::format("{}[{} >> 2]", GetSharedMemory(), Visit(smem->GetAddress()).AsUint()),
                 Type::Uint};
         }
 
@@ -1297,6 +1311,11 @@ private:
             }
             target = {
                 fmt::format("{}[{} >> 2]", GetLocalMemory(), Visit(lmem->GetAddress()).AsUint()),
+                Type::Uint};
+        } else if (const auto smem = std::get_if<SmemNode>(&*dest)) {
+            ASSERT(stage == ProgramType::Compute);
+            target = {
+                fmt::format("{}[{} >> 2]", GetSharedMemory(), Visit(smem->GetAddress()).AsUint()),
                 Type::Uint};
         } else if (const auto gmem = std::get_if<GmemNode>(&*dest)) {
             const std::string real = Visit(gmem->GetRealAddress()).AsUint();
@@ -2185,6 +2204,10 @@ private:
 
     std::string GetLocalMemory() const {
         return "lmem_" + suffix;
+    }
+
+    std::string GetSharedMemory() const {
+        return fmt::format("smem_{}", suffix);
     }
 
     std::string GetInternalFlag(InternalFlag flag) const {

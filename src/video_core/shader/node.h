@@ -206,12 +206,13 @@ class PredicateNode;
 class AbufNode;
 class CbufNode;
 class LmemNode;
+class SmemNode;
 class GmemNode;
 class CommentNode;
 
 using NodeData =
     std::variant<OperationNode, ConditionalNode, GprNode, ImmediateNode, InternalFlagNode,
-                 PredicateNode, AbufNode, CbufNode, LmemNode, GmemNode, CommentNode>;
+                 PredicateNode, AbufNode, CbufNode, LmemNode, SmemNode, GmemNode, CommentNode>;
 using Node = std::shared_ptr<NodeData>;
 using Node4 = std::array<Node, 4>;
 using NodeBlock = std::vector<Node>;
@@ -574,6 +575,19 @@ private:
 class LmemNode final {
 public:
     explicit LmemNode(Node address) : address{std::move(address)} {}
+
+    const Node& GetAddress() const {
+        return address;
+    }
+
+private:
+    Node address;
+};
+
+/// Shared memory node
+class SmemNode final {
+public:
+    explicit SmemNode(Node address) : address{std::move(address)} {}
 
     const Node& GetAddress() const {
         return address;
