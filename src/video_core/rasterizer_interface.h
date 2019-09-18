@@ -31,6 +31,9 @@ public:
     /// Draw the current batch of vertex arrays
     virtual void DrawArrays() = 0;
 
+    /// Draw the current batch of multiple instasnces of vertex arrays
+    virtual void DrawMultiArrays() = 0;
+
     /// Clear the current framebuffer
     virtual void Clear() = 0;
 
@@ -70,6 +73,10 @@ public:
     }
 
     virtual bool AccelerateDrawBatch(bool is_indexed) {
+        return false;
+    }
+
+    virtual bool AccelerateDrawMultiBatch(bool is_indexed) {
         return false;
     }
 

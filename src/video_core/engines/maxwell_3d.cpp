@@ -92,6 +92,10 @@ void Maxwell3D::InitializeRegisterDefaults() {
 
     // Some games (like Super Mario Odyssey) assume that SRGB is enabled.
     regs.framebuffer_srgb = 1;
+    mme_inline[MAXWELL3D_REG_INDEX(draw.vertex_end_gl)] = true;
+    mme_inline[MAXWELL3D_REG_INDEX(draw.vertex_begin_gl)] = true;
+    mme_inline[MAXWELL3D_REG_INDEX(vertex_buffer.count)] = true;
+    mme_inline[MAXWELL3D_REG_INDEX(index_array.count)] = true;
 }
 
 #define DIRTY_REGS_POS(field_name) (offsetof(Maxwell3D::DirtyRegs, field_name))
@@ -256,6 +260,9 @@ void Maxwell3D::CallMacroMethod(u32 method, std::size_t num_parameters, const u3
 
     // Execute the current macro.
     macro_interpreter.Execute(macro_positions[entry], num_parameters, parameters);
+    if (mme_draw.current_mode != MMMEDrawMode::Undefined) {
+        FlushMMEInlineDraw();
+    }
 }
 
 void Maxwell3D::CallMethod(const GPU::MethodCall& method_call) {
@@ -414,6 +421,92 @@ void Maxwell3D::CallMethod(const GPU::MethodCall& method_call) {
     if (debug_context) {
         debug_context->OnEvent(Tegra::DebugContext::Event::MaxwellCommandProcessed, nullptr);
     }
+}
+
+void Maxwell3D::CallMethodFromMME(const GPU::MethodCall& method_call) {
+    const u32 method = method_call.method;
+    if (mme_inline[method]) {
+        regs.reg_array[method] = method_call.argument;
+        if (method == MAXWELL3D_REG_INDEX(vertex_buffer.count) ||
+            method == MAXWELL3D_REG_INDEX(index_array.count)) {
+            const MMMEDrawMode expected_mode = method == MAXWELL3D_REG_INDEX(vertex_buffer.count)
+                                                   ? MMMEDrawMode::Array
+                                                   : MMMEDrawMode::Indexed;
+            const u32 count = method_call.argument;
+            while (true) {
+                if (mme_draw.current_mode == MMMEDrawMode::Undefined) {
+                    if (mme_draw.gl_begin_consume) {
+                        mme_draw.current_mode = expected_mode;
+                        mme_draw.current_count = count;
+                        mme_draw.instance_count = 1;
+                        mme_draw.gl_begin_consume = false;
+                        mme_draw.gl_end_count = 0;
+                    }
+                    break;
+                } else {
+                    if (mme_draw.current_mode == expected_mode && count == mme_draw.current_count &&
+                        mme_draw.instance_mode && mme_draw.gl_begin_consume) {
+                        mme_draw.instance_count++;
+                        mme_draw.gl_begin_consume = false;
+                        break;
+                    } else {
+                        FlushMMEInlineDraw();
+                    }
+                }
+            }
+        } else if (method == MAXWELL3D_REG_INDEX(draw.vertex_begin_gl)) {
+            mme_draw.instance_mode =
+                (regs.draw.instance_next != 0) || (regs.draw.instance_cont != 0);
+            mme_draw.gl_begin_consume = true;
+        } else {
+            mme_draw.gl_end_count++;
+        }
+    } else {
+        if (mme_draw.current_mode != MMMEDrawMode::Undefined) {
+            FlushMMEInlineDraw();
+        }
+        CallMethod(method_call);
+    }
+}
+
+void Maxwell3D::FlushMMEInlineDraw() {
+    LOG_DEBUG(HW_GPU, "called, topology={}, count={}", static_cast<u32>(regs.draw.topology.Value()),
+              regs.vertex_buffer.count);
+    ASSERT_MSG(!(regs.index_array.count && regs.vertex_buffer.count), "Both indexed and direct?");
+    ASSERT(mme_draw.instance_count == mme_draw.gl_end_count);
+
+    auto debug_context = system.GetGPUDebugContext();
+
+    if (debug_context) {
+        debug_context->OnEvent(Tegra::DebugContext::Event::IncomingPrimitiveBatch, nullptr);
+    }
+
+    // Both instance configuration registers can not be set at the same time.
+    ASSERT_MSG(!regs.draw.instance_next || !regs.draw.instance_cont,
+               "Illegal combination of instancing parameters");
+
+    const bool is_indexed = mme_draw.current_mode == MMMEDrawMode::Indexed;
+    rasterizer.AccelerateDrawMultiBatch(is_indexed);
+
+    if (debug_context) {
+        debug_context->OnEvent(Tegra::DebugContext::Event::FinishedPrimitiveBatch, nullptr);
+    }
+
+    // TODO(bunnei): Below, we reset vertex count so that we can use these registers to determine if
+    // the game is trying to draw indexed or direct mode. This needs to be verified on HW still -
+    // it's possible that it is incorrect and that there is some other register used to specify the
+    // drawing mode.
+    if (is_indexed) {
+        regs.index_array.count = 0;
+    } else {
+        regs.vertex_buffer.count = 0;
+    }
+    mme_draw.current_mode = MMMEDrawMode::Undefined;
+    mme_draw.current_count = 0;
+    mme_draw.instance_count = 0;
+    mme_draw.instance_mode = false;
+    mme_draw.gl_begin_consume = false;
+    mme_draw.gl_end_count = 0;
 }
 
 void Maxwell3D::ProcessMacroUpload(u32 data) {
