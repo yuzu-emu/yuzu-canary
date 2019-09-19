@@ -566,6 +566,13 @@ enum class ImageAtomicOperation : u64 {
     Exch = 8,
 };
 
+enum class ShuffleOperation : u64 {
+    Idx = 0,  // shuffleNV
+    Up = 1,   // shuffleUpNV
+    Down = 2, // shuffleDownNV
+    Bfly = 3, // shuffleXorNV
+};
+
 union Instruction {
     Instruction& operator=(const Instruction& instr) {
         value = instr.value;
@@ -598,6 +605,15 @@ union Instruction {
         BitField<39, 3, u64> value;
         BitField<42, 1, u64> negate_value;
     } vote;
+
+    union {
+        BitField<30, 2, ShuffleOperation> operation;
+        BitField<48, 3, u64> pred48;
+        BitField<28, 1, u64> is_index_imm;
+        BitField<29, 1, u64> is_mask_imm;
+        BitField<20, 5, u64> index_imm;
+        BitField<34, 13, u64> mask_imm;
+    } shfl;
 
     union {
         BitField<8, 8, Register> gpr;
@@ -1542,6 +1558,7 @@ public:
         BRK,
         DEPBAR,
         VOTE,
+        SHFL,
         BFE_C,
         BFE_R,
         BFE_IMM,
@@ -1833,6 +1850,7 @@ private:
             INST("111000110000----", Id::EXIT, Type::Flow, "EXIT"),
             INST("1111000011110---", Id::DEPBAR, Type::Synch, "DEPBAR"),
             INST("0101000011011---", Id::VOTE, Type::Warp, "VOTE"),
+            INST("1110111100010---", Id::SHFL, Type::Warp, "SHFL"),
             INST("1110111111011---", Id::LD_A, Type::Memory, "LD_A"),
             INST("1110111101001---", Id::LD_S, Type::Memory, "LD_S"),
             INST("1110111101000---", Id::LD_L, Type::Memory, "LD_L"),

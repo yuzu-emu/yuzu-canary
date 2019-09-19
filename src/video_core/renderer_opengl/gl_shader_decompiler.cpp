@@ -1961,8 +1961,7 @@ private:
     Expression BallotThread(Operation operation) {
         const std::string value = VisitOperand(operation, 0).AsBool();
         if (!device.HasWarpIntrinsics()) {
-            LOG_ERROR(Render_OpenGL,
-                      "Nvidia warp intrinsics are not available and its required by a shader");
+            LOG_ERROR(Render_OpenGL, "Nvidia vote intrinsics are required by this shader");
             // Stub on non-Nvidia devices by simulating all threads voting the same as the active
             // one.
             return {fmt::format("({} ? 0xFFFFFFFFU : 0U)", value), Type::Uint};
@@ -1973,8 +1972,7 @@ private:
     Expression Vote(Operation operation, const char* func) {
         const std::string value = VisitOperand(operation, 0).AsBool();
         if (!device.HasWarpIntrinsics()) {
-            LOG_ERROR(Render_OpenGL,
-                      "Nvidia vote intrinsics are not available and its required by a shader");
+            LOG_ERROR(Render_OpenGL, "Nvidia vote intrinsics are required by this shader");
             // Stub with a warp size of one.
             return {value, Type::Bool};
         }
@@ -1991,14 +1989,53 @@ private:
 
     Expression VoteEqual(Operation operation) {
         if (!device.HasWarpIntrinsics()) {
-            LOG_ERROR(Render_OpenGL,
-                      "Nvidia vote intrinsics are not available and its required by a shader");
-            // We must return true here since a stub for a theoretical warp size of 1 will always
-            // return an equal result for all its votes.
+            LOG_ERROR(Render_OpenGL, "Nvidia vote intrinsics are required by this shader");
+            // We must return true here since a stub for a theoretical warp size of 1.
+            // This will always return an equal result across all votes.
             return {"true", Type::Bool};
         }
         return Vote(operation, "allThreadsEqualNV");
     }
+
+    template <const std::string_view& func>
+    Expression Shuffle(Operation operation) {
+        const std::string value = VisitOperand(operation, 0).AsFloat();
+        if (!device.HasWarpIntrinsics()) {
+            LOG_ERROR(Render_OpenGL, "Nvidia shuffle intrinsics are required by this shader");
+            // On a "single-thread" device we are either on the same thread or out of bounds. Both
+            // cases return the passed value.
+            return {value, Type::Float};
+        }
+
+        const std::string index = VisitOperand(operation, 1).AsUint();
+        const std::string width = VisitOperand(operation, 2).AsUint();
+        return {fmt::format("{}({}, {}, {})", func, value, index, width), Type::Float};
+    }
+
+    template <const std::string_view& func>
+    Expression InRangeShuffle(Operation operation) {
+        const std::string index = VisitOperand(operation, 0).AsUint();
+        const std::string width = VisitOperand(operation, 1).AsUint();
+        if (!device.HasWarpIntrinsics()) {
+            // On a "single-thread" device we are only in bounds when the requested index is 0.
+            return {fmt::format("({} == 0U)", index), Type::Bool};
+        }
+
+        const std::string in_range = code.GenerateTemporary();
+        code.AddLine("bool {};", in_range);
+        code.AddLine("{}(0U, {}, {}, {});", func, index, width, in_range);
+        return {in_range, Type::Bool};
+    }
+
+    struct Func final {
+        Func() = delete;
+        ~Func() = delete;
+
+        static constexpr std::string_view ShuffleIndexed = "shuffleNV";
+        static constexpr std::string_view ShuffleUp = "shuffleUpNV";
+        static constexpr std::string_view ShuffleDown = "shuffleDownNV";
+        static constexpr std::string_view ShuffleButterfly = "shuffleXorNV";
+    };
 
     static constexpr std::array operation_decompilers = {
         &GLSLDecompiler::Assign,
@@ -2162,6 +2199,16 @@ private:
         &GLSLDecompiler::VoteAll,
         &GLSLDecompiler::VoteAny,
         &GLSLDecompiler::VoteEqual,
+
+        &GLSLDecompiler::Shuffle<Func::ShuffleIndexed>,
+        &GLSLDecompiler::Shuffle<Func::ShuffleUp>,
+        &GLSLDecompiler::Shuffle<Func::ShuffleDown>,
+        &GLSLDecompiler::Shuffle<Func::ShuffleButterfly>,
+
+        &GLSLDecompiler::InRangeShuffle<Func::ShuffleIndexed>,
+        &GLSLDecompiler::InRangeShuffle<Func::ShuffleUp>,
+        &GLSLDecompiler::InRangeShuffle<Func::ShuffleDown>,
+        &GLSLDecompiler::InRangeShuffle<Func::ShuffleButterfly>,
     };
     static_assert(operation_decompilers.size() == static_cast<std::size_t>(OperationCode::Amount));
 
