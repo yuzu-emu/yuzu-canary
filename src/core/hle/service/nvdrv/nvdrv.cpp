@@ -71,13 +71,14 @@ u32 Module::Open(const std::string& device_name) {
     return fd;
 }
 
-u32 Module::Ioctl(u32 fd, u32 command, const std::vector<u8>& input, std::vector<u8>& output,
-                  IoctlCtrl& ctrl) {
+u32 Module::Ioctl(u32 fd, u32 command, const std::vector<u8>& input, const std::vector<u8>& input2,
+                  std::vector<u8>& output, std::vector<u8>& output2, IoctlCtrl& ctrl,
+                  IoctlVersion version) {
     auto itr = open_files.find(fd);
     ASSERT_MSG(itr != open_files.end(), "Tried to talk to an invalid device");
 
     auto& device = itr->second;
-    return device->ioctl({command}, input, output, ctrl);
+    return device->ioctl({command}, input, input2, output, output2, ctrl, version);
 }
 
 ResultCode Module::Close(u32 fd) {
