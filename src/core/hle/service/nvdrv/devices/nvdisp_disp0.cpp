@@ -17,8 +17,9 @@ nvdisp_disp0::nvdisp_disp0(Core::System& system, std::shared_ptr<nvmap> nvmap_de
     : nvdevice(system), nvmap_dev(std::move(nvmap_dev)) {}
 nvdisp_disp0 ::~nvdisp_disp0() = default;
 
-u32 nvdisp_disp0::ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output,
-                        IoctlCtrl& ctrl) {
+u32 nvdisp_disp0::ioctl(Ioctl command, const std::vector<u8>& input, const std::vector<u8>& input2,
+                        std::vector<u8>& output, std::vector<u8>& output2, IoctlCtrl& ctrl,
+                        IoctlVersion version) {
     UNIMPLEMENTED_MSG("Unimplemented ioctl");
     return 0;
 }
