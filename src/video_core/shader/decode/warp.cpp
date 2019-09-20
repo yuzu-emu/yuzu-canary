@@ -13,6 +13,7 @@ namespace VideoCommon::Shader {
 using Tegra::Shader::Instruction;
 using Tegra::Shader::OpCode;
 using Tegra::Shader::Pred;
+using Tegra::Shader::ShuffleOperation;
 using Tegra::Shader::VoteOperation;
 
 namespace {
@@ -42,6 +43,52 @@ u32 ShaderIR::DecodeWarp(NodeBlock& bb, u32 pc) {
         const Node vote = Operation(GetOperationCode(instr.vote.operation), value);
         SetRegister(bb, instr.gpr0, active);
         SetPredicate(bb, instr.vote.dest_pred, vote);
+        break;
+    }
+    case OpCode::Id::SHFL: {
+        Node mask = instr.shfl.is_mask_imm ? Immediate(static_cast<u32>(instr.shfl.mask_imm))
+                                           : GetRegister(instr.gpr39);
+        Node width = [&] {
+            // Convert the obscure SHFL mask back into GL_NV_shader_thread_shuffle's width. This has
+            // been done reversing Nvidia's math. It won't work on all cases due to SHFL having
+            // different parameters that don't properly map to GLSL's interface, but it should work
+            // for cases emitted by Nvidia's compiler.
+            if (instr.shfl.operation == ShuffleOperation::Up) {
+                return Operation(
+                    OperationCode::ILogicalShiftRight,
+                    Operation(OperationCode::IAdd, std::move(mask), Immediate(-0x2000)),
+                    Immediate(8));
+            } else {
+                return Operation(OperationCode::ILogicalShiftRight,
+                                 Operation(OperationCode::IAdd, Immediate(0x201F),
+                                           Operation(OperationCode::INegate, std::move(mask))),
+                                 Immediate(8));
+            }
+        }();
+
+        const auto [operation, in_range] = [instr]() -> std::pair<OperationCode, OperationCode> {
+            switch (instr.shfl.operation) {
+            case ShuffleOperation::Idx:
+                return {OperationCode::ShuffleIndexed, OperationCode::InRangeShuffleIndexed};
+            case ShuffleOperation::Up:
+                return {OperationCode::ShuffleUp, OperationCode::InRangeShuffleUp};
+            case ShuffleOperation::Down:
+                return {OperationCode::ShuffleDown, OperationCode::InRangeShuffleDown};
+            case ShuffleOperation::Bfly:
+                return {OperationCode::ShuffleButterfly, OperationCode::InRangeShuffleButterfly};
+            }
+            UNREACHABLE_MSG("Invalid SHFL operation: {}",
+                            static_cast<u64>(instr.shfl.operation.Value()));
+            return {};
+        }();
+
+        // Setting the predicate before the register is intentional to avoid overwriting.
+        Node index = instr.shfl.is_index_imm ? Immediate(static_cast<u32>(instr.shfl.index_imm))
+                                             : GetRegister(instr.gpr20);
+        SetPredicate(bb, instr.shfl.pred48, Operation(in_range, index, width));
+        SetRegister(
+            bb, instr.gpr0,
+            Operation(operation, GetRegister(instr.gpr8), std::move(index), std::move(width)));
         break;
     }
     default:
