@@ -462,6 +462,14 @@ private:
             code.AddLine("float gl_PointSize;");
         }
 
+        if (ir.UsesInstanceId()) {
+            code.AddLine("int gl_InstanceID;");
+        }
+
+        if (ir.UsesVertexId()) {
+            code.AddLine("int gl_VertexID;");
+        }
+
         --code.scope;
         code.AddLine("}};");
         code.AddNewLine();
@@ -964,7 +972,7 @@ private:
             switch (element) {
             case 2:
                 // Config pack's first value is instance_id.
-                return {"config_pack[0]", Type::Uint};
+                return {"gl_InstanceID", Type::Int};
             case 3:
                 return {"gl_VertexID", Type::Int};
             }
