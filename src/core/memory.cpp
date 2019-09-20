@@ -43,8 +43,13 @@ static void MapPages(Common::PageTable& page_table, VAddr base, u64 size, u8* me
 
     // During boot, current_page_table might not be set yet, in which case we need not flush
     if (Core::System::GetInstance().IsPoweredOn()) {
-        Core::System::GetInstance().GPU().FlushAndInvalidateRegion(base << PAGE_BITS,
-                                                                   size * PAGE_SIZE);
+        auto& gpu = Core::System::GetInstance().GPU();
+        for (u64 i = 0; i < size; i++) {
+            const auto page = base + i;
+            if (page_table.attributes[page] == Common::PageType::RasterizerCachedMemory) {
+                gpu.FlushAndInvalidateRegion(page << PAGE_BITS, PAGE_SIZE);
+            }
+        }
     }
 
     VAddr end = base + size;
