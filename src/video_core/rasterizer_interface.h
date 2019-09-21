@@ -29,7 +29,10 @@ public:
     virtual ~RasterizerInterface() {}
 
     /// Draw the current batch of vertex arrays
-    virtual void DrawArrays() = 0;
+    virtual bool DrawBatch(bool is_indexed) = 0;
+
+    /// Draw the current batch of multiple instasnces of vertex arrays
+    virtual bool DrawMultiBatch(bool is_indexed) = 0;
 
     /// Clear the current framebuffer
     virtual void Clear() = 0;
@@ -66,10 +69,6 @@ public:
     /// Attempt to use a faster method to display the framebuffer to screen
     virtual bool AccelerateDisplay(const Tegra::FramebufferConfig& config, VAddr framebuffer_addr,
                                    u32 pixel_stride) {
-        return false;
-    }
-
-    virtual bool AccelerateDrawBatch(bool is_indexed) {
         return false;
     }
 

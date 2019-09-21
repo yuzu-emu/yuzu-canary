@@ -114,6 +114,18 @@ Node ShaderIR::GetOutputAttribute(Attribute::Index index, u64 element, Node buff
             break;
         }
     }
+    if (index == Attribute::Index::TessCoordInstanceIDVertexID) {
+        switch (element) {
+        case 2:
+            uses_instance_id = true;
+            break;
+        case 3:
+            uses_vertex_id = true;
+            break;
+        default:
+            break;
+        }
+    }
     if (index == Attribute::Index::ClipDistances0123 ||
         index == Attribute::Index::ClipDistances4567) {
         const auto clip_index =
