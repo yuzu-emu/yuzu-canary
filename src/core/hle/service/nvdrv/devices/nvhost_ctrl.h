@@ -17,8 +17,9 @@ public:
     explicit nvhost_ctrl(Core::System& system, EventInterface& events_interface);
     ~nvhost_ctrl() override;
 
-    u32 ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output,
-              IoctlCtrl& ctrl) override;
+    u32 ioctl(Ioctl command, const std::vector<u8>& input, const std::vector<u8>& input2,
+              std::vector<u8>& output, std::vector<u8>& output2, IoctlCtrl& ctrl,
+              IoctlVersion version) override;
 
 private:
     enum class IoctlCommand : u32_le {
