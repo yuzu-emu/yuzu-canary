@@ -109,7 +109,7 @@ public:
     void VibrateController(const std::vector<u32>& controller_ids,
                            const std::vector<Vibration>& vibrations);
 
-    Kernel::SharedPtr<Kernel::ReadableEvent> GetStyleSetChangedEvent() const;
+    Kernel::SharedPtr<Kernel::ReadableEvent> GetStyleSetChangedEvent(u32 npad_id) const;
     Vibration GetLastVibration() const;
 
     void AddNewController(NPadControllerType controller);
@@ -315,7 +315,8 @@ private:
         sticks;
     std::vector<u32> supported_npad_id_types{};
     NpadHoldType hold_type{NpadHoldType::Vertical};
-    Kernel::EventPair styleset_changed_event;
+    // Each controller should have their own styleset changed event
+    std::array<Kernel::EventPair, 10> styleset_changed_events;
     Vibration last_processed_vibration{};
     std::array<ControllerHolder, 10> connected_controllers{};
     bool can_controllers_vibrate{true};
