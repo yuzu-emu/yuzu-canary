@@ -950,6 +950,11 @@ union Instruction {
     } isetp;
 
     union {
+        BitField<48, 1, u64> is_signed;
+        BitField<49, 3, PredCondition> cond;
+    } icmp;
+
+    union {
         BitField<0, 3, u64> pred0;
         BitField<3, 3, u64> pred3;
         BitField<12, 3, u64> pred12;
@@ -1645,6 +1650,10 @@ public:
         SEL_C,
         SEL_R,
         SEL_IMM,
+        ICMP_RC,
+        ICMP_R,
+        ICMP_CR,
+        ICMP_IMM,
         MUFU,  // Multi-Function Operator
         RRO_C, // Range Reduction Operator
         RRO_R,
@@ -1910,6 +1919,10 @@ private:
             INST("0100110010100---", Id::SEL_C, Type::ArithmeticInteger, "SEL_C"),
             INST("0101110010100---", Id::SEL_R, Type::ArithmeticInteger, "SEL_R"),
             INST("0011100-10100---", Id::SEL_IMM, Type::ArithmeticInteger, "SEL_IMM"),
+            INST("010100110100----", Id::ICMP_RC, Type::ArithmeticInteger, "ICMP_RC"),
+            INST("010110110100----", Id::ICMP_R, Type::ArithmeticInteger, "ICMP_R"),
+            INST("010010110100----", Id::ICMP_CR, Type::ArithmeticInteger, "ICMP_CR"),
+            INST("0011011-0100----", Id::ICMP_IMM, Type::ArithmeticInteger, "ICMP_IMM"),
             INST("0101101111011---", Id::LEA_R2, Type::ArithmeticInteger, "LEA_R2"),
             INST("0101101111010---", Id::LEA_R1, Type::ArithmeticInteger, "LEA_R1"),
             INST("001101101101----", Id::LEA_IMM, Type::ArithmeticInteger, "LEA_IMM"),
