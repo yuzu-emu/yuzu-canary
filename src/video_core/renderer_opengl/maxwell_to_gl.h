@@ -145,7 +145,7 @@ inline GLenum TextureFilterMode(Tegra::Texture::TextureFilter filter_mode,
         case Tegra::Texture::TextureMipmapFilter::None:
             return GL_LINEAR;
         case Tegra::Texture::TextureMipmapFilter::Nearest:
-            return GL_NEAREST_MIPMAP_LINEAR;
+            return GL_LINEAR_MIPMAP_NEAREST;
         case Tegra::Texture::TextureMipmapFilter::Linear:
             return GL_LINEAR_MIPMAP_LINEAR;
         }
@@ -157,7 +157,7 @@ inline GLenum TextureFilterMode(Tegra::Texture::TextureFilter filter_mode,
         case Tegra::Texture::TextureMipmapFilter::Nearest:
             return GL_NEAREST_MIPMAP_NEAREST;
         case Tegra::Texture::TextureMipmapFilter::Linear:
-            return GL_LINEAR_MIPMAP_NEAREST;
+            return GL_NEAREST_MIPMAP_LINEAR;
         }
     }
     }
