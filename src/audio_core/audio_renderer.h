@@ -194,21 +194,24 @@ struct UpdateDataHeader {
         mixes_size = 0x0;
         sinks_size = config.sink_count * 0x20;
         performance_manager_size = 0x10;
+        frame_count = 0;
         total_size = sizeof(UpdateDataHeader) + behavior_size + memory_pools_size + voices_size +
                      effects_size + sinks_size + performance_manager_size;
     }
 
-    u32_le revision;
-    u32_le behavior_size;
-    u32_le memory_pools_size;
-    u32_le voices_size;
-    u32_le voice_resource_size;
-    u32_le effects_size;
-    u32_le mixes_size;
-    u32_le sinks_size;
-    u32_le performance_manager_size;
-    INSERT_PADDING_WORDS(6);
-    u32_le total_size;
+    u32_le revision{};
+    u32_le behavior_size{};
+    u32_le memory_pools_size{};
+    u32_le voices_size{};
+    u32_le voice_resource_size{};
+    u32_le effects_size{};
+    u32_le mixes_size{};
+    u32_le sinks_size{};
+    u32_le performance_manager_size{};
+    INSERT_PADDING_WORDS(1);
+    u32_le frame_count{};
+    INSERT_PADDING_WORDS(4);
+    u32_le total_size{};
 };
 static_assert(sizeof(UpdateDataHeader) == 0x40, "UpdateDataHeader has wrong size");
 
