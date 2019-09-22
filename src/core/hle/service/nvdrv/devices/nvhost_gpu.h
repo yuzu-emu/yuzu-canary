@@ -24,8 +24,9 @@ public:
     explicit nvhost_gpu(Core::System& system, std::shared_ptr<nvmap> nvmap_dev);
     ~nvhost_gpu() override;
 
-    u32 ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output,
-              IoctlCtrl& ctrl) override;
+    u32 ioctl(Ioctl command, const std::vector<u8>& input, const std::vector<u8>& input2,
+              std::vector<u8>& output, std::vector<u8>& output2, IoctlCtrl& ctrl,
+              IoctlVersion version) override;
 
 private:
     enum class IoctlCommand : u32_le {
@@ -183,7 +184,8 @@ private:
     u32 AllocGPFIFOEx2(const std::vector<u8>& input, std::vector<u8>& output);
     u32 AllocateObjectContext(const std::vector<u8>& input, std::vector<u8>& output);
     u32 SubmitGPFIFO(const std::vector<u8>& input, std::vector<u8>& output);
-    u32 KickoffPB(const std::vector<u8>& input, std::vector<u8>& output);
+    u32 KickoffPB(const std::vector<u8>& input, std::vector<u8>& output,
+                  const std::vector<u8>& input2, IoctlVersion version);
     u32 GetWaitbase(const std::vector<u8>& input, std::vector<u8>& output);
     u32 ChannelSetTimeout(const std::vector<u8>& input, std::vector<u8>& output);
 
