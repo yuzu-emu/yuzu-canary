@@ -240,7 +240,7 @@ void Init(std::shared_ptr<SM::ServiceManager>& sm, Core::System& system) {
     PCIe::InstallInterfaces(*sm);
     PCTL::InstallInterfaces(*sm);
     PCV::InstallInterfaces(*sm);
-    PlayReport::InstallInterfaces(*sm);
+    PlayReport::InstallInterfaces(system);
     PM::InstallInterfaces(system);
     PSC::InstallInterfaces(*sm);
     PSM::InstallInterfaces(*sm);
