@@ -544,7 +544,7 @@ enum class VoteOperation : u64 {
     Eq = 2,  // allThreadsEqualNV
 };
 
-enum class ImageAtomicSize : u64 {
+enum class ImageAtomicOperationType : u64 {
     U32 = 0,
     S32 = 1,
     U64 = 2,
@@ -1432,11 +1432,11 @@ union Instruction {
             ASSERT(mode == SurfaceDataMode::D_BA);
             return store_data_layout;
         }
-    } sust;
+    } suldst;
 
     union {
         BitField<28, 1, u64> is_ba;
-        BitField<51, 3, ImageAtomicSize> size;
+        BitField<51, 3, ImageAtomicOperationType> operation_type;
         BitField<33, 3, ImageType> image_type;
         BitField<29, 4, ImageAtomicOperation> operation;
         BitField<49, 2, OutOfBoundsStore> out_of_bounds_store;
@@ -1595,6 +1595,7 @@ public:
         TMML_B, // Texture Mip Map Level
         TMML,   // Texture Mip Map Level
         SUST,   // Surface Store
+        SULD,   // Surface Load
         SUATOM, // Surface Atomic Operation
         EXIT,
         NOP,
@@ -1884,6 +1885,7 @@ private:
             INST("110111110110----", Id::TMML_B, Type::Texture, "TMML_B"),
             INST("1101111101011---", Id::TMML, Type::Texture, "TMML"),
             INST("11101011001-----", Id::SUST, Type::Image, "SUST"),
+            INST("11101011000-----", Id::SULD, Type::Image, "SULD"),
             INST("1110101000------", Id::SUATOM, Type::Image, "SUATOM_D"),
             INST("0101000010110---", Id::NOP, Type::Trivial, "NOP"),
             INST("11100000--------", Id::IPA, Type::Trivial, "IPA"),

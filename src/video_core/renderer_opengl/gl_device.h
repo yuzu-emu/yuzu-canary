@@ -38,6 +38,10 @@ public:
         return has_vertex_viewport_layer;
     }
 
+    bool HasImageLoadFormatted() const {
+        return has_image_load_formatted;
+    }
+
     bool HasVariableAoffi() const {
         return has_variable_aoffi;
     }
@@ -61,6 +65,7 @@ private:
     u32 max_varyings{};
     bool has_warp_intrinsics{};
     bool has_vertex_viewport_layer{};
+    bool has_image_load_formatted{};
     bool has_variable_aoffi{};
     bool has_component_indexing_bug{};
     bool has_precise_bug{};
