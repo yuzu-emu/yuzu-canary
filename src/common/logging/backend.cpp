@@ -255,6 +255,7 @@ void DebuggerBackend::Write(const Entry& entry) {
     CLS(Input)                                                                                     \
     CLS(Network)                                                                                   \
     CLS(Loader)                                                                                    \
+    CLS(CheatEngine)                                                                               \
     CLS(Crypto)                                                                                    \
     CLS(WebService)
 

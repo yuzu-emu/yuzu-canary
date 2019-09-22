@@ -15,6 +15,7 @@
 #include "core/core_timing.h"
 #include "core/cpu_core_manager.h"
 #include "core/file_sys/mode.h"
+#include "core/file_sys/patch_manager.h"
 #include "core/file_sys/registered_cache.h"
 #include "core/file_sys/vfs_concat.h"
 #include "core/file_sys/vfs_real.h"
@@ -31,13 +32,12 @@
 #include "core/hle/service/service.h"
 #include "core/hle/service/sm/sm.h"
 #include "core/loader/loader.h"
+#include "core/memory/cheat_engine.h"
 #include "core/perf_stats.h"
 #include "core/reporter.h"
 #include "core/settings.h"
 #include "core/telemetry_session.h"
 #include "core/tools/freezer.h"
-#include "file_sys/cheat_engine.h"
-#include "file_sys/patch_manager.h"
 #include "video_core/debug_utils/debug_utils.h"
 #include "video_core/renderer_base.h"
 #include "video_core/video_core.h"
@@ -198,6 +198,11 @@ struct System::Impl {
         gpu_core->Start();
         cpu_core_manager.StartThreads();
 
+        // Initialize cheat engine
+        if (cheat_engine) {
+            cheat_engine->Initialize();
+        }
+
         // All threads are started, begin main process execution, now that we're in the clear.
         main_process->Run(load_parameters->main_thread_priority,
                           load_parameters->main_thread_stack_size);
@@ -313,7 +318,7 @@ struct System::Impl {
     CpuCoreManager cpu_core_manager;
     bool is_powered_on = false;
 
-    std::unique_ptr<FileSys::CheatEngine> cheat_engine;
+    std::unique_ptr<Memory::CheatEngine> cheat_engine;
     std::unique_ptr<Tools::Freezer> memory_freezer;
 
     /// Frontend applets
@@ -528,19 +533,19 @@ Tegra::DebugContext* System::GetGPUDebugContext() const {
     return impl->debug_context.get();
 }
 
-void System::RegisterCheatList(const std::vector<FileSys::CheatList>& list,
-                               const std::string& build_id, VAddr code_region_start,
-                               VAddr code_region_end) {
-    impl->cheat_engine = std::make_unique<FileSys::CheatEngine>(*this, list, build_id,
-                                                                code_region_start, code_region_end);
-}
-
 void System::SetFilesystem(std::shared_ptr<FileSys::VfsFilesystem> vfs) {
     impl->virtual_filesystem = std::move(vfs);
 }
 
 std::shared_ptr<FileSys::VfsFilesystem> System::GetFilesystem() const {
     return impl->virtual_filesystem;
+}
+
+void System::RegisterCheatList(const std::vector<Memory::CheatEntry>& list,
+                               const std::array<u8, 32>& build_id, VAddr main_region_begin,
+                               u64 main_region_size) {
+    impl->cheat_engine = std::make_unique<Memory::CheatEngine>(*this, list, build_id);
+    impl->cheat_engine->SetMainMemoryParameters(main_region_begin, main_region_size);
 }
 
 void System::SetAppletFrontendSet(Service::AM::Applets::AppletFrontendSet&& set) {

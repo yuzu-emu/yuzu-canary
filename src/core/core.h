@@ -18,7 +18,6 @@ class EmuWindow;
 } // namespace Core::Frontend
 
 namespace FileSys {
-class CheatList;
 class ContentProvider;
 class ContentProviderUnion;
 enum class ContentProviderUnionSlot;
@@ -35,6 +34,10 @@ namespace Loader {
 class AppLoader;
 enum class ResultStatus : u16;
 } // namespace Loader
+
+namespace Memory {
+struct CheatEntry;
+} // namespace Memory
 
 namespace Service {
 
@@ -282,8 +285,9 @@ public:
 
     std::shared_ptr<FileSys::VfsFilesystem> GetFilesystem() const;
 
-    void RegisterCheatList(const std::vector<FileSys::CheatList>& list, const std::string& build_id,
-                           VAddr code_region_start, VAddr code_region_end);
+    void RegisterCheatList(const std::vector<Memory::CheatEntry>& list,
+                           const std::array<u8, 0x20>& build_id, VAddr main_region_begin,
+                           u64 main_region_size);
 
     void SetAppletFrontendSet(Service::AM::Applets::AppletFrontendSet&& set);
 

@@ -33,8 +33,6 @@ add_library(core STATIC
     file_sys/bis_factory.h
     file_sys/card_image.cpp
     file_sys/card_image.h
-    file_sys/cheat_engine.cpp
-    file_sys/cheat_engine.h
     file_sys/content_archive.cpp
     file_sys/content_archive.h
     file_sys/control_metadata.cpp
@@ -477,6 +475,11 @@ add_library(core STATIC
     loader/nsp.h
     loader/xci.cpp
     loader/xci.h
+    memory/cheat_engine.cpp
+    memory/cheat_engine.h
+    memory/dmnt_cheat_types.h
+    memory/dmnt_cheat_vm.cpp
+    memory/dmnt_cheat_vm.h
     memory.cpp
     memory.h
     memory_setup.h
