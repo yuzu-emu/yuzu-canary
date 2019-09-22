@@ -479,7 +479,7 @@ void Hid::AcquireNpadStyleSetUpdateEventHandle(Kernel::HLERequestContext& ctx) {
     IPC::ResponseBuilder rb{ctx, 2, 1};
     rb.Push(RESULT_SUCCESS);
     rb.PushCopyObjects(applet_resource->GetController<Controller_NPad>(HidController::NPad)
-                           .GetStyleSetChangedEvent());
+                           .GetStyleSetChangedEvent(npad_id));
 }
 
 void Hid::DisconnectNpad(Kernel::HLERequestContext& ctx) {
