@@ -159,6 +159,8 @@ PixelFormat PixelFormatFromRenderTargetFormat(Tegra::RenderTargetFormat format) 
         return PixelFormat::R32UI;
     case Tegra::RenderTargetFormat::RG32_UINT:
         return PixelFormat::RG32UI;
+    case Tegra::RenderTargetFormat::RGBX16_FLOAT:
+        return PixelFormat::RGBX16F;
     default:
         LOG_CRITICAL(HW_GPU, "Unimplemented format={}", static_cast<u32>(format));
         UNREACHABLE();
@@ -415,6 +417,7 @@ ComponentType ComponentTypeFromRenderTarget(Tegra::RenderTargetFormat format) {
     case Tegra::RenderTargetFormat::RG8_SNORM:
         return ComponentType::SNorm;
     case Tegra::RenderTargetFormat::RGBA16_FLOAT:
+    case Tegra::RenderTargetFormat::RGBX16_FLOAT:
     case Tegra::RenderTargetFormat::R11G11B10_FLOAT:
     case Tegra::RenderTargetFormat::RGBA32_FLOAT:
     case Tegra::RenderTargetFormat::RG32_FLOAT:
