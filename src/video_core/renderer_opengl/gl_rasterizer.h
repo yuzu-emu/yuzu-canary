@@ -57,7 +57,8 @@ public:
                               ScreenInfo& info);
     ~RasterizerOpenGL() override;
 
-    void DrawArrays() override;
+    bool DrawBatch(bool is_indexed) override;
+    bool DrawMultiBatch(bool is_indexed) override;
     void Clear() override;
     void DispatchCompute(GPUVAddr code_addr) override;
     void FlushAll() override;
@@ -71,7 +72,6 @@ public:
                                const Tegra::Engines::Fermi2D::Config& copy_config) override;
     bool AccelerateDisplay(const Tegra::FramebufferConfig& config, VAddr framebuffer_addr,
                            u32 pixel_stride) override;
-    bool AccelerateDrawBatch(bool is_indexed) override;
     void UpdatePagesCachedCount(VAddr addr, u64 size, int delta) override;
     void LoadDiskResources(const std::atomic_bool& stop_loading,
                            const VideoCore::DiskResourceLoadCallback& callback) override;
@@ -135,6 +135,9 @@ private:
     /// Configures a constant buffer.
     void SetupGlobalMemory(const GLShader::GlobalMemoryEntry& entry, GPUVAddr gpu_addr,
                            std::size_t size);
+
+    /// Syncs all the state, shaders, render targets and textures setting before a draw call.
+    void DrawPrelude();
 
     /// Configures the current textures to use for the draw command. Returns shaders texture buffer
     /// usage.
@@ -250,7 +253,7 @@ private:
 
     GLintptr SetupIndexBuffer();
 
-    DrawParameters SetupDraw(GLintptr index_buffer_offset);
+    GLintptr index_buffer_offset;
 
     void SetupShaders(GLenum primitive_mode);
 
