@@ -124,6 +124,14 @@ public:
         return uses_point_size;
     }
 
+    bool UsesInstanceId() const {
+        return uses_instance_id;
+    }
+
+    bool UsesVertexId() const {
+        return uses_vertex_id;
+    }
+
     bool HasPhysicalAttributes() const {
         return uses_physical_attributes;
     }
@@ -373,6 +381,8 @@ private:
     bool uses_viewport_index{};
     bool uses_point_size{};
     bool uses_physical_attributes{}; // Shader uses AL2P or physical attribute read/writes
+    bool uses_instance_id{};
+    bool uses_vertex_id{};
 
     Tegra::Shader::Header header;
 };
