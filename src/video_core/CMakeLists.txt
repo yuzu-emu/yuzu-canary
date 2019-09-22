@@ -116,6 +116,8 @@ add_library(video_core STATIC
     shader/track.cpp
     surface.cpp
     surface.h
+    texture_cache/resolution_scaling/database.cpp
+    texture_cache/resolution_scaling/database.h
     texture_cache/surface_base.cpp
     texture_cache/surface_base.h
     texture_cache/surface_params.cpp
@@ -165,7 +167,7 @@ endif()
 create_target_directory_groups(video_core)
 
 target_link_libraries(video_core PUBLIC common core)
-target_link_libraries(video_core PRIVATE glad)
+target_link_libraries(video_core PRIVATE glad json-headers)
 if (ENABLE_VULKAN)
     target_link_libraries(video_core PRIVATE sirit)
 endif()

@@ -4,71 +4,103 @@
 
 #pragma once
 
+#include <array>
 #include <cstddef>
+#include <tuple>
 
 #include <glad/glad.h>
 
+#include "common/common_types.h"
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_state.h"
 #include "video_core/renderer_opengl/maxwell_to_gl.h"
 
+namespace Tegra::Engines {
+class Maxwell3D;
+}
+
 namespace OpenGL::GLShader {
 
-/// Uniform structure for the Uniform Buffer Object, all vectors must be 16-byte aligned
-/// @note Always keep a vec4 at the end. The GL spec is not clear whether the alignment at
-///       the end of a uniform block is included in UNIFORM_BLOCK_DATA_SIZE or not.
-///       Not following that rule will cause problems on some AMD drivers.
-struct MaxwellUniformData {
-    void SetFromRegs(const Tegra::Engines::Maxwell3D& maxwell, std::size_t shader_stage);
+class StageProgram final : public OGLProgram {
+public:
+    explicit StageProgram();
+    ~StageProgram();
 
-    alignas(16) GLvec4 viewport_flip;
-    struct alignas(16) {
-        GLuint instance_id;
-        GLuint flip_stage;
-        GLfloat y_direction;
+    void UpdateConstants();
+
+    void SetInstanceID(GLuint instance_id) {
+        state.instance_id = instance_id;
+    }
+
+    void SetFlipStage(GLuint flip_stage) {
+        state.flip_stage = flip_stage;
+    }
+
+    void SetYDirection(GLfloat y_direction) {
+        state.y_direction = y_direction;
+    }
+
+    void SetRescalingFactor(GLfloat rescaling_factor) {
+        state.rescaling_factor = rescaling_factor;
+    }
+
+    void SetViewportScale(GLfloat x, GLfloat y) {
+        state.viewport_scale = {x, y};
+    }
+
+private:
+    struct State {
+        union {
+            std::array<GLuint, 4> config_pack{};
+            struct {
+                GLuint instance_id;
+                GLuint flip_stage;
+                GLfloat y_direction;
+                GLfloat rescaling_factor;
+            };
+        };
+
+        std::array<GLfloat, 2> viewport_scale{};
     };
-};
-static_assert(sizeof(MaxwellUniformData) == 32, "MaxwellUniformData structure size is incorrect");
-static_assert(sizeof(MaxwellUniformData) < 16384,
-              "MaxwellUniformData structure must be less than 16kb as per the OpenGL spec");
 
-class ProgramManager {
+    State state;
+    State old_state;
+};
+
+class ProgramManager final {
 public:
     explicit ProgramManager();
     ~ProgramManager();
 
+    void SetConstants(Tegra::Engines::Maxwell3D& maxwell_3d, bool rescaling);
+
     void ApplyTo(OpenGLState& state);
 
-    void UseProgrammableVertexShader(GLuint program) {
-        current_state.vertex_shader = program;
+    void BindVertexShader(StageProgram* program) {
+        current_state.vertex = program;
     }
 
-    void UseProgrammableGeometryShader(GLuint program) {
-        current_state.geometry_shader = program;
+    void BindGeometryShader(StageProgram* program) {
+        current_state.geometry = program;
     }
 
-    void UseProgrammableFragmentShader(GLuint program) {
-        current_state.fragment_shader = program;
-    }
-
-    void UseTrivialGeometryShader() {
-        current_state.geometry_shader = 0;
+    void BindFragmentShader(StageProgram* program) {
+        current_state.fragment = program;
     }
 
 private:
     struct PipelineState {
         bool operator==(const PipelineState& rhs) const {
-            return vertex_shader == rhs.vertex_shader && fragment_shader == rhs.fragment_shader &&
-                   geometry_shader == rhs.geometry_shader;
+            return vertex == rhs.vertex && fragment == rhs.fragment && geometry == rhs.geometry;
         }
 
         bool operator!=(const PipelineState& rhs) const {
             return !operator==(rhs);
         }
 
-        GLuint vertex_shader{};
-        GLuint fragment_shader{};
-        GLuint geometry_shader{};
+        StageProgram* vertex{};
+        StageProgram* fragment{};
+        StageProgram* geometry{};
     };
 
     void UpdatePipeline();
