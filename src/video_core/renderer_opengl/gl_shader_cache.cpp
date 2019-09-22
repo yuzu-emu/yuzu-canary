@@ -23,9 +23,6 @@ namespace OpenGL {
 
 using VideoCommon::Shader::ProgramCode;
 
-// One UBO is always reserved for emulation values on staged shaders
-constexpr u32 STAGE_RESERVED_UBOS = 1;
-
 struct UnspecializedShader {
     std::string code;
     GLShader::ShaderEntries entries;
@@ -224,10 +221,6 @@ CachedProgram SpecializeShader(const std::string& code, const GLShader::ShaderEn
     }
     source += '\n';
 
-    if (program_type != ProgramType::Compute) {
-        source += fmt::format("#define EMULATION_UBO_BINDING {}\n", base_bindings.cbuf++);
-    }
-
     for (const auto& cbuf : entries.const_buffers) {
         source +=
             fmt::format("#define CBUF_BINDING_{} {}\n", cbuf.GetIndex(), base_bindings.cbuf++);
@@ -273,7 +266,7 @@ CachedProgram SpecializeShader(const std::string& code, const GLShader::ShaderEn
     OGLShader shader;
     shader.Create(source.c_str(), GetShaderType(program_type));
 
-    auto program = std::make_shared<OGLProgram>();
+    auto program = std::make_shared<GLShader::StageProgram>();
     program->Create(true, hint_retrievable, shader.handle);
     return program;
 }
@@ -348,28 +341,26 @@ Shader CachedShader::CreateKernelFromCache(const ShaderParameters& params,
         new CachedShader(params, ProgramType::Compute, std::move(result)));
 }
 
-std::tuple<GLuint, BaseBindings> CachedShader::GetProgramHandle(const ProgramVariant& variant) {
+std::tuple<GLShader::StageProgram&, BaseBindings> CachedShader::GetProgramHandle(
+    const ProgramVariant& variant) {
     const auto [entry, is_cache_miss] = programs.try_emplace(variant);
-    auto& program = entry->second;
+    auto& stage_program = entry->second;
     if (is_cache_miss) {
-        program = TryLoadProgram(variant);
-        if (!program) {
-            program = SpecializeShader(code, entries, program_type, variant);
+        stage_program = TryLoadProgram(variant);
+        if (!stage_program) {
+            stage_program = SpecializeShader(code, entries, program_type, variant);
             disk_cache.SaveUsage(GetUsage(variant));
         }
 
-        LabelGLObject(GL_PROGRAM, program->handle, cpu_addr);
+        LabelGLObject(GL_PROGRAM, stage_program->handle, cpu_addr);
     }
 
-    auto base_bindings = variant.base_bindings;
+    auto base_bindings{variant.base_bindings};
     base_bindings.cbuf += static_cast<u32>(entries.const_buffers.size());
-    if (program_type != ProgramType::Compute) {
-        base_bindings.cbuf += STAGE_RESERVED_UBOS;
-    }
     base_bindings.gmem += static_cast<u32>(entries.global_memory_entries.size());
     base_bindings.sampler += static_cast<u32>(entries.samplers.size());
 
-    return {program->handle, base_bindings};
+    return {*stage_program, base_bindings};
 }
 
 CachedProgram CachedShader::TryLoadProgram(const ProgramVariant& variant) const {
@@ -516,7 +507,7 @@ CachedProgram ShaderCacheOpenGL::GeneratePrecompiledProgram(
         return {};
     }
 
-    CachedProgram shader = std::make_shared<OGLProgram>();
+    CachedProgram shader = std::make_shared<GLShader::StageProgram>();
     shader->handle = glCreateProgram();
     glProgramParameteri(shader->handle, GL_PROGRAM_SEPARABLE, GL_TRUE);
     glProgramBinary(shader->handle, dump.binary_format, dump.binary.data(),
