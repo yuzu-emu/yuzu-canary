@@ -19,7 +19,6 @@
 namespace OpenGL {
 
 struct alignas(sizeof(u64)) FramebufferCacheKey {
-    bool is_single_buffer = false;
     bool stencil_enable = false;
     u16 colors_count = 0;
 
