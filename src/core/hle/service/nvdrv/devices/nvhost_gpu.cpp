@@ -17,8 +17,9 @@ nvhost_gpu::nvhost_gpu(Core::System& system, std::shared_ptr<nvmap> nvmap_dev)
     : nvdevice(system), nvmap_dev(std::move(nvmap_dev)) {}
 nvhost_gpu::~nvhost_gpu() = default;
 
-u32 nvhost_gpu::ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output,
-                      IoctlCtrl& ctrl) {
+u32 nvhost_gpu::ioctl(Ioctl command, const std::vector<u8>& input, const std::vector<u8>& input2,
+                      std::vector<u8>& output, std::vector<u8>& output2, IoctlCtrl& ctrl,
+                      IoctlVersion version) {
     LOG_DEBUG(Service_NVDRV, "called, command=0x{:08X}, input_size=0x{:X}, output_size=0x{:X}",
               command.raw, input.size(), output.size());
 
@@ -50,7 +51,7 @@ u32 nvhost_gpu::ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u
             return SubmitGPFIFO(input, output);
         }
         if (command.cmd == NVGPU_IOCTL_CHANNEL_KICKOFF_PB) {
-            return KickoffPB(input, output);
+            return KickoffPB(input, output, input2, version);
         }
     }
 
@@ -173,7 +174,8 @@ u32 nvhost_gpu::SubmitGPFIFO(const std::vector<u8>& input, std::vector<u8>& outp
     return 0;
 }
 
-u32 nvhost_gpu::KickoffPB(const std::vector<u8>& input, std::vector<u8>& output) {
+u32 nvhost_gpu::KickoffPB(const std::vector<u8>& input, std::vector<u8>& output,
+                          const std::vector<u8>& input2, IoctlVersion version) {
     if (input.size() < sizeof(IoctlSubmitGpfifo)) {
         UNIMPLEMENTED();
     }
@@ -183,9 +185,13 @@ u32 nvhost_gpu::KickoffPB(const std::vector<u8>& input, std::vector<u8>& output)
               params.num_entries, params.flags.raw);
 
     Tegra::CommandList entries(params.num_entries);
-    Memory::ReadBlock(params.address, entries.data(),
-                      params.num_entries * sizeof(Tegra::CommandListHeader));
-
+    if (version == IoctlVersion::Version2) {
+        std::memcpy(entries.data(), input2.data(),
+                    params.num_entries * sizeof(Tegra::CommandListHeader));
+    } else {
+        Memory::ReadBlock(params.address, entries.data(),
+                          params.num_entries * sizeof(Tegra::CommandListHeader));
+    }
     UNIMPLEMENTED_IF(params.flags.add_wait.Value() != 0);
     UNIMPLEMENTED_IF(params.flags.add_increment.Value() != 0);
 
