@@ -36,6 +36,7 @@
 #define LOAD_DIR "load"
 #define DUMP_DIR "dump"
 #define SHADER_DIR "shader"
+#define RESCALING_DIR "rescaling"
 #define LOG_DIR "log"
 
 // Filenames

@@ -23,14 +23,6 @@ ProgramResult GenerateVertexShader(const Device& device, const ShaderSetup& setu
     std::string out = "// Shader Unique Id: VS" + id + "\n\n";
     out += GetCommonDeclarations();
 
-    out += R"(
-layout (std140, binding = EMULATION_UBO_BINDING) uniform vs_config {
-    vec4 viewport_flip;
-    uvec4 config_pack; // instance_id, flip_stage, y_direction, padding
-};
-
-)";
-
     const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET, setup.program.size_a);
     const auto stage = setup.IsDualProgram() ? ProgramType::VertexA : ProgramType::VertexB;
     ProgramResult program = Decompile(device, program_ir, stage, "vertex");
@@ -72,14 +64,6 @@ ProgramResult GenerateGeometryShader(const Device& device, const ShaderSetup& se
     std::string out = "// Shader Unique Id: GS" + id + "\n\n";
     out += GetCommonDeclarations();
 
-    out += R"(
-layout (std140, binding = EMULATION_UBO_BINDING) uniform gs_config {
-    vec4 viewport_flip;
-    uvec4 config_pack; // instance_id, flip_stage, y_direction, padding
-};
-
-)";
-
     const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET, setup.program.size_a);
     ProgramResult program = Decompile(device, program_ir, ProgramType::Geometry, "geometry");
     out += program.first;
@@ -87,7 +71,7 @@ layout (std140, binding = EMULATION_UBO_BINDING) uniform gs_config {
     out += R"(
 void main() {
     execute_geometry();
-};)";
+})";
 
     return {std::move(out), std::move(program.second)};
 }
@@ -107,11 +91,6 @@ layout (location = 4) out vec4 FragColor4;
 layout (location = 5) out vec4 FragColor5;
 layout (location = 6) out vec4 FragColor6;
 layout (location = 7) out vec4 FragColor7;
-
-layout (std140, binding = EMULATION_UBO_BINDING) uniform fs_config {
-    vec4 viewport_flip;
-    uvec4 config_pack; // instance_id, flip_stage, y_direction, padding
-};
 
 )";
     const ShaderIR program_ir(setup.program.code, PROGRAM_OFFSET, setup.program.size_a);
