@@ -143,6 +143,7 @@ static constexpr std::array<FormatTuple, VideoCore::Surface::MaxPixelFormat> tex
     {vk::Format::eUndefined, ComponentType::Invalid, false},           // RG8U
     {vk::Format::eUndefined, ComponentType::Invalid, false},           // RG8S
     {vk::Format::eUndefined, ComponentType::Invalid, false},           // RG32UI
+    {vk::Format::eUndefined, ComponentType::Invalid, false},           // RGBX16F
     {vk::Format::eUndefined, ComponentType::Invalid, false},           // R32UI
     {vk::Format::eUndefined, ComponentType::Invalid, false},           // ASTC_2D_8X8
     {vk::Format::eUndefined, ComponentType::Invalid, false},           // ASTC_2D_8X5
