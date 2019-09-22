@@ -429,6 +429,8 @@ struct Values {
     float bg_green;
     float bg_blue;
 
+    float backlight_brightness = 0.5f;
+
     std::string log_filter;
 
     bool use_dev_keys;
