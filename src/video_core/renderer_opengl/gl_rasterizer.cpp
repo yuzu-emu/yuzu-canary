@@ -382,99 +382,51 @@ void RasterizerOpenGL::LoadDiskResources(const std::atomic_bool& stop_loading,
     shader_cache.LoadDiskCache(stop_loading, callback);
 }
 
-std::pair<bool, bool> RasterizerOpenGL::ConfigureFramebuffers(
-    OpenGLState& current_state, bool using_color_fb, bool using_depth_fb, bool preserve_contents,
-    std::optional<std::size_t> single_color_target) {
+void RasterizerOpenGL::ConfigureFramebuffers() {
     MICROPROFILE_SCOPE(OpenGL_Framebuffer);
     auto& gpu = system.GPU().Maxwell3D();
-    const auto& regs = gpu.regs;
-
-    const FramebufferConfigState fb_config_state{using_color_fb, using_depth_fb, preserve_contents,
-                                                 single_color_target};
-    if (fb_config_state == current_framebuffer_config_state && !gpu.dirty.render_settings) {
-        // Only skip if the previous ConfigureFramebuffers call was from the same kind (multiple or
-        // single color targets). This is done because the guest registers may not change but the
-        // host framebuffer may contain different attachments
-        return current_depth_stencil_usage;
+    if (!gpu.dirty.render_settings) {
+        return;
     }
     gpu.dirty.render_settings = false;
-    current_framebuffer_config_state = fb_config_state;
 
     texture_cache.GuardRenderTargets(true);
 
-    View depth_surface{};
-    if (using_depth_fb) {
-        depth_surface = texture_cache.GetDepthBufferSurface(preserve_contents);
-    } else {
-        texture_cache.SetEmptyDepthBuffer();
-    }
+    View depth_surface = texture_cache.GetDepthBufferSurface(true);
 
+    const auto& regs = gpu.regs;
+    state.framebuffer_srgb.enabled = regs.framebuffer_srgb != 0;
     UNIMPLEMENTED_IF(regs.rt_separate_frag_data == 0);
 
     // Bind the framebuffer surfaces
-    current_state.framebuffer_srgb.enabled = regs.framebuffer_srgb != 0;
-
     FramebufferCacheKey fbkey;
+    for (std::size_t index = 0; index < Maxwell::NumRenderTargets; ++index) {
+        View color_surface{texture_cache.GetColorBufferSurface(index, true)};
 
-    if (using_color_fb) {
-        if (single_color_target) {
-            // Used when just a single color attachment is enabled, e.g. for clearing a color buffer
-            View color_surface{
-                texture_cache.GetColorBufferSurface(*single_color_target, preserve_contents)};
-
-            if (color_surface) {
-                // Assume that a surface will be written to if it is used as a framebuffer, even if
-                // the shader doesn't actually write to it.
-                texture_cache.MarkColorBufferInUse(*single_color_target);
-            }
-
-            fbkey.is_single_buffer = true;
-            fbkey.color_attachments[0] =
-                GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(*single_color_target);
-            fbkey.colors[0] = color_surface;
-            for (std::size_t index = 0; index < Maxwell::NumRenderTargets; ++index) {
-                if (index != *single_color_target) {
-                    texture_cache.SetEmptyColorBuffer(index);
-                }
-            }
-        } else {
-            // Multiple color attachments are enabled
-            for (std::size_t index = 0; index < Maxwell::NumRenderTargets; ++index) {
-                View color_surface{texture_cache.GetColorBufferSurface(index, preserve_contents)};
-
-                if (color_surface) {
-                    // Assume that a surface will be written to if it is used as a framebuffer, even
-                    // if the shader doesn't actually write to it.
-                    texture_cache.MarkColorBufferInUse(index);
-                }
-
-                fbkey.color_attachments[index] =
-                    GL_COLOR_ATTACHMENT0 + regs.rt_control.GetMap(index);
-                fbkey.colors[index] = color_surface;
-            }
-            fbkey.is_single_buffer = false;
-            fbkey.colors_count = regs.rt_control.count;
+        if (color_surface) {
+            // Assume that a surface will be written to if it is used as a framebuffer, even
+            // if the shader doesn't actually write to it.
+            texture_cache.MarkColorBufferInUse(index);
         }
-    } else {
-        // No color attachments are enabled - leave them as zero
-        fbkey.is_single_buffer = true;
+
+        fbkey.color_attachments[index] = GL_COLOR_ATTACHMENT0 + regs.rt_control.GetMap(index);
+        fbkey.colors[index] = std::move(color_surface);
     }
+    fbkey.colors_count = regs.rt_control.count;
 
     if (depth_surface) {
         // Assume that a surface will be written to if it is used as a framebuffer, even if
         // the shader doesn't actually write to it.
         texture_cache.MarkDepthBufferInUse();
 
-        fbkey.zeta = depth_surface;
         fbkey.stencil_enable = depth_surface->GetSurfaceParams().type == SurfaceType::DepthStencil;
+        fbkey.zeta = std::move(depth_surface);
     }
 
     texture_cache.GuardRenderTargets(false);
 
-    current_state.draw.draw_framebuffer = framebuffer_cache.GetFramebuffer(fbkey);
-    SyncViewport(current_state);
-
-    return current_depth_stencil_usage = {static_cast<bool>(depth_surface), fbkey.stencil_enable};
+    state.draw.draw_framebuffer = framebuffer_cache.GetFramebuffer(fbkey);
+    SyncViewport(state);
 }
 
 void RasterizerOpenGL::ConfigureClearFramebuffer(OpenGLState& current_state, bool using_color_fb,
@@ -684,7 +636,7 @@ void RasterizerOpenGL::DrawPrelude() {
     SetupShaders(primitive_mode);
     texture_cache.GuardSamplers(false);
 
-    ConfigureFramebuffers(state);
+    ConfigureFramebuffers();
 
     // Signal the buffer cache that we are not going to upload more things.
     const bool invalidate = buffer_cache.Unmap();
