@@ -34,6 +34,12 @@ enum class EventState {
     Busy = 3,
 };
 
+enum class IoctlVersion : u32 {
+    Version1,
+    Version2,
+    Version3,
+};
+
 struct IoctlCtrl {
     // First call done to the servioce for services that call itself again after a call.
     bool fresh_call{true};
