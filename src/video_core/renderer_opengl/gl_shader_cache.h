@@ -20,6 +20,7 @@
 #include "video_core/renderer_opengl/gl_resource_manager.h"
 #include "video_core/renderer_opengl/gl_shader_decompiler.h"
 #include "video_core/renderer_opengl/gl_shader_disk_cache.h"
+#include "video_core/renderer_opengl/gl_shader_manager.h"
 
 namespace Core {
 class System;
@@ -37,7 +38,7 @@ class RasterizerOpenGL;
 struct UnspecializedShader;
 
 using Shader = std::shared_ptr<CachedShader>;
-using CachedProgram = std::shared_ptr<OGLProgram>;
+using CachedProgram = std::shared_ptr<GLShader::StageProgram>;
 using Maxwell = Tegra::Engines::Maxwell3D::Regs;
 using PrecompiledPrograms = std::unordered_map<ShaderDiskCacheUsage, CachedProgram>;
 using PrecompiledShaders = std::unordered_map<u64, GLShader::ProgramResult>;
@@ -80,7 +81,8 @@ public:
     }
 
     /// Gets the GL program handle for the shader
-    std::tuple<GLuint, BaseBindings> GetProgramHandle(const ProgramVariant& variant);
+    std::tuple<GLShader::StageProgram&, BaseBindings> GetProgramHandle(
+        const ProgramVariant& variant);
 
 private:
     explicit CachedShader(const ShaderParameters& params, ProgramType program_type,
