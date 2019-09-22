@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <algorithm>
 #include <cmath>
 #include <unordered_map>
 
@@ -25,6 +26,13 @@ using Tegra::Shader::Register;
 ShaderIR::ShaderIR(const ProgramCode& program_code, u32 main_offset, const std::size_t size)
     : program_code{program_code}, main_offset{main_offset}, program_size{size} {
     Decode();
+
+    // Check that all samplers know its type
+    [[maybe_unused]] const bool all_known =
+        std::all_of(used_samplers.begin(), used_samplers.end(), [this](const auto& pair) {
+            return samplers_with_known_type.find(pair.first) != samplers_with_known_type.end();
+        });
+    ASSERT_MSG(all_known, "Not all sampler types are known after the shader has been decoded");
 }
 
 ShaderIR::~ShaderIR() = default;

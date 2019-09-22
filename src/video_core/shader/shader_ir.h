@@ -91,7 +91,7 @@ public:
         return used_cbufs;
     }
 
-    const std::set<Sampler>& GetSamplers() const {
+    const std::map<u64, Sampler>& GetSamplers() const {
         return used_samplers;
     }
 
@@ -275,13 +275,17 @@ private:
     Node GetConditionCode(Tegra::Shader::ConditionCode cc);
 
     /// Accesses a texture sampler
-    const Sampler& GetSampler(const Tegra::Shader::Sampler& sampler,
+    const Sampler& GetSampler(Tegra::Shader::Sampler sampler, bool is_type_known,
                               Tegra::Shader::TextureType type, bool is_array, bool is_shadow);
 
     // Accesses a texture sampler for a bindless texture.
-    const Sampler& GetBindlessSampler(const Tegra::Shader::Register& reg,
+    const Sampler& GetBindlessSampler(Tegra::Shader::Register reg, bool is_type_known,
                                       Tegra::Shader::TextureType type, bool is_array,
                                       bool is_shadow);
+
+    const Sampler* InspectExistingSampler(std::size_t offset, bool is_type_known,
+                                          Tegra::Shader::TextureType type, bool is_array,
+                                          bool is_shadow);
 
     /// Accesses an image.
     Image& GetImage(Tegra::Shader::Image image, Tegra::Shader::ImageType type,
@@ -373,7 +377,8 @@ private:
     std::set<Tegra::Shader::Attribute::Index> used_input_attributes;
     std::set<Tegra::Shader::Attribute::Index> used_output_attributes;
     std::map<u32, ConstBuffer> used_cbufs;
-    std::set<Sampler> used_samplers;
+    std::map<u64, Sampler> used_samplers;
+    std::set<u64> samplers_with_known_type;
     std::map<u64, Image> used_images;
     std::array<bool, Tegra::Engines::Maxwell3D::Regs::NumClipDistances> used_clip_distances{};
     std::map<GlobalMemoryBase, GlobalMemoryUsage> used_global_memory;

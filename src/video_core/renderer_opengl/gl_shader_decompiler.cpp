@@ -387,7 +387,7 @@ public:
             entries.const_buffers.emplace_back(cbuf.second.GetMaxOffset(), cbuf.second.IsIndirect(),
                                                cbuf.first);
         }
-        for (const auto& sampler : ir.GetSamplers()) {
+        for (const auto& [offset, sampler] : ir.GetSamplers()) {
             entries.samplers.emplace_back(sampler);
         }
         for (const auto& [offset, image] : ir.GetImages()) {
@@ -639,7 +639,7 @@ private:
 
     void DeclareSamplers() {
         const auto& samplers = ir.GetSamplers();
-        for (const auto& sampler : samplers) {
+        for (const auto& [offset, sampler] : samplers) {
             const std::string name{GetSampler(sampler)};
             const std::string description{"layout (binding = SAMPLER_BINDING_" +
                                           std::to_string(sampler.GetIndex()) + ") uniform"};
