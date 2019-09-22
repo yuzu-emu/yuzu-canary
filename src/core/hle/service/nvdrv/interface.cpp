@@ -33,40 +33,75 @@ void NVDRV::Open(Kernel::HLERequestContext& ctx) {
     rb.Push<u32>(0);
 }
 
-void NVDRV::Ioctl(Kernel::HLERequestContext& ctx) {
-    LOG_DEBUG(Service_NVDRV, "called");
-
+void NVDRV::IoctlBase(Kernel::HLERequestContext& ctx, IoctlVersion version) {
     IPC::RequestParser rp{ctx};
     u32 fd = rp.Pop<u32>();
     u32 command = rp.Pop<u32>();
 
-    std::vector<u8> output(ctx.GetWriteBufferSize());
+    /// Ioctl 3 has 2 outputs, first in the input params, second is the result
+    std::vector<u8> output(ctx.GetWriteBufferSize(0));
+    std::vector<u8> output2;
+    if (version == IoctlVersion::Version3) {
+        output2.resize((ctx.GetWriteBufferSize(1)));
+    }
+
+    /// Ioctl2 has 2 inputs. It's used to pass data directly instead of providing a pointer.
+    /// KickOfPB uses this
+    auto input = ctx.ReadBuffer(0);
+
+    std::vector<u8> input2;
+    if (version == IoctlVersion::Version2) {
+        input2 = ctx.ReadBuffer(1);
+    }
 
     IoctlCtrl ctrl{};
 
-    u32 result = nvdrv->Ioctl(fd, command, ctx.ReadBuffer(), output, ctrl);
+    u32 result = nvdrv->Ioctl(fd, command, input, input2, output, output2, ctrl, version);
 
     if (ctrl.must_delay) {
         ctrl.fresh_call = false;
-        ctx.SleepClientThread(
-            "NVServices::DelayedResponse", ctrl.timeout,
-            [=](Kernel::SharedPtr<Kernel::Thread> thread, Kernel::HLERequestContext& ctx,
-                Kernel::ThreadWakeupReason reason) {
-                IoctlCtrl ctrl2{ctrl};
-                std::vector<u8> output2 = output;
-                u32 result = nvdrv->Ioctl(fd, command, ctx.ReadBuffer(), output2, ctrl2);
-                ctx.WriteBuffer(output2);
-                IPC::ResponseBuilder rb{ctx, 3};
-                rb.Push(RESULT_SUCCESS);
-                rb.Push(result);
-            },
-            nvdrv->GetEventWriteable(ctrl.event_id));
+        ctx.SleepClientThread("NVServices::DelayedResponse", ctrl.timeout,
+                              [=](Kernel::SharedPtr<Kernel::Thread> thread,
+                                  Kernel::HLERequestContext& ctx,
+                                  Kernel::ThreadWakeupReason reason) {
+                                  IoctlCtrl ctrl2{ctrl};
+                                  std::vector<u8> tmp_output = output;
+                                  std::vector<u8> tmp_output2 = output2;
+                                  u32 result = nvdrv->Ioctl(fd, command, input, input2, tmp_output,
+                                                            tmp_output2, ctrl2, version);
+                                  ctx.WriteBuffer(tmp_output, 0);
+                                  if (version == IoctlVersion::Version3) {
+                                      ctx.WriteBuffer(tmp_output2, 1);
+                                  }
+                                  IPC::ResponseBuilder rb{ctx, 3};
+                                  rb.Push(RESULT_SUCCESS);
+                                  rb.Push(result);
+                              },
+                              nvdrv->GetEventWriteable(ctrl.event_id));
     } else {
         ctx.WriteBuffer(output);
+        if (version == IoctlVersion::Version3) {
+            ctx.WriteBuffer(output2, 1);
+        }
     }
     IPC::ResponseBuilder rb{ctx, 3};
     rb.Push(RESULT_SUCCESS);
     rb.Push(result);
+}
+
+void NVDRV::Ioctl(Kernel::HLERequestContext& ctx) {
+    LOG_DEBUG(Service_NVDRV, "called");
+    IoctlBase(ctx, IoctlVersion::Version1);
+}
+
+void NVDRV::Ioctl2(Kernel::HLERequestContext& ctx) {
+    LOG_DEBUG(Service_NVDRV, "called");
+    IoctlBase(ctx, IoctlVersion::Version2);
+}
+
+void NVDRV::Ioctl3(Kernel::HLERequestContext& ctx) {
+    LOG_DEBUG(Service_NVDRV, "called");
+    IoctlBase(ctx, IoctlVersion::Version3);
 }
 
 void NVDRV::Close(Kernel::HLERequestContext& ctx) {
@@ -154,8 +189,8 @@ NVDRV::NVDRV(std::shared_ptr<Module> nvdrv, const char* name)
         {8, &NVDRV::SetClientPID, "SetClientPID"},
         {9, &NVDRV::DumpGraphicsMemoryInfo, "DumpGraphicsMemoryInfo"},
         {10, nullptr, "InitializeDevtools"},
-        {11, &NVDRV::Ioctl, "Ioctl2"},
-        {12, nullptr, "Ioctl3"},
+        {11, &NVDRV::Ioctl2, "Ioctl2"},
+        {12, &NVDRV::Ioctl3, "Ioctl3"},
         {13, &NVDRV::FinishInitialize, "FinishInitialize"},
     };
     RegisterHandlers(functions);

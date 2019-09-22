@@ -13,8 +13,9 @@ namespace Service::Nvidia::Devices {
 nvhost_nvjpg::nvhost_nvjpg(Core::System& system) : nvdevice(system) {}
 nvhost_nvjpg::~nvhost_nvjpg() = default;
 
-u32 nvhost_nvjpg::ioctl(Ioctl command, const std::vector<u8>& input, std::vector<u8>& output,
-                        IoctlCtrl& ctrl) {
+u32 nvhost_nvjpg::ioctl(Ioctl command, const std::vector<u8>& input, const std::vector<u8>& input2,
+                        std::vector<u8>& output, std::vector<u8>& output2, IoctlCtrl& ctrl,
+                        IoctlVersion version) {
     LOG_DEBUG(Service_NVDRV, "called, command=0x{:08X}, input_size=0x{:X}, output_size=0x{:X}",
               command.raw, input.size(), output.size());
 
