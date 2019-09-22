@@ -185,6 +185,7 @@ private slots:
     void OnGameListLoadFile(QString game_path);
     void OnGameListOpenFolder(u64 program_id, GameListOpenTarget target);
     void OnTransferableShaderCacheOpenFile(u64 program_id);
+    void OnResolutionProfileOpenFile(u64 program_id);
     void OnGameListDumpRomFS(u64 program_id, const std::string& game_path);
     void OnGameListCopyTID(u64 program_id);
     void OnGameListNavigateToGamedbEntry(u64 program_id,
