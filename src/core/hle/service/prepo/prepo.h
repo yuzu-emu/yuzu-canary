@@ -10,6 +10,6 @@ class ServiceManager;
 
 namespace Service::PlayReport {
 
-void InstallInterfaces(SM::ServiceManager& service_manager);
+void InstallInterfaces(Core::System& system);
 
 } // namespace Service::PlayReport
