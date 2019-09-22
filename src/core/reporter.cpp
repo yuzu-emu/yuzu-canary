@@ -304,8 +304,8 @@ void Reporter::SaveUnimplementedAppletReport(
     SaveToFile(std::move(out), GetPath("unimpl_applet_report", title_id, timestamp));
 }
 
-void Reporter::SavePlayReport(u64 title_id, u64 process_id, std::vector<std::vector<u8>> data,
-                              std::optional<u128> user_id) const {
+void Reporter::SavePlayReport(PlayReportType type, u64 title_id, std::vector<std::vector<u8>> data,
+                              std::optional<u64> process_id, std::optional<u128> user_id) const {
     if (!IsReportingEnabled()) {
         return;
     }
@@ -321,7 +321,11 @@ void Reporter::SavePlayReport(u64 title_id, u64 process_id, std::vector<std::vec
         data_out.push_back(Common::HexToString(d));
     }
 
-    out["play_report_process_id"] = fmt::format("{:016X}", process_id);
+    if (process_id.has_value()) {
+        out["play_report_process_id"] = fmt::format("{:016X}", *process_id);
+    }
+
+    out["play_report_type"] = fmt::format("{:02}", static_cast<u8>(type));
     out["play_report_data"] = std::move(data_out);
 
     SaveToFile(std::move(out), GetPath("play_report", title_id, timestamp));
