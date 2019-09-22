@@ -90,7 +90,6 @@ struct ShaderEntries {
     std::vector<ImageEntry> images;
     std::vector<GlobalMemoryEntry> global_memory_entries;
     std::array<bool, Maxwell::NumClipDistances> clip_distances{};
-    bool shader_viewport_layer_array{};
     std::size_t shader_length{};
 };
 
