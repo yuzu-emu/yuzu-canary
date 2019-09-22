@@ -164,14 +164,19 @@ PL_U::PL_U(FileSystem::FileSystemController& fsc)
     impl->shared_font = std::make_shared<Kernel::PhysicalMemory>(SHARED_FONT_MEM_SIZE);
     for (auto font : SHARED_FONTS) {
         FileSys::VirtualFile romfs;
-        const auto nca =
-            nand->GetEntry(static_cast<u64>(font.first), FileSys::ContentRecordType::Data);
-        if (nca) {
-            romfs = nca->GetRomFS();
-        }
-
-        if (!romfs) {
+        if (nand == nullptr) {
             romfs = FileSys::SystemArchive::SynthesizeSystemArchive(static_cast<u64>(font.first));
+        } else {
+            const auto nca =
+                nand->GetEntry(static_cast<u64>(font.first), FileSys::ContentRecordType::Data);
+            if (nca) {
+                romfs = nca->GetRomFS();
+            }
+
+            if (!romfs) {
+                romfs =
+                    FileSys::SystemArchive::SynthesizeSystemArchive(static_cast<u64>(font.first));
+            }
         }
 
         if (!romfs) {
