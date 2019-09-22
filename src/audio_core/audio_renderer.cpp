@@ -107,6 +107,11 @@ Stream::State AudioRenderer::GetStreamState() const {
     return stream->GetState();
 }
 
+static constexpr u32 VersionFromRevision(u32_le rev) {
+    // "REV7" -> 7
+    return ((rev >> 24) & 0xff) - 0x30;
+}
+
 std::vector<u8> AudioRenderer::UpdateAudioRenderer(const std::vector<u8>& input_params) {
     // Copy UpdateDataHeader struct
     UpdateDataHeader config{};
@@ -166,6 +171,11 @@ std::vector<u8> AudioRenderer::UpdateAudioRenderer(const std::vector<u8>& input_
     // Copy output header
     UpdateDataHeader response_data{worker_params};
     std::vector<u8> output_params(response_data.total_size);
+    const auto audren_revision = VersionFromRevision(config.revision);
+    if (audren_revision >= 5) {
+        response_data.frame_count = 0x10;
+        response_data.total_size += 0x10;
+    }
     std::memcpy(output_params.data(), &response_data, sizeof(UpdateDataHeader));
 
     // Copy output memory pool entries
