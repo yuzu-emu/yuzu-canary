@@ -117,6 +117,7 @@ enum class Class : ClassType {
     Audio_DSP,         ///< The HLE implementation of the DSP
     Audio_Sink,        ///< Emulator audio output backend
     Loader,            ///< ROM loader
+    CheatEngine,       ///< Memory manipulation and engine VM functions
     Crypto,            ///< Cryptographic engine/functions
     Input,             ///< Input emulation
     Network,           ///< Network emulation

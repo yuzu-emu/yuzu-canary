@@ -8,9 +8,9 @@
 #include <memory>
 #include <string>
 #include "common/common_types.h"
-#include "core/file_sys/cheat_engine.h"
 #include "core/file_sys/nca_metadata.h"
 #include "core/file_sys/vfs.h"
+#include "core/memory/dmnt_cheat_types.h"
 
 namespace Core {
 class System;
@@ -51,8 +51,8 @@ public:
     bool HasNSOPatch(const std::array<u8, 0x20>& build_id) const;
 
     // Creates a CheatList object with all
-    std::vector<CheatList> CreateCheatList(const Core::System& system,
-                                           const std::array<u8, 0x20>& build_id) const;
+    std::vector<Memory::CheatEntry> CreateCheatList(const Core::System& system,
+                                                    const std::array<u8, 0x20>& build_id) const;
 
     // Currently tracked RomFS patches:
     // - Game Updates

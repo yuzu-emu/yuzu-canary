@@ -22,6 +22,7 @@
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/loader/loader.h"
 #include "core/loader/nso.h"
+#include "core/memory/cheat_engine.h"
 #include "core/settings.h"
 
 namespace FileSys {
@@ -232,9 +233,10 @@ bool PatchManager::HasNSOPatch(const std::array<u8, 32>& build_id_) const {
     return !CollectPatches(patch_dirs, build_id).empty();
 }
 
-static std::optional<CheatList> ReadCheatFileFromFolder(const Core::System& system, u64 title_id,
-                                                        const std::array<u8, 0x20>& build_id_,
-                                                        const VirtualDir& base_path, bool upper) {
+namespace {
+std::optional<std::vector<Memory::CheatEntry>> ReadCheatFileFromFolder(
+    const Core::System& system, u64 title_id, const std::array<u8, 0x20>& build_id_,
+    const VirtualDir& base_path, bool upper) {
     const auto build_id_raw = Common::HexToString(build_id_, upper);
     const auto build_id = build_id_raw.substr(0, sizeof(u64) * 2);
     const auto file = base_path->GetFile(fmt::format("{}.txt", build_id));
@@ -252,31 +254,34 @@ static std::optional<CheatList> ReadCheatFileFromFolder(const Core::System& syst
         return std::nullopt;
     }
 
-    TextCheatParser parser;
-    return parser.Parse(system, data);
+    Memory::TextCheatParser parser;
+    return parser.Parse(
+        system, std::string_view(reinterpret_cast<const char* const>(data.data()), data.size()));
 }
 
-std::vector<CheatList> PatchManager::CreateCheatList(const Core::System& system,
-                                                     const std::array<u8, 32>& build_id_) const {
+} // Anonymous namespace
+
+std::vector<Memory::CheatEntry> PatchManager::CreateCheatList(
+    const Core::System& system, const std::array<u8, 32>& build_id_) const {
     const auto load_dir = Service::FileSystem::GetModificationLoadRoot(title_id);
     auto patch_dirs = load_dir->GetSubdirectories();
     std::sort(patch_dirs.begin(), patch_dirs.end(),
               [](const VirtualDir& l, const VirtualDir& r) { return l->GetName() < r->GetName(); });
 
-    std::vector<CheatList> out;
-    out.reserve(patch_dirs.size());
+    std::vector<Memory::CheatEntry> out;
     for (const auto& subdir : patch_dirs) {
         auto cheats_dir = subdir->GetSubdirectory("cheats");
         if (cheats_dir != nullptr) {
             auto res = ReadCheatFileFromFolder(system, title_id, build_id_, cheats_dir, true);
             if (res.has_value()) {
-                out.push_back(std::move(*res));
+                std::copy(res->begin(), res->end(), std::back_inserter(out));
                 continue;
             }
 
             res = ReadCheatFileFromFolder(system, title_id, build_id_, cheats_dir, false);
-            if (res.has_value())
-                out.push_back(std::move(*res));
+            if (res.has_value()) {
+                std::copy(res->begin(), res->end(), std::back_inserter(out));
+            }
         }
     }
 
