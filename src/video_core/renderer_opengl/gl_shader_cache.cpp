@@ -211,14 +211,14 @@ CachedProgram SpecializeShader(const std::string& code, const GLShader::ShaderEn
     const auto primitive_mode{variant.primitive_mode};
     const auto texture_buffer_usage{variant.texture_buffer_usage};
 
-    std::string source = "#version 430 core\n"
-                         "#extension GL_ARB_separate_shader_objects : enable\n"
-                         "#extension GL_NV_gpu_shader5 : enable\n"
-                         "#extension GL_NV_shader_thread_group : enable\n"
-                         "#extension GL_NV_shader_thread_shuffle : enable\n";
-    if (entries.shader_viewport_layer_array) {
-        source += "#extension GL_ARB_shader_viewport_layer_array : enable\n";
-    }
+    std::string source = R"(#version 430 core
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shader_viewport_layer_array : enable
+#extension GL_EXT_shader_image_load_formatted : enable
+#extension GL_NV_gpu_shader5 : enable
+#extension GL_NV_shader_thread_group : enable
+#extension GL_NV_shader_thread_shuffle : enable
+)";
     if (program_type == ProgramType::Compute) {
         source += "#extension GL_ARB_compute_variable_group_size : require\n";
     }
