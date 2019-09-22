@@ -6,6 +6,8 @@
 #include "core/core.h"
 #include "core/gdbstub/gdbstub.h"
 #include "core/hle/service/hid/hid.h"
+#include "core/hle/service/lbl/lbl.h"
+#include "core/hle/service/sm/sm.h"
 #include "core/settings.h"
 #include "video_core/renderer_base.h"
 
@@ -70,6 +72,7 @@ void Apply() {
     auto& system_instance = Core::System::GetInstance();
     if (system_instance.IsPoweredOn()) {
         system_instance.Renderer().RefreshBaseSettings();
+        Service::LBL::RequestLoadCurrentSetting(system_instance.ServiceManager());
     }
 
     Service::HID::ReloadInputDevices();
