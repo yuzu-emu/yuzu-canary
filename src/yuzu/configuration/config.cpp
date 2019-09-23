@@ -613,6 +613,8 @@ void Config::ReadRendererValues() {
         ReadSetting(QStringLiteral("use_accurate_gpu_emulation"), false).toBool();
     Settings::values.use_asynchronous_gpu_emulation =
         ReadSetting(QStringLiteral("use_asynchronous_gpu_emulation"), false).toBool();
+    Settings::values.use_resolution_scanner =
+        ReadSetting(QStringLiteral("use_resolution_scanner"), false).toBool();
     Settings::values.force_30fps_mode =
         ReadSetting(QStringLiteral("force_30fps_mode"), false).toBool();
 
@@ -1026,6 +1028,8 @@ void Config::SaveRendererValues() {
                  Settings::values.use_accurate_gpu_emulation, false);
     WriteSetting(QStringLiteral("use_asynchronous_gpu_emulation"),
                  Settings::values.use_asynchronous_gpu_emulation, false);
+    WriteSetting(QStringLiteral("use_resolution_scanner"), Settings::values.use_resolution_scanner,
+                 false);
     WriteSetting(QStringLiteral("force_30fps_mode"), Settings::values.force_30fps_mode, false);
 
     // Cast to double because Qt's written float values are not human-readable
