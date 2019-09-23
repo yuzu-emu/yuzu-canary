@@ -247,6 +247,12 @@ public:
         : offset{offset}, index{index}, type{type}, is_array{is_array}, is_shadow{is_shadow},
           is_bindless{is_bindless} {}
 
+    void SetType(Tegra::Shader::TextureType type_, bool is_array_, bool is_shadow_) {
+        type = type_;
+        is_array = is_array_;
+        is_shadow = is_shadow_;
+    }
+
     std::size_t GetOffset() const {
         return offset;
     }

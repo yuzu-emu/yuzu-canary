@@ -189,7 +189,7 @@ public:
             const auto& [base, usage] = gmem_pair;
             entries.global_buffers.emplace_back(base.cbuf_index, base.cbuf_offset);
         }
-        for (const auto& sampler : ir.GetSamplers()) {
+        for (const auto& [offset, sampler] : ir.GetSamplers()) {
             entries.samplers.emplace_back(sampler);
         }
         for (const auto& attribute : ir.GetInputAttributes()) {
@@ -397,7 +397,7 @@ private:
 
     void DeclareSamplers() {
         u32 binding = samplers_base_binding;
-        for (const auto& sampler : ir.GetSamplers()) {
+        for (const auto& [offset, sampler] : ir.GetSamplers()) {
             const auto dim = GetSamplerDim(sampler);
             const int depth = sampler.IsShadow() ? 1 : 0;
             const int arrayed = sampler.IsArray() ? 1 : 0;
