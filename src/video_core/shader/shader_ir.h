@@ -288,16 +288,13 @@ private:
                                           bool is_shadow);
 
     /// Accesses an image.
-    Image& GetImage(Tegra::Shader::Image image, Tegra::Shader::ImageType type,
-                    std::optional<Tegra::Shader::ImageAtomicSize> size = {});
+    Image& GetImage(Tegra::Shader::Image image, Tegra::Shader::ImageType type);
 
     /// Access a bindless image sampler.
-    Image& GetBindlessImage(Tegra::Shader::Register reg, Tegra::Shader::ImageType type,
-                            std::optional<Tegra::Shader::ImageAtomicSize> size = {});
+    Image& GetBindlessImage(Tegra::Shader::Register reg, Tegra::Shader::ImageType type);
 
     /// Tries to access an existing image, updating it's state as needed
-    Image* TryUseExistingImage(u64 offset, Tegra::Shader::ImageType type,
-                               std::optional<Tegra::Shader::ImageAtomicSize> size);
+    Image* TryUseExistingImage(u64 offset, Tegra::Shader::ImageType type);
 
     /// Extracts a sequence of bits from a node
     Node BitfieldExtract(Node value, u32 offset, u32 bits);

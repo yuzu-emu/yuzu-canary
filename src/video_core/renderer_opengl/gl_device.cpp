@@ -2,8 +2,10 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
+#include <vector>
 #include <glad/glad.h>
 
 #include "common/logging/log.h"
@@ -30,9 +32,27 @@ bool TestProgram(const GLchar* glsl) {
     return link_status == GL_TRUE;
 }
 
+std::vector<std::string_view> GetExtensions() {
+    GLint num_extensions;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
+    std::vector<std::string_view> extensions;
+    extensions.reserve(num_extensions);
+    for (GLint index = 0; index < num_extensions; ++index) {
+        extensions.push_back(
+            reinterpret_cast<const char*>(glGetStringi(GL_EXTENSIONS, static_cast<GLuint>(index))));
+    }
+    return extensions;
+}
+
+bool HasExtension(const std::vector<std::string_view>& images, std::string_view extension) {
+    return std::find(images.begin(), images.end(), extension) != images.end();
+}
+
 } // Anonymous namespace
 
 Device::Device() {
+    const std::vector extensions = GetExtensions();
+
     uniform_buffer_alignment = GetInteger<std::size_t>(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
     shader_storage_alignment = GetInteger<std::size_t>(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT);
     max_vertex_attributes = GetInteger<u32>(GL_MAX_VERTEX_ATTRIBS);
@@ -40,6 +60,7 @@ Device::Device() {
     has_warp_intrinsics = GLAD_GL_NV_gpu_shader5 && GLAD_GL_NV_shader_thread_group &&
                           GLAD_GL_NV_shader_thread_shuffle;
     has_vertex_viewport_layer = GLAD_GL_ARB_shader_viewport_layer_array;
+    has_image_load_formatted = HasExtension(extensions, "GL_EXT_shader_image_load_formatted");
     has_variable_aoffi = TestVariableAoffi();
     has_component_indexing_bug = TestComponentIndexingBug();
     has_precise_bug = TestPreciseBug();
@@ -55,6 +76,7 @@ Device::Device(std::nullptr_t) {
     max_varyings = 15;
     has_warp_intrinsics = true;
     has_vertex_viewport_layer = true;
+    has_image_load_formatted = true;
     has_variable_aoffi = true;
     has_component_indexing_bug = false;
     has_precise_bug = false;

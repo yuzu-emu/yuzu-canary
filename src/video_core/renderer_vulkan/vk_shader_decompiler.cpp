@@ -19,6 +19,7 @@
 #include "video_core/engines/shader_header.h"
 #include "video_core/renderer_vulkan/vk_device.h"
 #include "video_core/renderer_vulkan/vk_shader_decompiler.h"
+#include "video_core/shader/node.h"
 #include "video_core/shader/shader_ir.h"
 
 namespace Vulkan::VKShader {
@@ -939,22 +940,17 @@ private:
         return {};
     }
 
+    Id ImageLoad(Operation operation) {
+        UNIMPLEMENTED();
+        return {};
+    }
+
     Id ImageStore(Operation operation) {
         UNIMPLEMENTED();
         return {};
     }
 
     Id AtomicImageAdd(Operation operation) {
-        UNIMPLEMENTED();
-        return {};
-    }
-
-    Id AtomicImageMin(Operation operation) {
-        UNIMPLEMENTED();
-        return {};
-    }
-
-    Id AtomicImageMax(Operation operation) {
         UNIMPLEMENTED();
         return {};
     }
@@ -1440,10 +1436,9 @@ private:
         &SPIRVDecompiler::TextureQueryLod,
         &SPIRVDecompiler::TexelFetch,
 
+        &SPIRVDecompiler::ImageLoad,
         &SPIRVDecompiler::ImageStore,
         &SPIRVDecompiler::AtomicImageAdd,
-        &SPIRVDecompiler::AtomicImageMin,
-        &SPIRVDecompiler::AtomicImageMax,
         &SPIRVDecompiler::AtomicImageAnd,
         &SPIRVDecompiler::AtomicImageOr,
         &SPIRVDecompiler::AtomicImageXor,
