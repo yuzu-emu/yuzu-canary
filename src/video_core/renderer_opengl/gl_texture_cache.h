@@ -39,6 +39,8 @@ public:
     explicit CachedSurface(GPUVAddr gpu_addr, const SurfaceParams& params);
     ~CachedSurface();
 
+    void Init();
+
     void UploadTexture(const std::vector<u8>& staging_buffer) override;
     void DownloadTexture(std::vector<u8>& staging_buffer) override;
 
@@ -94,6 +96,10 @@ public:
             return surface.GetTexture();
         }
         return texture_view.handle;
+    }
+
+    const CachedSurface& GetParent() const {
+        return surface;
     }
 
     const SurfaceParams& GetSurfaceParams() const {
