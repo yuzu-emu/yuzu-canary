@@ -165,13 +165,14 @@ void Controller_NPad::InitNewlyAddedControler(std::size_t controller_idx) {
     controller.battery_level[0] = BATTERY_FULL;
     controller.battery_level[1] = BATTERY_FULL;
     controller.battery_level[2] = BATTERY_FULL;
+    styleset_changed_events[controller_idx].writable->Signal();
 }
 
 void Controller_NPad::OnInit() {
     auto& kernel = system.Kernel();
     for (std::size_t i = 0; i < styleset_changed_events.size(); i++) {
         styleset_changed_events[i] = Kernel::WritableEvent::CreateEventPair(
-            kernel, Kernel::ResetType::Automatic, fmt::format("npad:NpadStyleSetChanged_{}", i));
+            kernel, Kernel::ResetType::Manual, fmt::format("npad:NpadStyleSetChanged_{}", i));
     }
 
     if (!IsControllerActivated()) {
@@ -433,7 +434,6 @@ void Controller_NPad::SetSupportedNPadIdTypes(u8* data, std::size_t length) {
     supported_npad_id_types.clear();
     supported_npad_id_types.resize(length / sizeof(u32));
     std::memcpy(supported_npad_id_types.data(), data, length);
-    bool had_controller_update = false;
     for (std::size_t i = 0; i < connected_controllers.size(); i++) {
         auto& controller = connected_controllers[i];
         if (!controller.is_connected) {
@@ -452,10 +452,6 @@ void Controller_NPad::SetSupportedNPadIdTypes(u8* data, std::size_t length) {
                 controller.type = requested_controller;
                 InitNewlyAddedControler(i);
             }
-            had_controller_update = true;
-        }
-        if (had_controller_update) {
-            styleset_changed_events[i].writable->Signal();
         }
     }
 }
@@ -481,7 +477,6 @@ void Controller_NPad::SetNpadMode(u32 npad_id, NPadAssignments assignment_mode) 
     const std::size_t npad_index = NPadIdToIndex(npad_id);
     ASSERT(npad_index < shared_memory_entries.size());
     if (shared_memory_entries[npad_index].pad_assignment != assignment_mode) {
-        styleset_changed_events[npad_index].writable->Signal();
         shared_memory_entries[npad_index].pad_assignment = assignment_mode;
     }
 }
@@ -507,7 +502,6 @@ Kernel::SharedPtr<Kernel::ReadableEvent> Controller_NPad::GetStyleSetChangedEven
     // TODO(ogniK): Figure out the best time to signal this event. This event seems that it should
     // be signalled at least once, and signaled after a new controller is connected?
     const auto& styleset_event = styleset_changed_events[NPadIdToIndex(npad_id)];
-    styleset_event.writable->Signal();
     return styleset_event.readable;
 }
 
