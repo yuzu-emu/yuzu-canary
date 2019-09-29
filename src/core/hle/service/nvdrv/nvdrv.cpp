@@ -40,8 +40,8 @@ Module::Module(Core::System& system) {
     auto& kernel = system.Kernel();
     for (u32 i = 0; i < MaxNvEvents; i++) {
         std::string event_label = fmt::format("NVDRV::NvEvent_{}", i);
-        events_interface.events[i] = Kernel::WritableEvent::CreateEventPair(
-            kernel, Kernel::ResetType::Automatic, event_label);
+        events_interface.events[i] =
+            Kernel::WritableEvent::CreateEventPair(kernel, Kernel::ResetType::Manual, event_label);
         events_interface.status[i] = EventState::Free;
         events_interface.registered[i] = false;
     }

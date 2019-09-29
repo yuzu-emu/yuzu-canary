@@ -21,9 +21,6 @@ class DmaPusher;
 
 namespace Core {
 class System;
-namespace Timing {
-struct EventType;
-} // namespace Timing
 } // namespace Core
 
 namespace VideoCommon::GPUThread {
@@ -89,8 +86,6 @@ struct CommandDataContainer {
 struct SynchState final {
     std::atomic_bool is_running{true};
 
-    void WaitForSynchronization(u64 fence);
-
     using CommandQueue = Common::SPSCQueue<CommandDataContainer>;
     CommandQueue queue;
     u64 last_fence{};
@@ -121,6 +116,9 @@ public:
     /// Notify rasterizer that any caches of the specified region should be flushed and invalidated
     void FlushAndInvalidateRegion(CacheAddr addr, u64 size);
 
+    // Wait until the gpu thread is idle.
+    void WaitIdle() const;
+
 private:
     /// Pushes a command to be executed by the GPU thread
     u64 PushCommand(CommandData&& command_data);
@@ -128,7 +126,6 @@ private:
 private:
     SynchState state;
     Core::System& system;
-    Core::Timing::EventType* synchronization_event{};
     std::thread thread;
     std::thread::id thread_id;
 };
