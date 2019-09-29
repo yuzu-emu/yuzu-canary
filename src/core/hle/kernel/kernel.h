@@ -25,6 +25,7 @@ class HandleTable;
 class Process;
 class ResourceLimit;
 class Thread;
+class GlobalScheduler;
 
 /// Represents a single instance of the kernel.
 class KernelCore {
@@ -74,6 +75,12 @@ public:
 
     /// Retrieves the list of processes.
     const std::vector<SharedPtr<Process>>& GetProcessList() const;
+
+    /// Gets the sole instance of the global scheduler
+    Kernel::GlobalScheduler& GlobalScheduler();
+
+    /// Gets the sole instance of the global scheduler
+    const Kernel::GlobalScheduler& GlobalScheduler() const;
 
     /// Adds a port to the named port table
     void AddNamedPort(std::string name, SharedPtr<ClientPort> port);
