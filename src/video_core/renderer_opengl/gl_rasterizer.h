@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <tuple>
 #include <utility>
@@ -230,6 +231,8 @@ private:
 
     using CachedPageMap = boost::icl::interval_map<u64, int>;
     CachedPageMap cached_pages;
+
+    std::mutex pages_mutex;
 };
 
 } // namespace OpenGL

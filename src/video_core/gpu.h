@@ -177,6 +177,12 @@ public:
     /// Returns a reference to the GPU DMA pusher.
     Tegra::DmaPusher& DmaPusher();
 
+    // Waits for the GPU to finish working
+    virtual void WaitIdle() const = 0;
+
+    /// Allows the CPU/NvFlinger to wait on the GPU before presenting a frame.
+    void WaitFence(u32 syncpoint_id, u32 value) const;
+
     void IncrementSyncPoint(u32 syncpoint_id);
 
     u32 GetSyncpointValue(u32 syncpoint_id) const;

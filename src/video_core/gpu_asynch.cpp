@@ -44,4 +44,8 @@ void GPUAsynch::TriggerCpuInterrupt(const u32 syncpoint_id, const u32 value) con
     interrupt_manager.GPUInterruptSyncpt(syncpoint_id, value);
 }
 
+void GPUAsynch::WaitIdle() const {
+    gpu_thread.WaitIdle();
+}
+
 } // namespace VideoCommon

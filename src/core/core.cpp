@@ -252,6 +252,8 @@ struct System::Impl {
         is_powered_on = false;
         exit_lock = false;
 
+        gpu_core->WaitIdle();
+
         // Shutdown emulation session
         renderer.reset();
         GDBStub::Shutdown();
