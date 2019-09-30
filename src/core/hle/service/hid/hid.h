@@ -105,14 +105,19 @@ private:
     void SetNpadJoyHoldType(Kernel::HLERequestContext& ctx);
     void GetNpadJoyHoldType(Kernel::HLERequestContext& ctx);
     void SetNpadJoyAssignmentModeSingleByDefault(Kernel::HLERequestContext& ctx);
+    void SetNpadJoyAssignmentModeSingle(Kernel::HLERequestContext& ctx);
+    void SetNpadJoyAssignmentModeDual(Kernel::HLERequestContext& ctx);
+    void MergeSingleJoyAsDualJoy(Kernel::HLERequestContext& ctx);
+    void StartLrAssignmentMode(Kernel::HLERequestContext& ctx);
+    void StopLrAssignmentMode(Kernel::HLERequestContext& ctx);
+    void SetNpadHandheldActivationMode(Kernel::HLERequestContext& ctx);
+    void GetNpadHandheldActivationMode(Kernel::HLERequestContext& ctx);
+    void SwapNpadAssignment(Kernel::HLERequestContext& ctx);
     void BeginPermitVibrationSession(Kernel::HLERequestContext& ctx);
     void EndPermitVibrationSession(Kernel::HLERequestContext& ctx);
     void SendVibrationValue(Kernel::HLERequestContext& ctx);
     void SendVibrationValues(Kernel::HLERequestContext& ctx);
     void GetActualVibrationValue(Kernel::HLERequestContext& ctx);
-    void SetNpadJoyAssignmentModeDual(Kernel::HLERequestContext& ctx);
-    void MergeSingleJoyAsDualJoy(Kernel::HLERequestContext& ctx);
-    void SetNpadHandheldActivationMode(Kernel::HLERequestContext& ctx);
     void GetVibrationDeviceInfo(Kernel::HLERequestContext& ctx);
     void CreateActiveVibrationDeviceList(Kernel::HLERequestContext& ctx);
     void PermitVibration(Kernel::HLERequestContext& ctx);
@@ -122,9 +127,6 @@ private:
     void StopSixAxisSensor(Kernel::HLERequestContext& ctx);
     void SetIsPalmaAllConnectable(Kernel::HLERequestContext& ctx);
     void SetPalmaBoostMode(Kernel::HLERequestContext& ctx);
-    void StartLrAssignmentMode(Kernel::HLERequestContext& ctx);
-    void StopLrAssignmentMode(Kernel::HLERequestContext& ctx);
-    void SwapNpadAssignment(Kernel::HLERequestContext& ctx);
 
     std::shared_ptr<IAppletResource> applet_resource;
     Core::System& system;
