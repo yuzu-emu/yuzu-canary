@@ -224,8 +224,13 @@ public:
                      const Tegra::Engines::Fermi2D::Regs::Surface& dst_config,
                      const Tegra::Engines::Fermi2D::Config& copy_config) {
         std::lock_guard lock{mutex};
-        std::pair<TSurface, TView> dst_surface = GetFermiSurface(dst_config);
-        std::pair<TSurface, TView> src_surface = GetFermiSurface(src_config);
+        SurfaceParams src_params = SurfaceParams::CreateForFermiCopySurface(src_config);
+        SurfaceParams dst_params = SurfaceParams::CreateForFermiCopySurface(dst_config);
+        const GPUVAddr src_gpu_addr = src_config.Address();
+        const GPUVAddr dst_gpu_addr = dst_config.Address();
+        DeduceBestBlit(src_params, dst_params, src_gpu_addr, dst_gpu_addr);
+        std::pair<TSurface, TView> dst_surface = GetSurface(dst_gpu_addr, dst_params, true, false);
+        std::pair<TSurface, TView> src_surface = GetSurface(src_gpu_addr, src_params, true, false);
         ImageBlit(src_surface.second, dst_surface.second, copy_config);
         dst_surface.first->MarkAsModified(true, Tick());
     }
@@ -355,6 +360,29 @@ private:
         Ignore = 0,
         Flush = 1,
         BufferCopy = 3,
+    };
+
+    enum class DeductionType : u32 {
+        DeductionComplete,
+        DeductionIncomplete,
+        DeductionFailed,
+    };
+
+    struct Deduction {
+        DeductionType type{DeductionType::DeductionFailed};
+        TSurface surface{};
+
+        bool Failed() const {
+            return type == DeductionType::DeductionFailed;
+        }
+
+        bool Incomplete() const {
+            return type == DeductionType::DeductionIncomplete;
+        }
+
+        bool IsDepth() const {
+            return surface->GetSurfaceParams().IsPixelFormatZeta();
+        }
     };
 
     /**
@@ -689,6 +717,118 @@ private:
         // We failed all the tests, recycle the overlaps into a new texture.
         return RecycleSurface(overlaps, params, gpu_addr, preserve_contents,
                               MatchTopologyResult::FullMatch);
+    }
+
+    /**
+     * `DeduceSurface` gets the starting address and parameters of a candidate surface and tries
+     * to find a matching surface within the cache that's similar to it. If there are many textures
+     * or the texture found if entirely incompatible, it will fail. If no texture is found, the
+     * blit will be unsuccessful.
+     * @param gpu_addr, the starting address of the candidate surface.
+     * @param params, the paremeters on the candidate surface.
+     **/
+    Deduction DeduceSurface(const GPUVAddr gpu_addr, const SurfaceParams& params) {
+        const auto host_ptr{system.GPU().MemoryManager().GetPointer(gpu_addr)};
+        const auto cache_addr{ToCacheAddr(host_ptr)};
+
+        if (!cache_addr) {
+            Deduction result{};
+            result.type = DeductionType::DeductionFailed;
+            return result;
+        }
+
+        if (const auto iter = l1_cache.find(cache_addr); iter != l1_cache.end()) {
+            TSurface& current_surface = iter->second;
+            const auto topological_result = current_surface->MatchesTopology(params);
+            if (topological_result != MatchTopologyResult::FullMatch) {
+                Deduction result{};
+                result.type = DeductionType::DeductionFailed;
+                return result;
+            }
+            const auto struct_result = current_surface->MatchesStructure(params);
+            if (struct_result != MatchStructureResult::None &&
+                current_surface->MatchTarget(params.target)) {
+                Deduction result{};
+                result.type = DeductionType::DeductionComplete;
+                result.surface = current_surface;
+                return result;
+            }
+        }
+
+        const std::size_t candidate_size = params.GetGuestSizeInBytes();
+        auto overlaps{GetSurfacesInRegion(cache_addr, candidate_size)};
+
+        if (overlaps.empty()) {
+            Deduction result{};
+            result.type = DeductionType::DeductionIncomplete;
+            return result;
+        }
+
+        if (overlaps.size() > 1) {
+            Deduction result{};
+            result.type = DeductionType::DeductionFailed;
+            return result;
+        } else {
+            Deduction result{};
+            result.type = DeductionType::DeductionComplete;
+            result.surface = overlaps[0];
+            return result;
+        }
+    }
+
+    /**
+     * `DeduceBestBlit` gets the a source and destination starting address and parameters,
+     * and tries to deduce if they are supposed to be depth textures. If so, their
+     * parameters are modified and fixed into so.
+     * @param gpu_addr, the starting address of the candidate surface.
+     * @param params, the parameters on the candidate surface.
+     **/
+    void DeduceBestBlit(SurfaceParams& src_params, SurfaceParams& dst_params,
+                        const GPUVAddr src_gpu_addr, const GPUVAddr dst_gpu_addr) {
+        auto deduc_src = DeduceSurface(src_gpu_addr, src_params);
+        auto deduc_dst = DeduceSurface(src_gpu_addr, src_params);
+        if (deduc_src.Failed() || deduc_dst.Failed()) {
+            return;
+        }
+
+        const bool incomplete_src = deduc_src.Incomplete();
+        const bool incomplete_dst = deduc_dst.Incomplete();
+
+        if (incomplete_src && incomplete_dst) {
+            return;
+        }
+
+        const bool any_incomplete = incomplete_src || incomplete_dst;
+
+        if (!any_incomplete && !(deduc_src.IsDepth() && deduc_dst.IsDepth())) {
+            return;
+        }
+
+        if (incomplete_src && !(deduc_dst.IsDepth())) {
+            return;
+        }
+
+        if (incomplete_dst && !(deduc_src.IsDepth())) {
+            return;
+        }
+
+        const auto inherit_format = ([](SurfaceParams& to, TSurface from) {
+            const SurfaceParams& params = from->GetSurfaceParams();
+            to.pixel_format = params.pixel_format;
+            to.component_type = params.component_type;
+            to.type = params.type;
+        });
+        // Now we got the cases where one or both is Depth and the other is not known
+        if (!incomplete_src) {
+            inherit_format(src_params, deduc_src.surface);
+        } else {
+            inherit_format(src_params, deduc_dst.surface);
+        }
+        if (!incomplete_dst) {
+            inherit_format(dst_params, deduc_dst.surface);
+        } else {
+            inherit_format(dst_params, deduc_src.surface);
+        }
     }
 
     std::pair<TSurface, TView> InitializeSurface(GPUVAddr gpu_addr, const SurfaceParams& params,
