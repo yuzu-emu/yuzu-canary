@@ -47,10 +47,20 @@ void Fermi2D::HandleSurfaceCopy() {
         src_blit_x2 = static_cast<u32>((regs.blit_src_x >> 32) + regs.blit_dst_width);
         src_blit_y2 = static_cast<u32>((regs.blit_src_y >> 32) + regs.blit_dst_height);
     }
-    const Common::Rectangle<u32> src_rect{src_blit_x1, src_blit_y1, src_blit_x2, src_blit_y2};
-    const Common::Rectangle<u32> dst_rect{regs.blit_dst_x, regs.blit_dst_y,
-                                          regs.blit_dst_x + regs.blit_dst_width,
-                                          regs.blit_dst_y + regs.blit_dst_height};
+    const u32 dst_blit_x2 = regs.blit_dst_x + regs.blit_dst_width;
+    const u32 dst_blit_y2 = regs.blit_dst_x + regs.blit_dst_height;
+    const u32 excess_src_x2 = std::max<s32>(0, dst_blit_x2 - regs.dst.width);
+    const u32 excess_src_y2 = std::max<s32>(0, dst_blit_y2 - regs.dst.height);
+    const u32 excess_dst_x2 = std::max<s32>(0, src_blit_x2 - regs.src.width);
+    const u32 excess_dst_y2 = std::max<s32>(0, src_blit_y2 - regs.src.height);
+
+    const Common::Rectangle<u32> src_rect{
+        src_blit_x1, src_blit_y1, std::min<u32>(regs.src.width, src_blit_x2) - excess_src_x2,
+        std::min<u32>(regs.src.height, src_blit_y2) - excess_src_y2};
+    const Common::Rectangle<u32> dst_rect{
+        regs.blit_dst_x, regs.blit_dst_y,
+        std::min<u32>(regs.dst.width, dst_blit_x2) - excess_dst_x2,
+        std::min<u32>(regs.dst.height, dst_blit_y2) - excess_dst_y2};
     Config copy_config;
     copy_config.operation = regs.operation;
     copy_config.filter = regs.blit_control.filter;
