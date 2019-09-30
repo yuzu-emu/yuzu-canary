@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include "common/assert.h"
+#include "common/microprofile.h"
 #include "core/core.h"
 #include "core/core_timing.h"
 #include "core/memory.h"
@@ -16,6 +17,8 @@
 #include "video_core/renderer_base.h"
 
 namespace Tegra {
+
+MICROPROFILE_DEFINE(GPU_wait, "GPU", "Wait for the GPU", MP_RGB(128, 128, 192));
 
 GPU::GPU(Core::System& system, VideoCore::RendererBase& renderer, bool is_async)
     : system{system}, renderer{renderer}, is_async{is_async} {
@@ -61,6 +64,16 @@ DmaPusher& GPU::DmaPusher() {
 
 const DmaPusher& GPU::DmaPusher() const {
     return *dma_pusher;
+}
+
+void GPU::WaitFence(u32 syncpoint_id, u32 value) const {
+    // Synced GPU, is always in sync
+    if (!is_async) {
+        return;
+    }
+    MICROPROFILE_SCOPE(GPU_wait);
+    while (syncpoints[syncpoint_id].load() < value) {
+    }
 }
 
 void GPU::IncrementSyncPoint(const u32 syncpoint_id) {
