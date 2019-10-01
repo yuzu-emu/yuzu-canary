@@ -135,9 +135,6 @@ void RendererOpenGL::SwapBuffers(const Tegra::FramebufferConfig* framebuffer) {
 
     render_window.PollEvents();
 
-    system.FrameLimiter().DoFrameLimiting(system.CoreTiming().GetGlobalTimeUs());
-    system.GetPerfStats().BeginSystemFrame();
-
     // Restore the rasterizer state
     prev_state.AllDirty();
     prev_state.Apply();
