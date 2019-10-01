@@ -5,8 +5,6 @@
 #include "common/assert.h"
 #include "common/microprofile.h"
 #include "core/core.h"
-#include "core/core_timing.h"
-#include "core/core_timing_util.h"
 #include "core/frontend/scope_acquire_window_context.h"
 #include "video_core/dma_pusher.h"
 #include "video_core/gpu.h"
@@ -68,14 +66,10 @@ ThreadManager::~ThreadManager() {
 
 void ThreadManager::StartThread(VideoCore::RendererBase& renderer, Tegra::DmaPusher& dma_pusher) {
     thread = std::thread{RunThread, std::ref(renderer), std::ref(dma_pusher), std::ref(state)};
-    synchronization_event = system.CoreTiming().RegisterEvent(
-        "GPUThreadSynch", [this](u64 fence, s64) { state.WaitForSynchronization(fence); });
 }
 
 void ThreadManager::SubmitList(Tegra::CommandList&& entries) {
-    const u64 fence{PushCommand(SubmitListCommand(std::move(entries)))};
-    const s64 synchronization_ticks{Core::Timing::usToCycles(std::chrono::microseconds{9000})};
-    system.CoreTiming().ScheduleEvent(synchronization_ticks, synchronization_event, fence);
+    PushCommand(SubmitListCommand(std::move(entries)));
 }
 
 void ThreadManager::SwapBuffers(const Tegra::FramebufferConfig* framebuffer) {
@@ -96,16 +90,15 @@ void ThreadManager::FlushAndInvalidateRegion(CacheAddr addr, u64 size) {
     InvalidateRegion(addr, size);
 }
 
+void ThreadManager::WaitIdle() const {
+    while (state.last_fence > state.signaled_fence.load()) {
+    }
+}
+
 u64 ThreadManager::PushCommand(CommandData&& command_data) {
     const u64 fence{++state.last_fence};
     state.queue.Push(CommandDataContainer(std::move(command_data), fence));
     return fence;
-}
-
-MICROPROFILE_DEFINE(GPU_wait, "GPU", "Wait for the GPU", MP_RGB(128, 128, 192));
-void SynchState::WaitForSynchronization(u64 fence) {
-    while (signaled_fence.load() < fence)
-        ;
 }
 
 } // namespace VideoCommon::GPUThread
