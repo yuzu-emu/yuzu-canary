@@ -348,6 +348,7 @@ static constexpr auto RangeFromInterval(Map& map, const Interval& interval) {
 }
 
 void RasterizerOpenGL::UpdatePagesCachedCount(VAddr addr, u64 size, int delta) {
+    std::lock_guard lock{pages_mutex};
     const u64 page_start{addr >> Memory::PAGE_BITS};
     const u64 page_end{(addr + size + Memory::PAGE_SIZE - 1) >> Memory::PAGE_BITS};
 
