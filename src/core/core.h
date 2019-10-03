@@ -330,6 +330,10 @@ public:
 
     bool GetExitLock() const;
 
+    void SetCurrentProcessBuildID(std::array<u8, 0x20> id);
+
+    const std::array<u8, 0x20>& GetCurrentProcessBuildID() const;
+
 private:
     System();
 

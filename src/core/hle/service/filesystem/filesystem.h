@@ -110,6 +110,8 @@ public:
     FileSys::VirtualDir GetModificationLoadRoot(u64 title_id) const;
     FileSys::VirtualDir GetModificationDumpRoot(u64 title_id) const;
 
+    FileSys::VirtualDir GetBCATDirectory(u64 title_id) const;
+
     // Creates the SaveData, SDMC, and BIS Factories. Should be called once and before any function
     // above is called.
     void CreateFactories(FileSys::VfsFilesystem& vfs, bool overwrite = true);

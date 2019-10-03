@@ -674,6 +674,15 @@ FileSys::VirtualDir FileSystemController::GetModificationDumpRoot(u64 title_id) 
     return bis_factory->GetModificationDumpRoot(title_id);
 }
 
+FileSys::VirtualDir FileSystemController::GetBCATDirectory(u64 title_id) const {
+    LOG_TRACE(Service_FS, "Opening BCAT root for tid={:016X}", title_id);
+
+    if (bis_factory == nullptr)
+        return nullptr;
+
+    return bis_factory->GetBCATDirectory(title_id);
+}
+
 void FileSystemController::CreateFactories(FileSys::VfsFilesystem& vfs, bool overwrite) {
     if (overwrite) {
         bis_factory = nullptr;

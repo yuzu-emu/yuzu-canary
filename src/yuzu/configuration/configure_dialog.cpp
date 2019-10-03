@@ -44,6 +44,7 @@ void ConfigureDialog::ApplyConfiguration() {
     ui->audioTab->ApplyConfiguration();
     ui->debugTab->ApplyConfiguration();
     ui->webTab->ApplyConfiguration();
+    ui->serviceTab->ApplyConfiguration();
     Settings::Apply();
     Settings::LogSettings();
 }
@@ -74,7 +75,8 @@ Q_DECLARE_METATYPE(QList<QWidget*>);
 void ConfigureDialog::PopulateSelectionList() {
     const std::array<std::pair<QString, QList<QWidget*>>, 4> items{
         {{tr("General"), {ui->generalTab, ui->webTab, ui->debugTab, ui->gameListTab}},
-         {tr("System"), {ui->systemTab, ui->profileManagerTab, ui->filesystemTab, ui->audioTab}},
+         {tr("System"),
+          {ui->systemTab, ui->profileManagerTab, ui->serviceTab, ui->filesystemTab, ui->audioTab}},
          {tr("Graphics"), {ui->graphicsTab}},
          {tr("Controls"), {ui->inputTab, ui->hotkeysTab}}},
     };
@@ -108,6 +110,7 @@ void ConfigureDialog::UpdateVisibleTabs() {
         {ui->webTab, tr("Web")},
         {ui->gameListTab, tr("Game List")},
         {ui->filesystemTab, tr("Filesystem")},
+        {ui->serviceTab, tr("Services")},
     };
 
     [[maybe_unused]] const QSignalBlocker blocker(ui->tabWidget);

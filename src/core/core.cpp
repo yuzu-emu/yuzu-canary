@@ -341,6 +341,7 @@ struct System::Impl {
 
     std::unique_ptr<Memory::CheatEngine> cheat_engine;
     std::unique_ptr<Tools::Freezer> memory_freezer;
+    std::array<u8, 0x20> build_id{};
 
     /// Frontend applets
     Service::AM::Applets::AppletManager applet_manager;
@@ -640,6 +641,14 @@ void System::SetExitLock(bool locked) {
 
 bool System::GetExitLock() const {
     return impl->exit_lock;
+}
+
+void System::SetCurrentProcessBuildID(std::array<u8, 32> id) {
+    impl->build_id = id;
+}
+
+const std::array<u8, 32>& System::GetCurrentProcessBuildID() const {
+    return impl->build_id;
 }
 
 System::ResultStatus System::Init(Frontend::EmuWindow& emu_window) {

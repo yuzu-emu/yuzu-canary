@@ -1,3 +1,9 @@
+if (YUZU_ENABLE_BOXCAT)
+    set(BCAT_BOXCAT_ADDITIONAL_SOURCES hle/service/bcat/backend/boxcat.cpp hle/service/bcat/backend/boxcat.h)
+else()
+    set(BCAT_BOXCAT_ADDITIONAL_SOURCES)
+endif()
+
 add_library(core STATIC
     arm/arm_interface.h
     arm/arm_interface.cpp
@@ -82,6 +88,8 @@ add_library(core STATIC
     file_sys/vfs_concat.h
     file_sys/vfs_layered.cpp
     file_sys/vfs_layered.h
+    file_sys/vfs_libzip.cpp
+    file_sys/vfs_libzip.h
     file_sys/vfs_offset.cpp
     file_sys/vfs_offset.h
     file_sys/vfs_real.cpp
@@ -241,6 +249,9 @@ add_library(core STATIC
     hle/service/audio/errors.h
     hle/service/audio/hwopus.cpp
     hle/service/audio/hwopus.h
+    hle/service/bcat/backend/backend.cpp
+    hle/service/bcat/backend/backend.h
+    ${BCAT_BOXCAT_ADDITIONAL_SOURCES}
     hle/service/bcat/bcat.cpp
     hle/service/bcat/bcat.h
     hle/service/bcat/module.cpp
@@ -499,6 +510,15 @@ create_target_directory_groups(core)
 
 target_link_libraries(core PUBLIC common PRIVATE audio_core video_core)
 target_link_libraries(core PUBLIC Boost::boost PRIVATE fmt json-headers mbedtls opus unicorn open_source_archives)
+
+if (YUZU_ENABLE_BOXCAT)
+    get_directory_property(OPENSSL_LIBS
+        DIRECTORY ${PROJECT_SOURCE_DIR}/externals/libressl
+        DEFINITION OPENSSL_LIBS)
+    target_compile_definitions(core PRIVATE -DCPPHTTPLIB_OPENSSL_SUPPORT -DYUZU_ENABLE_BOXCAT)
+    target_link_libraries(core PRIVATE httplib json-headers ${OPENSSL_LIBS} zip)
+endif()
+
 if (ENABLE_WEB_SERVICE)
     target_compile_definitions(core PRIVATE -DENABLE_WEB_SERVICE)
     target_link_libraries(core PRIVATE web_service)

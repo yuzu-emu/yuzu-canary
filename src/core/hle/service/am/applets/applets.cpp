@@ -157,6 +157,10 @@ AppletManager::AppletManager(Core::System& system_) : system{system_} {}
 
 AppletManager::~AppletManager() = default;
 
+const AppletFrontendSet& AppletManager::GetAppletFrontendSet() const {
+    return frontend;
+}
+
 void AppletManager::SetAppletFrontendSet(AppletFrontendSet set) {
     if (set.parental_controls != nullptr)
         frontend.parental_controls = std::move(set.parental_controls);

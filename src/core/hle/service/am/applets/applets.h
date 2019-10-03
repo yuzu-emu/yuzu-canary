@@ -190,6 +190,8 @@ public:
     explicit AppletManager(Core::System& system_);
     ~AppletManager();
 
+    const AppletFrontendSet& GetAppletFrontendSet() const;
+
     void SetAppletFrontendSet(AppletFrontendSet set);
     void SetDefaultAppletFrontendSet();
     void SetDefaultAppletsIfMissing();

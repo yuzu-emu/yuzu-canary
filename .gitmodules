@@ -46,3 +46,9 @@
 [submodule "sirit"]
     path = externals/sirit
     url = https://github.com/ReinUsesLisp/sirit
+[submodule "libzip"]
+	path = externals/libzip
+	url = https://github.com/DarkLordZach/libzip
+[submodule "zlib"]
+	path = externals/zlib
+	url = https://github.com/DarkLordZach/zlib

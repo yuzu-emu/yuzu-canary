@@ -106,6 +106,8 @@ void LogSettings() {
     LogSetting("Debugging_UseGdbstub", Settings::values.use_gdbstub);
     LogSetting("Debugging_GdbstubPort", Settings::values.gdbstub_port);
     LogSetting("Debugging_ProgramArgs", Settings::values.program_args);
+    LogSetting("Services_BCATBackend", Settings::values.bcat_backend);
+    LogSetting("Services_BCATBoxcatLocal", Settings::values.bcat_boxcat_local);
 }
 
 } // namespace Settings

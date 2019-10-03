@@ -255,6 +255,8 @@ private:
     void EnableApplicationCrashReport(Kernel::HLERequestContext& ctx);
     void GetGpuErrorDetectedSystemEvent(Kernel::HLERequestContext& ctx);
 
+    bool launch_popped_application_specific = false;
+    bool launch_popped_account_preselect = false;
     Kernel::EventPair gpu_error_detected_event;
     Core::System& system;
 };

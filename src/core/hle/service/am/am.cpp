@@ -31,6 +31,7 @@
 #include "core/hle/service/am/tcap.h"
 #include "core/hle/service/apm/controller.h"
 #include "core/hle/service/apm/interface.h"
+#include "core/hle/service/bcat/backend/backend.h"
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/hle/service/ns/ns.h"
 #include "core/hle/service/nvflinger/nvflinger.h"
@@ -46,15 +47,20 @@ constexpr ResultCode ERR_NO_DATA_IN_CHANNEL{ErrorModule::AM, 0x2};
 constexpr ResultCode ERR_NO_MESSAGES{ErrorModule::AM, 0x3};
 constexpr ResultCode ERR_SIZE_OUT_OF_BOUNDS{ErrorModule::AM, 0x1F7};
 
-constexpr u32 POP_LAUNCH_PARAMETER_MAGIC = 0xC79497CA;
+enum class LaunchParameterKind : u32 {
+    ApplicationSpecific = 1,
+    AccountPreselectedUser = 2,
+};
 
-struct LaunchParameters {
+constexpr u32 LAUNCH_PARAMETER_ACCOUNT_PRESELECTED_USER_MAGIC = 0xC79497CA;
+
+struct LaunchParameterAccountPreselectedUser {
     u32_le magic;
     u32_le is_account_selected;
     u128 current_user;
     INSERT_PADDING_BYTES(0x70);
 };
-static_assert(sizeof(LaunchParameters) == 0x88);
+static_assert(sizeof(LaunchParameterAccountPreselectedUser) == 0x88);
 
 IWindowController::IWindowController(Core::System& system_)
     : ServiceFramework("IWindowController"), system{system_} {
@@ -1127,26 +1133,55 @@ void IApplicationFunctions::EndBlockingHomeButton(Kernel::HLERequestContext& ctx
 }
 
 void IApplicationFunctions::PopLaunchParameter(Kernel::HLERequestContext& ctx) {
-    LOG_DEBUG(Service_AM, "called");
+    IPC::RequestParser rp{ctx};
+    const auto kind = rp.PopEnum<LaunchParameterKind>();
 
-    LaunchParameters params{};
+    LOG_DEBUG(Service_AM, "called, kind={:08X}", static_cast<u8>(kind));
 
-    params.magic = POP_LAUNCH_PARAMETER_MAGIC;
-    params.is_account_selected = 1;
+    if (kind == LaunchParameterKind::ApplicationSpecific && !launch_popped_application_specific) {
+        const auto backend = BCAT::CreateBackendFromSettings(
+            [this](u64 tid) { return system.GetFileSystemController().GetBCATDirectory(tid); });
+        const auto build_id_full = Core::System::GetInstance().GetCurrentProcessBuildID();
+        u64 build_id{};
+        std::memcpy(&build_id, build_id_full.data(), sizeof(u64));
 
-    Account::ProfileManager profile_manager{};
-    const auto uuid = profile_manager.GetUser(Settings::values.current_user);
-    ASSERT(uuid);
-    params.current_user = uuid->uuid;
+        const auto data =
+            backend->GetLaunchParameter({Core::CurrentProcess()->GetTitleID(), build_id});
 
-    IPC::ResponseBuilder rb{ctx, 2, 0, 1};
+        if (data.has_value()) {
+            IPC::ResponseBuilder rb{ctx, 2, 0, 1};
+            rb.Push(RESULT_SUCCESS);
+            rb.PushIpcInterface<AM::IStorage>(*data);
+            launch_popped_application_specific = true;
+            return;
+        }
+    } else if (kind == LaunchParameterKind::AccountPreselectedUser &&
+               !launch_popped_account_preselect) {
+        LaunchParameterAccountPreselectedUser params{};
 
-    rb.Push(RESULT_SUCCESS);
+        params.magic = LAUNCH_PARAMETER_ACCOUNT_PRESELECTED_USER_MAGIC;
+        params.is_account_selected = 1;
 
-    std::vector<u8> buffer(sizeof(LaunchParameters));
-    std::memcpy(buffer.data(), &params, buffer.size());
+        Account::ProfileManager profile_manager{};
+        const auto uuid = profile_manager.GetUser(Settings::values.current_user);
+        ASSERT(uuid);
+        params.current_user = uuid->uuid;
 
-    rb.PushIpcInterface<AM::IStorage>(buffer);
+        IPC::ResponseBuilder rb{ctx, 2, 0, 1};
+
+        rb.Push(RESULT_SUCCESS);
+
+        std::vector<u8> buffer(sizeof(LaunchParameterAccountPreselectedUser));
+        std::memcpy(buffer.data(), &params, buffer.size());
+
+        rb.PushIpcInterface<AM::IStorage>(buffer);
+        launch_popped_account_preselect = true;
+        return;
+    }
+
+    LOG_ERROR(Service_AM, "Attempted to load launch parameter but none was found!");
+    IPC::ResponseBuilder rb{ctx, 2};
+    rb.Push(ERR_NO_DATA_IN_CHANNEL);
 }
 
 void IApplicationFunctions::CreateApplicationAndRequestToStartForQuest(

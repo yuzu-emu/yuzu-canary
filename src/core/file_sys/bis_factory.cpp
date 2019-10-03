@@ -136,4 +136,9 @@ u64 BISFactory::GetFullNANDTotalSpace() const {
     return static_cast<u64>(Settings::values.nand_total_size);
 }
 
+VirtualDir BISFactory::GetBCATDirectory(u64 title_id) const {
+    return GetOrCreateDirectoryRelative(nand_root,
+                                        fmt::format("/system/save/bcat/{:016X}", title_id));
+}
+
 } // namespace FileSys

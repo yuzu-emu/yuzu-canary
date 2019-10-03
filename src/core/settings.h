@@ -450,6 +450,10 @@ struct Values {
     bool reporting_services;
     bool quest_flag;
 
+    // BCAT
+    std::string bcat_backend;
+    bool bcat_boxcat_local;
+
     // WebService
     bool enable_telemetry;
     std::string web_api_url;

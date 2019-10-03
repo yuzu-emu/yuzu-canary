@@ -433,6 +433,11 @@ void Config::ReadValues() {
         sdl2_config->Get("WebService", "web_api_url", "https://api.yuzu-emu.org");
     Settings::values.yuzu_username = sdl2_config->Get("WebService", "yuzu_username", "");
     Settings::values.yuzu_token = sdl2_config->Get("WebService", "yuzu_token", "");
+
+    // Services
+    Settings::values.bcat_backend = sdl2_config->Get("Services", "bcat_backend", "boxcat");
+    Settings::values.bcat_boxcat_local =
+        sdl2_config->GetBoolean("Services", "bcat_boxcat_local", false);
 }
 
 void Config::Reload() {

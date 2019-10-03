@@ -61,6 +61,8 @@ public:
     u64 GetUserNANDTotalSpace() const;
     u64 GetFullNANDTotalSpace() const;
 
+    VirtualDir GetBCATDirectory(u64 title_id) const;
+
 private:
     VirtualDir nand_root;
     VirtualDir load_root;

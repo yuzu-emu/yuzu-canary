@@ -98,6 +98,11 @@
          <string>Web</string>
         </attribute>
        </widget>
+       <widget class="ConfigureService" name="serviceTab">
+        <attribute name="title">
+         <string>Services</string>
+        </attribute>
+       </widget>
       </widget>
      </item>
     </layout>
@@ -176,6 +181,12 @@
    <class>ConfigureHotkeys</class>
    <extends>QWidget</extends>
    <header>configuration/configure_hotkeys.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ConfigureService</class>
+   <extends>QWidget</extends>
+   <header>configuration/configure_service.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
