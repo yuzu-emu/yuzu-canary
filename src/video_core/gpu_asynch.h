@@ -25,6 +25,7 @@ public:
     void FlushRegion(CacheAddr addr, u64 size) override;
     void InvalidateRegion(CacheAddr addr, u64 size) override;
     void FlushAndInvalidateRegion(CacheAddr addr, u64 size) override;
+    void WaitIdle() const override;
 
 protected:
     void TriggerCpuInterrupt(u32 syncpoint_id, u32 value) const override;
