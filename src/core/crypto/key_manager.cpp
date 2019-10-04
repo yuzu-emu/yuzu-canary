@@ -423,7 +423,7 @@ static std::optional<u64> FindTicketOffset(const std::array<u8, size>& data) {
 std::optional<std::pair<Key128, Key128>> ParseTicket(const Ticket& ticket,
                                                      const RSAKeyPair<2048>& key) {
     const auto issuer = ticket.GetData().issuer;
-    if (issuer == std::array<u8, 0x40>{})
+    if (IsAllZeroArray(issuer))
         return {};
     if (issuer[0] != 'R' || issuer[1] != 'o' || issuer[2] != 'o' || issuer[3] != 't') {
         LOG_INFO(Crypto, "Attempting to parse ticket with non-standard certificate authority.");
