@@ -681,6 +681,8 @@ void GMainWindow::ConnectWidgetEvents() {
     connect(game_list, &GameList::OpenFolderRequested, this, &GMainWindow::OnGameListOpenFolder);
     connect(game_list, &GameList::OpenTransferableShaderCacheRequested, this,
             &GMainWindow::OnTransferableShaderCacheOpenFile);
+    connect(game_list, &GameList::OpenResolutionProfileRequested, this,
+            &GMainWindow::OnResolutionProfileOpenFile);
     connect(game_list, &GameList::DumpRomFSRequested, this, &GMainWindow::OnGameListDumpRomFS);
     connect(game_list, &GameList::CopyTIDRequested, this, &GMainWindow::OnGameListCopyTID);
     connect(game_list, &GameList::NavigateToGamedbEntryRequested, this,
@@ -1147,6 +1149,23 @@ void GMainWindow::OnGameListOpenFolder(u64 program_id, GameListOpenTarget target
     QDesktopServices::openUrl(QUrl::fromLocalFile(qpath));
 }
 
+void DisplayOrSelect(const QString& folder_path, const QString& file_path) {
+// Windows supports opening a folder with selecting a specified file in explorer. On every other
+// OS we just open the transferable shader cache folder without preselecting the transferable
+// shader cache file for the selected game.
+#if defined(Q_OS_WIN)
+    const QString explorer = QStringLiteral("explorer");
+    QStringList param;
+    if (!QFileInfo(file_path).isDir()) {
+        param << QStringLiteral("/select,");
+    }
+    param << QDir::toNativeSeparators(file_path);
+    QProcess::startDetached(explorer, param);
+#else
+    QDesktopServices::openUrl(QUrl::fromLocalFile(folder_path));
+#endif
+}
+
 void GMainWindow::OnTransferableShaderCacheOpenFile(u64 program_id) {
     ASSERT(program_id != 0);
 
@@ -1164,20 +1183,24 @@ void GMainWindow::OnTransferableShaderCacheOpenFile(u64 program_id) {
         return;
     }
 
-    // Windows supports opening a folder with selecting a specified file in explorer. On every other
-    // OS we just open the transferable shader cache folder without preselecting the transferable
-    // shader cache file for the selected game.
-#if defined(Q_OS_WIN)
-    const QString explorer = QStringLiteral("explorer");
-    QStringList param;
-    if (!QFileInfo(transferable_shader_cache_file_path).isDir()) {
-        param << QStringLiteral("/select,");
+    DisplayOrSelect(tranferable_shader_cache_folder_path, transferable_shader_cache_file_path);
+}
+
+void GMainWindow::OnResolutionProfileOpenFile(u64 program_id) {
+    ASSERT(program_id != 0);
+
+    const QString rescaling_dir =
+        QString::fromStdString(FileUtil::GetUserPath(FileUtil::UserPath::RescalingDir));
+    const QString rescaling_profile_file_path =
+        rescaling_dir + QString::fromStdString(fmt::format("{:016X}.json", program_id));
+
+    if (!QFile::exists(rescaling_profile_file_path)) {
+        QMessageBox::warning(this, tr("Error Opening Rescaling Profile"),
+                             tr("A rescaling profile for this title does not exist."));
+        return;
     }
-    param << QDir::toNativeSeparators(transferable_shader_cache_file_path);
-    QProcess::startDetached(explorer, param);
-#else
-    QDesktopServices::openUrl(QUrl::fromLocalFile(tranferable_shader_cache_folder_path));
-#endif
+
+    DisplayOrSelect(rescaling_dir, rescaling_profile_file_path);
 }
 
 static std::size_t CalculateRomFSEntrySize(const FileSys::VirtualDir& dir, bool full) {

@@ -251,7 +251,10 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
         if (!gpu.regs.IsShaderConfigEnabled(index)) {
             switch (program) {
             case Maxwell::ShaderProgram::Geometry:
-                shader_program_manager->UseTrivialGeometryShader();
+                shader_program_manager->BindGeometryShader(nullptr);
+                break;
+            case Maxwell::ShaderProgram::Fragment:
+                shader_program_manager->BindFragmentShader(nullptr);
                 break;
             default:
                 break;
@@ -260,14 +263,6 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
         }
 
         const std::size_t stage{index == 0 ? 0 : index - 1}; // Stage indices are 0 - 5
-
-        GLShader::MaxwellUniformData ubo{};
-        ubo.SetFromRegs(gpu, stage);
-        const auto [buffer, offset] =
-            buffer_cache.UploadHostMemory(&ubo, sizeof(ubo), device.GetUniformBufferAlignment());
-
-        // Bind the emulation info buffer
-        bind_ubo_pushbuffer.Push(buffer, offset, static_cast<GLsizeiptr>(sizeof(ubo)));
 
         Shader shader{shader_cache.GetStageProgram(program)};
 
@@ -282,13 +277,13 @@ void RasterizerOpenGL::SetupShaders(GLenum primitive_mode) {
         switch (program) {
         case Maxwell::ShaderProgram::VertexA:
         case Maxwell::ShaderProgram::VertexB:
-            shader_program_manager->UseProgrammableVertexShader(program_handle);
+            shader_program_manager->BindVertexShader(&program_handle);
             break;
         case Maxwell::ShaderProgram::Geometry:
-            shader_program_manager->UseProgrammableGeometryShader(program_handle);
+            shader_program_manager->BindGeometryShader(&program_handle);
             break;
         case Maxwell::ShaderProgram::Fragment:
-            shader_program_manager->UseProgrammableFragmentShader(program_handle);
+            shader_program_manager->BindFragmentShader(&program_handle);
             break;
         default:
             UNIMPLEMENTED_MSG("Unimplemented shader index={}, enable={}, offset=0x{:08X}", index,
@@ -381,6 +376,7 @@ void RasterizerOpenGL::UpdatePagesCachedCount(VAddr addr, u64 size, int delta) {
 void RasterizerOpenGL::LoadDiskResources(const std::atomic_bool& stop_loading,
                                          const VideoCore::DiskResourceLoadCallback& callback) {
     shader_cache.LoadDiskCache(stop_loading, callback);
+    texture_cache.LoadResources();
 }
 
 void RasterizerOpenGL::ConfigureFramebuffers() {
@@ -427,7 +423,6 @@ void RasterizerOpenGL::ConfigureFramebuffers() {
     texture_cache.GuardRenderTargets(false);
 
     state.draw.draw_framebuffer = framebuffer_cache.GetFramebuffer(fbkey);
-    SyncViewport(state);
 }
 
 void RasterizerOpenGL::ConfigureClearFramebuffer(OpenGLState& current_state, bool using_color_fb,
@@ -553,9 +548,16 @@ void RasterizerOpenGL::Clear() {
 
     ConfigureClearFramebuffer(clear_state, use_color, use_depth, use_stencil);
 
-    SyncViewport(clear_state);
+    bool res_scaling;
+    if (use_color) {
+        res_scaling = texture_cache.IsResolutionScalingEnabledRT(regs.clear_buffers.RT);
+    } else {
+        res_scaling = texture_cache.IsResolutionScalingEnabledDB();
+    }
+
+    SyncViewport(clear_state, res_scaling);
     if (regs.clear_flags.scissor) {
-        SyncScissorTest(clear_state);
+        SyncScissorTest(clear_state, res_scaling);
     }
 
     if (regs.clear_flags.viewport) {
@@ -590,7 +592,6 @@ void RasterizerOpenGL::DrawPrelude() {
     SyncLogicOpState();
     SyncCullMode();
     SyncPrimitiveRestart();
-    SyncScissorTest(state);
     SyncTransformFeedback();
     SyncPointState();
     SyncPolygonOffset();
@@ -605,11 +606,6 @@ void RasterizerOpenGL::DrawPrelude() {
     if (is_indexed) {
         buffer_size = Common::AlignUp(buffer_size, 4) + CalculateIndexBufferSize();
     }
-
-    // Uniform space for the 5 shader stages
-    buffer_size = Common::AlignUp<std::size_t>(buffer_size, 4) +
-                  (sizeof(GLShader::MaxwellUniformData) + device.GetUniformBufferAlignment()) *
-                      Maxwell::MaxShaderStage;
 
     // Add space for at least 18 constant buffers
     buffer_size += Maxwell::MaxConstBuffers *
@@ -652,6 +648,11 @@ void RasterizerOpenGL::DrawPrelude() {
         gpu.dirty.ResetVertexArrays();
     }
 
+    const bool res_scaling = texture_cache.IsResolutionScalingEnabled();
+    SyncViewport(state, res_scaling);
+    SyncScissorTest(state, res_scaling);
+
+    shader_program_manager->SetConstants(gpu, res_scaling);
     shader_program_manager->ApplyTo(state);
     state.Apply();
 
@@ -774,7 +775,7 @@ void RasterizerOpenGL::DispatchCompute(GPUVAddr code_addr) {
     SetupComputeImages(kernel);
 
     const auto [program, next_bindings] = kernel->GetProgramHandle(variant);
-    state.draw.shader_program = program;
+    state.draw.shader_program = program.handle;
     state.draw.program_pipeline = 0;
 
     const std::size_t buffer_size =
@@ -1073,20 +1074,21 @@ void RasterizerOpenGL::SetupImage(u32 binding, const Tegra::Texture::TICEntry& t
     state.images[binding] = view->GetTexture();
 }
 
-void RasterizerOpenGL::SyncViewport(OpenGLState& current_state) {
+void RasterizerOpenGL::SyncViewport(OpenGLState& current_state, bool rescaling) {
     const auto& regs = system.GPU().Maxwell3D().regs;
     const bool geometry_shaders_enabled =
         regs.IsShaderConfigEnabled(static_cast<size_t>(Maxwell::ShaderProgram::Geometry));
     const std::size_t viewport_count =
         geometry_shaders_enabled ? Tegra::Engines::Maxwell3D::Regs::NumViewports : 1;
+    const float factor = rescaling ? Settings::values.resolution_factor : 1.0f;
     for (std::size_t i = 0; i < viewport_count; i++) {
         auto& viewport = current_state.viewports[i];
         const auto& src = regs.viewports[i];
         const Common::Rectangle<s32> viewport_rect{regs.viewport_transform[i].GetRect()};
-        viewport.x = viewport_rect.left;
-        viewport.y = viewport_rect.bottom;
-        viewport.width = viewport_rect.GetWidth();
-        viewport.height = viewport_rect.GetHeight();
+        viewport.x = static_cast<GLint>(viewport_rect.left * factor);
+        viewport.y = static_cast<GLint>(viewport_rect.bottom * factor);
+        viewport.width = static_cast<GLint>(viewport_rect.GetWidth() * factor);
+        viewport.height = static_cast<GLint>(viewport_rect.GetHeight() * factor);
         viewport.depth_range_far = src.depth_range_far;
         viewport.depth_range_near = src.depth_range_near;
     }
@@ -1297,12 +1299,13 @@ void RasterizerOpenGL::SyncLogicOpState() {
     state.logic_op.operation = MaxwellToGL::LogicOp(regs.logic_op.operation);
 }
 
-void RasterizerOpenGL::SyncScissorTest(OpenGLState& current_state) {
+void RasterizerOpenGL::SyncScissorTest(OpenGLState& current_state, bool rescaling) {
     const auto& regs = system.GPU().Maxwell3D().regs;
     const bool geometry_shaders_enabled =
         regs.IsShaderConfigEnabled(static_cast<size_t>(Maxwell::ShaderProgram::Geometry));
     const std::size_t viewport_count =
         geometry_shaders_enabled ? Tegra::Engines::Maxwell3D::Regs::NumViewports : 1;
+    const float factor = rescaling ? Settings::values.resolution_factor : 1.0f;
     for (std::size_t i = 0; i < viewport_count; i++) {
         const auto& src = regs.scissor_test[i];
         auto& dst = current_state.viewports[i].scissor;
@@ -1312,10 +1315,10 @@ void RasterizerOpenGL::SyncScissorTest(OpenGLState& current_state) {
         }
         const u32 width = src.max_x - src.min_x;
         const u32 height = src.max_y - src.min_y;
-        dst.x = src.min_x;
-        dst.y = src.min_y;
-        dst.width = width;
-        dst.height = height;
+        dst.x = static_cast<u32>(src.min_x * factor);
+        dst.y = static_cast<u32>(src.min_y * factor);
+        dst.width = static_cast<u32>(width * factor);
+        dst.height = static_cast<u32>(height * factor);
     }
 }
 

@@ -94,6 +94,7 @@ void LogSettings() {
     LogSetting("Renderer_UseAccurateGpuEmulation", Settings::values.use_accurate_gpu_emulation);
     LogSetting("Renderer_UseAsynchronousGpuEmulation",
                Settings::values.use_asynchronous_gpu_emulation);
+    LogSetting("Renderer_UseResolutionScanner", Settings::values.use_resolution_scanner);
     LogSetting("Audio_OutputEngine", Settings::values.sink_id);
     LogSetting("Audio_EnableAudioStretching", Settings::values.enable_audio_stretching);
     LogSetting("Audio_OutputDevice", Settings::values.audio_device_id);

@@ -471,6 +471,7 @@ void GameList::AddGamePopup(QMenu& context_menu, u64 program_id, std::string pat
     QAction* open_lfs_location = context_menu.addAction(tr("Open Mod Data Location"));
     QAction* open_transferable_shader_cache =
         context_menu.addAction(tr("Open Transferable Shader Cache"));
+    QAction* open_rescaling_profile_cache = context_menu.addAction(tr("Open Rescaling Profile"));
     context_menu.addSeparator();
     QAction* dump_romfs = context_menu.addAction(tr("Dump RomFS"));
     QAction* copy_tid = context_menu.addAction(tr("Copy Title ID to Clipboard"));
@@ -490,6 +491,8 @@ void GameList::AddGamePopup(QMenu& context_menu, u64 program_id, std::string pat
     });
     connect(open_transferable_shader_cache, &QAction::triggered,
             [this, program_id]() { emit OpenTransferableShaderCacheRequested(program_id); });
+    connect(open_rescaling_profile_cache, &QAction::triggered,
+            [this, program_id]() { emit OpenResolutionProfileRequested(program_id); });
     connect(dump_romfs, &QAction::triggered,
             [this, program_id, path]() { emit DumpRomFSRequested(program_id, path); });
     connect(copy_tid, &QAction::triggered,

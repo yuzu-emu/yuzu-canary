@@ -75,6 +75,7 @@ signals:
     void ShouldCancelWorker();
     void OpenFolderRequested(u64 program_id, GameListOpenTarget target);
     void OpenTransferableShaderCacheRequested(u64 program_id);
+    void OpenResolutionProfileRequested(u64 program_id);
     void DumpRomFSRequested(u64 program_id, const std::string& game_path);
     void CopyTIDRequested(u64 program_id);
     void NavigateToGamedbEntryRequested(u64 program_id,

@@ -63,27 +63,27 @@
            <widget class="QComboBox" name="resolution_factor_combobox">
             <item>
              <property name="text">
-              <string>Auto (Window Size)</string>
+              <string>Profile Scanner (Native)</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>Native (1280x720)</string>
+              <string>Native (1280x720/1920x1080)</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>2x Native (2560x1440)</string>
+              <string>2x Native (2560x1440/3840x2160)</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>3x Native (3840x2160)</string>
+              <string>3x Native (3840x2160/5760x3240)</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>4x Native (5120x2880)</string>
+              <string>4x Native (5120x2880/7680x4320)</string>
              </property>
             </item>
            </widget>

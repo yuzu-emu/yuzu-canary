@@ -199,7 +199,7 @@ void ApplyTextureDefaults(const SurfaceParams& params, GLuint texture) {
 }
 
 OGLTexture CreateTexture(const SurfaceParams& params, GLenum target, GLenum internal_format,
-                         OGLBuffer& texture_buffer) {
+                         OGLBuffer& texture_buffer, u32 resolution_factor) {
     OGLTexture texture;
     texture.Create(target);
 
@@ -214,6 +214,9 @@ OGLTexture CreateTexture(const SurfaceParams& params, GLenum target, GLenum inte
         glTextureBuffer(texture.handle, internal_format, texture_buffer.handle);
         break;
     case SurfaceTarget::Texture2D:
+        glTextureStorage2D(texture.handle, params.emulated_levels, internal_format,
+                           params.width * resolution_factor, params.height * resolution_factor);
+        break;
     case SurfaceTarget::TextureCubemap:
         glTextureStorage2D(texture.handle, params.emulated_levels, internal_format, params.width,
                            params.height);
@@ -242,8 +245,13 @@ CachedSurface::CachedSurface(const GPUVAddr gpu_addr, const SurfaceParams& param
     format = tuple.format;
     type = tuple.type;
     is_compressed = tuple.compressed;
+}
+
+void CachedSurface::Init() {
     target = GetTextureTarget(params.target);
-    texture = CreateTexture(params, target, internal_format, texture_buffer);
+    const u32 resolution_factor =
+        IsRescaled() ? static_cast<u32>(Settings::values.resolution_factor) : 1;
+    texture = CreateTexture(params, target, internal_format, texture_buffer, resolution_factor);
     DecorateSurfaceName();
     main_view = CreateViewInner(
         ViewParams(params.target, 0, params.is_layered ? params.depth : 1, 0, params.num_levels),
@@ -461,7 +469,10 @@ TextureCacheOpenGL::TextureCacheOpenGL(Core::System& system,
 TextureCacheOpenGL::~TextureCacheOpenGL() = default;
 
 Surface TextureCacheOpenGL::CreateSurface(GPUVAddr gpu_addr, const SurfaceParams& params) {
-    return std::make_shared<CachedSurface>(gpu_addr, params);
+    Surface new_surface = std::make_shared<CachedSurface>(gpu_addr, params);
+    SignalCreatedSurface(new_surface);
+    new_surface->Init();
+    return new_surface;
 }
 
 void TextureCacheOpenGL::ImageCopy(Surface& src_surface, Surface& dst_surface,
@@ -472,15 +483,21 @@ void TextureCacheOpenGL::ImageCopy(Surface& src_surface, Surface& dst_surface,
         // A fallback is needed
         return;
     }
+    const bool src_rescaled = src_surface->IsRescaled();
+    const bool dst_rescaled = dst_surface->IsRescaled();
+    if (src_rescaled != dst_rescaled) {
+        LOG_CRITICAL(HW_GPU, "Rescaling Database is incorrectly set! Rescan the database!.");
+    }
+    const u32 factor = src_rescaled ? static_cast<u32>(Settings::values.resolution_factor) : 1U;
     const auto src_handle = src_surface->GetTexture();
     const auto src_target = src_surface->GetTarget();
     const auto dst_handle = dst_surface->GetTexture();
     const auto dst_target = dst_surface->GetTarget();
-    glCopyImageSubData(src_handle, src_target, copy_params.source_level, copy_params.source_x,
-                       copy_params.source_y, copy_params.source_z, dst_handle, dst_target,
-                       copy_params.dest_level, copy_params.dest_x, copy_params.dest_y,
-                       copy_params.dest_z, copy_params.width, copy_params.height,
-                       copy_params.depth);
+    glCopyImageSubData(src_handle, src_target, copy_params.source_level,
+                       copy_params.source_x * factor, copy_params.source_y * factor,
+                       copy_params.source_z, dst_handle, dst_target, copy_params.dest_level,
+                       copy_params.dest_x * factor, copy_params.dest_y * factor, copy_params.dest_z,
+                       copy_params.width * factor, copy_params.height * factor, copy_params.depth);
 }
 
 void TextureCacheOpenGL::ImageBlit(View& src_view, View& dst_view,
@@ -539,8 +556,14 @@ void TextureCacheOpenGL::ImageBlit(View& src_view, View& dst_view,
     const Common::Rectangle<u32>& dst_rect = copy_config.dst_rect;
     const bool is_linear = copy_config.filter == Tegra::Engines::Fermi2D::Filter::Linear;
 
-    glBlitFramebuffer(src_rect.left, src_rect.top, src_rect.right, src_rect.bottom, dst_rect.left,
-                      dst_rect.top, dst_rect.right, dst_rect.bottom, buffers,
+    const bool src_rescaled = src_view->GetParent().IsRescaled();
+    const bool dst_rescaled = dst_view->GetParent().IsRescaled();
+    const u32 factor1 = src_rescaled ? static_cast<u32>(Settings::values.resolution_factor) : 1U;
+    const u32 factor2 = dst_rescaled ? static_cast<u32>(Settings::values.resolution_factor) : 1U;
+
+    glBlitFramebuffer(src_rect.left * factor1, src_rect.top * factor1, src_rect.right * factor1,
+                      src_rect.bottom * factor1, dst_rect.left * factor2, dst_rect.top * factor2,
+                      dst_rect.right * factor2, dst_rect.bottom * factor2, buffers,
                       is_linear && (buffers == GL_COLOR_BUFFER_BIT) ? GL_LINEAR : GL_NEAREST);
 }
 
@@ -553,8 +576,15 @@ void TextureCacheOpenGL::BufferCopy(Surface& src_surface, Surface& dst_surface) 
     const auto source_format = GetFormatTuple(src_params.pixel_format, src_params.component_type);
     const auto dest_format = GetFormatTuple(dst_params.pixel_format, dst_params.component_type);
 
-    const std::size_t source_size = src_surface->GetHostSizeInBytes();
-    const std::size_t dest_size = dst_surface->GetHostSizeInBytes();
+    const bool src_rescaled = src_surface->IsRescaled();
+    const bool dst_rescaled = dst_surface->IsRescaled();
+    if (src_rescaled != dst_rescaled) {
+        LOG_CRITICAL(HW_GPU, "Rescaling Database is incorrectly set! Rescan the database!.");
+    }
+    const u32 factor = src_rescaled ? static_cast<u32>(Settings::values.resolution_factor) : 1U;
+
+    const std::size_t source_size = src_surface->GetHostSizeInBytes() * factor * factor;
+    const std::size_t dest_size = dst_surface->GetHostSizeInBytes() * factor * factor;
 
     const std::size_t buffer_size = std::max(source_size, dest_size);
 
@@ -573,8 +603,8 @@ void TextureCacheOpenGL::BufferCopy(Surface& src_surface, Surface& dst_surface) 
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, copy_pbo_handle);
 
-    const GLsizei width = static_cast<GLsizei>(dst_params.width);
-    const GLsizei height = static_cast<GLsizei>(dst_params.height);
+    const GLsizei width = static_cast<GLsizei>(dst_params.width * factor);
+    const GLsizei height = static_cast<GLsizei>(dst_params.height * factor);
     const GLsizei depth = static_cast<GLsizei>(dst_params.depth);
     if (dest_format.compressed) {
         LOG_CRITICAL(HW_GPU, "Compressed buffer copy is unimplemented!");

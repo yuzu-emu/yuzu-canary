@@ -205,6 +205,10 @@ public:
         index = index_;
     }
 
+    void MarkAsRescaled(const bool is_rescaled) {
+        this->is_rescaled = is_rescaled;
+    }
+
     void MarkAsPicked(bool is_picked_) {
         is_picked = is_picked_;
     }
@@ -224,6 +228,10 @@ public:
 
     u32 GetRenderTarget() const {
         return index;
+    }
+
+    bool IsRescaled() const {
+        return is_rescaled;
     }
 
     bool IsRegistered() const {
@@ -318,6 +326,7 @@ private:
     bool is_target{};
     bool is_registered{};
     bool is_picked{};
+    bool is_rescaled{};
     u32 index{NO_RT};
     u64 modification_tick{};
 };
