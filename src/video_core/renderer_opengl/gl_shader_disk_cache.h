@@ -224,9 +224,6 @@ private:
     bool SaveDecompiledFile(u64 unique_identifier, const std::string& code,
                             const GLShader::ShaderEntries& entries);
 
-    /// Returns if the cache can be used
-    bool IsUsable() const;
-
     /// Opens current game's transferable file and write it's header if it doesn't exist
     FileUtil::IOFile AppendTransferableFile() const;
 
@@ -297,7 +294,7 @@ private:
     std::unordered_map<u64, std::unordered_set<ShaderDiskCacheUsage>> transferable;
 
     // The cache has been loaded at boot
-    bool tried_to_load{};
+    bool is_usable{};
 };
 
 } // namespace OpenGL
