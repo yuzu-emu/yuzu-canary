@@ -22,6 +22,7 @@ namespace Kernel {
 namespace {
 // Wake up num_to_wake (or all) threads in a vector.
 void WakeThreads(const std::vector<SharedPtr<Thread>>& waiting_threads, s32 num_to_wake) {
+    auto& system = Core::System::GetInstance();
     // Only process up to 'target' threads, unless 'target' is <= 0, in which case process
     // them all.
     std::size_t last = waiting_threads.size();
@@ -35,6 +36,7 @@ void WakeThreads(const std::vector<SharedPtr<Thread>>& waiting_threads, s32 num_
         waiting_threads[i]->SetWaitSynchronizationResult(RESULT_SUCCESS);
         waiting_threads[i]->SetArbiterWaitAddress(0);
         waiting_threads[i]->ResumeFromWait();
+        system.PrepareReschedule(waiting_threads[i]->GetProcessorID());
     }
 }
 } // Anonymous namespace
@@ -169,30 +171,22 @@ ResultCode AddressArbiter::WaitForAddressImpl(VAddr address, s64 timeout) {
 
     current_thread->WakeAfterDelay(timeout);
 
-    system.CpuCore(current_thread->GetProcessorID()).PrepareReschedule();
+    system.PrepareReschedule(current_thread->GetProcessorID());
     return RESULT_TIMEOUT;
 }
 
 std::vector<SharedPtr<Thread>> AddressArbiter::GetThreadsWaitingOnAddress(VAddr address) const {
-    const auto RetrieveWaitingThreads = [this](std::size_t core_index,
-                                               std::vector<SharedPtr<Thread>>& waiting_threads,
-                                               VAddr arb_addr) {
-        const auto& scheduler = system.Scheduler(core_index);
-        const auto& thread_list = scheduler.GetThreadList();
-
-        for (const auto& thread : thread_list) {
-            if (thread->GetArbiterWaitAddress() == arb_addr) {
-                waiting_threads.push_back(thread);
-            }
-        }
-    };
 
     // Retrieve all threads that are waiting for this address.
     std::vector<SharedPtr<Thread>> threads;
-    RetrieveWaitingThreads(0, threads, address);
-    RetrieveWaitingThreads(1, threads, address);
-    RetrieveWaitingThreads(2, threads, address);
-    RetrieveWaitingThreads(3, threads, address);
+    const auto& scheduler = system.GlobalScheduler();
+    const auto& thread_list = scheduler.GetThreadList();
+
+    for (const auto& thread : thread_list) {
+        if (thread->GetArbiterWaitAddress() == address) {
+            threads.push_back(thread);
+        }
+    }
 
     // Sort them by priority, such that the highest priority ones come first.
     std::sort(threads.begin(), threads.end(),
