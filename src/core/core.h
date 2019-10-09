@@ -24,6 +24,7 @@ class VfsFilesystem;
 } // namespace FileSys
 
 namespace Kernel {
+class GlobalScheduler;
 class KernelCore;
 class Process;
 class Scheduler;
@@ -180,6 +181,9 @@ public:
     /// Prepare the core emulation for a reschedule
     void PrepareReschedule();
 
+    /// Prepare the core emulation for a reschedule
+    void PrepareReschedule(u32 core_index);
+
     /// Gets and resets core performance statistics
     PerfStatsResults GetAndResetPerfStats();
 
@@ -233,6 +237,12 @@ public:
 
     /// Gets the scheduler for the CPU core with the specified index
     const Kernel::Scheduler& Scheduler(std::size_t core_index) const;
+
+    /// Gets the global scheduler
+    Kernel::GlobalScheduler& GlobalScheduler();
+
+    /// Gets the global scheduler
+    const Kernel::GlobalScheduler& GlobalScheduler() const;
 
     /// Provides a pointer to the current process
     Kernel::Process* CurrentProcess();
