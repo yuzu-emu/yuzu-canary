@@ -29,6 +29,9 @@ public:
 
     Loader::ResultStatus GetStatus() const;
 
+    std::map<std::string, u64> GetFileOffsets() const;
+    std::map<std::string, u64> GetFileSizes() const;
+
     std::vector<std::shared_ptr<VfsFile>> GetFiles() const override;
     std::vector<std::shared_ptr<VfsDirectory>> GetSubdirectories() const override;
     std::string GetName() const override;
@@ -79,6 +82,9 @@ private:
     Header pfs_header{};
     bool is_hfs = false;
     std::size_t content_offset = 0;
+
+    std::map<std::string, u64> offsets;
+    std::map<std::string, u64> sizes;
 
     std::vector<VirtualFile> pfs_files;
 };
