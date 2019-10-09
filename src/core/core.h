@@ -57,6 +57,10 @@ namespace Glue {
 class ARPManager;
 }
 
+namespace LM {
+class Manager;
+} // namespace LM
+
 namespace SM {
 class ServiceManager;
 } // namespace SM
@@ -326,6 +330,10 @@ public:
     Service::APM::Controller& GetAPMController();
 
     const Service::APM::Controller& GetAPMController() const;
+
+    Service::LM::Manager& GetLogManager();
+
+    const Service::LM::Manager& GetLogManager() const;
 
     void SetExitLock(bool locked);
 

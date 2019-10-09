@@ -335,6 +335,8 @@ add_library(core STATIC
     hle/service/ldr/ldr.h
     hle/service/lm/lm.cpp
     hle/service/lm/lm.h
+    hle/service/lm/manager.cpp
+    hle/service/lm/manager.h
     hle/service/mig/mig.cpp
     hle/service/mig/mig.h
     hle/service/mii/mii.cpp

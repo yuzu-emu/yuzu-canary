@@ -6,8 +6,10 @@
 #include <string>
 
 #include "common/logging/log.h"
+#include "common/scope_exit.h"
 #include "core/hle/ipc_helpers.h"
 #include "core/hle/service/lm/lm.h"
+#include "core/hle/service/lm/manager.h"
 #include "core/hle/service/service.h"
 #include "core/memory.h"
 
@@ -15,65 +17,16 @@ namespace Service::LM {
 
 class ILogger final : public ServiceFramework<ILogger> {
 public:
-    ILogger() : ServiceFramework("ILogger") {
+    ILogger(Manager& manager) : ServiceFramework("ILogger"), manager(manager) {
         static const FunctionInfo functions[] = {
-            {0x00000000, &ILogger::Initialize, "Initialize"},
-            {0x00000001, &ILogger::SetDestination, "SetDestination"},
+            {0, &ILogger::Log, "Log"},
+            {1, &ILogger::SetDestination, "SetDestination"},
         };
         RegisterHandlers(functions);
     }
 
 private:
-    struct MessageHeader {
-        enum Flags : u32_le {
-            IsHead = 1,
-            IsTail = 2,
-        };
-        enum Severity : u32_le {
-            Trace,
-            Info,
-            Warning,
-            Error,
-            Critical,
-        };
-
-        u64_le pid;
-        u64_le threadContext;
-        union {
-            BitField<0, 16, Flags> flags;
-            BitField<16, 8, Severity> severity;
-            BitField<24, 8, u32> verbosity;
-        };
-        u32_le payload_size;
-
-        bool IsHeadLog() const {
-            return flags & Flags::IsHead;
-        }
-        bool IsTailLog() const {
-            return flags & Flags::IsTail;
-        }
-    };
-    static_assert(sizeof(MessageHeader) == 0x18, "MessageHeader is incorrect size");
-
-    /// Log field type
-    enum class Field : u8 {
-        Skip = 1,
-        Message = 2,
-        Line = 3,
-        Filename = 4,
-        Function = 5,
-        Module = 6,
-        Thread = 7,
-    };
-
-    /**
-     * ILogger::Initialize service function
-     *  Inputs:
-     *      0: 0x00000000
-     *  Outputs:
-     *      0: ResultCode
-     */
-    void Initialize(Kernel::HLERequestContext& ctx) {
+    void Log(Kernel::HLERequestContext& ctx) {
         // This function only succeeds - Get that out of the way
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
@@ -85,140 +38,70 @@ private:
         Memory::ReadBlock(addr, &header, sizeof(MessageHeader));
         addr += sizeof(MessageHeader);
 
-        if (header.IsHeadLog()) {
-            log_stream.str("");
-            log_stream.clear();
-        }
-
-        // Parse out log metadata
-        u32 line{};
-        std::string module;
-        std::string message;
-        std::string filename;
-        std::string function;
-        std::string thread;
+        FieldMap fields;
         while (addr < end_addr) {
-            const Field field{static_cast<Field>(Memory::Read8(addr++))};
-            const std::size_t length{Memory::Read8(addr++)};
+            const auto field = static_cast<Field>(Memory::Read8(addr++));
+            const auto length = Memory::Read8(addr++);
 
             if (static_cast<Field>(Memory::Read8(addr)) == Field::Skip) {
                 ++addr;
             }
 
-            switch (field) {
-            case Field::Skip:
-                break;
-            case Field::Message:
-                message = Memory::ReadCString(addr, length);
-                break;
-            case Field::Line:
-                line = Memory::Read32(addr);
-                break;
-            case Field::Filename:
-                filename = Memory::ReadCString(addr, length);
-                break;
-            case Field::Function:
-                function = Memory::ReadCString(addr, length);
-                break;
-            case Field::Module:
-                module = Memory::ReadCString(addr, length);
-                break;
-            case Field::Thread:
-                thread = Memory::ReadCString(addr, length);
-                break;
+            SCOPE_EXIT({ addr += length; });
+
+            if (field == Field::Skip) {
+                continue;
             }
 
-            addr += length;
+            std::vector<u8> data(length);
+            Memory::ReadBlock(addr, data.data(), length);
+            fields.emplace(field, std::move(data));
         }
 
-        // Empty log - nothing to do here
-        if (log_stream.str().empty() && message.empty()) {
-            return;
-        }
-
-        // Format a nicely printable string out of the log metadata
-        if (!filename.empty()) {
-            log_stream << filename << ':';
-        }
-        if (!module.empty()) {
-            log_stream << module << ':';
-        }
-        if (!function.empty()) {
-            log_stream << function << ':';
-        }
-        if (line) {
-            log_stream << std::to_string(line) << ':';
-        }
-        if (!thread.empty()) {
-            log_stream << thread << ':';
-        }
-        if (log_stream.str().length() > 0 && log_stream.str().back() == ':') {
-            log_stream << ' ';
-        }
-        log_stream << message;
-
-        if (header.IsTailLog()) {
-            switch (header.severity) {
-            case MessageHeader::Severity::Trace:
-                LOG_DEBUG(Debug_Emulated, "{}", log_stream.str());
-                break;
-            case MessageHeader::Severity::Info:
-                LOG_INFO(Debug_Emulated, "{}", log_stream.str());
-                break;
-            case MessageHeader::Severity::Warning:
-                LOG_WARNING(Debug_Emulated, "{}", log_stream.str());
-                break;
-            case MessageHeader::Severity::Error:
-                LOG_ERROR(Debug_Emulated, "{}", log_stream.str());
-                break;
-            case MessageHeader::Severity::Critical:
-                LOG_CRITICAL(Debug_Emulated, "{}", log_stream.str());
-                break;
-            }
-        }
+        manager.Log({header, std::move(fields)});
     }
 
-    // This service function is intended to be used as a way to
-    // redirect logging output to different destinations, however,
-    // given we always want to see the logging output, it's sufficient
-    // to do nothing and return success here.
     void SetDestination(Kernel::HLERequestContext& ctx) {
-        LOG_DEBUG(Service_LM, "called");
+        IPC::RequestParser rp{ctx};
+        const auto destination = rp.PopEnum<DestinationFlag>();
+
+        LOG_DEBUG(Service_LM, "called, destination={:08X}", static_cast<u32>(destination));
+
+        manager.SetDestination(destination);
 
         IPC::ResponseBuilder rb{ctx, 2};
         rb.Push(RESULT_SUCCESS);
     }
 
-    std::ostringstream log_stream;
+    Manager& manager;
 };
 
 class LM final : public ServiceFramework<LM> {
 public:
-    explicit LM() : ServiceFramework{"lm"} {
+    explicit LM(Manager& manager) : ServiceFramework{"lm"}, manager(manager) {
+        // clang-format off
         static const FunctionInfo functions[] = {
-            {0x00000000, &LM::OpenLogger, "OpenLogger"},
+            {0, &LM::OpenLogger, "OpenLogger"},
         };
+        // clang-format on
+
         RegisterHandlers(functions);
     }
 
-    /**
-     * LM::OpenLogger service function
-     *  Inputs:
-     *      0: 0x00000000
-     *  Outputs:
-     *      0: ResultCode
-     */
+private:
     void OpenLogger(Kernel::HLERequestContext& ctx) {
         LOG_DEBUG(Service_LM, "called");
 
         IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
-        rb.PushIpcInterface<ILogger>();
+        rb.PushIpcInterface<ILogger>(manager);
     }
+
+    Manager& manager;
 };
 
-void InstallInterfaces(SM::ServiceManager& service_manager) {
-    std::make_shared<LM>()->InstallAsService(service_manager);
+void InstallInterfaces(Core::System& system) {
+    std::make_shared<LM>(system.GetLogManager())->InstallAsService(system.ServiceManager());
 }
 
 } // namespace Service::LM

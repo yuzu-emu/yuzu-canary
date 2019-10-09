@@ -20,6 +20,10 @@ namespace Service::FileSystem {
 enum class LogMode : u32;
 }
 
+namespace Service::LM {
+struct LogMessage;
+} // namespace Service::LM
+
 namespace Core {
 
 class System;
@@ -29,18 +33,22 @@ public:
     explicit Reporter(System& system);
     ~Reporter();
 
+    // Used by fatal services
     void SaveCrashReport(u64 title_id, ResultCode result, u64 set_flags, u64 entry_point, u64 sp,
                          u64 pc, u64 pstate, u64 afsr0, u64 afsr1, u64 esr, u64 far,
                          const std::array<u64, 31>& registers, const std::array<u64, 32>& backtrace,
                          u32 backtrace_size, const std::string& arch, u32 unk10) const;
 
+    // Used by syscall svcBreak
     void SaveSvcBreakReport(u32 type, bool signal_debugger, u64 info1, u64 info2,
                             std::optional<std::vector<u8>> resolved_buffer = {}) const;
 
+    // Used by HLE service handler
     void SaveUnimplementedFunctionReport(Kernel::HLERequestContext& ctx, u32 command_id,
                                          const std::string& name,
                                          const std::string& service_name) const;
 
+    // Used by stub applet implementation
     void SaveUnimplementedAppletReport(u32 applet_id, u32 common_args_version, u32 library_version,
                                        u32 theme_color, bool startup_sound, u64 system_tick,
                                        std::vector<std::vector<u8>> normal_channel,
@@ -55,6 +63,7 @@ public:
     void SavePlayReport(PlayReportType type, u64 title_id, std::vector<std::vector<u8>> data,
                         std::optional<u64> process_id = {}, std::optional<u128> user_id = {}) const;
 
+    // Used by error applet
     void SaveErrorReport(u64 title_id, ResultCode result,
                          std::optional<std::string> custom_text_main = {},
                          std::optional<std::string> custom_text_detail = {}) const;
@@ -62,6 +71,11 @@ public:
     void SaveFilesystemAccessReport(Service::FileSystem::LogMode log_mode,
                                     std::string log_message) const;
 
+    // Used by lm services
+    void SaveLogReport(u32 destination, std::vector<Service::LM::LogMessage> messages) const;
+
+    // Can be used anywhere to generate a backtrace and general info report at any point during
+    // execution. Not intended to be used for anything other than debugging or testing.
     void SaveUserReport() const;
 
 private:

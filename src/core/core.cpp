@@ -35,6 +35,7 @@
 #include "core/hle/service/apm/controller.h"
 #include "core/hle/service/filesystem/filesystem.h"
 #include "core/hle/service/glue/manager.h"
+#include "core/hle/service/lm/manager.h"
 #include "core/hle/service/service.h"
 #include "core/hle/service/sm/sm.h"
 #include "core/loader/loader.h"
@@ -250,6 +251,8 @@ struct System::Impl {
         telemetry_session->AddField(Telemetry::FieldType::Performance, "Mean_Frametime_MS",
                                     perf_stats->GetMeanFrametime());
 
+        lm_manager.Flush();
+
         is_powered_on = false;
         exit_lock = false;
 
@@ -340,6 +343,7 @@ struct System::Impl {
     bool is_powered_on = false;
     bool exit_lock = false;
 
+    Reporter reporter;
     std::unique_ptr<Memory::CheatEngine> cheat_engine;
     std::unique_ptr<Tools::Freezer> memory_freezer;
     std::array<u8, 0x20> build_id{};
@@ -350,16 +354,15 @@ struct System::Impl {
     /// APM (Performance) services
     Service::APM::Controller apm_controller{core_timing};
 
-    /// Glue services
+    /// Service State
     Service::Glue::ARPManager arp_manager;
+    Service::LM::Manager lm_manager{reporter};
 
     /// Service manager
     std::shared_ptr<Service::SM::ServiceManager> service_manager;
 
     /// Telemetry session for this emulation session
     std::unique_ptr<Core::TelemetrySession> telemetry_session;
-
-    Reporter reporter;
 
     ResultStatus status = ResultStatus::Success;
     std::string status_details = "";
@@ -634,6 +637,14 @@ Service::APM::Controller& System::GetAPMController() {
 
 const Service::APM::Controller& System::GetAPMController() const {
     return impl->apm_controller;
+}
+
+Service::LM::Manager& System::GetLogManager() {
+    return impl->lm_manager;
+}
+
+const Service::LM::Manager& System::GetLogManager() const {
+    return impl->lm_manager;
 }
 
 void System::SetExitLock(bool locked) {
