@@ -187,13 +187,17 @@ void NVFlinger::Compose() {
         MicroProfileFlip();
 
         if (!buffer) {
-            // There was no queued buffer to draw, render previous frame
-            system.GetPerfStats().EndGameFrame();
-            system.GPU().SwapBuffers({});
             continue;
         }
 
         const auto& igbp_buffer = buffer->get().igbp_buffer;
+
+        const auto& gpu = system.GPU();
+        const auto& multi_fence = buffer->get().multi_fence;
+        for (u32 fence_id = 0; fence_id < multi_fence.num_fences; fence_id++) {
+            const auto& fence = multi_fence.fences[fence_id];
+            gpu.WaitFence(fence.id, fence.value);
+        }
 
         // Now send the buffer to the GPU for drawing.
         // TODO(Subv): Support more than just disp0. The display device selection is probably based
