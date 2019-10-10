@@ -75,6 +75,26 @@ enum class ThreadActivity : u32 {
     Paused = 1,
 };
 
+enum class ThreadSchedStatus : u32 {
+    None = 0,
+    Paused = 1,
+    Runnable = 2,
+    Exited = 3,
+};
+
+enum ThreadSchedFlags : u32 {
+    ProcessPauseFlag = 1 << 4,
+    ThreadPauseFlag = 1 << 5,
+    ProcessDebugPauseFlag = 1 << 6,
+    KernelInitPauseFlag = 1 << 8,
+};
+
+enum ThreadSchedMasks : u32 {
+    LowMask = 0x000f,
+    HighMask = 0xfff0,
+    ForcePauseMask = 0x0070,
+};
+
 class Thread final : public WaitObject {
 public:
     using MutexWaitingThreads = std::vector<SharedPtr<Thread>>;
@@ -278,6 +298,10 @@ public:
         return processor_id;
     }
 
+    void SetProcessorID(s32 new_core) {
+        processor_id = new_core;
+    }
+
     Process* GetOwnerProcess() {
         return owner_process;
     }
@@ -383,11 +407,38 @@ public:
     /// Sleeps this thread for the given amount of nanoseconds.
     void Sleep(s64 nanoseconds);
 
+    /// Yields this thread without rebalancing loads.
+    void YieldSimple();
+
+    /// Yields this thread and does a load rebalancing.
+    void YieldAndBalanceLoad();
+
+    /// Yields this thread and if the core is left idle, loads are rebalanced
+    void YieldAndWaitForLoadBalancing();
+
+    ThreadSchedStatus GetSchedulingStatus() const {
+        return static_cast<ThreadSchedStatus>(scheduling_state & ThreadSchedMasks::LowMask);
+    }
+
+    bool IsRunning() const {
+        return is_running;
+    }
+
+    void SetIsRunning(bool value) {
+        is_running = value;
+    }
+
 private:
     explicit Thread(KernelCore& kernel);
     ~Thread() override;
 
-    void ChangeScheduler();
+    void SetSchedulingStatus(ThreadSchedStatus new_status);
+    void SetCurrentPriority(u32 new_priority);
+    ResultCode SetCoreAndAffinityMask(s32 new_core, u64 new_affinity_mask);
+
+    void AdjustSchedulingOnStatus(u32 old_flags);
+    void AdjustSchedulingOnPriority(u32 old_priority);
+    void AdjustSchedulingOnAffinity(u64 old_affinity_mask, s32 old_core);
 
     Core::ARM_Interface::ThreadContext context{};
 
@@ -452,6 +503,13 @@ private:
     u64 affinity_mask{0x1};
 
     ThreadActivity activity = ThreadActivity::Normal;
+
+    s32 ideal_core_override = -1;
+    u64 affinity_mask_override = 0x1;
+    u32 affinity_override_count = 0;
+
+    u32 scheduling_state = 0;
+    bool is_running = false;
 
     std::string name;
 };
