@@ -65,6 +65,9 @@ PartitionFilesystem::PartitionFilesystem(std::shared_ptr<VfsFile> file) {
         std::string name(
             reinterpret_cast<const char*>(&file_data[strtab_offset + entry.strtab_offset]));
 
+        offsets[name] = content_offset + entry.offset;
+        sizes[name] = entry.size;
+
         pfs_files.emplace_back(std::make_shared<OffsetVfsFile>(
             file, entry.size, content_offset + entry.offset, std::move(name)));
     }
@@ -76,6 +79,14 @@ PartitionFilesystem::~PartitionFilesystem() = default;
 
 Loader::ResultStatus PartitionFilesystem::GetStatus() const {
     return status;
+}
+
+std::map<std::string, u64> PartitionFilesystem::GetFileOffsets() const {
+    return offsets;
+}
+
+std::map<std::string, u64> PartitionFilesystem::GetFileSizes() const {
+    return sizes;
 }
 
 std::vector<std::shared_ptr<VfsFile>> PartitionFilesystem::GetFiles() const {
