@@ -6,6 +6,7 @@
 #include "core/arm/exclusive_monitor.h"
 #include "core/core.h"
 #include "core/core_cpu.h"
+#include "core/core_timing.h"
 #include "core/cpu_core_manager.h"
 #include "core/gdbstub/gdbstub.h"
 #include "core/settings.h"
@@ -57,6 +58,7 @@ void CpuCoreManager::Shutdown() {
 
     thread_to_cpu.clear();
     for (auto& cpu_core : cores) {
+        cpu_core->Shutdown();
         cpu_core.reset();
     }
 
@@ -122,13 +124,19 @@ void CpuCoreManager::RunLoop(bool tight_loop) {
         }
     }
 
-    for (active_core = 0; active_core < NUM_CPU_CORES; ++active_core) {
-        cores[active_core]->RunLoop(tight_loop);
-        if (Settings::values.use_multi_core) {
-            // Cores 1-3 are run on other threads in this mode
-            break;
+    auto& core_timing = system.CoreTiming();
+    core_timing.ResetRun();
+    bool keep_running{};
+    do {
+        keep_running = false;
+        for (active_core = 0; active_core < NUM_CPU_CORES; ++active_core) {
+            core_timing.SwitchContext(active_core);
+            if (core_timing.CanCurrentContextRun()) {
+                cores[active_core]->RunLoop(tight_loop);
+            }
+            keep_running |= core_timing.CanCurrentContextRun();
         }
-    }
+    } while (keep_running);
 
     if (GDBStub::IsServerEnabled()) {
         GDBStub::SetCpuStepFlag(false);

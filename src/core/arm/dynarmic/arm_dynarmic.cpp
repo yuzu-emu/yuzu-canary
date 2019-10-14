@@ -116,7 +116,7 @@ public:
         num_interpreted_instructions = 0;
     }
     u64 GetTicksRemaining() override {
-        return std::max(parent.system.CoreTiming().GetDowncount(), 0);
+        return std::max(parent.system.CoreTiming().GetDowncount(), s64{0});
     }
     u64 GetCNTPCT() override {
         return Timing::CpuCyclesToClockCycles(parent.system.CoreTiming().GetTicks());
