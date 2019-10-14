@@ -91,6 +91,7 @@ void SoftwareKeyboard::ExecuteInteractive() {
 
     if (status == INTERACTIVE_STATUS_OK) {
         complete = true;
+        broker.SignalStateChanged();
     } else {
         std::array<char16_t, SWKBD_OUTPUT_INTERACTIVE_BUFFER_SIZE / 2 - 2> string;
         std::memcpy(string.data(), data.data() + 4, string.size() * 2);
