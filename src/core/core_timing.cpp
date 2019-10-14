@@ -15,7 +15,7 @@
 
 namespace Core::Timing {
 
-constexpr int MAX_SLICE_LENGTH = 20000;
+constexpr int MAX_SLICE_LENGTH = 10000;
 
 struct CoreTiming::Event {
     s64 time;
@@ -38,10 +38,12 @@ CoreTiming::CoreTiming() = default;
 CoreTiming::~CoreTiming() = default;
 
 void CoreTiming::Initialize() {
-    downcount = MAX_SLICE_LENGTH;
+    downcounts.fill(MAX_SLICE_LENGTH);
+    time_slice.fill(MAX_SLICE_LENGTH);
     slice_length = MAX_SLICE_LENGTH;
     global_timer = 0;
     idled_cycles = 0;
+    current_context = 0;
 
     // The time between CoreTiming being initialized and the first call to Advance() is considered
     // the slice boundary between slice -1 and slice 0. Dispatcher loops must call Advance() before
@@ -110,7 +112,7 @@ void CoreTiming::UnscheduleEvent(const EventType* event_type, u64 userdata) {
 u64 CoreTiming::GetTicks() const {
     u64 ticks = static_cast<u64>(global_timer);
     if (!is_global_timer_sane) {
-        ticks += slice_length - downcount;
+        ticks += accumulated_ticks;
     }
     return ticks;
 }
@@ -120,7 +122,8 @@ u64 CoreTiming::GetIdleTicks() const {
 }
 
 void CoreTiming::AddTicks(u64 ticks) {
-    downcount -= static_cast<int>(ticks);
+    accumulated_ticks += ticks;
+    downcounts[current_context] -= static_cast<s64>(ticks);
 }
 
 void CoreTiming::ClearPendingEvents() {
@@ -141,22 +144,35 @@ void CoreTiming::RemoveEvent(const EventType* event_type) {
 
 void CoreTiming::ForceExceptionCheck(s64 cycles) {
     cycles = std::max<s64>(0, cycles);
-    if (downcount <= cycles) {
+    if (downcounts[current_context] <= cycles) {
         return;
     }
 
     // downcount is always (much) smaller than MAX_INT so we can safely cast cycles to an int
     // here. Account for cycles already executed by adjusting the g.slice_length
-    slice_length -= downcount - static_cast<int>(cycles);
-    downcount = static_cast<int>(cycles);
+    downcounts[current_context] = static_cast<int>(cycles);
+}
+
+std::optional<u64> CoreTiming::NextAvailableCore(const s64 needed_ticks) const {
+    const u64 original_context = current_context;
+    u64 next_context = (original_context + 1) % num_cpu_cores;
+    while (next_context != original_context) {
+        if (time_slice[next_context] >= needed_ticks) {
+            return {next_context};
+        } else if (time_slice[next_context] >= 0) {
+            return std::nullopt;
+        }
+        next_context = (next_context + 1) % num_cpu_cores;
+    }
+    return std::nullopt;
 }
 
 void CoreTiming::Advance() {
     std::unique_lock<std::mutex> guard(inner_mutex);
 
-    const int cycles_executed = slice_length - downcount;
+    const u64 cycles_executed = accumulated_ticks;
+    time_slice[current_context] = std::max<s64>(0, time_slice[current_context] - accumulated_ticks);
     global_timer += cycles_executed;
-    slice_length = MAX_SLICE_LENGTH;
 
     is_global_timer_sane = true;
 
@@ -173,24 +189,46 @@ void CoreTiming::Advance() {
 
     // Still events left (scheduled in the future)
     if (!event_queue.empty()) {
-        slice_length = static_cast<int>(
-            std::min<s64>(event_queue.front().time - global_timer, MAX_SLICE_LENGTH));
+        const s64 needed_ticks =
+            std::min<s64>(event_queue.front().time - global_timer, MAX_SLICE_LENGTH);
+        const auto next_core = NextAvailableCore(needed_ticks);
+        if (next_core) {
+            downcounts[*next_core] = needed_ticks;
+        }
     }
 
-    downcount = slice_length;
+    accumulated_ticks = 0;
+
+    downcounts[current_context] = time_slice[current_context];
+}
+
+void CoreTiming::ResetRun() {
+    downcounts.fill(MAX_SLICE_LENGTH);
+    time_slice.fill(MAX_SLICE_LENGTH);
+    current_context = 0;
+    // Still events left (scheduled in the future)
+    if (!event_queue.empty()) {
+        const s64 needed_ticks =
+            std::min<s64>(event_queue.front().time - global_timer, MAX_SLICE_LENGTH);
+        downcounts[current_context] = needed_ticks;
+    }
+
+    is_global_timer_sane = false;
+    accumulated_ticks = 0;
 }
 
 void CoreTiming::Idle() {
-    idled_cycles += downcount;
-    downcount = 0;
+    accumulated_ticks += downcounts[current_context];
+    idled_cycles += downcounts[current_context];
+    downcounts[current_context] = 0;
 }
 
 std::chrono::microseconds CoreTiming::GetGlobalTimeUs() const {
     return std::chrono::microseconds{GetTicks() * 1000000 / BASE_CLOCK_RATE};
 }
 
-int CoreTiming::GetDowncount() const {
-    return downcount;
+s64 CoreTiming::GetDowncount() const {
+    return downcounts[current_context];
 }
 
 } // namespace Core::Timing
