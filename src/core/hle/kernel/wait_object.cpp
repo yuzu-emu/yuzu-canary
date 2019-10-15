@@ -6,6 +6,9 @@
 #include "common/assert.h"
 #include "common/common_types.h"
 #include "common/logging/log.h"
+#include "core/core.h"
+#include "core/core_cpu.h"
+#include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/object.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/kernel/thread.h"
@@ -73,9 +76,6 @@ void WaitObject::WakeupWaitingThread(SharedPtr<Thread> thread) {
 
     const std::size_t index = thread->GetWaitObjectIndex(this);
 
-    for (const auto& object : thread->GetWaitObjects()) {
-        object->RemoveWaitingThread(thread.get());
-    }
     thread->ClearWaitObjects();
 
     thread->CancelWakeupTimer();
@@ -86,6 +86,7 @@ void WaitObject::WakeupWaitingThread(SharedPtr<Thread> thread) {
     }
     if (resume) {
         thread->ResumeFromWait();
+        Core::System::GetInstance().PrepareReschedule(thread->GetProcessorID());
     }
 }
 
