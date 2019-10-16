@@ -102,8 +102,6 @@ RendererOpenGL::RendererOpenGL(Core::Frontend::EmuWindow& emu_window, Core::Syst
 RendererOpenGL::~RendererOpenGL() = default;
 
 void RendererOpenGL::SwapBuffers(const Tegra::FramebufferConfig* framebuffer) {
-    system.GetPerfStats().EndSystemFrame();
-
     // Maintain the rasterizer's state as a priority
     OpenGLState prev_state = OpenGLState::GetCurState();
     state.AllDirty();
@@ -134,9 +132,6 @@ void RendererOpenGL::SwapBuffers(const Tegra::FramebufferConfig* framebuffer) {
     }
 
     render_window.PollEvents();
-
-    system.FrameLimiter().DoFrameLimiting(system.CoreTiming().GetGlobalTimeUs());
-    system.GetPerfStats().BeginSystemFrame();
 
     // Restore the rasterizer state
     prev_state.AllDirty();
