@@ -847,17 +847,16 @@ private:
     void PopInteractiveOutData(Kernel::HLERequestContext& ctx) {
         LOG_DEBUG(Service_AM, "called");
 
-        IPC::ResponseBuilder rb{ctx, 2, 0, 1};
-
         const auto storage = applet->GetBroker().PopInteractiveDataToGame();
         if (storage == nullptr) {
             LOG_ERROR(Service_AM,
                       "storage is a nullptr. There is no data in the current interactive channel");
-
+            IPC::ResponseBuilder rb{ctx, 2};
             rb.Push(ERR_NO_DATA_IN_CHANNEL);
             return;
         }
 
+        IPC::ResponseBuilder rb{ctx, 2, 0, 1};
         rb.Push(RESULT_SUCCESS);
         rb.PushIpcInterface<IStorage>(std::move(*storage));
     }
