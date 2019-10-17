@@ -58,6 +58,7 @@ void CpuCoreManager::Shutdown() {
 
     thread_to_cpu.clear();
     for (auto& cpu_core : cores) {
+        cpu_core->Shutdown();
         cpu_core.reset();
     }
 
