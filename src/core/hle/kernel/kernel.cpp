@@ -12,12 +12,15 @@
 
 #include "core/core.h"
 #include "core/core_timing.h"
+#include "core/core_timing_util.h"
 #include "core/hle/kernel/address_arbiter.h"
 #include "core/hle/kernel/client_port.h"
+#include "core/hle/kernel/errors.h"
 #include "core/hle/kernel/handle_table.h"
 #include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/process.h"
 #include "core/hle/kernel/resource_limit.h"
+#include "core/hle/kernel/scheduler.h"
 #include "core/hle/kernel/thread.h"
 #include "core/hle/lock.h"
 #include "core/hle/result.h"
@@ -58,12 +61,8 @@ static void ThreadWakeupCallback(u64 thread_handle, [[maybe_unused]] s64 cycles_
         if (thread->HasWakeupCallback()) {
             resume = thread->InvokeWakeupCallback(ThreadWakeupReason::Timeout, thread, nullptr, 0);
         }
-    }
-
-    if (thread->GetMutexWaitAddress() != 0 || thread->GetCondVarWaitAddress() != 0 ||
-        thread->GetWaitHandle() != 0) {
-        ASSERT(thread->GetStatus() == ThreadStatus::WaitMutex ||
-               thread->GetStatus() == ThreadStatus::WaitCondVar);
+    } else if (thread->GetStatus() == ThreadStatus::WaitMutex ||
+               thread->GetStatus() == ThreadStatus::WaitCondVar) {
         thread->SetMutexWaitAddress(0);
         thread->SetCondVarWaitAddress(0);
         thread->SetWaitHandle(0);
@@ -83,18 +82,23 @@ static void ThreadWakeupCallback(u64 thread_handle, [[maybe_unused]] s64 cycles_
     }
 
     if (resume) {
+        if (thread->GetStatus() == ThreadStatus::WaitCondVar ||
+            thread->GetStatus() == ThreadStatus::WaitArb) {
+            thread->SetWaitSynchronizationResult(RESULT_TIMEOUT);
+        }
         thread->ResumeFromWait();
     }
 }
 
 struct KernelCore::Impl {
-    explicit Impl(Core::System& system) : system{system} {}
+    explicit Impl(Core::System& system) : system{system}, global_scheduler{system} {}
 
     void Initialize(KernelCore& kernel) {
         Shutdown();
 
         InitializeSystemResourceLimit(kernel);
         InitializeThreads();
+        InitializePreemption();
     }
 
     void Shutdown() {
@@ -110,6 +114,9 @@ struct KernelCore::Impl {
 
         thread_wakeup_callback_handle_table.Clear();
         thread_wakeup_event_type = nullptr;
+        preemption_event = nullptr;
+
+        global_scheduler.Shutdown();
 
         named_ports.clear();
     }
@@ -132,6 +139,18 @@ struct KernelCore::Impl {
             system.CoreTiming().RegisterEvent("ThreadWakeupCallback", ThreadWakeupCallback);
     }
 
+    void InitializePreemption() {
+        preemption_event = system.CoreTiming().RegisterEvent(
+            "PreemptionCallback", [this](u64 userdata, s64 cycles_late) {
+                global_scheduler.PreemptThreads();
+                s64 time_interval = Core::Timing::msToCycles(std::chrono::milliseconds(10));
+                system.CoreTiming().ScheduleEvent(time_interval, preemption_event);
+            });
+
+        s64 time_interval = Core::Timing::msToCycles(std::chrono::milliseconds(10));
+        system.CoreTiming().ScheduleEvent(time_interval, preemption_event);
+    }
+
     std::atomic<u32> next_object_id{0};
     std::atomic<u64> next_kernel_process_id{Process::InitialKIPIDMin};
     std::atomic<u64> next_user_process_id{Process::ProcessIDMin};
@@ -140,10 +159,12 @@ struct KernelCore::Impl {
     // Lists all processes that exist in the current session.
     std::vector<SharedPtr<Process>> process_list;
     Process* current_process = nullptr;
+    Kernel::GlobalScheduler global_scheduler;
 
     SharedPtr<ResourceLimit> system_resource_limit;
 
     Core::Timing::EventType* thread_wakeup_event_type = nullptr;
+    Core::Timing::EventType* preemption_event = nullptr;
     // TODO(yuriks): This can be removed if Thread objects are explicitly pooled in the future,
     // allowing us to simply use a pool index or similar.
     Kernel::HandleTable thread_wakeup_callback_handle_table;
@@ -201,6 +222,14 @@ const Process* KernelCore::CurrentProcess() const {
 
 const std::vector<SharedPtr<Process>>& KernelCore::GetProcessList() const {
     return impl->process_list;
+}
+
+Kernel::GlobalScheduler& KernelCore::GlobalScheduler() {
+    return impl->global_scheduler;
+}
+
+const Kernel::GlobalScheduler& KernelCore::GlobalScheduler() const {
+    return impl->global_scheduler;
 }
 
 void KernelCore::AddNamedPort(std::string name, SharedPtr<ClientPort> port) {
