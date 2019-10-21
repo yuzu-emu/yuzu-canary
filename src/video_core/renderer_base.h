@@ -28,6 +28,10 @@ struct RendererSettings {
     void* screenshot_bits;
     std::function<void()> screenshot_complete_callback;
     Layout::FramebufferLayout screenshot_framebuffer_layout;
+
+    // Backlight & Brightness
+    std::atomic<f32> current_brightness{1.f};
+    std::atomic<u64> backlight_fade_time{0};
 };
 
 class RendererBase : NonCopyable {
@@ -86,6 +90,17 @@ public:
     void RequestScreenshot(void* data, std::function<void()> callback,
                            const Layout::FramebufferLayout& layout);
 
+    // Gets the current brightness, even if it has been changed from the set value. Most of the time
+    // for yuzu this will simply match what was returned, but implementations are free to change the
+    // value in settings.
+    f32 GetCurrentResultantBrightness() const;
+
+    void SetBacklightStatus(bool enabled, u64 fade_transition_time);
+
+    bool GetBacklightStatus() const;
+
+    void SetCurrentBrightness(f32 value);
+
 protected:
     Core::Frontend::EmuWindow& render_window; ///< Reference to the render window handle.
     std::unique_ptr<RasterizerInterface> rasterizer;
@@ -97,6 +112,9 @@ protected:
 private:
     /// Updates the framebuffer layout of the contained render window handle.
     void UpdateCurrentFramebufferLayout();
+
+    // Value of brightness before backlight switch used to preserve value.
+    f32 current_brightness_backup;
 };
 
 } // namespace VideoCore
