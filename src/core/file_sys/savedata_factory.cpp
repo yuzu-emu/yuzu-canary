@@ -16,6 +16,7 @@ namespace FileSys {
 constexpr char SAVE_DATA_SIZE_FILENAME[] = ".yuzu_save_size";
 
 namespace {
+
 void PrintSaveDataDescriptorWarnings(SaveDataDescriptor meta) {
     if (meta.type == SaveDataType::SystemSaveData || meta.type == SaveDataType::SaveData) {
         if (meta.zero_1 != 0) {
@@ -52,6 +53,14 @@ void PrintSaveDataDescriptorWarnings(SaveDataDescriptor meta) {
                     meta.user_id[1], meta.user_id[0]);
     }
 }
+
+bool ShouldSaveDataBeAutomaticallyCreated(SaveDataSpaceId space, const SaveDataDescriptor& desc) {
+    return desc.type == SaveDataType::CacheStorage        ///< Cache Saves
+           || desc.type == SaveDataType::TemporaryStorage ///< Temp Saves
+           || (space == SaveDataSpaceId::NandUser && ///< Normal Save Data -- Current Title & User
+               desc.type == SaveDataType::SaveData && desc.title_id == 0 && desc.save_id == 0);
+}
+
 } // Anonymous namespace
 
 std::string SaveDataDescriptor::DebugInfo() const {
@@ -95,6 +104,10 @@ ResultVal<VirtualDir> SaveDataFactory::Open(SaveDataSpaceId space,
         GetFullPath(space, meta.type, meta.title_id, meta.user_id, meta.save_id);
 
     auto out = dir->GetDirectoryRelative(save_directory);
+
+    if (out == nullptr && ShouldSaveDataBeAutomaticallyCreated(space, meta)) {
+        return Create(space, meta);
+    }
 
     // Return an error if the save data doesn't actually exist.
     if (out == nullptr) {
