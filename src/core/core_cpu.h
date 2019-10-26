@@ -12,8 +12,9 @@
 #include "common/common_types.h"
 
 namespace Kernel {
+class GlobalScheduler;
 class Scheduler;
-}
+} // namespace Kernel
 
 namespace Core {
 class System;
@@ -83,6 +84,8 @@ public:
         return core_index;
     }
 
+    void Shutdown();
+
     static std::unique_ptr<ExclusiveMonitor> MakeExclusiveMonitor(std::size_t num_cores);
 
 private:
@@ -90,6 +93,7 @@ private:
 
     std::unique_ptr<ARM_Interface> arm_interface;
     CpuBarrier& cpu_barrier;
+    Kernel::GlobalScheduler& global_scheduler;
     std::unique_ptr<Kernel::Scheduler> scheduler;
     Timing::CoreTiming& core_timing;
 
