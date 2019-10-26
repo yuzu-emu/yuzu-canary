@@ -75,6 +75,26 @@ enum class ThreadActivity : u32 {
     Paused = 1,
 };
 
+enum class ThreadSchedStatus : u32 {
+    None = 0,
+    Paused = 1,
+    Runnable = 2,
+    Exited = 3,
+};
+
+enum class ThreadSchedFlags : u32 {
+    ProcessPauseFlag = 1 << 4,
+    ThreadPauseFlag = 1 << 5,
+    ProcessDebugPauseFlag = 1 << 6,
+    KernelInitPauseFlag = 1 << 8,
+};
+
+enum class ThreadSchedMasks : u32 {
+    LowMask = 0x000f,
+    HighMask = 0xfff0,
+    ForcePauseMask = 0x0070,
+};
+
 class Thread final : public WaitObject {
 public:
     using MutexWaitingThreads = std::vector<SharedPtr<Thread>>;
@@ -278,6 +298,10 @@ public:
         return processor_id;
     }
 
+    void SetProcessorID(s32 new_core) {
+        processor_id = new_core;
+    }
+
     Process* GetOwnerProcess() {
         return owner_process;
     }
@@ -295,6 +319,9 @@ public:
     }
 
     void ClearWaitObjects() {
+        for (const auto& waiting_object : wait_objects) {
+            waiting_object->RemoveWaitingThread(this);
+        }
         wait_objects.clear();
     }
 
@@ -383,11 +410,47 @@ public:
     /// Sleeps this thread for the given amount of nanoseconds.
     void Sleep(s64 nanoseconds);
 
+    /// Yields this thread without rebalancing loads.
+    bool YieldSimple();
+
+    /// Yields this thread and does a load rebalancing.
+    bool YieldAndBalanceLoad();
+
+    /// Yields this thread and if the core is left idle, loads are rebalanced
+    bool YieldAndWaitForLoadBalancing();
+
+    void IncrementYieldCount() {
+        yield_count++;
+    }
+
+    u64 GetYieldCount() const {
+        return yield_count;
+    }
+
+    ThreadSchedStatus GetSchedulingStatus() const {
+        return static_cast<ThreadSchedStatus>(scheduling_state &
+                                              static_cast<u32>(ThreadSchedMasks::LowMask));
+    }
+
+    bool IsRunning() const {
+        return is_running;
+    }
+
+    void SetIsRunning(bool value) {
+        is_running = value;
+    }
+
 private:
     explicit Thread(KernelCore& kernel);
     ~Thread() override;
 
-    void ChangeScheduler();
+    void SetSchedulingStatus(ThreadSchedStatus new_status);
+    void SetCurrentPriority(u32 new_priority);
+    ResultCode SetCoreAndAffinityMask(s32 new_core, u64 new_affinity_mask);
+
+    void AdjustSchedulingOnStatus(u32 old_flags);
+    void AdjustSchedulingOnPriority(u32 old_priority);
+    void AdjustSchedulingOnAffinity(u64 old_affinity_mask, s32 old_core);
 
     Core::ARM_Interface::ThreadContext context{};
 
@@ -409,6 +472,8 @@ private:
 
     u64 total_cpu_time_ticks = 0; ///< Total CPU running ticks.
     u64 last_running_ticks = 0;   ///< CPU tick when thread was last running
+    u64 yield_count = 0;          ///< Number of redundant yields carried by this thread.
+                                  ///< a redundant yield is one where no scheduling is changed
 
     s32 processor_id = 0;
 
@@ -452,6 +517,13 @@ private:
     u64 affinity_mask{0x1};
 
     ThreadActivity activity = ThreadActivity::Normal;
+
+    s32 ideal_core_override = -1;
+    u64 affinity_mask_override = 0x1;
+    u32 affinity_override_count = 0;
+
+    u32 scheduling_state = 0;
+    bool is_running = false;
 
     std::string name;
 };
