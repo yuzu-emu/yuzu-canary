@@ -7,6 +7,7 @@
 
 #include "common/assert.h"
 #include "core/core.h"
+#include "core/core_cpu.h"
 #include "core/hle/kernel/errors.h"
 #include "core/hle/kernel/handle_table.h"
 #include "core/hle/kernel/kernel.h"
@@ -78,7 +79,7 @@ ResultCode Mutex::TryAcquire(VAddr address, Handle holding_thread_handle,
     // thread.
     ASSERT(requesting_thread == current_thread);
 
-    const u32 addr_value = Memory::Read32(address);
+    u32 addr_value = Memory::Read32(address);
 
     // If the mutex isn't being held, just return success.
     if (addr_value != (holding_thread_handle | Mutex::MutexHasWaitersFlag)) {
@@ -87,6 +88,20 @@ ResultCode Mutex::TryAcquire(VAddr address, Handle holding_thread_handle,
 
     if (holding_thread == nullptr) {
         return ERR_INVALID_HANDLE;
+    }
+
+    // This a workaround where an unknown bug writes the mutex value to give ownership to a cond var
+    // waiting thread.
+    if (holding_thread->GetStatus() == ThreadStatus::WaitCondVar) {
+        if (holding_thread->GetMutexWaitAddress() == address) {
+            Release(address, holding_thread.get());
+            addr_value = Memory::Read32(address);
+            if (addr_value == 0)
+                return RESULT_SUCCESS;
+            else {
+                holding_thread = handle_table.Get<Thread>(addr_value & Mutex::MutexOwnerMask);
+            }
+        }
     }
 
     // Wait until the mutex is released
@@ -104,14 +119,13 @@ ResultCode Mutex::TryAcquire(VAddr address, Handle holding_thread_handle,
     return RESULT_SUCCESS;
 }
 
-ResultCode Mutex::Release(VAddr address) {
+ResultCode Mutex::Release(VAddr address, Thread* holding_thread) {
     // The mutex address must be 4-byte aligned
     if ((address % sizeof(u32)) != 0) {
         return ERR_INVALID_ADDRESS;
     }
 
-    auto* const current_thread = system.CurrentScheduler().GetCurrentThread();
-    auto [thread, num_waiters] = GetHighestPriorityMutexWaitingThread(current_thread, address);
+    auto [thread, num_waiters] = GetHighestPriorityMutexWaitingThread(holding_thread, address);
 
     // There are no more threads waiting for the mutex, release it completely.
     if (thread == nullptr) {
@@ -120,7 +134,7 @@ ResultCode Mutex::Release(VAddr address) {
     }
 
     // Transfer the ownership of the mutex from the previous owner to the new one.
-    TransferMutexOwnership(address, current_thread, thread);
+    TransferMutexOwnership(address, holding_thread, thread);
 
     u32 mutex_value = thread->GetWaitHandle();
 
@@ -139,6 +153,12 @@ ResultCode Mutex::Release(VAddr address) {
     thread->SetCondVarWaitAddress(0);
     thread->SetMutexWaitAddress(0);
     thread->SetWaitHandle(0);
+    thread->SetWaitSynchronizationResult(RESULT_SUCCESS);
+
+    if (thread->GetProcessorID() >= 0)
+        system.CpuCore(thread->GetProcessorID()).PrepareReschedule();
+    if (holding_thread->GetProcessorID() >= 0)
+        system.CpuCore(holding_thread->GetProcessorID()).PrepareReschedule();
 
     return RESULT_SUCCESS;
 }
