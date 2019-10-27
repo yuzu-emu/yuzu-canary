@@ -304,6 +304,13 @@ public:
         return levels[priority == Depth ? 63 : priority].back();
     }
 
+    void clear() {
+        used_priorities = 0;
+        for (std::size_t i = 0; i < Depth; i++) {
+            levels[i].clear();
+        }
+    }
+
 private:
     using const_list_iterator = typename std::list<T>::const_iterator;
 
