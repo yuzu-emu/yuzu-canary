@@ -1,3 +1,18 @@
+# Merge log
+
+Scroll down for the original README.md!
+
+Base revision: bf50345d4c13e34e69af0070632400b3472a1a11
+
+|Pull Request|Commit|Title|Author|Merged?|
+|----|----|----|----|----|
+|[1](https://github.com/yuzu-emu/yuzu-canary/pull/1)|[a8dfe5443](https://github.com/yuzu-emu/yuzu-canary/pull/1/files/)|Canary Base|[chris062689](https://github.com/chris062689)|Yes|
+
+
+End of merge log. You can find the original README.md below the break.
+
+------
+
 <h1 align="center">
   <br>
   <a href="https://yuzu-emu.org/"><img src="https://raw.githubusercontent.com/yuzu-emu/yuzu-assets/master/icons/icon.png" alt="yuzu" width="200"></a>
